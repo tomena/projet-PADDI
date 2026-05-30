@@ -1,0 +1,87 @@
+/* GLOBAL DASHBOARD LAYOUT */
+.dashboard-container {
+  padding: 20px;
+  background: #f4f6f9;
+}
+
+/* KPI BAR (TOP) */
+.kpi-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.kpi-card {
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
+
+.kpi-card h2 {
+  margin: 0;
+  color: #0b2a6f;
+}
+
+/* MAIN LAYOUT */
+.main-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 20px;
+}
+
+/* LEFT PANEL */
+.left-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* RIGHT PANEL */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* TITLES */
+.block-title {
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #0b2a6f;
+}
+
+/* TABS */
+.tabs {
+  display: flex;
+  gap: 10px;
+}
+
+.tab {
+  padding: 10px 14px;
+  border: none;
+  background: white;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.tab.active {
+  background: #0b2a6f;
+  color: white;
+}
+
+/* GRID 2 */
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+/* CARD */
+.card {
+  background: white;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
