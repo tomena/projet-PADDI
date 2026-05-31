@@ -383,6 +383,21 @@ export default function Sidebar({ setPage }: any) {
           </div>
         </div>
 
+        <div
+  style={{
+    ...styles.menuItem,
+    ...(isActive('suivi-activites-annuelles')
+      ? styles.activeMenu
+      : {}),
+  }}
+  onClick={() => go('suivi-activites-annuelles')}
+>
+  <div style={styles.menuLeft}>
+    <Activity size={18} />
+    {!collapsed && 'Suivi activités annuelles'}
+  </div>
+</div>
+
         {/* ================= DASHBOARD ================= */}
         <div style={styles.menuItem} onClick={() => toggle('dashboard')}>
           <div style={styles.menuLeft}>

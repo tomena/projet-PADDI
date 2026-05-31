@@ -12,6 +12,7 @@ import BudgetCommunaux from './pages/BudgetCommunaux';
 import RevenusProducteurs from './pages/RevenusProducteurs';
 
 import SuiviCouts from './pages/SuiviCouts';
+import SuiviActivitesAnnuelles from './pages/SuiviActivitesAnnuelles';
 
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
@@ -49,6 +50,8 @@ export default function App() {
         {page === 'revenus-producteurs' && <RevenusProducteurs />}
 
         {page === 'suivi-couts' && <SuiviCouts />}
+
+        {page === 'suivi-activites-annuelles' && <SuiviActivitesAnnuelles />}
       </div>
     </div>
   );
