@@ -14,7 +14,9 @@ import {
   XCircle,
   Building2,
   Info,
-  TreePine, 
+  TreePine,
+  Users,
+  Trees, 
   MapPin,
 } from 'lucide-react';
 
@@ -26,6 +28,12 @@ import {
 } from 'recharts';
 
 export default function SuiviActivitesAnnuelles() {
+
+  const clamp = (minPx, vw, maxPx) =>
+  `clamp(${minPx}px, ${vw}vw, ${maxPx}px)`;
+
+  const isMobile =
+  typeof window !== 'undefined' && window.innerWidth < 900;
 
   const globalPie = [
     { value: 62 },
@@ -85,25 +93,44 @@ export default function SuiviActivitesAnnuelles() {
 
   const axes1 = {
     title: 'AXES PRIORITAIRES 1 : SYSTÈME DE GESTION ET GOUVERNANCE',
-    icon: TreePine,
+    icon: Users,
     data:[
         { name: 'Analyses diagnostiques', value: 82, color: '#2563eb' },
         { name: 'Planification territoriale', value: 65, color: '#16a34a' },
         { name: 'Suivi écosystémique', value: 42, color: '#f59e0b' },
         { name: 'Financement durable', value: 55, color: '#16a34a' },
-        { name: 'Participation population', value: 76, color: '#2563eb' },
+        { name: 'Participation des populations', value: 76, color: '#2563eb' },
+        { name: 'Coopération avec MNP', value: 60, color: '#16a34a' },
+        { name: 'Coordination intersectorielle', value: 40, color: '#f59e0b' },
+        { name: 'Lutte contre la corruption', value: 20, color: '#f97316' },
     ]
+    
 };
   const axes2 = {
     title: 'AXES PRIORITAIRES 2 : AMÉNAGEMENT DU TERRITOIRE',
-    icon: MapPin,
+    icon: Trees,
     data:[
         { name: 'Restauration paysages', value: 78, color: '#16a34a' },
         { name: 'Production durable', value: 58, color: '#2563eb' },
         { name: 'Sécurisation foncière', value: 45, color: '#f59e0b' },
         { name: 'Gestion des feux', value: 22, color: '#f97316' },
+        { name: 'Valorisation des productions', value: 60, color: '#16a34a' },
+        { name: 'Diversification des activités', value: 48, color: '#f59e0b' },
+        { name: 'Mobilisation communautaire', value: 66, color: '#16a34a' },
+        { name: 'Système de marché', value: 25, color: '#f97316' },
     ]
     };
+
+    const Axis1Icon = axes1.icon;
+    const Axis2Icon = axes2.icon;
+
+    const getProgressColor = (value) => {
+        if (value <= 25) return '#ef4444'; // rouge
+        if (value <= 50) return '#facc15'; // jaune
+        if (value <= 75) return '#22c55e'; // vert
+        return '#2563eb'; // bleu
+      };
+
   return (
     <div style={styles.page}>
 
@@ -139,6 +166,7 @@ export default function SuiviActivitesAnnuelles() {
             <div style={styles.filterLabel}>ANNÉE</div>
 
             <select style={styles.bigSelect}>
+              <option>Tous</option>
               <option>2024</option>
               <option>2025</option>
               <option>2026</option>
@@ -191,6 +219,7 @@ export default function SuiviActivitesAnnuelles() {
             <div style={styles.filterLabel}>UNITÉ DE COORDINATION</div>
 
             <select style={styles.bigSelect}>
+              <option>Tous</option>
               <option>Antananarivo</option>
               <option>Ambositra</option>
               <option>Mahajanga</option>
@@ -209,9 +238,9 @@ export default function SuiviActivitesAnnuelles() {
         <div style={styles.resetContainer}>
           <button style={styles.resetBigBtn}>
             <RotateCcw size={20} />
-            Réinitialiser
-            <br />
-            les filtres
+            <span style={{ textAlign: 'center' }}>
+              Réinitialiser les filtres
+            </span>
           </button>
         </div>
       </div>
@@ -374,7 +403,7 @@ export default function SuiviActivitesAnnuelles() {
                 </span>
             </div>
 
-            <div style={{ fontSize: 12, color: '#64748b' }}>
+            <div style={{ fontSize: clamp(10, 0.8, 11), color: '#64748b' }}>
               vs mois précédent
             </div>
 
@@ -384,7 +413,7 @@ export default function SuiviActivitesAnnuelles() {
                     style={{
                     color: r.color,
                     fontWeight: 900,
-                    fontSize: 13,
+                    fontSize: 12,
                     }}
                 >
                     {r.done}
@@ -466,9 +495,9 @@ export default function SuiviActivitesAnnuelles() {
                         }}
                         >
                         {c.up ? (
-                            <TrendingUp size={16} color="#16a34a" />
+                            <TrendingUp size={18} color="#16a34a" />
                         ) : (
-                            <TrendingDown size={16} color="#ef4444" />
+                            <TrendingDown size={18} color="#ef4444" />
                         )}
 
                         <span>
@@ -487,7 +516,7 @@ export default function SuiviActivitesAnnuelles() {
 
                     <div
                         style={{
-                        fontSize: 12,
+                          fontSize: 11,
                         fontWeight: 600,
                         color: '#64748b',
                         }}
@@ -497,6 +526,7 @@ export default function SuiviActivitesAnnuelles() {
                         style={{
                             color: c.color,
                             fontWeight: 900,
+                            fontSize:11,
                         }}
                         >
                         {c.done}
@@ -516,26 +546,63 @@ export default function SuiviActivitesAnnuelles() {
       {/* ================= AXES ================= */}
       <div style={styles.grid2}>
 
-        {/* AXE 1 */}
-        <div style={styles.card}>
-            <div style={styles.axisHeader}>
+            {/* AXE 1 */}
+            <div style={styles.card}>
+
+              <div style={styles.axisHeader}>
                 <div style={styles.axisHeaderLeft}>
-                    <TreePine size={18} color="#fff" />
-                    <span>AXES PRIORITAIRES 1 : SYSTÈME DE GESTION ET GOUVERNANCE</span>
+                  <Axis1Icon size={18} color="#fff" />
+                  <span>{axes1.title}</span>
                 </div>
-            </div>
+
+              </div>
+
+          {/* HEADER TABLE */}
+          <div style={styles.axisTableHeader}>
+            <div>AXE PRIORITAIRE</div>
+            <div>TAUX D'AVANCEMENT</div>
+          </div>
 
           <div style={styles.axisBox}>
-          {axes1.data.map((a, i) => (
-              <div key={i}>
-                <div style={styles.axisRow}>
-                  <span>{a.name}</span>
-                  <span style={{ color: a.color, fontWeight: 900 }}>{a.value}%</span>
+            {axes1.data.map((a, i) => (
+              <div key={i} style={styles.axisTableRow}>
+
+                {/* COLONNE 1 */}
+                <div style={styles.axisLeftCol}>
+                  <span style={styles.axisCode}>
+                  {
+                    i < 4
+                      ? `1.1.${i + 1}`
+                      : `1.2.${i - 3}`
+                  }
+                  </span>
+
+                  <span style={styles.axisName}>
+                    {a.name}
+                  </span>
                 </div>
 
-                <div style={styles.bar}>
-                  <div style={{ ...styles.fill, width: `${a.value}%`, background: a.color }} />
+                {/* COLONNE 2 */}
+                <div style={styles.axisRightCol}>
+
+                  {/* BAR */}
+                  <div style={styles.axisBar}>
+                    <div
+                      style={{
+                        ...styles.axisFill,
+                        width: `${a.value}%`,
+                        background: getProgressColor(a.value),
+                      }}
+                    />
+                  </div>
+
+                  {/* % */}
+                  <div style={styles.axisPercent}>
+                    {a.value}%
+                  </div>
+
                 </div>
+
               </div>
             ))}
           </div>
@@ -543,52 +610,151 @@ export default function SuiviActivitesAnnuelles() {
 
         {/* AXE 2 */}
         <div style={styles.card}>
-        <div style={styles.axisHeader}>
+              <div style={styles.axisHeader}>
                 <div style={styles.axisHeaderLeft}>
-                    <MapPin size={18} color="#fff" />
-                    <span>AXES PRIORITAIRES 2 : AMENAGEMENT DU TERRITOIRE</span>
-                </div>
-            </div>
-
-          <div style={styles.axisBox}>
-          {axes2.data.map((a, i) => (
-              <div key={i}>
-                <div style={styles.axisRow}>
-                  <span>{a.name}</span>
-                  <span style={{ color: a.color, fontWeight: 900 }}>{a.value}%</span>
-                </div>
-
-                <div style={styles.bar}>
-                  <div style={{ ...styles.fill, width: `${a.value}%`, background: a.color }} />
+                  <Axis2Icon size={18} color="#fff" />
+                  <span>{axes2.title}</span>
                 </div>
               </div>
-            ))}
+
+          <div style={styles.axisTableHeader}>
+            <div>AXE PRIORITAIRE</div>
+            <div>TAUX D'AVANCEMENT</div>
           </div>
+
+          <div style={styles.axisBox}>
+            {axes2.data.map((a, i) => (
+              <div key={i} style={styles.axisTableRow}>
+
+        <div style={styles.axisLeftCol}>
+          <span style={styles.axisCode}>
+          {
+            i < 4
+              ? `2.1.${i + 1}`
+              : `2.2.${i - 3}`
+          }
+          </span>
+
+          <span style={styles.axisName}>
+            {a.name}
+          </span>
         </div>
+
+        <div style={styles.axisRightCol}>
+
+          <div style={styles.axisBar}>
+            <div
+              style={{
+                ...styles.axisFill,
+                width: `${a.value}%`,
+                background: getProgressColor(a.value),
+              }}
+            />
+          </div>
+
+          <div style={styles.axisPercent}>
+            {a.value}%
+          </div>
+
+        </div>
+
+      </div>
+    ))}
+  </div>
+</div>
 
       </div>
 
       {/* ================= FOOTER ================= */}
+      {/* ================= FOOTER LEGEND ================= */}
+      
       <div style={styles.footer}>
-        <div>Total activités: 176</div>
-        <div style={{ color: '#16a34a', fontWeight: 900 }}>Taux global: 62%</div>
-        <div>Activités actives: 160</div>
+
+      <div style={styles.footerHeader}>
+        LEGENDE (TAUX D'AVANCEMENT)
       </div>
+  
+      {/* LEFT : LEGEND */}
+        <div style={styles.footerLegend}>
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#ef4444' }} />
+            0 à 25%
+          </div>
+
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#f59e0b' }} />
+            25% à 50%
+          </div>
+
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#22c55e' }} />
+            50% à 75%
+          </div>
+
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#2563eb' }} />
+            75% à 100%
+          </div>
+        </div>
+
+        {/* CENTER : INFO TEXT */}
+        <div style={styles.footerInfo}>
+          <Info size={16} color="#16a34a" />
+          <span>
+            Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.
+          </span>
+        </div>
+
+        {/* RIGHT : CTA */}
+        <div style={styles.footerCTA}>
+          <div style={styles.ctaIcon}>
+            📄
+          </div>
+
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 10 }}>
+            ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE 2025
+          </div>
+          <div style={{ fontSize: 9, opacity: 0.8 }}>
+            Consultez le détail des coûts, engagements et décaissements
+          </div>
+        </div>
+
+        <button style={styles.ctaButton}>
+          Accéder au suivi des coûts 2025 ↗
+        </button>
+      </div>
+    </div>
 
     </div>
   );
 }
 
+const typography = {
+  h1: {
+    fontSize: 18,
+    fontWeight: 800,
+    letterSpacing: '0.5px',
+  },
+  h2: {
+    fontSize: 14,
+    fontWeight: 700,
+  },
+  body: {
+    fontSize: 12,
+    fontWeight: 400,
+  },
+};
 /* ================= STYLES ================= */
 
 const styles: any = {
 
   page: {
-    padding: 12,
+    padding: 'clamp(8px, 2vw, 16px)',
     background: 'none',
     fontFamily: 'Inter',
-    maxWidth: 1400,
-    margin: '0 auto',
+    width: '100%',
+    boxSizing: 'border-box',
   },
 
   header: {
@@ -599,16 +765,13 @@ const styles: any = {
     display: 'flex',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
+    marginBottom: 10,
   },
 
-  title: { 
-    fontSize: 16, 
-    fontWeight: 900 
-  },
-
-  subtitle: { 
-    fontSize: 12, 
-    opacity: 0.9 
+  subtitle: {
+    fontSize: 12,
+    fontWeight: 400,
+    opacity: 0.9,
   },
 
   dateBox: {
@@ -626,35 +789,16 @@ const styles: any = {
     fontWeight: 700 
   },
 
-  filters: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-    gap: 8,
-    marginTop: 10,
-  },
-
-  select: {
-    padding: 8,
-    borderRadius: 8,
-    border: '1px solid #ddd',
-  },
-
-  reset: {
-    background: '#fff',
-    border: '1px solid #16a34a',
-    borderRadius: 8,
-    fontWeight: 700,
-    display: 'flex',
-    gap: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
   gridTop: {
     display: 'grid',
-    gridTemplateColumns: '0.6fr 1.2fr',
-    gap: 5,
+    gridTemplateColumns: 'minmax(320px, 1fr) minmax(420px, 2fr)',
+    gap: 10,
     marginTop: 7,
+  
+    // responsive mobile
+    '@media (max-width: 900px)': {
+      gridTemplateColumns: '1fr',
+    },
   },
 
   card: {
@@ -663,32 +807,21 @@ const styles: any = {
     padding: 10,
     border: '1px solid #e5e7eb',
     boxSizing: 'border-box',
-    maxHeight: 220,
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
-    justifyContent: 'center',
   },
 
   cardHeader: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 700,
+    letterSpacing: '0.4px',
+    textTransform: 'uppercase',
     marginBottom: 0,
-    paddingBottom: 2,
+    paddingBottom: 4,
     color: '#16a34a',
     textAlign: 'center',
-    borderBottom: '1px solid #f1f5f9', // optionnel mais joli
-  },
-
-  cardHeaderGreen: {
-    background: '#16a34a',
-    color: '#fff',
-    padding: 8,
-    borderRadius: 8,
-    fontWeight: 900,
-    fontSize: 11,
-    textAlign: 'center',
-    marginBottom: 10,
+    borderBottom: '1px solid #f1f5f9',
   },
 
   globalWrap: {
@@ -718,51 +851,32 @@ const styles: any = {
     fontWeight: 900,
     color: '#16a34a',
   },
-
-  globalInnerCard: {
-    display: 'grid',
-    gridTemplateColumns: '120px 1fr',
-    alignItems: 'center',
-    gap: 12,
-    padding: 10,
-    borderRadius: 10,
-    background: '#f8fafc',
-  },
   
   kpiList: {
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'flex-start',
     gap: 6,
-    fontSize: 12,
-  },
-
-  resultRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: 8,
-    borderBottom: '1px solid #eee',
+    fontSize: 'clamp(10, 0.8, 14)',
   },
 
   resultLabel: { 
     fontSize: 11, 
-    fontWeight: 700 
+    fontWeight: 700, 
   },
 
   resultSub: { 
     fontSize: 10, 
-    color: '#64748b' 
-  },
-
-  percent: { 
-    fontWeight: 900 
+    color: '#64748b',
   },
 
   sectionTitle: {
     marginTop: 18,
-    fontSize: 12,
-    fontWeight: 900,
+    fontSize: 13,
+    fontWeight: 600,
+    letterSpacing: '0.4px',
     color: '#16a34a',
+    textTransform: 'uppercase',
   },
 
   grid4: {
@@ -780,6 +894,7 @@ const styles: any = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    minWidth: 0,
     boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
   },
 
@@ -806,9 +921,10 @@ const styles: any = {
 
   grid2: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
-    gap: 10,
+    gridTemplateColumns: 'repeat(auto-fit,minmax(500px,1fr))',
+    gap: 12,
     marginTop: 14,
+    alignItems: 'start',
   },
 
   axisBox: {
@@ -833,10 +949,11 @@ const styles: any = {
     padding: '6px 8px',
     border: '1px solid #dbe4f0',
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1.3fr 160px',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
     gap: 6,
     alignItems: 'center',
     overflow: 'hidden',
+    marginTop: 10,
   },
 
   bigFilter: {
@@ -845,7 +962,8 @@ const styles: any = {
     gap: 8,
     padding: '6px 10px',
     borderRight: '1px solid #e5e7eb',
-    minWidth: 0,
+    minWidth: 0,  
+    flexWrap: 'wrap', // 🔥 important
   },
 
   
@@ -862,18 +980,21 @@ const styles: any = {
 
   filterLabel: {
     fontSize: 12,
-    fontWeight: 800,
+    fontWeight: 600,
     color: '#16a34a',
+    letterSpacing: '0.3px',
     marginBottom: 2,
   },
 
   bigSelect: {
     width: '100%',
+    maxWidth: '100%',   // 🔥 important
+    minWidth: 0,
     height: 30,
     borderRadius: 8,
     border: '1px solid #cbd5e1',
     padding: '0 8px',
-    fontSize: 12,
+    fontSize: 'clamp(10px, 1vw, 14px)',
     fontWeight: 600,
     background: '#fff',
     outline: 'none',
@@ -883,73 +1004,44 @@ const styles: any = {
     marginTop: 6,
     fontSize: 11,
     color: '#6b7280',
-    whiteSpace: 'nowrap',
+    whiteSpace: 'normal', // 🔥 important
     overflow: 'hidden',
     textOverflow: 'ellipsis',
+    lineHeight: 1.2,
   },
 
   resetContainer: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
+    width: '100%',
+    minHeight: 100,
   },
 
   resetBigBtn: {
     width: '100%',
-    height: 60,
-    borderRadius: 10,
-    border: '2px solid #bfdbfe',
+    minHeight: 60,        // au lieu de height fixe
+    padding: '6px 10px',  // plus compact
+    borderRadius: 8,
+    border: '1.2px solid #bfdbfe',
     background: '#fff',
     color: '#16a34a',
-    fontWeight: 800,
-    fontSize: 12,
-    cursor: 'pointer',
+    fontWeight: 700,
+    fontSize: 'clamp(11px, 1vw, 14px)',
+    cursor: 'pointer',  
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,  
     lineHeight: 1.1,
-  },
-
-  bar: {
-    width: '100%',
-    height: 8,
-    background: '#e5e7eb',
-    borderRadius: 999,
-    marginBottom: 6,
-  },
-
-  fill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-
-  footer: {
-    marginTop: 14,
-    background: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontWeight: 700,
-    fontSize: 12,
+    textAlign: 'center',
   },
 
   resultsColumn: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: 10,
+    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+    gap: 'clamp(6px, 1vw, 12px)',
     marginTop: 10,
-  },
-  
-  resultCard: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 10,
-    border: '1px solid #e5e7eb',
-    borderRadius: 10,
-    background: '#fff',
   },
 
   resultBlock: {
@@ -972,21 +1064,7 @@ const styles: any = {
     textAlign: 'center',
     marginBottom: 0,
   },
-  
-  resultMiddle: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  
-  donutWrap: {
-    width: 100,
-    height: 100,
-    position: 'relative',
-    flexShrink: 0,
-    marginLeft: 0,
-  },
-  
+    
   donutText: {
     position: 'absolute',
     top: '50%',
@@ -996,24 +1074,11 @@ const styles: any = {
     fontWeight: 900,
   },
   
-  evolutionBox: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    flex: 1,
-  },
-  
   resultFooter: {
     fontSize: 11,
     color: '#64748b',
-    fontWeight: 600,
-  },
-
-  resultRowMiddle: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    fontWeight: 500,
+    lineHeight: 1.3,
   },
 
   resultGrid: {
@@ -1093,15 +1158,16 @@ const styles: any = {
   },
   
   kpiLabel: {
-    flex: 1,              
-    fontSize: 13,
+    flex: 1,
+    fontSize: 12,
+    fontWeight: 400,
     color: '#111827',
   },
   
   kpiValue: {
-    minWidth: 40,         
-    textAlign: 'right',   
-    fontWeight: 600,
+    minWidth: 40,
+    textAlign: 'right',
+    fontWeight: 700,
     color: '#111827',
     fontSize: 13,
   },
@@ -1111,14 +1177,217 @@ const styles: any = {
     color: '#fff',
     padding: '8px 10px',
     borderRadius: 8,
-    fontWeight: 900,
-    fontSize: 11,
+    fontWeight: 700,
+    fontSize: 12,
+    letterSpacing: '0.5px',
+    textTransform: 'uppercase',
     marginBottom: 10,
   },
   
   axisHeaderLeft: {
     display: 'flex',
     alignItems: 'center',
+    gap: 10,
+  },
+
+  axisTableHeader: {
+    display: 'grid',
+    gridTemplateColumns: '2fr 1fr',
+    gap: 10,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#16a34a',
+    padding: '6px 4px',
+    borderBottom: '1px solid #e5e7eb',
+  },
+  
+  axisTableRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(120px, 1fr) minmax(120px, 1fr)',
+    gap: 'clamp(4px, 1vw, 10px)',
+    alignItems: 'center',
+    padding: '4px 0',
+    borderBottom: '1px solid #f1f5f9',
+  },
+  
+  axisLeftCol: {
+    display: 'grid',
+    gridTemplateColumns: '45px 1fr',
+    gap: 4,
+    alignItems: 'center',
+    minWidth: 0,
+    maxWidth: '100%',
+  },
+
+  axisName: {
+    fontSize: 12,
+    fontWeight: 400,
+    lineHeight: 1.3,
+    whiteSpace: 'normal',
+    overflowWrap: 'break-word',
+  },
+  
+  axisCode: {
+    fontWeight: 600,
+    color: '#64748b',
+    fontSize: 10,
+  },
+  
+  axisRightCol: {
+    display: 'grid',
+    gridTemplateColumns: '1fr auto',
+    gap: 6,
+    alignItems: 'center',
+  },
+  
+  axisBar: {
+    flex: 1,
+    height: 10,
+    background: '#e5e7eb',
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginLeft: -2,
+  },
+  
+  axisFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  
+  axisPercent: {
+    width: 40,
+    paddingRight: 6,
+    textAlign: 'right',
+    fontWeight: 900,
+    fontSize: 10,
+  },
+
+  legendBox: {
+    marginTop: 16,
+    background: '#fff',
+    borderRadius: 10,
+    border: '1px solid #e5e7eb',
+    padding: 12,
+  },
+  
+  legendItems: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 20,
+  },
+  
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
     gap: 8,
-  }
+    fontSize: 11, // ou 11
+    fontWeight: 800,
+  },
+  
+  legendColor: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+  },
+  typography: {
+    h1: {
+      fontSize: 18,
+      fontWeight: 800,
+      letterSpacing: '0.5px',
+    },
+  
+    h2: {
+      fontSize: 14,
+      fontWeight: 700,
+      letterSpacing: '0.3px',
+    },
+  
+    h3: {
+      fontSize: 12,
+      fontWeight: 600,
+      letterSpacing: '0.2px',
+    },
+  
+    body: {
+      fontSize: 12,
+      fontWeight: 400,
+    },
+  
+    small: {
+      fontSize: 11,
+      fontWeight: 400,
+      color: '#64748b',
+    },
+  },
+
+  footer: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1.2fr 1.3fr',
+    gap: 10,
+    alignItems: 'start',
+    background: '#ffffff',
+    border: '1px solid #dbe4f0',
+    borderRadius: 12,
+    padding: '8px 12px 12px',
+    marginTop: 8,
+  },
+  
+  footerHeader: {
+    gridColumn: '1 / -1',
+    color: '#1d4ed8',
+    fontWeight: 900,
+    fontSize: 11,
+    letterSpacing: 0.4,
+    marginBottom: 6,
+  },
+  
+  footerLegend: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 14,
+    alignItems: 'center',
+    paddingTop: 8,
+  },
+  
+  footerInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#475569',
+    paddingTop: 8,
+  },
+  
+  footerCTA: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    background: '#ecfdf5',
+    border: '1px solid #a7f3d0',
+    borderRadius: 10,
+    padding: '8px 10px',
+    marginTop: -2,
+  },
+
+  ctaButton: {
+    background: '#16a34a',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    padding: '6px 10px',
+    fontSize: 10,
+    fontWeight: 800,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+
+  dot: {
+    display: 'inline-block',
+    width: 12,
+    height: 12,
+    borderRadius: '50%',
+    flexShrink: 0,
+  },
+  
 };
