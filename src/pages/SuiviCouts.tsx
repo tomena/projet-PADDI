@@ -129,6 +129,13 @@ const pieData = [
   { name: 'Rest', value: 58.5 },
 ];
 
+const getProgressColor = (percent) => {
+  if (percent < 25) return '#ef4444'; // rouge
+  if (percent < 50) return '#f59e0b'; // jaune
+  if (percent < 75) return '#22c55e'; // vert
+  return '#2563eb'; // bleu
+};
+
 export default function SuiviCouts() {
   const getPercent = (p: string) =>
     Math.min(parseFloat(p.replace(',', '.')) || 0, 100);
@@ -302,19 +309,21 @@ export default function SuiviCouts() {
               <div style={styles.kpiLabel}>TAUX D’EXÉCUTION</div>
 
               <div style={styles.pieWrapper}>
-                <PieChart width={120} height={120}>
-                  <Pie
-                    data={pieData}
-                    innerRadius={44}
-                    outerRadius={60}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                  >
-                    <Cell fill="#2563eb" />
-                    <Cell fill="#e5e7eb" />
-                  </Pie>
-                </PieChart>
+              <ResponsiveContainer width="100%" height={100}>
+                    <PieChart>
+                      <Pie
+                        data={[{ value: 41.5 }, { value: 58.5 }]}
+                        dataKey="value"
+                        innerRadius={27}
+                        outerRadius={50}
+                        startAngle={90}
+                        endAngle={-270}
+                      >
+                        <Cell fill="#2563eb" />
+                        <Cell fill="#e5e7eb" />
+                      </Pie>
+                    </PieChart>
+              </ResponsiveContainer>
 
                 <div style={styles.pieCenter}>41,5%</div>
               </div>
@@ -536,7 +545,7 @@ export default function SuiviCouts() {
                       style={{
                         ...styles.progressBarAnimated,
                         width: `${percent}%`,
-                        background: `linear-gradient(90deg, ${item.color}, #60a5fa)`,
+                        background: getProgressColor(percent),
                       }}
                     />
                   </div>
@@ -624,7 +633,7 @@ export default function SuiviCouts() {
                       style={{
                         ...styles.progressBarAnimated,
                         width: `${percent}%`,
-                        background: `linear-gradient(90deg, ${item.color}, #60a5fa)`,
+                        background: getProgressColor(percent),
                       }}
                     />
                   </div>
@@ -1034,8 +1043,69 @@ export default function SuiviCouts() {
             })}
           </div>
         </div>
+        
+      </div>
+
+      {/* ================= FOOTER LEGEND ================= */}
+      
+      <div style={styles.footer}>
+
+      <div style={styles.footerHeader}>
+        LEGENDE (TAUX D'AVANCEMENT)
+      </div>
+  
+      {/* LEFT : LEGEND */}
+        <div style={styles.footerLegend}>
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#ef4444' }} />
+            0 à 25%
+          </div>
+
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#f59e0b' }} />
+            25% à 50%
+          </div>
+
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#22c55e' }} />
+            50% à 75%
+          </div>
+
+          <div style={styles.legendItem}>
+            <span style={{ ...styles.dot, background: '#2563eb' }} />
+            75% à 100%
+          </div>
+        </div>
+
+        {/* CENTER : INFO TEXT */}
+        <div style={styles.footerInfo}>
+          <Info size={16} color="#16a34a" />
+          <span>
+            Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.
+          </span>
+        </div>
+
+        {/* RIGHT : CTA */}
+        <div style={styles.footerCTA}>
+          <div style={styles.ctaIcon}>
+            📄
+          </div>
+
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 10 }}>
+            ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE 2025
+          </div>
+          <div style={{ fontSize: 9, opacity: 0.8 }}>
+            Consultez le détail des coûts, engagements et décaissements
+          </div>
+        </div>
+
+        <button style={styles.ctaButton}>
+          Accéder au suivi des coûts 2025 ↗
+        </button>
       </div>
     </div>
+  </div>
   );
 }
 
@@ -1604,7 +1674,7 @@ const styles: any = {
     width: '100%',
     boxSizing: 'border-box',
     overflow: 'hidden',
-    alignItems: 'stretch',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
 
@@ -1674,10 +1744,103 @@ const styles: any = {
 
   donutWrapper: {
     position: 'relative',
-    width: 72,
+    width: '100%',
     height: 72,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+
+  footer: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1.2fr 1.2fr',
+    alignItems: 'start',
+    gap: 6,
+    padding: '4px 8px',
+    background: '#ffffff',
+    border: '1px solid #dbe4f0',
+    borderRadius: 10,
+  },
+  
+  footerLegend: {
+    display: 'flex',
+    gap: 14,
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    paddingTop: 6,
+    fontSize: 10,
+    fontWeight: 700,
+    color: '#334155',
+  },
+  
+  legendItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    display: 'inline-block',
+  },
+  
+  footerInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 11,
+    color: '#475569',
+    fontWeight: 600,
+    transform: 'translateY(-4px)',
+    paddingTop: 2,
+  },
+  
+  footerCTA: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    paddingTop: 2,
+    background: '#ecfdf5',
+    padding: '4px 8px',
+    borderRadius: 8,
+    border: '1px solid #a7f3d0',
+    transform: 'translateY(-4px)',
+  },
+  
+  ctaIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    background: '#d1fae5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 14,
+  },
+  
+  ctaButton: {
+    background: '#16a34a',
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    padding: '6px 10px',
+    fontSize: 10,
+    fontWeight: 800,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
+
+  footerHeader: {
+    gridColumn: '1 / -1',
+    fontSize: 11,
+    fontWeight: 800,
+    marginTop: 10,
+    color: '#1d4ed8',
+    marginBottom: 0,
+    letterSpacing: 0.4,
+    
   },
 };
