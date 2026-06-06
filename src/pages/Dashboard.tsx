@@ -222,6 +222,8 @@ export default function Dashboard({ data }: any) {
 
             <div style={styles.analyticsGroup}>
           <div style={styles.analyticsGrid}>
+
+          <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
           
             <DonutChart
               title="Répartition des bénéficiaires par genre"
@@ -232,7 +234,9 @@ export default function Dashboard({ data }: any) {
               centerText="7 000"
               centerLabel="producteurs"
             />
+            </div>
 
+            <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
             <DonutChart
               title="Répartition des jeunes bénéficiaires"
               data={[
@@ -242,6 +246,9 @@ export default function Dashboard({ data }: any) {
               centerText="7 000"
               centerLabel="producteurs"
             />
+            </div>
+
+            <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
 
             <DonutChart
               title="Statut des indicateurs"
@@ -251,8 +258,10 @@ export default function Dashboard({ data }: any) {
                 { name: 'Non atteint', value: 10, color: '#ef4444' },
               ]}
             />
+            </div>
 
-            <div style={styles.gaugeBox}>
+            <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
+              
               <GaugeKpi value={dashboard.progression} />
             </div>
 
@@ -440,25 +449,47 @@ function RealKpi({ title, value, unit, target, percent, color, icon }: any) {
 function GaugeKpi({ value }: any) {
   const clamp = Math.min(Math.max(value, 0), 100);
 
-  const color = clamp <= 30 ? '#dc2626' : clamp <= 55 ? '#f97316' : '#16a34a';
+  const color =
+    clamp <= 30 ? '#dc2626' : clamp <= 55 ? '#f97316' : '#16a34a';
 
-  const data = [{ value: clamp }, { value: 100 - clamp }];
+  const data = [
+    { value: clamp },
+    { value: 100 - clamp },
+  ];
 
   return (
-    <div style={styles.gaugeBox}>
-      <div style={styles.sectionTitle}>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 200,
+        width: '100%',
+      }}
+    >
+      {/* TITRE */}
+      <div
+        style={{
+          fontSize: 12,
+          fontWeight: 700,
+          marginBottom: 6,
+          textAlign: 'center',
+        }}
+      >
         Avancement global du projet
       </div>
-  
-      <div style={{ height: 70 }}>
+
+      {/* JAUGE */}
+      <div style={{ width: '100%', height: 180, position: 'relative', marginTop: 20, }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               startAngle={180}
               endAngle={0}
-              innerRadius={30}
-              outerRadius={60}
+              innerRadius={50}
+              outerRadius={80}
               dataKey="value"
               stroke="none"
             >
@@ -467,11 +498,37 @@ function GaugeKpi({ value }: any) {
             </Pie>
           </PieChart>
         </ResponsiveContainer>
-      </div>
 
-      <div style={{ textAlign: 'center' }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color }}>{clamp}%</div>
-        <div style={{ fontSize: 10, color: '#666' }}>Progression global</div>
+        {/* TEXTE CENTRÉ DANS LA JAUGE */}
+        <div
+          style={{
+            position: 'absolute',
+            top: '55%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center',
+          }}
+        >
+          <div
+            style={{
+              fontSize: 20,
+              fontWeight: 800,
+              color,
+              lineHeight: 1,
+            }}
+          >
+            {clamp}%
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: '#666',
+              marginTop: 2,
+            }}
+          >
+            Progression globale
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -951,10 +1008,10 @@ const styles: any = {
   },
 
   chartTitle: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: 700,
     marginBottom: 2,
-    lineHeight: 1,
+    lineHeight: 1.1,
     textAlign: 'center',
   },
 
@@ -1012,7 +1069,7 @@ const styles: any = {
     width: '100%',
     height: 120,
     marginTop: 0,
-    marginBottom: 20,
+    marginBottom: 4,
   },
 
   donutCenterValue: {
@@ -1029,11 +1086,11 @@ const styles: any = {
   },
 
   legendModern: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(2, auto)', // 🔥 2 colonnes fixes
+    display: 'flex',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     gap: 6,
     marginTop: 8,
-    justifyContent: 'center',
   },
 
   legendModernItem: {
@@ -1041,7 +1098,7 @@ const styles: any = {
     alignItems: 'center',
     gap: 5,
     background: '#fff',
-    padding: '3px 5px',
+    padding: '1px 3px',
   },
 
   legendDot: {
@@ -1172,27 +1229,34 @@ const styles: any = {
 
   analyticsGrid: {
     display: 'grid',
-    gridTemplateColumns: isMobile
-      ? '1fr'
-      : isTablet
-      ? 'repeat(2, minmax(0, 1fr))'
-      : 'repeat(4, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(3, minmax(0, 0.75fr)) 0.8fr',
     gap: 10,
-    marginTop: 2,
-    width: '100%',
-    gridAutoRows: '1fr',
     alignItems: 'stretch',
+    width: '100%',
+  },
+
+  chartCard: {
+    background: '#fff',
+    borderRadius: 10,
+    padding: 8,        // ↓ réduit padding
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'space-between',  
+    minWidth: 0,
+    overflow: 'hidden',
   },
 
   gaugeBox: {
     background: '#fff',
     borderRadius: 10,
-    padding: 10,
+    padding: 10,  
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: 220,
+    alignItems: 'center',  
+    height: '100%',
+    minHeight: 0,
   },
 
   sectionDivider: {
@@ -1219,11 +1283,9 @@ const styles: any = {
     border: '1px solid #e5e7eb',
     borderRadius: 10,
     padding: 12,
-    minHeight: 220,     // ↑ plus haut pour les donuts + jauge
-    width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
-    boxSizing: 'border-box',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
   },
 
   footer: {
