@@ -82,7 +82,7 @@ export default function Dashboard({ data }: any) {
           <div style={styles.leftBlock}>
             <div style={styles.sectionTitle}>
               <TrendingUp size={30} />
-              <span>INDICATEURS D’IMPACT</span>
+              <span>RÉALISATIONS CLÉS</span>
             </div>
 
             <div style={styles.kpiGrid}>
@@ -125,16 +125,6 @@ export default function Dashboard({ data }: any) {
                 color="#f59e0b"
                 icon={<Users size={42} />}
               />
-
-              <KpiCard
-                title="Région disposent d'un système de suivi-évaluation des SE"
-                value="3"
-                unit="régions"
-                percent={60}
-                target="Cible : 5 régions"
-                color="#0284c7"
-                icon={<Monitor size={42} />}
-              />
             </div>
           </div>
 
@@ -147,7 +137,7 @@ export default function Dashboard({ data }: any) {
 
             <div style={styles.resultGrid}>
               <ResultCard
-                icon={<Home size={28} />}
+                icon={<Home size={20} />}
                 title="Mesures SECO adoptées par les Communes"
                 value="36"
                 unit="mesures"
@@ -156,7 +146,7 @@ export default function Dashboard({ data }: any) {
               />
 
               <ResultCard
-                icon={<FileText size={28} />}
+                icon={<FileText size={20} />}
                 title="Décisions COSAP intégrées aux plans communaux"
                 value="21"
                 unit="décisions"
@@ -165,101 +155,74 @@ export default function Dashboard({ data }: any) {
               />
 
               <ResultCard
-                icon={<Leaf size={28} />}
+                icon={<Leaf size={20} />}
                 title="Paquets de mesures régionales SE"
                 value="5"
                 unit="paquets"
                 percent={100}
                 target="Cible : 5 paquets"
               />
+
+              <ResultCard
+                icon={<Monitor size={20} />}
+                title="Région disposent d'un système de suivi-évaluation des SE"
+                value="3"
+                unit="régions"
+                percent={60}
+                target="Cible : 5 régions"
+              />
             </div>
           </div>
-        </div>
 
-        {/* COLONNE DROITE */}
-        <div style={styles.rightBlock}>
-          <div style={styles.sectionTitle}>
-            <MapPinned size={28} />
-            <span>ZONE D’INTERVENTION</span>
-          </div>
-
-          <div style={styles.mapCard}>
-            <MapContainer
-              center={[-19.0, 47.0]}
-              zoom={5}
-              style={{
-                width: '100%',
-                height: '100%',
-                minHeight: '380px',
-                borderRadius: 5,
-              }}
-            >
-              <TileLayer
-                attribution="&copy; ESRI"
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+          <div style={styles.realisationSection}>
+            {/* LIGNE KPI + GAUGE */}
+            <div style={styles.kpiGroup}>
+            <div style={styles.realisationGrid}>
+              <RealKpi
+                title="Pratiques agropastorales durables"
+                value="40 000"
+                unit="ha"
+                target="Cible : 60 000 ha"
+                percent={67}
+                color="#16a34a"
+                icon={<Tractor size={30} />}
               />
-            </MapContainer>
-          </div>
-        </div>
-      </div>
 
-      {/* ================== REALISATIONS CLES (FULL WIDTH) ================== */}
-      <div style={styles.realisationSection}>
-        <div style={styles.sectionTitle}>
-          <TrendingUp size={28} />
-          <span>RÉALISATIONS CLÉS</span>
-        </div>
+              <RealKpi
+                title="Pratiques forestières durables"
+                value="70 000"
+                unit="ha"
+                target="Cible : 100 000 ha"
+                percent={70}
+                color="#16a34a"
+                icon={<Trees size={30} />}
+              />
 
-        {/* LIGNE KPI + GAUGE */}
-        <div style={styles.realisationGrid}>
-          <RealKpi
-            title="Pratiques agropastorales durables"
-            value="40 000"
-            unit="ha"
-            target="Cible : 60 000 ha"
-            percent={67}
-            color="#16a34a"
-            icon={<Tractor size={30} />}
-          />
+              <RealKpi
+                title="Producteurs améliorés"
+                value="7 000"
+                unit="producteurs"
+                target="Cible : 10 000"
+                percent={70}
+                color="#f59e0b"
+                icon={<Users size={30} />}
+              />
 
-          <RealKpi
-            title="Pratiques forestières durables"
-            value="70 000"
-            unit="ha"
-            target="Cible : 100 000 ha"
-            percent={70}
-            color="#16a34a"
-            icon={<Trees size={30} />}
-          />
+              <RealKpi
+                title="AGR / micro-entreprises"
+                value="50"
+                unit="entreprises"
+                target="Cible : 70"
+                percent={71}
+                color="#0284c7"
+                icon={<Cog size={30} />}
+              />              
+            </div>
+            </div>
 
-          <RealKpi
-            title="Producteurs améliorés"
-            value="7 000"
-            unit="producteurs"
-            target="Cible : 10 000"
-            percent={70}
-            color="#f59e0b"
-            icon={<Users size={30} />}
-          />
-
-          <RealKpi
-            title="AGR / micro-entreprises"
-            value="50"
-            unit="entreprises"
-            target="Cible : 70"
-            percent={71}
-            color="#0284c7"
-            icon={<Cog size={30} />}
-          />
-
-          {/* GAUGE intégré dans la même grille */}
-          <GaugeKpi value={dashboard.progression} />
-        </div>
-
-        {/* ================= LIGNE 2 : GRAPHIQUES ================= */}
-        <div style={styles.realisationGrid2}>
-          {/* BLOCS DONUTS (1 seul GRID propre) */}
-          <div style={styles.donutRow}>
+            <div style={styles.analyticsGroup}>
+          <div style={styles.analyticsGrid}>
+          
             <DonutChart
               title="Répartition des bénéficiaires par genre"
               data={[
@@ -281,16 +244,6 @@ export default function Dashboard({ data }: any) {
             />
 
             <DonutChart
-              title="AGR / micro-entreprises appuyées"
-              data={[
-                { name: 'Hommes', value: 50, color: '#22c55e' },
-                { name: 'Femmes/Jeunes', value: 50, color: '#a78bfa' },
-              ]}
-              centerText="50"
-              centerLabel="entreprises"
-            />
-
-            <DonutChart
               title="Statut des indicateurs"
               data={[
                 { name: 'Atteint', value: 70, color: '#16a34a' },
@@ -298,94 +251,46 @@ export default function Dashboard({ data }: any) {
                 { name: 'Non atteint', value: 10, color: '#ef4444' },
               ]}
             />
-          </div>
 
-          {/* LINE CHART */}
-          <div style={styles.chartBox}>
-            <div style={styles.chartTitle}>
-              Evolution des réalisations (cumul annuel)
+            <div style={styles.gaugeBox}>
+              <GaugeKpi value={dashboard.progression} />
             </div>
 
-            <ResponsiveContainer width="100%" height={180}>
-              <LineChart
-                data={[
-                  { year: 2024, agro: 70, forest: 80, prod: 50, agr: 35 },
-                  { year: 2025, agro: 85, forest: 95, prod: 65, agr: 50 },
-                  { year: 2026, agro: 100, forest: 110, prod: 80, agr: 70 },
-                  { year: 2027, agro: 20, forest: 120, prod: 10, agr: 5 },
-                  { year: 2028, agro: 35, forest: 80, prod: 20, agr: 10 },
-                  { year: 2029, agro: 50, forest: 72, prod: 30, agr: 20 },
-                  { year: 2030, agro: 50, forest: 140, prod: 100, agr: 150 },
-                ]}
-                style={{
-                  fontFamily: 'Inter, sans-serif',
-                  fontSize: 11,
-                  fontWeight: 600,
-                }}
-                margin={{
-                  top: 5,
-                  right: 35,
-                  left: 5,
-                  bottom: -40,
-                }}
-              >
-                <XAxis
-                  dataKey="year"
-                  tick={{ fontSize: 11, fontWeight: 700 }}
-                  tickMargin={0}
-                />
+          </div>
 
-                <YAxis tick={{ fontSize: 11, fontWeight: 700 }} width={20} />
+          </div>
 
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: 10,
-                    border: '1px solid #e5e7eb',
-                    fontSize: 11,
-                    fontWeight: 600,
-                  }}
-                />
+         </div>
+        </div>
 
-                <Legend
-                  verticalAlign="bottom"
-                  align="center"
-                  iconSize={10}
-                  wrapperStyle={{
-                    fontSize: 11,
-                    fontWeight: 700,
-                    bottom: -40,
-                  }}
-                />
+        {/* COLONNE DROITE */}
+        <div style={styles.rightBlock}>
+          <div style={styles.sectionTitle}>
+            <MapPinned size={28} />
+            <span>ZONE D’INTERVENTION</span>
+          </div>
 
-                <Line
-                  type="monotone"
-                  dataKey="agro"
-                  stroke="#3b82f6"
-                  name="Ha agropastoraux"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="forest"
-                  stroke="#16a34a"
-                  name="Ha forestiers"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="prod"
-                  stroke="#eab308"
-                  name="Producteurs"
-                />
-                <Line
-                  type="monotone"
-                  dataKey="agr"
-                  stroke="#f97316"
-                  name="AGR appuyées"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+          <div style={styles.mapCard}>
+            <MapContainer
+              center={[-19.0, 47.0]}
+              zoom={5}
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: 5,
+              }}
+            >
+              <TileLayer
+                attribution="&copy; ESRI"
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+              />
+            </MapContainer>
           </div>
         </div>
       </div>
+
+      {/* ================== REALISATIONS CLES (FULL WIDTH) ================== */}
+      
     </div>
   );
 }
@@ -534,9 +439,11 @@ function GaugeKpi({ value }: any) {
   const data = [{ value: clamp }, { value: 100 - clamp }];
 
   return (
-    <div style={styles.realCard}>
-      <div style={styles.realTitle}>Avancement global du projet</div>
-
+    <div style={styles.gaugeBox}>
+      <div style={styles.sectionTitle}>
+        Avancement global du projet
+      </div>
+  
       <div style={{ height: 70 }}>
         <ResponsiveContainer width="100%" height={175}>
           <PieChart>
@@ -659,18 +566,24 @@ const styles: any = {
     padding: '2px 0',
     margin: 0,
     width: '100%',
+    height: '100vh',
     minHeight: '100vh',
     background: 'none',
     display: 'flex',
     flexDirection: 'column',
     fontFamily: 'Inter, system-ui, sans-serif',
     overflowX: 'hidden',
+    boxSizing: 'border-box',
   },
 
   layout: {
     display: 'grid',
     gridTemplateColumns: isTablet ? '1fr' : '2fr 1fr',
     gap: 8,
+    alignItems: 'stretch',
+    minHeight: '100vh',
+    height: 'auto',
+    overflow: 'visible',
   },
 
   title: {
@@ -700,6 +613,7 @@ const styles: any = {
     display: 'flex',
     flexDirection: 'column',
     gap: 8,
+    height: '100%',
     minHeight: 0,
     overflow: 'hidden',
   },
@@ -707,12 +621,20 @@ const styles: any = {
   /* KPI GRID (réduite) */
   kpiGrid: {
     display: 'grid',
-    gridTemplateColumns: isTablet ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+    gridTemplateColumns: isMobile
+      ? '1fr'
+      : isTablet
+      ? 'repeat(2, minmax(0, 1fr))'
+      : 'repeat(4, minmax(0, 1fr))',
     gap: 6,
+    gridAutoRows: '1fr',
+    alignItems: 'stretch',
   },
+
   card: {
     background: '#fafafa',
     borderRadius: 8,
+    height: '100%',
     padding: 6,
     minHeight: 130,
     display: 'flex',
@@ -720,6 +642,7 @@ const styles: any = {
     justifyContent: 'space-between',
     textAlign: 'center',
     overflow: 'hidden',
+    width: '100%',      // AJOUT
   },
 
   kpiTitle: {
@@ -734,6 +657,7 @@ const styles: any = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
   },
 
   value: {
@@ -768,11 +692,12 @@ const styles: any = {
   },
 
   barBg: {
-    height: 10,
     background: '#e5e7eb',
     flex: 1,
-    borderRadius: 10,
+    height: 8,
+    borderRadius: 6,
     overflow: 'hidden',
+    minWidth: 0,
   },
 
   barFill: {
@@ -789,7 +714,8 @@ const styles: any = {
   barRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
+    marginTop: 3,
   },
 
   percentText: {
@@ -804,16 +730,16 @@ const styles: any = {
   rightBlock: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 10,
-    minHeight: 0,
-    overflow: 'hidden',
+    position: 'sticky',
+    top: 10,
+    height: 'calc(100vh - 20px)',
   },
 
   mapCard: {
-    width: '100%',
-    flex: '0 0 auto',
-    display: 'flex',
-    alignItems: 'stretch',
+    flex: 1,
+    height: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
   },
 
   mapImg: {
@@ -847,83 +773,86 @@ const styles: any = {
 
   resultGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: 8,
-    justifyItems: 'center',
-    alignItems: 'center',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+    gap: 6,
+    width: '100%',
+    gridAutoRows: '1fr',
+    alignItems: 'stretch',
   },
 
   resultCard: {
     background: '#fff',
     borderRadius: 10,
-    padding: 10,
-    minHeight: 140,
-    width: '95%',
-    maxWidth: 320,
-    boxShadow: '0 1px 6px rgba(0,0,0,0.05)',
+    gap: 4,
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
+    width: '100%',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    padding: 1,
+    borderRadius: 10,
+    minHeight: 120, // ⬅️ avant 150
   },
 
   resultTop: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'space-between',
+    padding: '0 10px',
   },
 
   resultTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
     color: '#111827',
     lineHeight: 1.2,
-
     textAlign: 'center',
-    alignSelf: 'flex-start',
     width: '100%',
     marginBottom: 8,
   },
 
   resultValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 800,
     color: '#14532d',
-    marginTop: 4,
-    textAlign: 'center',
   },
 
   resultUnit: {
-    fontSize: 10,
-    fontWeight: 500,
+    fontSize: 11,
     color: '#6b7280',
-    textAlign: 'center',
   },
 
   resultTarget: {
-    fontSize: 9,
+    fontSize: 10,
     marginTop: 4,
+    marginleft: 24,
     color: '#6b7280',
   },
 
   resultIcon: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 50,
-    height: 50,
+    width: 42,
+    height: 42,
+    minWidth: 42,
     borderRadius: '50%',
     background: '#dcfce7',
     color: '#16a34a',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
     flexShrink: 0,
+    border: '1px solid #bbf7d0', // 🔥 renforce visibilité du cercle
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)', // léger relief
   },
 
   resultContent: {
-    flex: 1,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
-    textAlign: 'left',
+    gap: 1,
+    padding: '0 10px',   // 🔥 espace à gauche de value
   },
 
   iconBox: {
@@ -935,28 +864,35 @@ const styles: any = {
 
   realisationSection: {
     width: '100%',
-    background: '#fff',
+    background: 'transparent',
     padding: 10,
     borderRadius: 10,
     display: 'flex',
     flexDirection: 'column',
-    gap: 6,
+    gap: 12,
   },
 
   realisationGrid: {
     display: 'grid',
-    gridTemplateColumns: isTablet ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
-    gap: 6,
-    marginBottom: 8,
+    gridTemplateColumns: isMobile
+      ? '1fr'
+      : isTablet
+      ? 'repeat(2, minmax(0, 1fr))'
+      : 'repeat(4, minmax(0, 1fr))',
+    gap: 8,
+    gridAutoRows: '1fr',
+    alignItems: 'stretch',
+    width: '100%',
+    minWidth: 0,
   },
 
   realCard: {
-    background: '#fafafa',
-    padding: 6,
-    borderRadius: 10,
-    minHeight: 120, // ⬅️ avant 150
+    height: '100%',
     display: 'flex',
     flexDirection: 'column',
+    background: '#fafafa',
+    padding: 10,
+    borderRadius: 10,
     justifyContent: 'space-between',
     minWidth: 0, // 🔥 IMPORTANT
     overflow: 'hidden',
@@ -971,8 +907,10 @@ const styles: any = {
 
   realTop: {
     display: 'flex',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 8,
+  paddingRight: 8,
   },
 
   realValue: {
@@ -986,13 +924,14 @@ const styles: any = {
   },
 
   realIcon: {
-    width: 52,
-    height: 52,
-    minWidth: 52,
+    width: 42,
+    height: 42,
+    minWidth: 42,
     borderRadius: '50%',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: 4,
     boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
   },
 
@@ -1138,6 +1077,7 @@ const styles: any = {
     padding: 12,
     border: '1px solid #e5e7eb',
   },
+
   legendRight: {
     display: 'flex',
     flexDirection: 'column',
@@ -1152,23 +1092,23 @@ const styles: any = {
 
   donutGrid: {
     display: 'grid',
-    gridTemplateColumns: 'minmax(320px, 640px) 1fr',
-    gap: 4,
+    gridTemplateColumns: 'minmax(0, 1fr) 1fr',
+    gap: 8,
   },
+
   donutContainer: {
     display: 'grid',
     gridTemplateColumns: isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-    gap: 6,
+    gap: 2,
     width: '100%',
   },
+
   donutRow: {
     display: 'grid',
     gridTemplateColumns: isMobile
       ? '1fr'
-      : isTablet
-      ? 'repeat(2, 1fr)'
-      : 'repeat(4, 1fr)',
-    gap: 6,
+      : 'repeat(4,1fr)',
+    gap: 8,
     width: '100%',
   },
 
@@ -1222,5 +1162,61 @@ const styles: any = {
     cursor: 'pointer',
     outline: 'none',
     minWidth: 110,
+  },
+
+  analyticsGrid: {
+    display: 'grid',
+    gridTemplateColumns: isMobile
+      ? '1fr'
+      : isTablet
+      ? 'repeat(2, minmax(0, 1fr))'
+      : 'repeat(4, minmax(0, 1fr))',
+    gap: 2,
+    marginTop: 2,
+    width: '100%',
+    gridAutoRows: '1fr',
+    alignItems: 'stretch',
+  },
+
+  gaugeBox: {
+    background: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    minHeight: 180,
+  },
+
+  sectionDivider: {
+    height: 1,
+    background: '#e5e7eb',
+    margin: '4px 0',
+  },
+
+  kpiGroup: {
+    background: '#f8fafc',
+    border: '1px solid #e5e7eb',
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 130,
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    overflow: 'hidden',
+    boxSizing: 'border-box',
+  },
+
+  analyticsGroup: {
+    background: '#f8fafc',
+    border: '1px solid #e5e7eb',
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 220,     // ↑ plus haut pour les donuts + jauge
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    boxSizing: 'border-box',
   },
 };
