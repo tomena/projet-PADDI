@@ -289,10 +289,16 @@ export default function Dashboard({ data }: any) {
         </div>
       </div>
 
-      {/* ================== REALISATIONS CLES (FULL WIDTH) ================== */}
+      <div style={styles.footer}>
+        <div>© PADDI+ - Tableau de bord</div>
+        <div>Dernière mise à jour : 2026</div>
+      </div>
       
     </div>
+
+    
   );
+  
 }
 /* ================= KPI ================= */
 
@@ -445,14 +451,14 @@ function GaugeKpi({ value }: any) {
       </div>
   
       <div style={{ height: 70 }}>
-        <ResponsiveContainer width="100%" height={175}>
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               startAngle={180}
               endAngle={0}
-              innerRadius={50}
-              outerRadius={80}
+              innerRadius={30}
+              outerRadius={60}
               dataKey="value"
               stroke="none"
             >
@@ -580,8 +586,8 @@ const styles: any = {
     display: 'grid',
     gridTemplateColumns: isTablet ? '1fr' : '2fr 1fr',
     gap: 8,
-    alignItems: 'stretch',
-    minHeight: '100vh',
+    alignItems: 'start', 
+    minHeight: 'auto',
     height: 'auto',
     overflow: 'visible',
   },
@@ -730,7 +736,7 @@ const styles: any = {
   rightBlock: {
     display: 'flex',
     flexDirection: 'column',
-    position: 'sticky',
+    position: 'relative',
     top: 10,
     height: 'calc(100vh - 20px)',
   },
@@ -1023,11 +1029,11 @@ const styles: any = {
   },
 
   legendModern: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 2,
-    marginTop: 0,
-    alignItems: 'center',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, auto)', // 🔥 2 colonnes fixes
+    gap: 6,
+    marginTop: 8,
+    justifyContent: 'center',
   },
 
   legendModernItem: {
@@ -1171,7 +1177,7 @@ const styles: any = {
       : isTablet
       ? 'repeat(2, minmax(0, 1fr))'
       : 'repeat(4, minmax(0, 1fr))',
-    gap: 2,
+    gap: 10,
     marginTop: 2,
     width: '100%',
     gridAutoRows: '1fr',
@@ -1186,7 +1192,7 @@ const styles: any = {
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
-    minHeight: 180,
+    minHeight: 220,
   },
 
   sectionDivider: {
@@ -1219,4 +1225,13 @@ const styles: any = {
     minWidth: 0,
     boxSizing: 'border-box',
   },
+
+  footer: {
+    marginTop: 12,
+    padding: 10,
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#6b7280',
+    borderTop: '1px solid #e5e7eb',
+  }
 };
