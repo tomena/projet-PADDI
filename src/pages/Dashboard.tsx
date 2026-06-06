@@ -646,7 +646,7 @@ const styles: any = {
     height: 'auto',
     minHeight: 'auto',
     overflow: 'visible',
-    paddingBottom: 80,
+    paddingBottom: 10,
   },
 
   title: {
