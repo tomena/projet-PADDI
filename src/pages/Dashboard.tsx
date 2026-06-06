@@ -1067,7 +1067,7 @@ const styles: any = {
   donutWrapper: {
     position: 'relative',
     width: '100%',
-    height: 160,
+    height: 140,
     marginTop: 0,
     marginBottom: 10,
   },
@@ -1286,11 +1286,10 @@ const styles: any = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    marginBottom: 40, // 🔥 clé anti-chevauchement footer
   },
 
   footer: {
-    marginTop: 5,
+    marginTop: 10,
     padding: 10,
     textAlign: 'center',
     fontSize: 11,
@@ -1298,6 +1297,6 @@ const styles: any = {
     borderTop: '1px solid #e5e7eb',
     background: '#fff',
     position: 'relative',
-    zIndex: 10,
+    zIndex: 1,
   },
 };
