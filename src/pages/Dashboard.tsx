@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, ScaleControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   PieChart,
@@ -293,6 +293,8 @@ export default function Dashboard({ data }: any) {
                 attribution="&copy; ESRI"
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
               />
+
+              <ScaleControl position="bottomleft" imperial={false} />
             </MapContainer>
           </div>
         </div>
@@ -310,6 +312,31 @@ export default function Dashboard({ data }: any) {
   
 }
 /* ================= KPI ================= */
+
+function CustomScale() {
+  return (
+    <div
+      style={{
+        position: 'relative',
+        bottom: 15,
+        left: 15,
+        background: 'white',
+        padding: '6px 10px',
+        borderRadius: 6,
+        boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+        fontSize: 11,
+        fontWeight: 600,
+        zIndex: 100,
+      }}
+    >
+      <div style={{ height: 4, width: 50, background: '#111', marginBottom: 4 }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: 50 }}>
+        <span>0</span>
+        <span>50 km</span>
+      </div>
+    </div>
+  );
+}
 
 function KpiCard({
   title,
@@ -646,7 +673,7 @@ const styles: any = {
     height: 'auto',
     minHeight: 'auto',
     overflow: 'visible',
-    paddingBottom: 4,
+    paddingBottom: 5,
   },
 
   title: {
