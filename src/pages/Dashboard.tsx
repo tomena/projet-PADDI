@@ -281,8 +281,8 @@ export default function Dashboard({ data }: any) {
 
           <div style={styles.mapCard}>
             <MapContainer
-              center={[-19.0, 47.0]}
-              zoom={5}
+              center={[-18.8792, 47.5079]}
+              zoom={6}
               style={{
                 width: '100%',
                 height: '100%',
@@ -644,7 +644,7 @@ const styles: any = {
     gap: 8,
     alignItems: 'start', 
     minHeight: 'auto',
-    height: 'auto',
+    height: '100vh',
     overflow: 'visible',
   },
 
@@ -794,7 +794,7 @@ const styles: any = {
     flexDirection: 'column',
     position: 'relative',
     top: 10,
-    height: 'calc(100vh - 20px)',
+    height: '100%',
   },
 
   mapCard: {
