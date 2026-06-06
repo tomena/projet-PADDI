@@ -643,8 +643,8 @@ const styles: any = {
     gridTemplateColumns: isTablet ? '1fr' : '2fr 1fr',
     gap: 8,
     alignItems: 'start', 
-    minHeight: 'auto',
-    height: '100vh',
+    height: 'auto',
+    minHeight: '100vh',
     overflow: 'visible',
   },
 
@@ -677,7 +677,7 @@ const styles: any = {
     gap: 8,
     height: '100%',
     minHeight: 0,
-    overflow: 'hidden',
+    overflow: 'visible',
   },
 
   /* KPI GRID (réduite) */
