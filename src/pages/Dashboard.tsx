@@ -635,7 +635,6 @@ const styles: any = {
     display: 'flex',
     flexDirection: 'column',
     fontFamily: 'Inter, system-ui, sans-serif',
-    overflowX: 'hidden',
     boxSizing: 'border-box',
   },
 
