@@ -542,7 +542,7 @@ function DonutChart({ title, data, centerText, centerLabel }: any) {
 
       {/* CHART */}
       <div style={styles.donutWrapper}>
-        <ResponsiveContainer width="100%" height={140}>
+        <ResponsiveContainer width="100%" height={160}>
           <PieChart>
             <Pie
               data={data}
@@ -644,8 +644,9 @@ const styles: any = {
     gap: 8,
     alignItems: 'start', 
     height: 'auto',
-    minHeight: '100vh',
+    minHeight: 'auto',
     overflow: 'visible',
+    paddingBottom: 80,
   },
 
   title: {
@@ -1066,9 +1067,9 @@ const styles: any = {
   donutWrapper: {
     position: 'relative',
     width: '100%',
-    height: 120,
+    height: 160,
     marginTop: 0,
-    marginBottom: 4,
+    marginBottom: 10,
   },
 
   donutCenterValue: {
@@ -1285,14 +1286,18 @@ const styles: any = {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
+    marginBottom: 40, // 🔥 clé anti-chevauchement footer
   },
 
   footer: {
-    marginTop: 12,
+    marginTop: 5,
     padding: 10,
     textAlign: 'center',
     fontSize: 11,
     color: '#6b7280',
     borderTop: '1px solid #e5e7eb',
-  }
+    background: '#fff',
+    position: 'relative',
+    zIndex: 10,
+  },
 };
