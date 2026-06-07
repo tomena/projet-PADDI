@@ -390,6 +390,8 @@ function KpiCard({
     </div>
   );
 }
+
+
 function ResultCard({ icon, title, value, unit, percent, target }: any) {
   return (
     <div style={styles.resultCard}>
@@ -647,8 +649,11 @@ function DonutChart({ title, data, centerText, centerLabel }: any) {
   );
 }
 
-const isTablet = window.innerWidth < 1024;
-const isMobile = window.innerWidth < 768;
+const isTablet =
+  typeof window !== 'undefined' && window.innerWidth < 1024;
+
+const isMobile =
+  typeof window !== 'undefined' && window.innerWidth < 768;
 /* ================= STYLES ================= */
 
 const styles: any = {
