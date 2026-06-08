@@ -12,9 +12,12 @@ import BudgetCommunaux from './pages/BudgetCommunaux';
 import RevenusProducteurs from './pages/RevenusProducteurs';
 
 import SuiviCouts from './pages/SuiviCouts';
+
 import SuiviActivitesAnnuelles from './pages/SuiviActivitesAnnuelles';
 
 import SuperficiesBrulees from './pages/SuperficiesBrulees';
+
+import SystemeSuivi from './pages/SystemeSuivi';
 
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
@@ -56,6 +59,8 @@ export default function App() {
         {page === 'suivi-activites-annuelles' && <SuiviActivitesAnnuelles />}
 
         {page === 'superficie-brulee' && <SuperficiesBrulees />}
+
+        {page === 'systeme-suivi' && <SystemeSuivi />}
         
       </div>
     </div>
