@@ -250,8 +250,8 @@ export default function SuperficiesBrulees() {
       Objectif : -25% de superficies brûlées d'ici 2030
     </div>
 
-    <div style={styles.kpiLine}>Référence (2024) : 100%</div>
-    <div style={styles.kpiLine}>Valeur actuelle (2025) : -16,0%</div>
+    <div style={styles.kpiLine}>Référence (2020 - 2024) : 100%</div>
+    <div style={styles.kpiLine}>Valeur actuelle ({selectedYear}) : -16,0%</div>
     <div style={styles.kpiLine}>Cible (2030): -25%</div>
   </div>
 </div>
