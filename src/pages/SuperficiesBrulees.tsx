@@ -1,4 +1,4 @@
-import React from 'react';
+import React , { useState } from 'react';
 import {
     ResponsiveContainer,
     LineChart,
@@ -33,7 +33,8 @@ import {
 
 export default function SuperficiesBrulees() {
 
-  // ===== DATA SIMULATION =====
+  const [selectedYear, setSelectedYear] = React.useState(2025);
+
   const evolution = [
     { annee: "", },
     { annee: 2025, valeur: -16 },
@@ -153,14 +154,18 @@ export default function SuperficiesBrulees() {
                 <div style={styles.filterLabel}>
                     <Calendar size={14} /> Année
                 </div>
-                <select style={styles.select}>
-                    <option>2030</option>
-                    <option>2029</option>
-                    <option>2028</option>
-                    <option>2027</option>
-                    <option>2026</option>
-                    <option>2025</option>
-                    <option>2024</option>
+                <select
+                  style={styles.select}
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                >
+                  <option value={2030}>2030</option>
+                  <option value={2029}>2029</option>
+                  <option value={2028}>2028</option>
+                  <option value={2027}>2027</option>
+                  <option value={2026}>2026</option>
+                  <option value={2025}>2025</option>
+                  <option value={2024}>2024</option>
                 </select>
             </div>
             <div style={styles.filterBlock}>
@@ -336,7 +341,7 @@ export default function SuperficiesBrulees() {
 {/* MAP */}
 <div style={styles.cardLarge}>
   <div style={styles.cardTitle}>
-    CARTE DES SUPERFICIES BRÛLÉES EN PÉRIPHÉRIE DES AIRES PROTÉGÉES (2025)
+    CARTE DES SUPERFICIES BRÛLÉES EN PÉRIPHÉRIE DES AIRES PROTÉGÉES ({selectedYear})
   </div>
 
   <div style={styles.mapBox}>
