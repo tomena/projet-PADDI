@@ -19,6 +19,8 @@ import SuperficiesBrulees from './pages/SuperficiesBrulees';
 
 import SystemeSuivi from './pages/SystemeSuivi';
 
+import MesuresCommunales from './pages/MesuresCommunales';
+
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
 
@@ -61,6 +63,8 @@ export default function App() {
         {page === 'superficie-brulee' && <SuperficiesBrulees />}
 
         {page === 'systeme-suivi' && <SystemeSuivi />}
+
+        {page === 'mesures-communales' && <MesuresCommunales />}
         
       </div>
     </div>
