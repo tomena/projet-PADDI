@@ -234,7 +234,7 @@ export default function Sidebar({ setPage }: any) {
                   }
                 >
                   <Users size={16} />
-                  Mesures Communautaires
+                  Mesures Communales
                 </div>
               </div>
             )}
