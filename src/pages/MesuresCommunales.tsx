@@ -1123,7 +1123,7 @@ export default function MesuresCommunales() {
                     <th
                       style={{
                         padding: 10,
-                        width: 200,
+                        width: 170,
                         textAlign: 'left',
                         borderRight: '1px solid rgba(255,255,255,0.3)',
                       }}
