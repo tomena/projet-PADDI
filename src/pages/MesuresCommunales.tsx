@@ -27,11 +27,12 @@ const GREEN = '#2e7d32';
 
 export default function MesuresCommunales() {
   const evolution = [
-    { annee: '2021', valeur: 20.8 },
-    { annee: '2022', valeur: 33.3 },
-    { annee: '2023', valeur: 45.8 },
-    { annee: '2024', valeur: 58.3 },
-    { annee: '2025', valeur: 67.5 },
+    { annee: '2025', valeur: 20.8 },
+    { annee: '2026', valeur: 33.3 },
+    { annee: '2027', valeur: 45.8 },
+    { annee: '2028', valeur: 58.3 },
+    { annee: '2029', valeur: 67.5 },
+    { annee: '2030', valeur: 80.0 },
   ];
 
   const top10 = [
