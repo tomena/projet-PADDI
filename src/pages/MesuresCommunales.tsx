@@ -1123,7 +1123,7 @@ export default function MesuresCommunales() {
                     <th
                       style={{
                         padding: 10,
-                        width: 170,
+                        width: 150,
                         textAlign: 'left',
                         borderRight: '1px solid rgba(255,255,255,0.3)',
                       }}
@@ -1145,7 +1145,7 @@ export default function MesuresCommunales() {
                     <th
                       style={{
                         padding: 10,
-                        width: 130,
+                        width: 100,
                         textAlign: 'center',
                         borderRight: '1px solid rgba(255,255,255,0.3)',
                       }}
@@ -1156,7 +1156,7 @@ export default function MesuresCommunales() {
                     <th
                       style={{
                         padding: 10,
-                        width: 130,
+                        width: 100,
                         textAlign: 'center',
                         borderRight: '1px solid rgba(255,255,255,0.3)',
                       }}
