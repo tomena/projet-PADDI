@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { MapContainer, TileLayer, ScaleControl } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -887,7 +887,6 @@ const styles: any = {
     boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
     overflow: 'hidden',
     padding: 1,
-    borderRadius: 10,
     minHeight: 120, // ⬅️ avant 150
   },
 
