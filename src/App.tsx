@@ -21,6 +21,8 @@ import SystemeSuivi from './pages/SystemeSuivi';
 
 import MesuresCommunales from './pages/MesuresCommunales';
 
+import SurfacesAgropastorales from './pages/SurfacesAgropastorales';
+
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
 
@@ -65,6 +67,8 @@ export default function App() {
         {page === 'systeme-suivi' && <SystemeSuivi />}
 
         {page === 'mesures-communales' && <MesuresCommunales />}
+
+        {page === 'surface-agro' && <SurfacesAgropastorales />}
         
       </div>
     </div>
