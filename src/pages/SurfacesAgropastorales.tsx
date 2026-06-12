@@ -924,7 +924,7 @@ return (
               >
 
                 {/* CUMUL ATTEINT */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <svg width="20" height="10">
                     <line
                       x1="0"
@@ -1016,23 +1016,7 @@ return (
                 />
 
               </LineChart>
-            </ResponsiveContainer>
-
-            {/* AXE Y TITLE */}
-            <div
-              style={{
-                position: 'absolute',
-                transform: 'rotate(-90deg)',
-                transformOrigin: 'left top',
-                left: 0,
-                top: '50%',
-                fontSize: 12,
-                color: '#6b7280',
-                fontWeight: 600,
-              }}
-            >
-              Superficie (ha)
-            </div>
+            </ResponsiveContainer>            
           </div>
   </div>
 
