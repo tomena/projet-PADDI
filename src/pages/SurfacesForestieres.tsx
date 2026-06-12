@@ -549,7 +549,7 @@ return (
 
           <div
             style={{
-              fontSize: 28,
+              fontSize: 20,
               fontWeight: 800,
               color: GREEN,
             }}
@@ -599,7 +599,7 @@ return (
 
         <div
           style={{
-            fontSize: 28,
+            fontSize: 20,
             fontWeight: 800,
             color: GREEN,
           }}
