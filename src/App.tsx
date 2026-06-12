@@ -6,25 +6,15 @@ import Analyse from './pages/Analyse';
 import AnalyseEnvironnement from './pages/AnalyseEnvironnement';
 import InsertionDonnees from './pages/InsertionDonnees';
 import Pression from './pages/Pression';
-
 import BudgetCommunaux from './pages/BudgetCommunaux';
-
 import RevenusProducteurs from './pages/RevenusProducteurs';
-
 import SuiviCouts from './pages/SuiviCouts';
-
 import SuiviActivitesAnnuelles from './pages/SuiviActivitesAnnuelles';
-
 import SuperficiesBrulees from './pages/SuperficiesBrulees';
-
 import SystemeSuivi from './pages/SystemeSuivi';
-
 import MesuresCommunales from './pages/MesuresCommunales';
-
 import SurfacesAgropastorales from './pages/SurfacesAgropastorales';
-
 import SurfacesForestieres from './pages/SurfacesForestieres';
-
 import SuperficiesAD from './pages/SuperficiesAD';
 
 export default function App() {
@@ -76,7 +66,7 @@ export default function App() {
 
         {page === 'surface-forestiere' && <SurfacesForestieres />}
 
-        {page === 'surface-forestiere' && <SurfacesForestieres />}
+        {page === 'sad' && <SuperficiesAD />}
         
       </div>
     </div>
