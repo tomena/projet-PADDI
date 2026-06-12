@@ -257,7 +257,7 @@ return (
 {/* ===================== ZONE 2 : KPI ===================== */}
 <div style={{
   display: 'grid',
-  gridTemplateColumns: '1.3fr 1fr 1fr 1fr',
+  gridTemplateColumns: '1fr 1.1fr 1fr 1fr',
   gap: 8,
   gridAutoRows: '140px',
 }}>
@@ -421,13 +421,15 @@ return (
         justifyContent: 'flex-start',
       }}
     >
-<div
-      style={{
-        width: 90,
-        height: 90,
-        flexShrink: 0,
-      }}
-    >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            width: '100%',
+            height: 180,
+          }}
+        >
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
@@ -436,8 +438,8 @@ return (
               { value: 38.4 },
             ]}
             dataKey="value"
-            innerRadius={28}
-            outerRadius={40}
+            innerRadius={35}
+            outerRadius={60}
             startAngle={90}
             endAngle={-270}
           >
@@ -572,16 +574,17 @@ return (
           </h4>
 
           {/* DONUT + LEGEND */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie
-                data={typeTerrain}
-                dataKey="value"
-                innerRadius={50}   
-                outerRadius={90}   
-              >
+          <div style={{ width: '100%', height: 200, marginTop: 15 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={typeTerrain}
+                  dataKey="value"
+                  cx="50%"
+                  cy="55%"
+                  innerRadius={50}
+                  outerRadius={90}
+                >
                 {typeTerrain.map((e, i) => (
                   <Cell key={i} fill={e.color} />
                 ))}
@@ -590,7 +593,7 @@ return (
               {/* CENTRE DU DONUT */}
               <text
                 x="50%"
-                y="45%"
+                y="50%"
                 textAnchor="middle"
                 fontSize={16}
                 fontWeight="bold"
@@ -804,7 +807,7 @@ return (
     fontWeight: 700,
     fontSize: 14,
   }}>
-    Localisation des surfaces concernées
+    Localisation des superficies aménagées durablements
   </h4>
 
   <MapContainer
