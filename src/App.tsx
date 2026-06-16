@@ -16,6 +16,7 @@ import MesuresCommunales from './pages/MesuresCommunales';
 import SurfacesAgropastorales from './pages/SurfacesAgropastorales';
 import SurfacesForestieres from './pages/SurfacesForestieres';
 import SuperficiesAD from './pages/SuperficiesAD';
+import MicroEntreprise from './pages/MicroEntreprise';
 
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
@@ -67,6 +68,8 @@ export default function App() {
         {page === 'surface-forestiere' && <SurfacesForestieres />}
 
         {page === 'sad' && <SuperficiesAD />}
+
+        {page === 'micro-entreprises' && <MicroEntreprise />}
         
       </div>
     </div>
