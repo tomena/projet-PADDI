@@ -9,7 +9,9 @@ import {
   LineChart,
   Line,
   Label,
+  LabelList,
   CartesianGrid,
+  ReferenceLine,
   XAxis,
   YAxis,
   Tooltip,
@@ -379,6 +381,7 @@ const titleStyle = {
         const evolutionWithTotal = evolution.map((item) => ({
             ...item,
             total: item.mpme + item.initiatives,
+            cible: 50,
           }));
 
           const totalChaine = chaineValeur.reduce(
@@ -845,10 +848,25 @@ const titleStyle = {
                                 data={evolutionWithTotal}
                                 margin={{ top: 5, right: 15, left: 0, bottom: 0 }}
                             >
-                                <XAxis dataKey="annee" tick={{ fontSize: 10 }} />
+                                <XAxis
+                                    dataKey="annee"
+                                    tick={{ fontSize: 10 }}
+                                    interval={0}
+                                    minTickGap={20}
+                                    padding={{ left: 10 }}
+                                />
                                 <YAxis tick={{ fontSize: 10 }} />
 
-                                <Tooltip />
+                                <Tooltip
+                                    content={({ active, payload, label }) => {
+                                        if (!active) return null;
+                                        return (
+                                        <div style={{ background: "#fff", padding: 8, border: "1px solid #ddd" }}>
+                                            <div>{label}</div>
+                                        </div>
+                                        );
+                                    }}
+                                />
 
                                 <Legend verticalAlign="top" height={30} />
 
@@ -903,11 +921,16 @@ const titleStyle = {
 
                                 {/* ligne cible */}
                                 <Line
-                                type="monotone"
-                                dataKey={() => 50}
-                                stroke="#9CA3AF"
-                                strokeDasharray="5 5"
-                                />
+                                    type="monotone"
+                                    dataKey="cible"
+                                    stroke="#9CA3AF"
+                                    strokeDasharray="5 5"
+                                    dot={false}
+                                    >
+                                    <ReferenceLine y={50} stroke="#9CA3AF" strokeDasharray="5 5">
+                                        <Label value="50" position="top" fill="#9CA3AF" />
+                                    </ReferenceLine>
+                                </Line>
                             </ComposedChart>
                             </ResponsiveContainer>
                     </div>
