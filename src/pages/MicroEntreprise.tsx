@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import {
   ResponsiveContainer,
+  ComposedChart,
+  Area,
   PieChart,
   Pie,
   Cell,
@@ -43,6 +45,13 @@ const ORANGE = "#FB8C00";
 const RED = "#D32F2F";
 const GRAY = "#E5E7EB";
 const DARK = "#374151";
+const titleStyle = {
+    margin: 5,
+    marginBottom: 8,
+    color: "#1B5E20",
+    fontSize: 13,
+    fontWeight: 800,
+};
 
 
 
@@ -123,12 +132,13 @@ const DARK = "#374151";
             },
             {
             titre: "Initiatives mesures génératrices de revenus appuyées",
+            icon: Leaf,
             valeur: 12,
             taux: 32.4,
             cible: 37,
             femmes: 50,
             jeunes: 41.7,
-            color: "#689F38",
+            color: "#7CB342",
             },
             {
             titre: "Ensemble (MPME + Initiatives)",
@@ -411,7 +421,7 @@ const DARK = "#374151";
                     display: 'grid',
                     gridTemplateColumns: 'repeat(8,1fr)',
                     gap: 5,
-                    marginBottom: 8,
+                    marginBottom: 3,
                 }}
                 >
                 {Object.entries(filtres).map(([label, options]) => (
@@ -459,7 +469,7 @@ const DARK = "#374151";
                             gap: 5,
                             alignItems: "stretch",
                             marginBottom: 10,
-                            marginTop:5,
+                            marginTop:-2,
                         }}
                     >
                 {/* ================= OBJECTIF GLOBAL ================= */}
@@ -475,7 +485,7 @@ const DARK = "#374151";
                     }}
                     >
                     {/* TITRE */}
-                    <h3 style={{ margin: 0, color: DARK }}>
+                    <h3 style={titleStyle}>
                         Atteinte de la cible
                     </h3>
 
@@ -593,15 +603,7 @@ const DARK = "#374151";
                             border: "1px solid #eee",
                         }}
                         >
-                        <h3
-                            style={{
-                            margin: 0,
-                            marginBottom: 12,
-                            color: DARK,
-                            fontSize: 14,
-                            fontWeight: 700,
-                            }}
-                        >
+                        <h3 style={titleStyle}>
                             Répartition des MPME et initiatives appuyées
                         </h3>
 
@@ -636,33 +638,58 @@ const DARK = "#374151";
                                 {/* TITRE + ICONE + INDICATEUR CENTRÉ */}
                                 <div style={{ textAlign: "center" }}>
                                     {/* TITRE */}
-                                        <div
+                                    <div
                                         style={{
+                                            background: c.color,
+                                            color: "#fff",
+                                            borderTopLeftRadius: 8,
+                                            borderTopRightRadius: 8,
+                                            margin: "-10px -10px 10px -10px",
+                                            padding: "8px 6px",
+                                            textAlign: "center",
+                                            fontWeight: 700,
+                                            fontSize: 11,
+                                            minHeight: 42,
                                             display: "flex",
                                             justifyContent: "center",
                                             alignItems: "center",
-                                            gap: 8,
-                                            fontWeight: 900,
-                                            color: DARK,
-                                            fontSize: 10,
-                                            
+                                            lineHeight: 1.2,
                                         }}
-                                        >
-                                        <span>{c.titre}</span>
-                                        </div>
+                                    >
+                                        {c.titre}
+                                    </div>
 
                                         {/* ICÔNE À GAUCHE + INDICATEURS À DROITE */}
                                         <div
                                             style={{
                                                 display: "flex",
-                                                justifyContent: "center",
                                                 alignItems: "center",
-                                                marginTop: 10,
-                                                gap: 6,
+                                                justifyContent: "center",
+                                                gap: 12,
+                                                marginTop: 12,
                                             }}
                                         >
 
                                         {/* INDICATEURS (colonne droite) */}
+                                        <div
+                                            style={{
+                                                width: 44,
+                                                height: 44,
+                                                borderRadius: "50%",
+                                                background: c.color,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                flexShrink: 0,
+                                            }}
+                                        >
+                                            <c.icon
+                                                size={22}
+                                                color="#fff"
+                                                strokeWidth={2.2}
+                                            />
+                                        </div>
+
                                         <div style={{ textAlign: "left" }}>
                                             <div
                                             style={{
@@ -809,20 +836,12 @@ const DARK = "#374151";
                         padding: 5,
                     }}
                     >
-                        <h3
-                            style={{
-                            margin: 5,
-                            marginBottom: 10,
-                            color: GREEN,
-                            fontSize: 14,
-                            fontWeight: 700,
-                            }}
-                        >
+                        <h3 style={titleStyle}>
                         Évolution annuelle de l’atteinte de la cible
                         </h3>
 
                         <ResponsiveContainer width="100%" height={260}>
-                            <LineChart
+                            <ComposedChart
                                 data={evolutionWithTotal}
                                 margin={{ top: 5, right: 15, left: 0, bottom: 0 }}
                             >
@@ -833,9 +852,54 @@ const DARK = "#374151";
 
                                 <Legend verticalAlign="top" height={30} />
 
-                                <Line type="monotone" dataKey="mpme" stroke={GREEN} />
-                                <Line type="monotone" dataKey="initiatives" stroke={BLUE} />
-                                <Line type="monotone" dataKey="total" stroke={DARK} />
+                                <Area
+                                    type="monotone"
+                                    dataKey="mpme"
+                                    fill={GREEN}
+                                    fillOpacity={0.12}
+                                    stroke="none"
+                                    legendType="none"
+                                />
+
+                                <Line
+                                    type="monotone"
+                                    dataKey="mpme"
+                                    stroke={GREEN}
+                                    strokeWidth={1.2}
+                                    dot={{ r: 3 }}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="initiatives"
+                                    fill={BLUE}
+                                    fillOpacity={0.10}
+                                    stroke="none"
+                                    legendType="none"
+                                />
+
+                                <Line
+                                    type="monotone"
+                                    dataKey="initiatives"
+                                    stroke={BLUE}
+                                    strokeWidth={1.2}
+                                    dot={{ r: 3 }}
+                                />
+                                <Area
+                                    type="monotone"
+                                    dataKey="total"
+                                    fill="#374151"
+                                    fillOpacity={0.08}
+                                    stroke="none"
+                                    legendType="none"
+                                />
+
+                                <Line
+                                    type="monotone"
+                                    dataKey="total"
+                                    stroke="#374151"
+                                    strokeWidth={1.2}
+                                    dot={{ r: 3 }}
+                                />
 
                                 {/* ligne cible */}
                                 <Line
@@ -844,7 +908,7 @@ const DARK = "#374151";
                                 stroke="#9CA3AF"
                                 strokeDasharray="5 5"
                                 />
-                            </LineChart>
+                            </ComposedChart>
                             </ResponsiveContainer>
                     </div>
 
