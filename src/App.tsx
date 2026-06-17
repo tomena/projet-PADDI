@@ -17,6 +17,7 @@ import SurfacesAgropastorales from './pages/SurfacesAgropastorales';
 import SurfacesForestieres from './pages/SurfacesForestieres';
 import SuperficiesAD from './pages/SuperficiesAD';
 import MicroEntreprise from './pages/MicroEntreprise';
+import Beneficiaires from './pages/Beneficiaires';
 
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
@@ -70,6 +71,8 @@ export default function App() {
         {page === 'sad' && <SuperficiesAD />}
 
         {page === 'micro-entreprises' && <MicroEntreprise />}
+
+        {page === 'beneficiaire' && <Beneficiaires />}
         
       </div>
     </div>
