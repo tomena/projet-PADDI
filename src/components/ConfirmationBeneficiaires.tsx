@@ -61,10 +61,7 @@ const competences = [
     { name: "Gestion durable des ressources naturelles", value: 33 },
     { name: "Utilisation d’intrants biologiques", value: 29 },
     { name: "Planification de la production", value: 27 },
-  ];
-
-  
-  
+  ];  
 
   const step = 10;
 
@@ -80,6 +77,40 @@ const ConfirmationBeneficiaires: React.FC = () => {
 
     const [currentPage, setCurrentPage] = useState(1);
     const [rowsPerPage, setRowsPerPage] = useState(10);
+
+    const CustomYAxisTick = ({ x, y, payload }: any) => {
+        const text = payload.value;
+      
+        return (
+          <g transform={`translate(${x},${y})`}>
+            <text
+              x={0}
+              y={0}
+              dy={4}
+              textAnchor="end"   // 👈 IMPORTANT (gauche)
+              fontSize={12}
+              fill="#333"
+            >
+              {text}
+            </text>
+          </g>
+        );
+      };
+
+      const getMaxLabelWidth = (data: any[], font = "12px Arial") => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+    
+        if (!ctx) return 180;
+    
+        ctx.font = font;
+    
+        return Math.max(
+            ...data.map(item => ctx.measureText(item.name).width)
+        );
+    };
+
+    const yAxisWidth = Math.min(getMaxLabelWidth(competences) + 20, 320);
 
     const rows = [
         {
@@ -735,7 +766,7 @@ const ConfirmationBeneficiaires: React.FC = () => {
                                 margin={{
                                     top: 5,
                                     right: 20,
-                                    left: 5,
+                                    left: 0,
                                     bottom: 0,
                                 }}
                             >
@@ -753,17 +784,16 @@ const ConfirmationBeneficiaires: React.FC = () => {
                                 <YAxis
                                     type="category"
                                     dataKey="name"
-                                    width={165}
-                                    tick={{
-                                        fontSize: 12,
-                                        fill: "#333",
-                                    }}
+                                    width={yAxisWidth}
+                                    interval={0}
+                                    tickMargin={5}                                                                
+                                    tick={<CustomYAxisTick />}
                                 />
 
                                 <Bar
                                     dataKey="value"
                                     fill="#2e7d32"
-                                    barSize={18}
+                                    barSize={16}
                                     radius={[0, 2, 2, 0]}
                                 >
                                     <LabelList
