@@ -24,6 +24,7 @@ import {
   Database,
   Briefcase,
   DollarSign,
+  Gavel,
   Wheat,
   Activity,
   ReceiptText,
@@ -235,6 +236,40 @@ export default function Sidebar({ setPage }: any) {
                 >
                   <Users size={16} />
                   Mesures Communautaires
+                </div>
+
+                <div
+                  style={{
+                    ...styles.subItem,
+                    ...(isActive('cosap-decision') ? styles.activeSubItem : {}),
+                  }}
+                  onClick={() => go('cosap-decision')}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = 'transparent')
+                  }
+                >
+                  <Gavel size={16} />
+                  Décision des COSAP
+                </div>
+
+                <div
+                  style={{
+                    ...styles.subItem,
+                    ...(isActive('mesures-regionales') ? styles.activeSubItem : {}),
+                  }}
+                  onClick={() => go('mesures-regionales')}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.background = 'transparent')
+                  }
+                >
+                  <Globe2 size={16} />
+                  Mesures régionales
                 </div>
               </div>
             )}
