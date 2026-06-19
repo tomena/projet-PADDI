@@ -19,6 +19,8 @@ import {
     RefreshCw,
 } from "lucide-react";
 
+import ConfirmationBeneficiaires from "../components/ConfirmationBeneficiaires";
+
 const COLORS = ["#2e7d32", "#c8e6c9"];
 
 const lineData = [
@@ -104,9 +106,12 @@ const filtres = {
     ],
 };
 
+
 const Beneficiaires: React.FC = () => {
+
+    const [modeConfirmation, setModeConfirmation] = React.useState(false);
 return (
-    <div style={{ background: "#f4f6f5", minHeight: "100vh", fontFamily: "Arial" }}>
+        <div style={{ background: "#f4f6f5", minHeight: "100vh", fontFamily: "Arial" }}>
 
             {/* HEADER */}
             <div style={{
@@ -121,20 +126,24 @@ return (
             >
             <h2 style={{ margin: 0 }}>Suivi des petits exploitants</h2>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <button
+
+                <button
+                onClick={() => setModeConfirmation(!modeConfirmation)}
                 style={{
                     background: "transparent",
                     color: "#ffffff",
                     border: "1px solid #ffffff",
-                padding: "10px 10px",
-                borderRadius: 6,
-                fontSize: 11,
-                fontWeight: 700,
-                cursor: "pointer"
+                    padding: "10px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: "pointer"
                 }}
-            >
-                Confirmation des bénéficiaires
-            </button>
+                >
+                {modeConfirmation
+                    ? "Retour au suivi"
+                    : "Confirmation des bénéficiaires"}
+                </button>
 
                 <div style={{ display: "flex", alignItems: "center", gap: 6 , cursor: "pointer"}}>
                     <RefreshCw size={18} />
@@ -142,56 +151,61 @@ return (
                         Actualiser
                     </span>
                 </div>
-                </div>
+
+            </div>
             </div>
 
             {/* CONTENT */}
             <div style={{ padding: 10 }}>
+                {modeConfirmation ? (
+                    <ConfirmationBeneficiaires />
+                ) : (
+                <>                
 
                 {/* ===================== FILTRES ===================== */}
-            <div
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(8,1fr)',
-                    gap: 5,
-                    marginBottom: 6,
-                }}
-                >
-                {Object.entries(filtres).map(([label, options]) => (
-                    <div
-                    key={label}
+                <div
                     style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 4,
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(8,1fr)',
+                        gap: 5,
+                        marginBottom: 6,
                     }}
                     >
-                    <label
+                    {Object.entries(filtres).map(([label, options]) => (
+                        <div
+                        key={label}
                         style={{
-                        fontSize: 12,
-                        fontWeight: 600,
-                        color: '#374151',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4,
                         }}
-                    >
-                        {label}
-                    </label>
+                        >
+                        <label
+                            style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: '#374151',
+                            }}
+                        >
+                            {label}
+                        </label>
 
-                    <select
-                        style={{
-                        height: 38,
-                        borderRadius: 8,
-                        border: '1px solid #d1d5db',
-                        padding: '0 10px',
-                        }}
-                    >
-                        {options.map((option) => (
-                        <option key={option}>
-                            {option}
-                        </option>
-                        ))}
-                    </select>
-                    </div>
-                ))}
+                        <select
+                            style={{
+                            height: 38,
+                            borderRadius: 8,
+                            border: '1px solid #d1d5db',
+                            padding: '0 10px',
+                            }}
+                        >
+                            {options.map((option) => (
+                            <option key={option}>
+                                {option}
+                            </option>
+                            ))}
+                        </select>
+                        </div>
+                    ))}
                 </div>
 
                 {/* BARRE VERTE */}
@@ -255,7 +269,7 @@ return (
                 </div>
 
                 {/* TABLE */}
-                        <div style={{
+                <div style={{
                             background: "white",
                             padding: "12px 14px",
                             borderRadius: 8,
@@ -316,12 +330,11 @@ return (
                             </tr>
                             </tbody>
                         </table>
-                        </div>
-                
+                </div>               
 
                 {/* DONUTS */}
-                    {[45.7, 32.6].map((v, i) => (
-                    <div key={i} style={{ background: "white", padding: 5, borderRadius: 8, textAlign: "center" }}>
+                {[45.7, 32.6].map((v, i) => (
+                <div key={i} style={{ background: "white", padding: 5, borderRadius: 8, textAlign: "center" }}>
 
                         <h4 style={cardTitleStyle}>{i === 0 ? "Part des femmes (Total)" : "Part des Jeunes < 35 ans (Total)"}</h4>
 
@@ -351,10 +364,8 @@ return (
                     </div>
                 </div>
                 ))}
-            </div>
-            
-
-           {/* DONUT SECTION GLOBAL (2 GRIDS COTE À COTE) */}
+                </div>
+                {/* DONUT SECTION GLOBAL (2 GRIDS COTE À COTE) */}
                 <div style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(2, 1fr)",
@@ -458,9 +469,9 @@ return (
                     ))}
                 </div>
             </div>
-        </div>
+                </div>
                 {/* LINE */}
-                    <div style={{ background: "white", padding: 12, borderRadius: 8, marginTop: 8}}>
+                <div style={{ background: "white", padding: 12, borderRadius: 8, marginTop: 8}}>
                         <h4 style={cardTitleStyle}>Évolution annuelle de l’atteinte de la cible des 25 000 petits exploitants</h4>
 
                         {/* LÉGENDE */}
@@ -524,13 +535,14 @@ return (
                                     stroke="red"
                                     strokeDasharray="5 5"
                                 />
-
                                 </LineChart>
                             </ResponsiveContainer>
-                        </div>
-                </div>
+                    </div>
+                </>
+            )}            
             </div>
-            );
-        };
+        </div>
+        );
+    };
 
  export default Beneficiaires;
