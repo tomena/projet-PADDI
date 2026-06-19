@@ -22,6 +22,22 @@ import {
 import ConfirmationBeneficiaires from "../components/ConfirmationBeneficiaires";
 
 const COLORS = ["#2e7d32", "#c8e6c9"];
+const FEMALE_COLOR = "#2e7d32"; 
+const YOUTH_COLOR = "#1976d2";  
+const BASE_COLOR = "#e0e0e0";   
+const FEMALE_COLORS = [
+    "#556B2F", 
+    "#6B8E23", 
+    "#9ACD32", 
+  ];
+  
+  const YOUTH_COLORS = [
+    "#0D47A1", 
+    "#1976D2", 
+    "#64B5F6", 
+  ];
+  
+  const DONUT_BG = "#E5E7EB";
 
 const lineData = [
 { annee: "2025", valeur: 6890 },
@@ -33,8 +49,8 @@ const lineData = [
 ];
 
 const donut = (value: number) => [
-{ name: "done", value },
-{ name: "rest", value: 100 - value },
+    { name: "value", value },
+    { name: "rest", value: 100 - value },
 ];
 
 const cardTitleStyle: React.CSSProperties = {
@@ -334,35 +350,60 @@ return (
 
                 {/* DONUTS */}
                 {[45.7, 32.6].map((v, i) => (
-                <div key={i} style={{ background: "white", padding: 5, borderRadius: 8, textAlign: "center" }}>
-
-                        <h4 style={cardTitleStyle}>{i === 0 ? "Part des femmes (Total)" : "Part des Jeunes < 35 ans (Total)"}</h4>
+                    <div
+                        key={i}
+                        style={{
+                            background: "white",
+                            padding: 5,
+                            borderRadius: 8,
+                            textAlign: "center",
+                        }}
+                    >
+                        <h4 style={cardTitleStyle}>
+                            {i === 0
+                                ? "Part des femmes (Total)"
+                                : "Part des Jeunes < 35 ans (Total)"}
+                        </h4>
 
                         <div style={{ position: "relative", width: "100%", height: 180 }}>
                             <ResponsiveContainer>
                                 <PieChart>
-                                    <Pie data={donut(v)} dataKey="value" innerRadius={40} outerRadius={70}>
+                                    <Pie
+                                        data={donut(v)}
+                                        dataKey="value"
+                                        innerRadius={40}
+                                        outerRadius={70}
+                                    >
                                         {donut(v).map((_, i2) => (
-                                        <Cell key={i2} fill={COLORS[i2]} />
+                                            <Cell
+                                                key={i2}
+                                                fill={
+                                                    i === 0
+                                                        ? (i2 === 0 ? "#2e7d32" : "#e0e0e0")
+                                                        : (i2 === 0 ? "#1976d2" : "#e0e0e0")
+                                                }
+                                            />
                                         ))}
                                     </Pie>
                                 </PieChart>
                             </ResponsiveContainer>
 
-                        {/* CENTRE TEXT */}
-                        <div style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            fontWeight: "bold",
-                            color: "#2e7d32",
-                            fontSize: 16
-                            }}>
+                            {/* CENTRE TEXT */}
+                            <div
+                                style={{
+                                    position: "absolute",
+                                    top: "50%",
+                                    left: "50%",
+                                    transform: "translate(-50%, -50%)",
+                                    fontWeight: "bold",
+                                    color: i === 0 ? "#2e7d32" : "#1976d2",
+                                    fontSize: 16,
+                                }}
+                            >
                                 {v}%
+                            </div>
                         </div>
                     </div>
-                </div>
                 ))}
                 </div>
                 {/* DONUT SECTION GLOBAL (2 GRIDS COTE À COTE) */}
@@ -398,29 +439,32 @@ return (
                                 outerRadius={60}
                                 >
                                 {donut(v).map((_, i2) => (
-                                    <Cell key={i2} fill={COLORS[i2]} />
+                                    <Cell
+                                    key={i2}
+                                    fill={i2 === 0 ? FEMALE_COLORS[i] : DONUT_BG}
+                                />
                                 ))}
                                 </Pie>
                             </PieChart>
                             </ResponsiveContainer>
 
                             <div style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            fontWeight: "bold",
-                            color: "#2e7d32",
-                            fontSize: 16
-                            }}>
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                                fontWeight: "bold",
+                                color: FEMALE_COLORS[i],
+                                fontSize: 16
+                                }}>
                             {v}%
                             </div>
                         </div>
 
-                        </div>
-                    ))}
                     </div>
+                    ))}
                 </div>
+            </div>
 
                 {/* ================= JEUNES ================= */}
                 <div style={{ background: "white", padding: 10, borderRadius: 8 }}>
@@ -447,21 +491,24 @@ return (
                                 outerRadius={60}
                                 >
                                 {donut(v).map((_, i2) => (
-                                    <Cell key={i2} fill={COLORS[i2]} />
+                                    <Cell
+                                    key={i2}
+                                    fill={i2 === 0 ? YOUTH_COLORS[i] : DONUT_BG}
+                                />
                                 ))}
                                 </Pie>
                             </PieChart>
                             </ResponsiveContainer>
 
                             <div style={{
-                            position: "absolute",
-                            top: "50%",
-                            left: "50%",
-                            transform: "translate(-50%, -50%)",
-                            fontWeight: "bold",
-                            color: "#2e7d32",
-                            fontSize: 16
-                            }}>
+                                position: "absolute",
+                                top: "50%",
+                                left: "50%",
+                                transform: "translate(-50%, -50%)",
+                                fontWeight: "bold",
+                                color: YOUTH_COLORS[i],
+                                fontSize: 16
+                                }}>
                             {v}%
                             </div>
                         </div>
@@ -469,7 +516,7 @@ return (
                     ))}
                 </div>
             </div>
-                </div>
+        </div>
                 {/* LINE */}
                 <div style={{ background: "white", padding: 12, borderRadius: 8, marginTop: 8}}>
                         <h4 style={cardTitleStyle}>Évolution annuelle de l’atteinte de la cible des 25 000 petits exploitants</h4>
