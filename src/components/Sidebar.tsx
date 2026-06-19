@@ -272,7 +272,7 @@ export default function Sidebar({ setPage }: any) {
                   }
                 >
                   <MapPinned size={16} />
-                  SAD
+                  Superficie aménagée
                 </div>
 
                 <div
