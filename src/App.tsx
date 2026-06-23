@@ -18,6 +18,7 @@ import SurfacesForestieres from './pages/SurfacesForestieres';
 import SuperficiesAD from './pages/SuperficiesAD';
 import MicroEntreprise from './pages/MicroEntreprise';
 import Beneficiaires from './pages/Beneficiaires';
+import DecisionCOSAP from './pages/DecisionCOSAP';
 
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
@@ -73,6 +74,8 @@ export default function App() {
         {page === 'micro-entreprises' && <MicroEntreprise />}
 
         {page === 'beneficiaire' && <Beneficiaires />}
+
+        {page === 'cosap-decision' && <DecisionCOSAP />}
         
       </div>
     </div>
