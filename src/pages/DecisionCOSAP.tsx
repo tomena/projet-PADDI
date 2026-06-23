@@ -310,7 +310,7 @@ const paginatedRows = rows.slice(
         }}
       >
         <strong>Indicateur :</strong> Pour chaque COSAP (7), 3 décisions sont
-        intégrées dans les plans communaux (total de 21 décisions), dont 1
+        intégrées dans les plans communaux (total de 21 décisions), <br />dont 1
         mesure tenant compte des besoins spécifiques des femmes et des jeunes
         (total de 7 mesures).
       </div>
