@@ -481,7 +481,6 @@ export default function BudgetCommunaux() {
                   fontWeight: 700,
                 }}
               />
-              <Tooltip />
               <Bar
                 dataKey="global"
                 name="% Budget SE Global"
