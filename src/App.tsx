@@ -19,6 +19,8 @@ import SuperficiesAD from './pages/SuperficiesAD';
 import MicroEntreprise from './pages/MicroEntreprise';
 import Beneficiaires from './pages/Beneficiaires';
 import DecisionCOSAP from './pages/DecisionCOSAP';
+import MesureRegionale from './pages/MesureRegionale';
+
 
 export default function App() {
   const [page, setPage] = useState('dashboard-general');
@@ -36,46 +38,27 @@ export default function App() {
 
       <div style={styles.content}>
         {page === 'dashboard-general' && <Dashboard data={data} />}
-
         {page === 'dashboard-feux' && <h1>🔥 Feux</h1>}
-
         {page === 'dashboard-deforestation' && <h1>🌳 Déforestation</h1>}
-
         {page === 'dashboard-ecosysteme' && <h1>🌿 Écosystèmes</h1>}
-
         {page === 'analyse' && <Analyse />}
-
         {page === 'analyse-environnement' && <AnalyseEnvironnement />}
-
         {page === 'insertion-donnees' && <InsertionDonnees />}
-
         {page === 'pression' && <Pression />}
-
         {page === 'budget-communal' && <BudgetCommunaux />}
-
         {page === 'revenus-producteurs' && <RevenusProducteurs />}
-
         {page === 'suivi-couts' && <SuiviCouts />}
-
         {page === 'suivi-activites-annuelles' && <SuiviActivitesAnnuelles />}
-
         {page === 'superficie-brulee' && <SuperficiesBrulees />}
-
         {page === 'systeme-suivi' && <SystemeSuivi />}
-
         {page === 'mesures-communales' && <MesuresCommunales />}
-
         {page === 'surface-agro' && <SurfacesAgropastorales />}
-
         {page === 'surface-forestiere' && <SurfacesForestieres />}
-
         {page === 'sad' && <SuperficiesAD />}
-
         {page === 'micro-entreprises' && <MicroEntreprise />}
-
         {page === 'beneficiaire' && <Beneficiaires />}
-
         {page === 'cosap-decision' && <DecisionCOSAP />}
+        {page === 'mesures-regionales' && <MesureRegionale />}
         
       </div>
     </div>
