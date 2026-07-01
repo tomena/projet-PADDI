@@ -1,33 +1,57 @@
-import React,{ useEffect, useMemo, useState } from 'react';
+import React,{ useRef, useEffect, useMemo, useState } from 'react';
 import { MapContainer, TileLayer, ScaleControl, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
-import {
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import {PieChart,Pie,Cell,LineChart,Line,XAxis,YAxis,Tooltip,Legend,ResponsiveContainer } from 'recharts';
+import {Flame,Monitor,Home,MapPinned,TrendingUp,FileText,Leaf,Tractor,Trees,Users,Cog } from 'lucide-react';
 
-import {
-  Flame,
-  Monitor,
-  Home,
-  MapPinned,
-  TrendingUp,
-  FileText,
-  Leaf,
-  Tractor,
-  Trees,
-  Users,
-  Cog,
-} from 'lucide-react';
+const getVille = (nom) => {
+  if (!nom) return "";
+  return nom.replace("Bureau à", "").trim();
+};
+
+const pinSVG = `
+<svg width="20" height="20" viewBox="0 0 24 24">
+  <path fill="#e53935" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+  <circle cx="12" cy="9" r="2.5" fill="white"/>
+</svg>
+`;
+
+const officeIcon = (nom) =>
+  L.divIcon({
+    html: `
+      <div style="
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        justify-content:center;
+        line-height:1;
+      ">
+
+        <!-- ICON -->
+        <svg width="20" height="20" viewBox="0 0 24 24" style="display:block;">
+          <path fill="#e53935" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+          <circle cx="12" cy="9" r="2.5" fill="white"/>
+        </svg>
+
+        <!-- LABEL -->
+        <div style="
+          font-size:10px;
+          color:#111;
+          white-space:nowrap;
+          margin:0;
+          padding:0;
+          line-height:1;
+        ">
+          ${getVille(nom)}
+        </div>
+
+      </div>
+    `,
+    className: "",
+    iconSize: [60, 40],
+    iconAnchor: [30, 20],
+  });
 
 function AutoZoom({ geoData }) {
   const map = useMap();
@@ -50,15 +74,125 @@ function AutoZoom({ geoData }) {
   return null;
 }
 
-function onEachRegion(feature, layer) {
+function onEachRegion(feature, layer, mapRef) {
   if (feature.properties?.nom_reg) {
     layer.bindTooltip(feature.properties.nom_reg, {
-      permanent: false,
-      direction: "center",
+      sticky: true,
       className: "region-label",
     });
   }
+
+  layer.on("click", () => {
+    const bounds = layer.getBounds?.();
+
+    if (bounds && bounds.isValid()) {
+      mapRef.fitBounds(bounds, {
+        padding: [20, 20],
+        maxZoom: 10,
+        animate: true,
+      });
+    }
+  });
 }
+
+function LegendControl({ getColorByAntenne, antennes }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const legend = L.control({ position: "bottomright" });
+
+    legend.onAdd = () => {
+      const div = L.DomUtil.create("div", "info legend");
+
+      div.style.background = "white";
+      div.style.padding = "8px 10px";
+      div.style.borderRadius = "8px";
+      div.style.boxShadow = "0 1px 5px rgba(0,0,0,0.2)";
+      div.style.fontSize = "12px";
+
+      div.innerHTML = `<strong>Antenne</strong><br/>`;
+
+      div.innerHTML += `
+      <div style="display:flex;align-items:center;gap:6px;">
+        ${pinSVG}
+        Bureau
+      </div>
+    `;
+
+      antennes.forEach((a) => {
+        const color = getColorByAntenne(a);
+
+        div.innerHTML += `
+          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+            <span style="
+              width:12px;height:12px;
+              background:${color};
+              display:inline-block;
+              border-radius:3px;"></span>
+            ${a}
+          </div>
+        `;
+        
+      });
+      
+      return div;
+    };
+
+    legend.addTo(map);
+
+    return () => legend.remove();
+  }, [map, antennes, getColorByAntenne]);
+
+  return null;
+}
+
+function RegionLayer({ data, getColorByAntenne }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!data?.features) return;
+
+    const layer = L.geoJSON(data, {
+      style: (feature) => ({
+        color: "#fff",
+        weight: 1,
+        fillColor: getColorByAntenne(feature.properties?.antenne),
+        fillOpacity: 0.6,
+      }),
+    });
+
+    layer.addTo(map);
+
+    return () => {
+      layer.clearLayers();   // 🔥 IMPORTANT
+      map.removeLayer(layer);
+    };
+  }, [data, map, getColorByAntenne]);
+
+  return null;
+}
+
+function BureauLayer({ data }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!data?.features) return;
+
+    const layer = L.geoJSON(data, {
+      pointToLayer: (feature, latlng) =>
+        L.marker(latlng, {
+          icon: officeIcon(feature.properties?.nom),
+        }),
+    });
+
+    layer.addTo(map);
+
+    return () => map.removeLayer(layer);
+  }, [data, map]);
+
+  return null;
+}
+
 
 export default function Dashboard({ data }: any) {
 
@@ -75,15 +209,25 @@ export default function Dashboard({ data }: any) {
         .catch(err => console.error("Erreur chargement GeoJSON:", err));
     }, []);
 
-const antennes = useMemo(() => {
-  if (!regionsData?.features) return [];
+  const VALID_ANTENNES = ["U.C.T","U.R.A", "U.R.B", "U.R.C", "U.R.D", "U.R.F","U.R.FD"];
 
-  return [...new Set(
-    regionsData.features
-      .map(f => f?.properties?.antenne)
-      .filter(Boolean)
-  )].sort();
-}, [regionsData]);
+  const antennes = useMemo(() => {
+    if (!regionsData?.features) return [];
+
+    return VALID_ANTENNES.filter(a =>
+      regionsData.features.some(f => f.properties?.antenne === a)
+    );
+  }, [regionsData]);
+
+  const showAll = selectedAntenne === "";
+
+  const [bureauData, setBureauData] = useState(null);
+
+    useEffect(() => {
+      fetch("/data/localisation_bureau_paddi.geojson")
+        .then(r => r.json())
+        .then(setBureauData);
+    }, []);
 
 
   const dashboard = useMemo(
@@ -104,20 +248,22 @@ const antennes = useMemo(() => {
         );
   }, [regionsData, selectedAntenne]);
 
+  const norm = (v) => (v || "").toString().trim();
+
   const geoFiltered = useMemo(() => {
     if (!regionsData?.features) return null;
   
     const features = regionsData.features.filter(f => {
       if (!f.properties?.actif) return false;
-  
+    
       if (!selectedAntenne) return true;
-  
+    
       return f.properties?.antenne === selectedAntenne;
     });
   
     return {
       type: "FeatureCollection",
-      features
+      features,
     };
   }, [regionsData, selectedAntenne]);
 
@@ -127,7 +273,7 @@ const antennes = useMemo(() => {
         return "#16a34a";
       case "U.R.B":
         return "#2563eb";
-      case "U.R.C":
+      case "U.R.F":
         return "#f59e0b";
       case "U.R.D":
         return "#ef4444";
@@ -138,10 +284,21 @@ const antennes = useMemo(() => {
     }
   };
 
+  const bureauFiltered = useMemo(() => {
+    if (!bureauData?.features) return null;
+  
+    return {
+      type: "FeatureCollection",
+      features: bureauData.features.filter(f =>
+        showAll ? true : f.properties.antenne === selectedAntenne
+      )
+    };
+  }, [bureauData, selectedAntenne]);
+
   console.log("features:", regionsData?.features);
   console.log("antennes:", antennes);
 
-  return (
+return (
     <div style={styles.page}>
       {/* HEADER */}
       <div style={styles.header}>
@@ -389,35 +546,42 @@ const antennes = useMemo(() => {
           </div>
 
           <div style={styles.mapCard}>
-              <MapContainer
-                center={[-18.8792, 47.5079]}
-                zoom={6}
-                style={{ width: "100%", height: "100%", minHeight: '380px', }}
-              >
-                <TileLayer
+            <MapContainer
+              center={[-18.8792, 47.5079]}
+              zoom={6}
+              style={{ width: "100%", height: "100%", minHeight: "380px" }}
+            >
+              <TileLayer
                 attribution="&copy; ESRI"
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
               />
 
-                <ScaleControl position="bottomleft" imperial={false} />
+              <ScaleControl position="bottomleft" imperial={false} />
 
-                {geoFiltered?.features?.length > 0 && (
-                  <>
-                    <GeoJSON
-                      key={selectedAntenne}
-                      data={geoFiltered}
-                      style={(feature) => ({
-                        color: "transparent",
-                        weight: 0,
-                        fillColor: getColorByAntenne(feature.properties?.antenne),
-                        fillOpacity: 0.6,
-                      })}
-                      onEachFeature={onEachRegion}
-                    />
-                    <AutoZoom geoData={geoFiltered} />
-                  </>
-                )}
-              </MapContainer>
+              {geoFiltered?.features?.length > 0 && (
+                <>
+                  <RegionLayer
+                    key={`${selectedAntenne}-${geoFiltered?.features?.length}`}
+                    data={geoFiltered}
+                    getColorByAntenne={getColorByAntenne}
+                  />
+
+              {bureauFiltered?.features?.length > 0 && (
+                <BureauLayer
+                  key={selectedAntenne || "all-bureau"}
+                  data={bureauFiltered}
+                />
+              )}
+
+                  <AutoZoom geoData={geoFiltered} />
+                </>
+              )}
+
+              <LegendControl
+                antennes={antennes}
+                getColorByAntenne={getColorByAntenne}
+              />
+            </MapContainer>
           </div>
         </div>
       </div>
