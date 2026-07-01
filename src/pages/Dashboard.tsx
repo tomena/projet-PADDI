@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { MapContainer, TileLayer, ScaleControl } from 'react-leaflet';
+import React,{ useEffect, useMemo, useState } from 'react';
+import { MapContainer, TileLayer, ScaleControl, useMap, GeoJSON } from "react-leaflet";
+import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
 import {
   PieChart,
@@ -28,7 +29,63 @@ import {
   Cog,
 } from 'lucide-react';
 
+function AutoZoom({ geoData }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!geoData?.features?.length) return;
+
+    const layer = L.geoJSON(geoData);
+    const bounds = layer.getBounds();
+
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [20, 20],
+        maxZoom: 10,
+        animate: true,
+      });
+    }
+  }, [geoData, map]);
+
+  return null;
+}
+
+function onEachRegion(feature, layer) {
+  if (feature.properties?.nom_reg) {
+    layer.bindTooltip(feature.properties.nom_reg, {
+      permanent: false,
+      direction: "center",
+      className: "region-label",
+    });
+  }
+}
+
 export default function Dashboard({ data }: any) {
+
+  const [selectedAntenne, setSelectedAntenne] = useState("");
+  const [regionsData, setRegionsData] = useState(null);
+
+    useEffect(() => {
+      fetch("/data/madagascar_24_region.geojson")
+        .then(res => {
+          if (!res.ok) throw new Error("GeoJSON introuvable");
+          return res.json();
+        })
+        .then(setRegionsData)
+        .catch(err => console.error("Erreur chargement GeoJSON:", err));
+    }, []);
+
+const antennes = useMemo(() => {
+  if (!regionsData?.features) return [];
+
+  return [...new Set(
+    regionsData.features
+      .map(f => f?.properties?.antenne)
+      .filter(Boolean)
+  )].sort();
+}, [regionsData]);
+
+
   const dashboard = useMemo(
     () => ({
       progression: 68,
@@ -36,25 +93,77 @@ export default function Dashboard({ data }: any) {
     [data]
   );
 
+  const regionsFiltrees = useMemo(() => {
+    if (!regionsData?.features) return [];
+  
+    return selectedAntenne === ""
+      ? regionsData.features.filter(f => f.properties?.actif)
+      : regionsData.features.filter(
+          f => f.properties?.actif &&
+               f.properties?.antenne === selectedAntenne
+        );
+  }, [regionsData, selectedAntenne]);
+
+  const geoFiltered = useMemo(() => {
+    if (!regionsData?.features) return null;
+  
+    const features = regionsData.features.filter(f => {
+      if (!f.properties?.actif) return false;
+  
+      if (!selectedAntenne) return true;
+  
+      return f.properties?.antenne === selectedAntenne;
+    });
+  
+    return {
+      type: "FeatureCollection",
+      features
+    };
+  }, [regionsData, selectedAntenne]);
+
+  const getColorByAntenne = (antenne) => {
+    switch (antenne) {
+      case "U.R.A":
+        return "#16a34a";
+      case "U.R.B":
+        return "#2563eb";
+      case "U.R.C":
+        return "#f59e0b";
+      case "U.R.D":
+        return "#ef4444";
+      case "U.R.FD":
+        return "#8b5cf6";
+      default:
+        return "#64748b";
+    }
+  };
+
+  console.log("features:", regionsData?.features);
+  console.log("antennes:", antennes);
+
   return (
     <div style={styles.page}>
-      {/* HEADER */}
       {/* HEADER */}
       <div style={styles.header}>
         <h1 style={styles.title}>TABLEAU DE BORD PADDI+</h1>
 
         <div style={styles.headerFilters}>
-          {/* ANTENNE */}
           <div style={styles.filterGroup}>
             <label style={styles.filterLabel}>Antenne</label>
 
-            <select style={styles.select}>
-              <option>U.C.T</option>
-              <option>U.R.B</option>
-              <option>U.R.D</option>
-              <option>U.R.A.M</option>
-              <option>U.R.A.A</option>
-              <option>U.R.F</option>
+            <select
+              style={styles.select}
+              value={selectedAntenne}
+              onChange={(e) => setSelectedAntenne(e.target.value)}
+            >
+              <option value="">Toutes les antennes</option>
+
+              {antennes?.length > 0 &&
+                antennes.map((antenne) => (
+                  <option key={antenne} value={antenne}>
+                    {antenne}
+                  </option>
+                ))}
             </select>
           </div>
 
@@ -280,22 +389,35 @@ export default function Dashboard({ data }: any) {
           </div>
 
           <div style={styles.mapCard}>
-            <MapContainer
-              center={[-18.8792, 47.5079]}
-              zoom={6}
-              style={{
-                width: '100%',
-                height: '100%',
-                borderRadius: 5,
-              }}
-            >
-              <TileLayer
+              <MapContainer
+                center={[-18.8792, 47.5079]}
+                zoom={6}
+                style={{ width: "100%", height: "100%", minHeight: '380px', }}
+              >
+                <TileLayer
                 attribution="&copy; ESRI"
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
               />
 
-              <ScaleControl position="bottomleft" imperial={false} />
-            </MapContainer>
+                <ScaleControl position="bottomleft" imperial={false} />
+
+                {geoFiltered?.features?.length > 0 && (
+                  <>
+                    <GeoJSON
+                      key={selectedAntenne}
+                      data={geoFiltered}
+                      style={(feature) => ({
+                        color: "transparent",
+                        weight: 0,
+                        fillColor: getColorByAntenne(feature.properties?.antenne),
+                        fillOpacity: 0.6,
+                      })}
+                      onEachFeature={onEachRegion}
+                    />
+                    <AutoZoom geoData={geoFiltered} />
+                  </>
+                )}
+              </MapContainer>
           </div>
         </div>
       </div>
