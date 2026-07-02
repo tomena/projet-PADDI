@@ -182,7 +182,7 @@ function RegionLayer({ data, getColorByAntenne }) {
     layer.addTo(map);
 
     return () => {
-      layer.clearLayers();   // 🔥 IMPORTANT
+      layer.clearLayers();
       map.removeLayer(layer);
     };
   }, [data, map, getColorByAntenne]);
@@ -263,7 +263,7 @@ export default function Dashboard({ data }: any) {
         .catch(err => console.error("Erreur chargement GeoJSON:", err));
     }, []);
 
-  const VALID_ANTENNES = ["U.C.T","U.R.A", "U.R.B", "U.R.C", "U.R.D", "U.R.F","U.R.FD"];
+  const VALID_ANTENNES = ["Tanà","Ambositra", "Boeny", "Diana", "Farafangana", "Fort-Dauphin"];
 
   const antennes = useMemo(() => {
     if (!regionsData?.features) return [];
@@ -333,15 +333,15 @@ useEffect(() => {
 
   const getColorByAntenne = (antenne) => {
     switch (antenne) {
-      case "U.C.T":
+      case "Tanà":
         return "#16a34a";
-      case "U.R.B":
+      case "Boeny":
         return "#2563eb";
-      case "U.R.F":
+      case "Farafangana":
         return "#f59e0b";
-      case "U.R.D":
+      case "Diana":
         return "#ef4444";
-      case "U.R.FD":
+      case "Fort-Dauphin":
         return "#8b5cf6";
       default:
         return "#64748b";
