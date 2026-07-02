@@ -329,7 +329,7 @@ useEffect(() => {
 
   const getColorByAntenne = (antenne) => {
     switch (antenne) {
-      case "U.R.A":
+      case "U.C.T":
         return "#16a34a";
       case "U.R.B":
         return "#2563eb";
