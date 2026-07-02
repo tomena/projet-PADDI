@@ -75,10 +75,14 @@ function AutoZoom({ geoData }) {
 }
 
 function onEachRegion(feature, layer, mapRef) {
-  if (feature.properties?.nom_reg) {
-    layer.bindTooltip(feature.properties.nom_reg, {
+  const name = feature?.properties?.nom_reg;
+
+  if (name) {
+    layer.bindTooltip(name, {
       sticky: true,
+      direction: "center",
       className: "region-label",
+      permanent: true,
     });
   }
 
@@ -626,10 +630,9 @@ return (
               style={{ width: "100%", height: "100%", minHeight: "380px" }}
             >
               <TileLayer
-                attribution="&copy; ESRI"
+                attribution="© ESRI"
                 url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
               />
-
               <ScaleControl position="bottomleft" imperial={false} />
 
               {geoFiltered?.features?.length > 0 && (
