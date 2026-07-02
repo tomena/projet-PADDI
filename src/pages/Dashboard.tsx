@@ -110,7 +110,7 @@ function LegendControl({ getColorByAntenne, antennes }) {
       div.style.boxShadow = "0 1px 5px rgba(0,0,0,0.2)";
       div.style.fontSize = "12px";
 
-      div.innerHTML = `<strong>Antenne</strong><br/>`;
+      div.innerHTML = `<strong>Légende:</strong><br/>`;
 
       div.innerHTML += `
       <div style="display:flex;align-items:center;gap:6px;">
@@ -134,6 +134,20 @@ function LegendControl({ getColorByAntenne, antennes }) {
         `;
         
       });
+
+      div.innerHTML += `
+        <div style="display:flex;align-items:center;gap:6px;">
+        <svg width="18" height="18" viewBox="0 0 24 24">
+        <path
+        d="M3 18 L6 5 L14 3 L21 8 L18 20 L8 21 Z"
+        fill="rgba(34,197,94,0.30)"
+        stroke="white"
+        stroke-width="1"
+        />
+        </svg>
+        Aire protégée
+        </div>
+        `;
       
       return div;
     };
@@ -193,6 +207,42 @@ function BureauLayer({ data }) {
   return null;
 }
 
+function AireProtegeeLayer({ data, selectedAntenne }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!data?.features) return;
+
+    const layer = L.geoJSON(data, {
+      style: {
+        color: "#fff",
+        weight: 0.8,
+        fillColor: "#22c55e",
+        fillOpacity: 0.30,
+      },
+      onEachFeature: (feature, layer) => {
+
+        if (selectedAntenne) {
+          layer.bindTooltip(feature.properties.nom_ap, {
+            permanent: true,
+            direction: "center",
+            className: "ap-label",
+            sticky: false,
+          });
+        }      
+      },
+    });
+
+    layer.addTo(map);
+
+    return () => {
+      layer.clearLayers();
+      map.removeLayer(layer);
+    };
+  }, [data, map]);
+
+  return null;
+}
 
 export default function Dashboard({ data }: any) {
 
@@ -228,6 +278,16 @@ export default function Dashboard({ data }: any) {
         .then(r => r.json())
         .then(setBureauData);
     }, []);
+
+
+    const [aireProtegeeData, setAireProtegeeData] = useState(null);
+
+useEffect(() => {
+  fetch("/data/aire_protegee_paddi.geojson")
+    .then((r) => r.json())
+    .then(setAireProtegeeData)
+    .catch(console.error);
+}, []);
 
 
   const dashboard = useMemo(
@@ -294,6 +354,20 @@ export default function Dashboard({ data }: any) {
       )
     };
   }, [bureauData, selectedAntenne]);
+
+
+  const aireProtegeeFiltered = useMemo(() => {
+    if (!aireProtegeeData?.features) return null;
+  
+    return {
+      type: "FeatureCollection",
+      features: aireProtegeeData.features.filter((f) => {
+        if (!selectedAntenne) return true;
+  
+        return f.properties?.antenne === selectedAntenne;
+      }),
+    };
+  }, [aireProtegeeData, selectedAntenne]);
 
   console.log("features:", regionsData?.features);
   console.log("antennes:", antennes);
@@ -565,6 +639,14 @@ return (
                     data={geoFiltered}
                     getColorByAntenne={getColorByAntenne}
                   />
+
+                {aireProtegeeFiltered?.features?.length > 0 && (
+                  <AireProtegeeLayer
+                  key={`${selectedAntenne}-ap`}
+                  data={aireProtegeeFiltered}
+                  selectedAntenne={selectedAntenne}
+                />
+                )}
 
               {bureauFiltered?.features?.length > 0 && (
                 <BureauLayer
