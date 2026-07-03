@@ -663,7 +663,7 @@ const styles: any = {
   gridTop: {
     display:'grid',
     gridTemplateColumns:'1.2fr 1fr 1.7fr',
-    gap:12,
+    gap:2,
     alignItems: 'stretch',
     marginTop: 7,
   
