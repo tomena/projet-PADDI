@@ -912,19 +912,24 @@ donutSmall:{
     gridTemplateColumns: '1fr',
     flexDirection: 'column',
     gap: 'clamp(6px, 1vw, 6px)',
+    alignItems: 'center',
     marginTop: 15,
+    overflow: 'hidden',
   },
 
   resultBlock: {
     width: '100%',
-    maxWidth: '100%',
+    maxWidth: 380,
+    margin: '0 auto',
     border: '1px solid #e5e7eb',
     borderRadius: 10,
-    padding: 5,
+    padding: 10,
   
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+  
+    boxSizing: 'border-box',
   },
   
   resultTitle: {
@@ -967,13 +972,14 @@ donutSmall:{
   },
 
   resultDonutBox: {
-    width: 130,
-    height: 130,
+    width: 120,
+    height: 120,
     position: 'relative',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    margin: '0 auto',
   },
 
   rechartsWrapper: {
