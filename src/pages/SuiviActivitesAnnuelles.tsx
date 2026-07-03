@@ -1,30 +1,8 @@
 import React from 'react';
-import {
-  CalendarDays,
-  RotateCcw,
-  CheckCircle,
-  ListChecks,
-  Clock,
-  TrendingUp,
-  TrendingDown,
-  Leaf,
-  ShieldCheck,
-  Mountain,
-  BriefcaseBusiness,
-  XCircle,
-  Building2,
-  Info,
-  TreePine,
-  Users,
-  Trees, 
-  MapPin,
+import { CalendarDays, RotateCcw, CheckCircle, ListChecks, Clock, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
 } from 'lucide-react';
 
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
+import { ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 
 export default function SuiviActivitesAnnuelles() {
@@ -92,7 +70,7 @@ export default function SuiviActivitesAnnuelles() {
   ];
 
   const axes1 = {
-    title: 'AXES PRIORITAIRES 1 : SYSTÈME DE GESTION ET GOUVERNANCE',
+    title: 'AXES PRIORITAIRES DE LA REALISATION 1 : SYSTÈME DE GESTION',
     icon: Users,
     data:[
         { name: 'Analyses diagnostiques', value: 82, color: '#2563eb' },
@@ -107,17 +85,17 @@ export default function SuiviActivitesAnnuelles() {
     
 };
   const axes2 = {
-    title: 'AXES PRIORITAIRES 2 : AMÉNAGEMENT DU TERRITOIRE',
+    title: 'AXES PRIORITAIRES DE LA REALISATION 2 : AMÉNAGEMENT DU TERRITOIRE',
     icon: Trees,
     data:[
         { name: 'Restauration paysages', value: 78, color: '#16a34a' },
         { name: 'Production durable', value: 58, color: '#2563eb' },
         { name: 'Sécurisation foncière', value: 45, color: '#f59e0b' },
         { name: 'Gestion des feux', value: 22, color: '#f97316' },
-        { name: 'Valorisation des productions', value: 60, color: '#16a34a' },
-        { name: 'Diversification des activités', value: 48, color: '#f59e0b' },
-        { name: 'Mobilisation communautaire', value: 66, color: '#16a34a' },
-        { name: 'Système de marché', value: 25, color: '#f97316' },
+        { name: 'Système de marché', value: 60, color: '#16a34a' },
+        { name: 'Valorisation des productions', value: 48, color: '#f59e0b' },
+        { name: 'Diversification des activités', value: 66, color: '#16a34a' },
+        { name: 'Mobilisation communautaire', value: 25, color: '#f97316' },
     ]
     };
 
@@ -263,8 +241,8 @@ export default function SuiviActivitesAnnuelles() {
                 <PieChart>
                 <Pie
                     data={globalPie}
-                    innerRadius={30}
-                    outerRadius={50}
+                    innerRadius={45}
+                    outerRadius={75}
                     dataKey="value"
                     >
                     <Cell fill="#16a34a" />
@@ -292,20 +270,20 @@ export default function SuiviActivitesAnnuelles() {
                     </span>
                 </div>
 
-                <div style={styles.kpiItem}>
-                    <CheckCircle size={20} color="#16a34a" />
+                    <div style={styles.kpiItem}>
+                        <CheckCircle size={20} color="#16a34a" />
+                            <span style={styles.kpiLabel}>
+                                Activités achevées
+                            </span>
+
+                            <span style={styles.kpiValue}>
+                                109
+                            </span>
+                    </div>
+
+                    <div style={styles.kpiItem}>
+                        <Clock size={20} color="#16a34a" />
                         <span style={styles.kpiLabel}>
-                            Activités achevées
-                        </span>
-
-                        <span style={styles.kpiValue}>
-                            109
-                        </span>
-                </div>
-
-                <div style={styles.kpiItem}>
-                    <Clock size={20} color="#16a34a" />
-                    <span style={styles.kpiLabel}>
                             Activités en cours
                         </span>
 
@@ -314,9 +292,9 @@ export default function SuiviActivitesAnnuelles() {
                         </span>
                     </div>
 
-                <div style={styles.kpiItem}>
-                    <XCircle size={20} color="#16a34a" />
-                    <span style={styles.kpiLabel}>
+                    <div style={styles.kpiItem}>
+                      <XCircle size={20} color="#16a34a" />
+                        <span style={styles.kpiLabel}>
                             Activités non démarrées
                         </span>
 
@@ -325,115 +303,72 @@ export default function SuiviActivitesAnnuelles() {
                         </span>
                     </div>
                 </div>
-
             </div>
         </div>
 
-       {/* RESULTS */}
+            {/* RESULTS */}
             <div style={styles.card}>
                 <div style={styles.cardHeader}>
-                    TAUX D’AVANCEMENT PAR RÉSULTAT
+                    TAUX D’AVANCEMENT PAR REALISATION
                 </div>
                 <div style={styles.resultsColumn}>
 
-          {results.map((r, i) => (
-            <div key={i} style={styles.resultBlock}>
+                    {results.map((r, i) => (
+                      <div key={i} style={styles.resultBlock}>
 
-                <div
-                style={{
-                    ...styles.resultTitle,
-                    color: '#111827',
-                }}
-                >
-                {r.label}
-                </div>
+                          <div
+                            style={{
+                                ...styles.resultTitle,
+                                color: '#111827',
+                            }}
+                          >
+                          {r.label}
+                          </div>
 
-              <div style={styles.resultGrid}>
+                  <div style={styles.resultGrid}>
   
-            {/* LEFT: DONUT */}
-            <div style={styles.resultDonutBox}>
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={[
-                      { value: r.percent },
-                      { value: 100 - r.percent },
-                    ]}
-                    innerRadius={30}   
-                    outerRadius={55}   
-                    dataKey="value"
-                  >
-                    <Cell fill={r.color} />
-                    <Cell fill="#e5e7eb" />
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+                    {/* LEFT: DONUT */}
+                    <div style={styles.resultDonutBox}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { value: r.percent },
+                              { value: 100 - r.percent },
+                            ]}
+                            innerRadius={30}   
+                            outerRadius={55}   
+                            dataKey="value"
+                          >
+                            <Cell fill={r.color} />
+                            <Cell fill="#e5e7eb" />
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
 
-              <div
-                style={{
-                  ...styles.donutText,
-                  color: r.color,
-                  fontSize: 18, // 🔥 plus visible
-                }}
-              >
-                {r.percent}%
-              </div>
-            </div>
-
-          {/* RIGHT: INFOS */}
-          <div style={styles.resultInfoBox}>
-            
-          <div
-                style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    color: r.percent >= 50 ? '#16a34a' : '#ef4444',
-                    fontWeight: 800,
-                }}
-                >
-                {r.percent >= 50 ? (
-                    <TrendingUp size={28} />
-                ) : (
-                    <TrendingDown size={28} />
-                )}
-
-                <span style={{ fontSize: 16 }}>
-                    {r.percent >= 50 ? '+8%' : '-5%'}
-                </span>
-            </div>
-
-            <div style={{ fontSize: clamp(10, 0.8, 11), color: '#64748b' }}>
-              vs mois précédent
-            </div>
-
-            <div style={styles.resultFooter}>
-                Activités achevées{' '}
-                <span
-                    style={{
-                    color: r.color,
-                    fontWeight: 900,
-                    fontSize: 12,
-                    }}
-                >
-                    {r.done}
-                </span>
-                {' / '}
-                {r.total}
+                      <div
+                        style={{
+                          ...styles.donutText,
+                          color: r.color,
+                          fontSize: 18, // 🔥 plus visible
+                        }}
+                      >
+                        {r.percent}%
+                      </div>
+                    </div>          
+                  </div>
                 </div>
+              ))}
             </div>
-            </div>
-            </div>
-          ))}
-      </div>            
-    </div>
-  </div>
+        </div>
+        <div style={styles.card}>
 
-      {/* ================= COMPOSANTES ================= */}
-      <div style={styles.sectionTitle}>TAUX D’AVANCEMENT PAR COMPOSANTE</div>
-      
-      <div style={styles.grid4}>
-        {composantes.map((c, i) => {
+    <div style={styles.cardHeader}>
+        TAUX D’AVANCEMENT PAR COMPOSANTE
+    </div>
+
+    <div style={styles.gridComposantes}>
+    {composantes.map((c, i) => {
             const Icon = c.icon;
 
             return (
@@ -461,8 +396,8 @@ export default function SuiviActivitesAnnuelles() {
                             { value: c.percent },
                             { value: 100 - c.percent },
                             ]}
-                            innerRadius={24}
-                            outerRadius={38}
+                            innerRadius={20}
+                            outerRadius={34}
                             dataKey="value"
                         >
                             <Cell fill={c.color} />
@@ -481,67 +416,13 @@ export default function SuiviActivitesAnnuelles() {
                     </div>
                     </div>
 
-                    {/* INFOS A DROITE */}
-                    <div style={styles.compInfo}>
-
-                    <div
-                        style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            fontWeight: 800,
-                            fontSize: 13,
-                            color: '#111827', // 🔥 tout en noir
-                        }}
-                        >
-                        {c.up ? (
-                            <TrendingUp size={18} color="#16a34a" />
-                        ) : (
-                            <TrendingDown size={18} color="#ef4444" />
-                        )}
-
-                        <span>
-                            {c.trend}
-                        </span>
-                        </div>
-
-                    <div
-                        style={{
-                        fontSize: 11,
-                        color: '#64748b',
-                        }}
-                    >
-                        vs mois précédent
-                    </div>
-
-                    <div
-                        style={{
-                          fontSize: 11,
-                        fontWeight: 600,
-                        color: '#64748b',
-                        }}
-                    >
-                        Activités achevées{' '}
-                        <span
-                        style={{
-                            color: c.color,
-                            fontWeight: 900,
-                            fontSize:11,
-                        }}
-                        >
-                        {c.done}
-                        </span>
-                        {' / '}
-                        {c.total}
-                    </div>
-
-                    </div>
-
                     </div>           
               </div>
             );
-        })}
-        </div>   
+        })}            
+          </div>
+        </div>
+        </div>
 
       {/* ================= AXES ================= */}
       <div style={styles.grid2}>
@@ -664,8 +545,6 @@ export default function SuiviActivitesAnnuelles() {
 </div>
 
       </div>
-
-      {/* ================= FOOTER ================= */}
       {/* ================= FOOTER LEGEND ================= */}
       
       <div style={styles.footer}>
@@ -697,14 +576,6 @@ export default function SuiviActivitesAnnuelles() {
           </div>
         </div>
 
-        {/* CENTER : INFO TEXT */}
-        <div style={styles.footerInfo}>
-          <Info size={16} color="#16a34a" />
-          <span>
-            Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.
-          </span>
-        </div>
-
         {/* RIGHT : CTA */}
         <div style={styles.footerCTA}>
           <div style={styles.ctaIcon}>
@@ -713,15 +584,15 @@ export default function SuiviActivitesAnnuelles() {
 
         <div>
           <div style={{ fontWeight: 900, fontSize: 10 }}>
-            ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE 2025
+            ACCÉDER AU SUIVI DES ACTIVITES ANNUELLES DE L’ANNÉE CHOISI
           </div>
           <div style={{ fontSize: 9, opacity: 0.8 }}>
-            Consultez le détail des coûts, engagements et décaissements
+            Consultez le détail des activités
           </div>
         </div>
 
         <button style={styles.ctaButton}>
-          Accéder au suivi des coûts 2025 ↗
+          Accéder au suivi des activités 2025 ↗
         </button>
       </div>
     </div>
@@ -790,9 +661,10 @@ const styles: any = {
   },
 
   gridTop: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(320px, 1fr) minmax(420px, 2fr)',
-    gap: 10,
+    display:'grid',
+    gridTemplateColumns:'1.2fr 1fr 1.7fr',
+    gap:12,
+    alignItems: 'stretch',
     marginTop: 7,
   
     // responsive mobile
@@ -825,18 +697,17 @@ const styles: any = {
   },
 
   globalWrap: {
-    display: 'grid',
-    gridTemplateColumns: '120px 1fr',
+    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 12,
-    height: '100%',
   },
 
   donutBox: {
     position: 'relative',
-    width: 110,
-    height: 110,
-    margin: 0,
+    width: 180,
+    height: 180,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -853,11 +724,10 @@ const styles: any = {
   },
   
   kpiList: {
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-start',
-    gap: 6,
-    fontSize: 'clamp(10, 0.8, 14)',
+    display: 'grid',
+    gridTemplateColumns: '1fr',
+    gap: 8,
+    width: '100%',
   },
 
   resultLabel: { 
@@ -886,24 +756,24 @@ const styles: any = {
     marginTop: 8,
   },
 
-  smallCard: {
-    background: '#fff',
-    borderRadius: 14,
-    padding: 12,
-    border: '1px solid #e5e7eb',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-    minWidth: 0,
-    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-  },
+  smallCard:{
+    background:'#fff',
+    border:'1px solid #e5e7eb',
+    borderRadius:10,
+    padding:'8px 6px',
+    display:'flex',
+    flexDirection:'column',
+    alignItems:'center',
+    justifyContent:'center',
+    textAlign:'center',
+},
 
-  donutSmall: {
-    width: 80,
-    height: 80,
-    margin: 'auto',
-    position: 'relative',
-  },
+donutSmall:{
+  width:70,
+  height:70,
+  position:'relative',
+  margin:'8px auto',
+},
 
   centerSmall: {
     position: 'absolute',
@@ -922,7 +792,7 @@ const styles: any = {
   grid2: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit,minmax(500px,1fr))',
-    gap: 12,
+    gap: 2,
     marginTop: 14,
     alignItems: 'start',
   },
@@ -1020,8 +890,8 @@ const styles: any = {
 
   resetBigBtn: {
     width: '100%',
-    minHeight: 60,        // au lieu de height fixe
-    padding: '6px 10px',  // plus compact
+    minHeight: 60,
+    padding: '6px 10px',
     borderRadius: 8,
     border: '1.2px solid #bfdbfe',
     background: '#fff',
@@ -1038,23 +908,23 @@ const styles: any = {
   },
 
   resultsColumn: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-    gap: 'clamp(6px, 1vw, 12px)',
-    marginTop: 10,
+    display: 'flex',
+    gridTemplateColumns: '1fr',
+    flexDirection: 'column',
+    gap: 'clamp(6px, 1vw, 6px)',
+    marginTop: 15,
   },
 
   resultBlock: {
+    width: '100%',
+    maxWidth: '100%',
     border: '1px solid #e5e7eb',
-    borderRadius: 8,
-    padding: 2,
-    background: '#fff',  
-    flex: '1 1 320px', // 🔥 clé du responsive
-    minWidth: 280,     // empêche les cartes trop petites
-    maxWidth: '100%',  
+    borderRadius: 10,
+    padding: 5,
+  
     display: 'flex',
     flexDirection: 'column',
-    gap: 2,
+    alignItems: 'center',
   },
   
   resultTitle: {
@@ -1082,10 +952,11 @@ const styles: any = {
   },
 
   resultGrid: {
-    display: 'grid',
-    gridTemplateColumns: '140px 1fr', // 🔥 donut plus large
+    display: 'flex',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 30,
+    width: '100%',
+    gap: 1,
   },
 
   resultInfoBox: {
@@ -1096,14 +967,13 @@ const styles: any = {
   },
 
   resultDonutBox: {
-    width: 120,
-    height: 120,
-    position: 'relative',  
-    aspectRatio: '1 / 1', // 🔥 clé moderne
+    width: 130,
+    height: 130,
+    position: 'relative',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 10,
+    flexShrink: 0,
   },
 
   rechartsWrapper: {
@@ -1112,21 +982,25 @@ const styles: any = {
   },
 
   kpiItem: {
-    display: 'flex',
+    display: 'grid',
+    gridTemplateColumns: 'auto 1fr auto',
     alignItems: 'center',
-    gap: 8,
-    color: '#111827',
-    fontWeight: 600,
+    gap: 10,
+    padding: '6px 8px',
+    border: '1px solid #e5e7eb',
+    borderRadius: 8,
+    background: '#fff',
   },
 
-  compHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#16a34a',
-  },
+  compHeader:{
+    display:'flex',
+    flexDirection:'column',
+    alignItems:'center',
+    gap:6,
+    textAlign:'center',
+    fontSize:10,
+    fontWeight:700,
+},
 
   compContent: {
     display: 'flex',
@@ -1322,7 +1196,7 @@ const styles: any = {
 
   footer: {
     display: 'grid',
-    gridTemplateColumns: '1fr 1.2fr 1.3fr',
+    gridTemplateColumns: '1fr 1fr',
     gap: 10,
     alignItems: 'start',
     background: '#ffffff',
@@ -1388,6 +1262,14 @@ const styles: any = {
     height: 12,
     borderRadius: '50%',
     flexShrink: 0,
+  },
+
+  gridComposantes: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(2, 1fr)',
+    gridTemplateRows: 'repeat(2, auto)',
+    gap: 4,
+    marginTop: 10,
   },
   
 };
