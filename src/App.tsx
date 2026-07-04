@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 
 import Dashboard from './pages/Dashboard';
 import Analyse from './pages/Analyse';
+import Deforestation from './pages/Deforestation';
 import AnalyseEnvironnement from './pages/AnalyseEnvironnement';
 import InsertionDonnees from './pages/InsertionDonnees';
 import Pression from './pages/Pression';
@@ -39,7 +40,7 @@ export default function App() {
       <div style={styles.content}>
         {page === 'dashboard-general' && <Dashboard data={data} />}
         {page === 'dashboard-feux' && <h1>🔥 Feux</h1>}
-        {page === 'dashboard-deforestation' && <h1>🌳 Déforestation</h1>}
+        {page === 'dashboard-deforestation' && <Deforestation />}
         {page === 'dashboard-ecosysteme' && <h1>🌿 Écosystèmes</h1>}
         {page === 'analyse' && <Analyse />}
         {page === 'analyse-environnement' && <AnalyseEnvironnement />}
