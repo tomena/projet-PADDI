@@ -796,11 +796,6 @@ export default function Deforestation() {
       icon: (
         <div style={{ position: "relative", width: 40, height: 40 }}>
           <TreePine size={40} color="#c40000" />
-          <X
-            size={40}
-            color="red"
-            style={{ position: "center", top: -15, right: 0 }}
-          />
         </div>
       ),
     },
