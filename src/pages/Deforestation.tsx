@@ -799,7 +799,7 @@ export default function Deforestation() {
           <X
             size={40}
             color="red"
-            style={{ position: "center", top: 0, right: 0 }}
+            style={{ position: "center", top: -15, right: 0 }}
           />
         </div>
       ),
