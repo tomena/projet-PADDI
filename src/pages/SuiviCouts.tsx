@@ -1,41 +1,11 @@
 import React from 'react';
-import {
-  CalendarDays,
-  RotateCcw,
-  Building2,
-  Building,
-  Plane,
-  Users,
-  User,
-  Info,
-  Coins,
-  Briefcase,
-  UserRound,
-  Handshake,
-  Leaf,
-  Map,
-} from 'lucide-react';
-
+import {CalendarDays,RotateCcw,Building2,Building,Plane,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,
+      } from 'lucide-react';
 import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
-
 import { MdPayments, MdAccountBalanceWallet } from 'react-icons/md';
-
 import { GiPayMoney } from 'react-icons/gi';
-
-import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  LabelList,
-  Label,
-  CartesianGrid,
-  Tooltip,
-} from 'recharts';
+import {ResponsiveContainer,PieChart,Pie,Cell,BarChart,Bar,XAxis,YAxis,LabelList,Label,CartesianGrid,Tooltip,
+      } from 'recharts';
 
 const yearlyData = [
   { year: '2024', value: 3.2, percent: 10 },
@@ -45,6 +15,7 @@ const yearlyData = [
   { year: '2028', value: 0, percent: 0 },
   { year: '2029', value: 0, percent: 0 },
   { year: '2030', value: 0, percent: 0 },
+  { year: '2031', value: 0, percent: 0 },
 ];
 
 const composantes = [
@@ -197,6 +168,7 @@ export default function SuiviCouts() {
               <option>2028</option>
               <option>2029</option>
               <option>2030</option>
+              <option>2031</option>
             </select>
 
             <div style={styles.filterSub}>2024 - 2030</div>
@@ -242,12 +214,12 @@ export default function SuiviCouts() {
             <div style={styles.filterLabel}>UNITÉ DE COORDINATION</div>
 
             <select style={styles.bigSelect}>
-              <option>AMORON'I MANIA</option>
-              <option>ATSIMO ATSINANANA</option>
-              <option>BOENY</option>
-              <option>DIANA</option>
-              <option>ANÔSY</option>
-              <option>ANTANANARIVO</option>
+              <option>UCR_Ambositra</option>
+              <option>UCR_Boeny</option>
+              <option>UCR_Diana</option>
+              <option>UCR_Farafangana</option>
+              <option>UCR_Fort-Dauphin</option>
+              <option>UCT_Tanà</option>
             </select>
 
             <div style={styles.filterSub}>
@@ -306,7 +278,7 @@ export default function SuiviCouts() {
 
             {/* RIGHT PIE */}
             <div style={{ textAlign: 'center' }}>
-              <div style={styles.kpiLabel}>TAUX D’EXÉCUTION</div>
+              <div style={styles.kpiLabel}>TAUX DE DÉCAISSEMENT</div>
 
               <div style={styles.pieWrapper}>
               <ResponsiveContainer width="100%" height={100}>
@@ -423,8 +395,8 @@ export default function SuiviCouts() {
                       key={index}
                       fill={
                         entry.value === max
-                          ? '#1e3a8a' // 🔥 bleu foncé MAX
-                          : '#94a3b8' // 🔥 gris bleuté autres
+                          ? '#1e3a8a'
+                          : '#94a3b8'
                       }
                     />
                   );
@@ -498,7 +470,7 @@ export default function SuiviCouts() {
           {/* HEADER STICKY */}
           <div style={styles.stickyHeader}>
             <span>COMPOSANTE</span>
-            <span>DÉCAISSÉ (2025)</span>
+            <span>DÉCAISSÉ</span>
             <span>% DU BUDGET TOTAL</span>
           </div>
 
@@ -589,7 +561,7 @@ export default function SuiviCouts() {
 
           <div style={styles.tableHeaderRow}>
             <span>INSTRUMENT</span>
-            <span>DÉCAISSÉ(2025)</span>
+            <span>DÉCAISSÉ</span>
             <span>% DU BUDGET TOTAL</span>
           </div>
 
@@ -669,9 +641,7 @@ export default function SuiviCouts() {
             </div>
           </div>
         </div>{' '}
-        {/* ✅ FERME CARD INSTRUMENTS */}
       </div>{' '}
-      {/* ❗ FERME TOP GRID */}
       {/* ===================== NEW BOTTOM GRIDS ===================== */}
       <div style={styles.bottomGrid}>
         <div style={styles.card}>
@@ -692,7 +662,7 @@ export default function SuiviCouts() {
             }}
           >
             TAUX D’AVANCEMENT GLOBAL DES COÛTS (PAR RAPPORT A LA PLANIFICATION
-            ANNUELLE 2025)
+            ANNUELLE)
           </div>
 
           <div style={styles.globalGrid}>
@@ -718,18 +688,13 @@ export default function SuiviCouts() {
             {/* INDICATEURS */}
             <div style={styles.globalIndicators}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={styles.label}>DÉCAISSÉ (2025)</div>
+                <div style={styles.label}>DÉCAISSÉ</div>
                 <div style={styles.blueValue}>12.865.420 €</div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <div style={styles.label}>PLANIFICATION ANNUELLE</div>
                 <div style={styles.blueValue}>29.800.000 €</div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={styles.label}>ENGAGEMENTS</div>
-                <div style={styles.greenValue}>15.420.000 €</div>
               </div>
             </div>
           </div>
@@ -941,14 +906,7 @@ export default function SuiviCouts() {
                 plan: '2.000.000 €',
                 color: '#f97316',
               },
-              {
-                title: 'SALAIRES',
-                icon: User,
-                percent: 22,
-                dec: '248.660 €',
-                plan: '1.150.000 €',
-                color: '#f97316',
-              },
+              
             ].map((item, i) => {
               const Icon = item.icon;
 
@@ -1093,7 +1051,7 @@ export default function SuiviCouts() {
 
         <div>
           <div style={{ fontWeight: 900, fontSize: 10 }}>
-            ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE 2025
+            ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE
           </div>
           <div style={{ fontSize: 9, opacity: 0.8 }}>
             Consultez le détail des coûts, engagements et décaissements
@@ -1101,7 +1059,7 @@ export default function SuiviCouts() {
         </div>
 
         <button style={styles.ctaButton}>
-          Accéder au suivi des coûts 2025 ↗
+          Accéder au suivi des coûts ↗
         </button>
       </div>
     </div>
@@ -1656,7 +1614,7 @@ const styles: any = {
 
   donutGrid6: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+    gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
     gap: 2,
     padding: 3,
     alignItems: 'stretch',
