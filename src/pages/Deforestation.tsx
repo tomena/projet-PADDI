@@ -1133,7 +1133,7 @@ const maxValue = Math.max(...chart6Trend.map(d => d.valeur));
             marginBottom: 10,
           }}
         >
-    Tandance de taux de déforestation à l'intérieur de l'Aire Protégée
+    Tendance de taux de déforestation à l'intérieur de l'Aire Protégée
   </div>
 
   <ResponsiveContainer width="100%" height="100%">
