@@ -260,7 +260,7 @@ export default function SuiviCouts() {
 
                 {/* CONTENT */}
                 <div style={styles.kpiContent}>
-                  <div style={styles.kpiTopLabel}>DÉCAISSÉ CUMULÉ (2025)</div>
+                  <div style={styles.kpiTopLabel}>DÉCAISSÉ CUMULÉ</div>
 
                   <div style={styles.kpiMainValue}>12.865.420 €</div>
 
