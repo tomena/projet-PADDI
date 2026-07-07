@@ -42,7 +42,6 @@ export default function App() {
         {page === 'dashboard-general' && <Dashboard data={data} />}
         {page === 'dashboard-feux' && <AnalyseFeux />}
         {page === 'dashboard-deforestation' && <Deforestation />}
-        {page === 'dashboard-ecosysteme' && <h1>🌿 Écosystèmes</h1>}
         {page === 'analyse' && <Analyse />}
         {page === 'analyse-environnement' && <AnalyseEnvironnement />}
         {page === 'insertion-donnees' && <InsertionDonnees />}
