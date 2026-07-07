@@ -504,7 +504,8 @@ interface CardProps {
   })
   .sort((a, b) => b.y2026 - a.y2026);
 
-  const Graphique2Pro = () => {
+  const Graphique2Pro = ({ ap }) => {
+
     const chart2Pro = chart2
       .map(d => {
         const variation = ((d.y2026 - d.y2025) / d.y2025) * 100;
@@ -515,6 +516,7 @@ interface CardProps {
         };
       })
       .sort((a, b) => b.y2026 - a.y2026);
+  
   
     return (
       <div
@@ -530,17 +532,17 @@ interface CardProps {
         }}
       >
         <div
-          style={{
-            textAlign: "center",
-            color: "#d32f2f",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 10,
-          }}
-        >
-          A l'intérieur de l'Aire Protégée Analamerana
-        </div>
+  style={{
+    textAlign: "center",
+    color: "#d32f2f",
+    fontSize:12,
+    fontWeight: 700,
+    fontStyle: "italic",
+    marginBottom: 10,
+  }}
+>
+  A l'intérieur de l'Aire Protégée {ap}
+</div>
   
         <ResponsiveContainer width="100%" height={280}>
           <BarChart data={chart2Pro} barGap={2} barCategoryGap="10%"> 
@@ -1638,10 +1640,8 @@ export default function Deforestation() {
 <div style={{ width: "100%" }}>
       <Graphique1 />
     </div>
-
-
     <div style={{ width: "100%" }}>
-      <Graphique2Pro />
+    <Graphique2Pro ap={ap} />
     </div>
 
     <div style={{ width: "100%" }}>
