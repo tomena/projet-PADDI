@@ -503,7 +503,7 @@ export default function Sidebar({ setPage }: any) {
               Déforestation
             </div>
 
-            <div
+            {/*<div
               style={{
                 ...styles.subItem,
                 ...(isActive('dashboard-ecosysteme')
@@ -520,7 +520,7 @@ export default function Sidebar({ setPage }: any) {
             >
               <Leaf size={16} />
               Écosystèmes
-            </div>
+            </div>*/}
           </div>
         )}
 
