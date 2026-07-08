@@ -1265,7 +1265,7 @@ interface CardProps {
   };
 
   
-export default function Deforestation() {
+export default function Feux() {
   const [year, setYear] = useState<number>(2019);
   const [ap, setAp] = useState<string>("Ankarafantsika");
   const [source, setSource] = useState<string>("Interieur");
@@ -1350,6 +1350,51 @@ console.table(
         );
     
     }, [feuxCommune]);
+
+    const feux5km = useMemo(() => {
+      return baseFeux.filter(f => {
+        const p = f.properties;    
+        return (
+          String(p.AP).trim() === String(ap).trim() &&
+          Number(p.Année) === Number(year) &&
+          String(p.Source).trim().toLowerCase() === "5km"
+        );
+      });    
+    }, [baseFeux, ap, year]);    
+
+    const total5km = useMemo(() => {
+      return feux5km.reduce((somme, f) => {    
+        const total = Number(
+          String(f.properties.Total)
+          .replace(",", ".")
+        );    
+        return somme + (isNaN(total) ? 0 : total);    
+      }, 0);
+    
+    }, [feux5km]);
+
+    const feuxInterieur = useMemo(() => {
+      return baseFeux.filter(f => {
+        const p = f.properties;
+    
+        return (
+          String(p.AP).trim() === String(ap).trim() &&
+          Number(p.Année) === Number(year) &&
+          String(p.Source).trim().toLowerCase() === "interieur"
+        );
+      });
+    
+    }, [baseFeux, ap, year]);
+
+    const totalInterieur = useMemo(() => {
+      return feuxInterieur.reduce((somme, f) => {    
+        const total = Number(
+          String(f.properties.Total)
+          .replace(",", ".")
+        );    
+        return somme + (isNaN(total) ? 0 : total);    
+      }, 0);    
+    }, [feuxInterieur]);
     
 
   const formatHa = (value:number) =>
@@ -1385,7 +1430,7 @@ console.table(
   
       {
         title: "Superficies brûlées en périphérie de l'AP (sur un rayon de 5km)",
-        value: "783,56 ha",
+        value:formatHa(total5km),
         color: "#707070",
   
         icon: <div style={{ position: "relative", width: 48, height: 48 }}>
@@ -1404,8 +1449,8 @@ console.table(
       },
   
       {
-        title: "Superficies brûlées à l'intérieur de l'Aire Protégée",
-        value: "989,60 ha",
+        title: "Superficies brûlées à l'intérieur de l'Aire Protégées",
+        value:formatHa(totalInterieur),
         color: "#f0a500",
   
         icon: <div style={{ position: "relative", width: 48, height: 48 }}>
