@@ -1,47 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {Trees,MapPinned,Flame,TrendingDown,BadgePercent, Medal,Calendar, MapPin, Slash, TreePine, X, BarChart3,TrendingUp, ArrowUp, ArrowDown
 } from "lucide-react";
 import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxis,CartesianGrid,Tooltip,Legend,LabelList,ReferenceLine,Cell,Customized, ReferenceDot, Area
 } from "recharts";
 import { createRoot } from "react-dom/client";
-
-const data = [
-  {
-    commune: "Tsaramandroso",
-    superficie: 859.77,
-    perte: 1540,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Marosakoa",
-    superficie: 497.34,
-    perte: 1480,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Marenireno",
-    superficie: 288.99,
-    perte: 910,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Madirovalo",
-    superficie: 219.42,
-    perte: 620,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Andranofasika",
-    superficie: 181.8,
-    perte: 75,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-];
 
 //========================
 // GRAPHIQUE 1
@@ -288,7 +250,7 @@ interface CardProps {
               color,
               fontWeight: 800,
               fontStyle: "italic",
-              fontSize: 18,
+              fontSize: 16,
             }}
           >
             {value}
@@ -1306,16 +1268,120 @@ interface CardProps {
 export default function Deforestation() {
   const [year, setYear] = useState<number>(2019);
   const [ap, setAp] = useState<string>("Ankarafantsika");
+  const [source, setSource] = useState<string>("Interieur");
+  const [baseFeux, setBaseFeux] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch("/data/Bases_Feux.geojson")
+      .then(res => res.json())
+      .then(data => {  
+        setBaseFeux(data.features);  
+      });  
+  }, []);
+
+  useEffect(() => {
+    console.log("Nombre total de features :", baseFeux.length);
+  }, [baseFeux]);
+
+
+  const feuxCommune = useMemo(() => {
+
+    return baseFeux.filter(f => {    
+    const p = f.properties;    
+    return (
+      String(p.AP).trim() === String(ap).trim() &&
+      Number(p.Année) === Number(year) &&
+      String(p.Source).trim().toLowerCase() === "commune"
+    );    
+    });    
+    }, [baseFeux, ap, year]);
+
+    console.log(
+      feuxCommune.map(f => ({
+        AP: f.properties.AP,
+        Annee: f.properties.Année,
+        Source: f.properties.Source,
+        Commune: f.properties.Commune,
+        Total: f.properties.Total
+      }))
+    );  
+
+    console.log("Nombre de lignes filtrées :", feuxCommune.length);
+
+console.table(
+  feuxCommune.map(f => ({
+    Commune: f.properties.Commune,
+    Total: f.properties.Total,
+    AP: f.properties.AP,
+    Annee: f.properties.Année,
+    Source: f.properties.Source
+  }))
+);
+
+const doublons = feuxCommune.reduce((acc, f) => {
+  const key = `${f.properties.AP}-${f.properties.Année}-${f.properties.Commune}-${f.properties.Source}`;
+
+  acc[key] = (acc[key] || 0) + 1;
+
+  return acc;
+}, {});
+
+console.table(
+  Object.entries(doublons).filter(([, n]) => n > 1)
+);
+
+    const totalCommune = useMemo(() => {
+      const parCommune = {};    
+      feuxCommune.forEach(f => {    
+        const commune = f.properties.Commune;    
+        const total = Number(
+          String(f.properties.Total)
+          .replace(",", ".")
+        );    
+        if (!parCommune[commune]) {
+          parCommune[commune] = 0;
+        }    
+        parCommune[commune] += isNaN(total) ? 0 : total;    
+      });   
+      return Object.values(parCommune)
+        .reduce(
+          (somme, valeur) => somme + valeur,
+          0
+        );
+    
+    }, [feuxCommune]);
+    
+
+  const formatHa = (value:number) =>
+  value.toLocaleString("fr-FR", {
+    minimumFractionDigits:2,
+    maximumFractionDigits:2
+  }) + " ha";
+
+
+  const feuxFiltres = useMemo(() => {
+
+    return baseFeux.filter(
+      (f) =>
+        Number(f.properties.Année) === year &&
+        f.properties.AP === ap &&
+        f.properties.Source === source
+    );  
+  }, [baseFeux, year, ap, source]);
 
   const kpis = useMemo(
     () => [
       {
-        title: "Total des superficies brûlées dans les Communes riveraines",
-        value: "2 504,04 ha",
-        color: "#c00000",
-  
-        icon: <Flame size={46} color="#ff6b35" />,
-      },
+        title:"Total des superficies brûlées dans les Communes riveraines",
+        value:formatHa(totalCommune),
+        color:"#c00000",
+       
+        icon:
+        <Flame
+          size={46}
+          color="#ff6b35"
+        />
+       },
   
       {
         title: "Superficies brûlées en périphérie de l'AP (sur un rayon de 5km)",
@@ -1399,7 +1465,7 @@ export default function Deforestation() {
       </div>
       },
     ],
-    [year]
+    [year, ap, totalCommune]
   );
 
 
@@ -1495,8 +1561,8 @@ export default function Deforestation() {
               <option value={2022}>2022</option>
               <option value={2023}>2023</option>
               <option value={2024}>2024</option>
-              <option value={2018}>2025</option>
-              <option value={2019}>2026</option>
+              <option value={2025}>2025</option>
+              <option value={2026}>2026</option>
             </select>
           </div>
 
@@ -1644,7 +1710,7 @@ export default function Deforestation() {
       <Graphique1 />
     </div>
     <div style={{ width: "100%" }}>
-    <Graphique2Pro ap={ap} />
+    <Graphique2Pro data={feuxFiltres} ap={ap}/>
     </div>
 
     <div style={{ width: "100%" }}>
@@ -1800,7 +1866,7 @@ export default function Deforestation() {
 
 {/* ===================== JAUGE CIRCULAIRE===================== */}
 <div style={{ width: "100%" }}>
-      <Graphique6 />
+<Graphique6 data={feuxFiltres}/>
     </div>
 
     </div>
