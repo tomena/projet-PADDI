@@ -1031,7 +1031,7 @@ interface CardProps {
 
   const Graphique6 = () => {
 
-    const valeur = 25;
+    const valeur = -6.25;
   
     const cx = 250;
     const cy = 120;
