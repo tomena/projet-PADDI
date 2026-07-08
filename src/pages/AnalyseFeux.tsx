@@ -1027,24 +1027,20 @@ interface CardProps {
       </div>
     );
   };
-
-
   const Graphique6 = () => {
 
-    const valeur = -6.25;
+    const valeur = -6.45;
   
     const cx = 250;
     const cy = 120;
     const rayon = 80;
   
     const valueToAngle = (v) => {
-
       if (v >= 0) {
-        return -180 + (v / 100) * 180;
+        return 180 + (v / 100) * 90;
       } else {
-        return (Math.abs(v) / 100) * 180;
-      }
-    
+        return 180 - (Math.abs(v) / 100) * 90;
+      }    
     };
     const polar = (angle, r) => {
       const rad = (angle * Math.PI) / 180;
@@ -1054,12 +1050,9 @@ interface CardProps {
         y: cy + r * Math.sin(rad),
       };
     };
-
     const graduation = (angle, longueur, couleur="#555") => {
-
       const p1 = polar(angle, rayon + 20);
-      const p2 = polar(angle, rayon + 20 - longueur);
-    
+      const p2 = polar(angle, rayon + 20 - longueur);    
       return (
         <line
           x1={p1.x}
@@ -1069,14 +1062,11 @@ interface CardProps {
           stroke={couleur}
           strokeWidth="2"
         />
-      );
-    
+      );    
     };
-    const arc = (start, end, color) => {
-  
+    const arc = (start, end, color) => {  
       const p1 = polar(start, rayon);
-      const p2 = polar(end, rayon);
-  
+      const p2 = polar(end, rayon);  
       return (
         <path
           d={`
@@ -1090,11 +1080,9 @@ interface CardProps {
           strokeWidth="40"
         />
       );
-    };  
-  
+    };    
     const needleAngle = valueToAngle(valeur);  
-    return (
-  
+    return (  
       <div
         style={{
           background:"#fff",
@@ -1120,8 +1108,7 @@ interface CardProps {
           height="250"
           viewBox="0 0 500 260"
         >
-          {/* =====================DEMI CERCLE VERT 0 → 100====================== */}
-  
+          {/* =====================DEMI CERCLE VERT 0 → 100====================== */}  
           {[
             "#dcfce7",
             "#86efac",
@@ -1133,11 +1120,9 @@ interface CardProps {
               -180 + i*45,
               -180 + (i+1)*45,
               c
-            )
-  
+            )  
           ))}
-          {/* =====================DEMI CERCLE ROUGE 0 → -100====================== */}
-  
+          {/* =====================DEMI CERCLE ROUGE 0 → -100====================== */}  
             {[
             "#991b1b", // -100 : rouge foncé
             "#ef4444",
@@ -1150,7 +1135,6 @@ interface CardProps {
               (i+1)*45,
               c
             )
-
           ))}
           {/* =====================LABELS====================== */}
                 {/* 0 au début du vert clair */}
@@ -1200,17 +1184,17 @@ interface CardProps {
               // pointe de l'aiguille
               const pointe = polar(
                 angle,
-                rayon - 5
+                rayon - 2
               );
               // base gauche de l'aiguille
               const gauche = polar(
                 angle - 90,
-                8
+                6
               );
               // base droite de l'aiguille
               const droite = polar(
                 angle + 90,
-                8
+                6
               );
               return (
                 <>
@@ -1242,41 +1226,27 @@ interface CardProps {
               );
             })()
             }
-
             {/* =====================GRADUATIONS DU CERCLE====================== */}
-
-              {
-
-              Array.from({length: 21}).map((_,i)=>{
-
+              {Array.from({length: 21}).map((_,i)=>{
                 const angleVert = -180 + i * 9;
-
                 const angleRouge = i * 9;
                 return (
                   <React.Fragment key={i}>
-
                     {/* graduation verte */}
-
                     {graduation(
                       angleVert,
                       i % 5 === 0 ? 18 : 10,
                       "#555"
                     )}
-
-
                     {/* graduation rouge */}
-
                     {graduation(
                       angleRouge,
                       i % 5 === 0 ? 18 : 10,
                       "#555"
                     )}
-
                   </React.Fragment>
                 );
-
               })
-
               }
         </svg>
         <div
@@ -1795,7 +1765,7 @@ export default function Deforestation() {
         </ResponsiveContainer>
       </div>
 
-{/* ===================== HISTOGRAMME ANNUEL ===================== */}
+{/* ===================== JAUGE CIRCULAIRE===================== */}
 <div style={{ width: "100%" }}>
       <Graphique6 />
     </div>
