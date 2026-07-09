@@ -76,19 +76,15 @@ const impactFeux = [
   },
 ];
 
-const ArrowLabel = ({payload, year, viewBox, index}:any) => {
-
+const ArrowLabel = ({ payload, year, viewBox, index }: any) => {
   const actuel = payload[`y${year}`] ?? 0;
-  const precedent = payload[`y${year-1}`] ?? 0;
-
-  if(precedent === 0) return null;
-
-  const variation =
-    ((actuel-precedent)/precedent)*100;
-
-  const color =
-    variation > 0 ? "#dc2626" : "#16a34a";
-
+  const precedent = payload[`y${year - 1}`] ?? 0;
+  if (precedent === 0) return null;
+  const variation = ((actuel - precedent) / precedent) * 100;
+  const isAugmentation = variation > 0;
+  const color = isAugmentation
+    ? "#dc2626"
+    : "#16a34a";
 
   return (
     <text
@@ -99,9 +95,9 @@ const ArrowLabel = ({payload, year, viewBox, index}:any) => {
       fontWeight="600"
       fill={color}
     >
-      {variation > 0 ? "▲":"▼"}
-      {" "}
-      {Math.abs(variation).toFixed(0)}%
+      {isAugmentation
+        ? `▲ ${variation.toFixed(0)}%`
+        : "▼"}
     </text>
   );
 };
@@ -939,40 +935,33 @@ interface CardProps {
   };
 
 
-  const renderVariation = (props: any, year: number) => {
-    if (!props || !props.payload) return null;
-  
-    const actuel = props.payload[`y${year}`] ?? 0;
-    const precedent = props.payload[`y${year - 1}`] ?? 0;
-  
-    if (precedent === 0) return null;
-  
-    const variation = ((actuel - precedent) / precedent) * 100;
-  
-    const isDiminution = variation < 0;
-  
-    const color = isDiminution
-      ? "#16a34a"
-      : "#dc2626";
-  
-    const symbol = isDiminution
-      ? "▼"
-      : "▲";
-  
-    const afficherPourcentage = variation >= -60;
-  
+  const renderVariation = (
+    props: any,
+    year: number,
+    dataChart: any[]
+  ) => {  
+    const { x, y, width, index } = props;  
+    if (index === undefined) return null;  
+    const data = dataChart[index];  
+    if (!data) return null;  
+    const actuel = data[`y${year}`] ?? 0;
+    const precedent = data[`y${year - 1}`] ?? 0;  
+    if (precedent === 0) return null;  
+    const variation =
+      ((actuel - precedent) / precedent) * 100;  
+    // aucune variation
+    if (variation === 0) return null;  
+    const isDiminution = variation < 0;  
     return (
       <text
-        x={props.x + props.width / 2 + 80}
-        y={props.y - 10}
+        x={x + width / 2}
+        y={y}
         textAnchor="middle"
         fontSize={10}
-        fontWeight="700"
-        fill={color}
+        fontWeight="900"
+        fill={isDiminution ? "#16a34a" : "#dc2626"}
       >
-        {symbol}
-        {afficherPourcentage &&
-          ` ${Math.abs(variation).toFixed(1)}%`}
+        {isDiminution ? "▼" : "▲"}
       </text>
     );
   };
@@ -1057,28 +1046,12 @@ interface CardProps {
                 barSize={13}
                 radius={[3,3,0,0]}
               >
-                <LabelList 
-                  content={(props)=>renderVariation(props, year)}
-                  position="top"
-                />
-              </Bar>
-
-              {chart2Pro.map((d,i)=>(
-                <ReferenceDot
-                  key={i}
-                  x={d.commune}
-                  y={d[`y${year}`]}
-                  r={0}
-                  isFront
-                  label={
-                    <ArrowLabel
-                      payload={d}
-                      year={year}
-                      index={i}
-                    />
+                <LabelList
+                  content={(props)=>
+                    renderVariation(props, year, chart2Pro)
                   }
                 />
-              ))}
+              </Bar>             
           </BarChart>
         </ResponsiveContainer>
       </div>
