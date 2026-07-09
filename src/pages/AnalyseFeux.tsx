@@ -6,25 +6,6 @@ import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxi
 import { createRoot } from "react-dom/client";
 
 //========================
-// GRAPHIQUE 1
-//========================
-
-const chart1 = [
-    { mois: "Jan", y2025: 5, y2026: 4 },
-    { mois: "Fév", y2025: 0, y2026: 0 },
-    { mois: "Mar", y2025: 8, y2026: 4 },
-    { mois: "Avr", y2025: 100, y2026: 80 },
-    { mois: "Mai", y2025: 1200, y2026: 452},
-    { mois: "Juin", y2025: 1482, y2026: 982 },
-    { mois: "Juil", y2025: 420, y2026: 1200 },
-    { mois: "Août", y2025: 3417, y2026: 0 },
-    { mois: "Sep", y2025: 2919, y2026: 0 },
-    { mois: "Oct", y2025: 2004, y2026: 0 },
-    { mois: "Nov", y2025: 1312, y2026: 0 },
-    { mois: "Déc", y2025: 714, y2026: 0 },
-  ];
-
-//========================
 // GRAPHIQUE 2
 //========================
 
@@ -219,103 +200,6 @@ interface CardProps {
       >
         {symbol}
       </text>
-    );
-  };
-
-  const Graphique1 = () => {
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #d9d9d9",
-          borderRadius: 6,
-          padding: 5,
-          height: 300,
-          boxSizing: "border-box",
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#c62828",
-            fontSize: 12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 5,
-          }}
-        >
-          Evolution mensuelle des superficies brûlées par rapport à l'année précédente
-        </div>
-  
-        <ResponsiveContainer width="100%" height="90%">
-            
-        <LineChart
-            data={chart1}
-            margin={{ top: 5, left: 0, right: 15, bottom: 0 }}
-            >
-            <CartesianGrid stroke="#eeeeee" vertical={false} />
-
-            <Tooltip />
-
-            <XAxis dataKey="mois" tick={{ fontSize: 11 }} />
-            <YAxis tick={{ fontSize: 11 }} />
-
-            <Legend
-                verticalAlign="top"
-                height={25}
-                wrapperStyle={{ fontSize: 11, fontWeight: 600 }}
-            />
-            <Line
-                type="natural"
-                dataKey="y2025"
-                name="2025"
-                stroke="#2563eb"
-                strokeWidth={2.5}
-                dot={{ r: 1 }}
-            />
-            <Line
-                type="natural"
-                dataKey="y2026"
-                name="2026"
-                stroke="#dc2626"
-                strokeWidth={2.5}
-                dot={{ r: 1 }}
-            />
-
-            {/*TREND INDICATOR PRO */}
-            {chart1.map((d, i) => {
-                const diff = d.y2026 - d.y2025;
-
-                const isGood = diff < 0; 
-                const isBad = diff > 0;    
-
-                const color = isGood
-                  ? "#16a34a"
-                  : isBad
-                  ? "#dc2626"
-                  : "#9ca3af";
-
-                const symbol = isGood ? "▼" : isBad ? "▲" : "—";
-
-                return (
-                  <ReferenceDot
-                    key={i}
-                    x={d.mois}
-                    y={(d.y2025 + d.y2026) / 2}
-                    r={0}
-                    label={{
-                      value: `${symbol} ${Math.abs(diff)}`,
-                      position: "center",
-                      fill: color,
-                      fontSize: 10,
-                      fontWeight: 700,
-                    }}
-                  />
-                );
-              })}
-            </LineChart>
-        </ResponsiveContainer>
-      </div>
     );
   };
 
@@ -856,27 +740,21 @@ interface CardProps {
 
 
   const Graphique6 = () => {
-
-    const valeur = -6.25;
-  
+    const valeur = -6.25;  
     const cx = 250;
     const cy = 120;
     const rayon = 80;
   
     const valueToAngle = (v) => {
-
       const value = Math.max(-100, Math.min(100, v));
-
       if (value >= 0) {
         return 180 + (value / 100) * 180;
       } else {
         return 180 - (Math.abs(value) / 100) * 180;
-      }
-    
+      }    
     };
     const polar = (angle, r) => {
-      const rad = (angle * Math.PI) / 180;
-  
+      const rad = (angle * Math.PI) / 180;  
       return {
         x: cx + r * Math.cos(rad),
         y: cy + r * Math.sin(rad),
@@ -884,10 +762,8 @@ interface CardProps {
     };
 
     const graduation = (angle, longueur, couleur="#555") => {
-
       const p1 = polar(angle, rayon + 20);
-      const p2 = polar(angle, rayon + 20 - longueur);
-    
+      const p2 = polar(angle, rayon + 20 - longueur);    
       return (
         <line
           x1={p1.x}
@@ -900,11 +776,9 @@ interface CardProps {
       );
     
     };
-    const arc = (start, end, color) => {
-  
+    const arc = (start, end, color) => {  
       const p1 = polar(start, rayon);
-      const p2 = polar(end, rayon);
-  
+      const p2 = polar(end, rayon);  
       return (
         <path
           d={`
@@ -921,8 +795,7 @@ interface CardProps {
     };  
   
     const needleAngle = valueToAngle(valeur);  
-    return (
-  
+    return (  
       <div
         style={{
           background:"#fff",
@@ -1074,7 +947,6 @@ interface CardProps {
             {/* =====================GRADUATIONS DU CERCLE====================== */}
 
               {
-
               Array.from({length: 21}).map((_,i)=>{
                 const angleVert = -180 + i * 9;
                 const angleRouge = i * 9;
@@ -1116,6 +988,110 @@ interface CardProps {
             `La superficie brûlée a augmenté de ${Math.abs(valeur)}%`
           }
         </div>
+      </div>
+    );
+  };
+
+
+  const Graphique1 = ({chart1, year}) => {    
+    return (
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #d9d9d9",
+          borderRadius: 6,
+          padding: 5,
+          height: 300,
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            textAlign: "center",
+            color: "#c62828",
+            fontSize: 12,
+            fontWeight: 700,
+            fontStyle: "italic",
+            marginBottom: 5,
+          }}
+        >
+          Evolution mensuelle des superficies brûlées par rapport à l'année précédente
+        </div>
+  
+        <ResponsiveContainer width="100%" height="90%">
+            
+        <LineChart
+            data={chart1}
+            margin={{ top: 5, left: 0, right: 15, bottom: 0 }}
+            >
+            <CartesianGrid stroke="#eeeeee" vertical={false} />
+
+            <XAxis dataKey="mois" tick={{ fontSize: 11 }} />
+            <YAxis tick={{ fontSize: 11 }} />
+
+            <Legend
+                verticalAlign="top"
+                height={25}
+                wrapperStyle={{ fontSize: 11, fontWeight: 600 }}
+            />
+            <Line
+              type="natural"
+              dataKey={`y${year-1}`}
+              name={`${year-1}`}
+              stroke="#2563eb"
+              strokeWidth={2.5}
+              dot={{r:1}}
+              />
+            <Line
+              type="natural"
+              dataKey={`y${year}`}
+              name={`${year}`}
+              stroke="#dc2626"
+              strokeWidth={2.5}
+              dot={{r:1}}
+              />
+              
+
+            {/*TREND INDICATOR PRO */}
+            {chart1.map((d, i) => {
+                const diff = d[`y${year}`] - d[`y${year-1}`];
+
+                const isGood = diff < 0; 
+                const isBad = diff > 0;    
+
+                const color = isGood
+                  ? "#16a34a"
+                  : isBad
+                  ? "#dc2626"
+                  : "#9ca3af";
+
+                const symbol = isGood ? "▼" : isBad ? "▲" : "—";
+
+                const formattedDiff = Math.abs(diff).toLocaleString("fr-FR", {
+                  maximumFractionDigits: 2,
+                });
+
+                return (
+                  <ReferenceDot
+                    key={i}
+                    x={d.mois}
+                    y={Math.max(
+                      d[`y${year-1}`],
+                      d[`y${year}`]
+                    )}
+                    r={0}
+                    label={{
+                      value: `${symbol} ${formattedDiff}`,
+                      position: "top",
+                      fill: color,
+                      fontSize: 8,
+                      fontWeight: 700,
+                    }}
+                  />
+                );
+              })}
+            </LineChart>
+        </ResponsiveContainer>
       </div>
     );
   };
@@ -1263,6 +1239,21 @@ export default function Feux() {
       return mois[index === 0 ? 11 : index - 1];    
     }, []);
 
+    const moisCourt = [
+      { nom: "Jan", champ: "Janvier" },
+      { nom: "Fév", champ: "Février" },
+      { nom: "Mar", champ: "Mars" },
+      { nom: "Avr", champ: "Avril" },
+      { nom: "Mai", champ: "Mai" },
+      { nom: "Juin", champ: "Juin" },
+      { nom: "Juil", champ: "Juillet" },
+      { nom: "Août", champ: "Août" },
+      { nom: "Sep", champ: "Septembre" },
+      { nom: "Oct", champ: "Octobre" },
+      { nom: "Nov", champ: "Novembre" },
+      { nom: "Déc", champ: "Décembre" },
+    ];
+
     const totalMoisDernier = useMemo(() => {
       return feuxCommune.reduce((somme, f) => {    
         const valeur = Number(
@@ -1335,6 +1326,39 @@ export default function Feux() {
         courant.total > max.total ? courant : max
       );    
     }, [baseFeux, ap, year]);
+
+
+    const getEvolutionMensuelle = (annee:number) => {
+      const donnees = baseFeux.filter(f => {    
+        const p = f.properties;    
+        return (
+          String(p.AP).trim() === String(ap).trim() &&
+          Number(p.Année) === annee &&
+          String(p.Source).trim().toLowerCase() === "commune"
+        );    
+      });    
+    
+      return moisCourt.map(m => {    
+        const totalMois = donnees.reduce((somme, f) => {    
+          const valeur = Number(
+            String(f.properties[m.champ] ?? "0")
+            .replace(",", ".")
+          );    
+          return somme + (isNaN(valeur) ? 0 : valeur);    
+        },0);    
+        return totalMois;    
+      });    
+    };
+
+    const chart1 = useMemo(() => {
+      const anneePrecedente = getEvolutionMensuelle(year - 1);
+      const anneeActuelle = getEvolutionMensuelle(year);    
+      return moisCourt.map((m,i)=>({    
+        mois:m.nom,    
+        [`y${year-1}`]: anneePrecedente[i],    
+        [`y${year}`]: anneeActuelle[i],    
+      }));    
+    },[baseFeux, ap, year]);
 
 
   const formatHa = (value:number) =>
@@ -1887,7 +1911,7 @@ export default function Feux() {
   }}
 >
 <div style={{ width: "100%" }}>
-      <Graphique1 />
+    <Graphique1 chart1={chart1} year={year}/>
     </div>
     <div style={{ width: "100%" }}>
     <Graphique2Pro data={feuxFiltres} ap={ap}/>
