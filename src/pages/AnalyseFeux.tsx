@@ -6,18 +6,6 @@ import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxi
 import { createRoot } from "react-dom/client";
 
 //========================
-// GRAPHIQUE 4
-//========================
-
-const chart4 = [
-  { commune:"Ankarongana", superficie:1232.68, pct:49.2 },
-  { commune:"Antsoha", superficie:650.76, pct:75.2 },
-  { commune:"Anivorano_Nord", superficie:548.64, pct:97.0 },
-  { commune:"Sadjaovato", superficie:71.96, pct:100.0 },
-  { commune:" ", superficie:0.0, pct:0.0 },
-];
-
-//========================
 // GRAPHIQUE 5
 //========================
 
@@ -434,149 +422,7 @@ interface CardProps {
     );
   };
 
-  const chart4Pro = chart4
-  .sort((a, b) => b.superficie - a.superficie)
-  .map((d, index, arr) => {
-    const total = arr.reduce((sum, x) => sum + x.superficie, 0);
-    const cumulated = arr
-      .slice(0, index + 1)
-      .reduce((sum, x) => sum + x.superficie, 0);
-
-    return {
-      ...d,
-      pctCum: Number(((cumulated / total) * 100).toFixed(1)),
-    };
-  });
-
-  const Graphique4 = () => {
-    const chart4Pro = chart4
-      .sort((a, b) => b.superficie - a.superficie)
-      .map((d, index, arr) => {
-        const total = arr.reduce((sum, x) => sum + x.superficie, 0);
-        const cumulated = arr
-          .slice(0, index + 1)
-          .reduce((sum, x) => sum + x.superficie, 0);
   
-        return {
-          ...d,
-          pctCum: Number(((cumulated / total) * 100).toFixed(1)),
-        };
-      });
-
-      const maxValue = Math.max(...chart4.map(d => d.superficie));
-    const roundedMax = Math.ceil(maxValue / 100) * 100;
-  
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #d9d9d9",
-          borderRadius: 8,
-          padding: 10,
-          height: 300,
-          boxSizing: "border-box",
-          overflow: "hidden"
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#b91c1c",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 15,
-          }}
-        >
-          Communes les plus affectées par le feux
-        </div>
-  
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chart4Pro} margin={{ top: 15, bottom: 15 }} barCategoryGap="25%">
-            <CartesianGrid stroke="#f3f4f6" />
-  
-            <XAxis
-              dataKey="commune"
-              angle={-10}
-              textAnchor="end"
-              interval={0}
-              tick={{ fontSize: 11 }}
-              height={40}
-            />
-  
-            <YAxis
-                key={roundedMax}
-                yAxisId="left"
-                domain={[0, roundedMax]}
-                tick={{ fontSize: 11 }}
-            />
-  
-            <Legend
-              verticalAlign="bottom"
-              align="center"
-              wrapperStyle={{
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 5,
-              }}
-            />
-  
-            {/* BAR ROUGE */}
-            <Bar
-              yAxisId="left"
-              dataKey="superficie"
-              name="Superficie (ha)"
-              fill="url(#redGradient)"
-              barSize={40}
-              radius={[3, 3, 0, 0]}
-            >
-
-            <LabelList
-              dataKey="superficie"
-              position="insideTop"
-              fill="#ffffff"
-              fontSize={9}
-              fontWeight={600}
-            />
-
-            </Bar>
-  
-            {/* LINE CUMUL */}
-            <Line
-              name="Cumul (%)"
-              yAxisId="right"
-              type="monotone"
-              dataKey="pct"
-              stroke="#9e9e9e"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={{ r: 2 }}
-            >
-              <LabelList
-                dataKey="pct"
-                position="top"
-                formatter={(v: number) => `${v}%`}
-                fill="#000"
-                style={{ fontWeight: "bold", fontSize: 11 }}
-              />
-            </Line>
-          </ComposedChart>
-        </ResponsiveContainer>
-  
-        {/* GRADIENT ROUGE */}
-        <svg width="0" height="0">
-          <defs>
-            <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#fca5a5" stopOpacity={0.6} />
-            </linearGradient>
-          </defs>
-        </svg>
-      </div>
-    );
-  };
-
-
   const Graphique6 = () => {
     const valeur = -6.25;  
     const cx = 250;
@@ -934,38 +780,61 @@ interface CardProps {
     );
   };
 
-
-  const renderVariation = (
-    props: any,
-    year: number,
-    dataChart: any[]
-  ) => {  
-    const { x, y, width, index } = props;  
-    if (index === undefined) return null;  
-    const data = dataChart[index];  
-    if (!data) return null;  
-    const actuel = data[`y${year}`] ?? 0;
-    const precedent = data[`y${year - 1}`] ?? 0;  
-    if (precedent === 0) return null;  
+  const CustomBarWithArrow = (props:any) => {
+    const {
+      x,
+      y,
+      width,
+      height,
+      payload,
+      year
+    } = props;  
+    const actuel = payload[`y${year}`] ?? 0;
+    const precedent = payload[`y${year-1}`] ?? 0;  
+    if (precedent === 0) {
+      return (
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill="#c2410c"
+        />
+      );
+    }
     const variation =
       ((actuel - precedent) / precedent) * 100;  
-    // aucune variation
-    if (variation === 0) return null;  
-    const isDiminution = variation < 0;  
+    const diminution = variation < 0;  
     return (
-      <text
-        x={x + width / 2}
-        y={y}
-        textAnchor="middle"
-        fontSize={10}
-        fontWeight="900"
-        fill={isDiminution ? "#16a34a" : "#dc2626"}
-      >
-        {isDiminution ? "▼" : "▲"}
-      </text>
+      <g>
+  
+        {/* barre année choisie */}
+        <rect
+          x={x}
+          y={y}
+          width={width}
+          height={height}
+          fill={props.fill || "#c2410c"}
+          rx={3}
+        />
+        {/* flèche */}
+        <text
+          x={x + width / 2}
+          y={y-1}
+          textAnchor="middle"
+          fontSize={10}
+          fontWeight="700"
+          fill={
+            diminution
+            ? "#16a34a"
+            : "#dc2626"
+          }
+        >
+          {diminution ? "▼" : "▲"}
+        </text>  
+      </g>
     );
   };
-
   
   const Graphique2Pro = ({ ap, chart2Pro, year }) => {   
     return (
@@ -997,8 +866,8 @@ interface CardProps {
         <ResponsiveContainer width="100%" height={300}>
           <BarChart
               data={chart2Pro}
-              barGap={6}
-              barCategoryGap="15%"
+              barGap={5}
+              barCategoryGap="20%"
               margin={{
                 top:5,
                 right:10,
@@ -1042,21 +911,20 @@ interface CardProps {
               <Bar
                 dataKey={`y${year}`}
                 name={`${year}`}
-                fill="#c2410c"
                 barSize={13}
-                radius={[3,3,0,0]}
-              >
-                <LabelList
-                  content={(props)=>
-                    renderVariation(props, year, chart2Pro)
-                  }
-                />
-              </Bar>             
+                fill="#c2410c"
+                shape={
+                  <CustomBarWithArrow
+                    year={year}
+                  />
+                }
+              />            
           </BarChart>
         </ResponsiveContainer>
       </div>
     );
   };
+
   
 export default function Feux() {
   const [year, setYear] = useState<number>(2019);
@@ -1396,9 +1264,222 @@ export default function Feux() {
       );  
   },[baseFeux, ap, year]);
 
-  const KPICard = ({ title, value, color, icon, index }: CardProps) => {
-    const isSixth = index === 5;
+
+  const chart4Data = useMemo(() => {
+    const parCommune = {};  
+    // Toutes les communes
+    feuxCommune.forEach(f => {  
+      const commune = f.properties.Commune;  
+      const superficie = Number(
+        String(f.properties.Total)
+        .replace(",", ".")
+      ) || 0;  
+      if (!parCommune[commune]) {
+        parCommune[commune] = 0;
+      }  
+      parCommune[commune] += superficie;  
+    });  
+    // Total général de toutes les communes
+    const totalGeneral = Object.values(parCommune)
+      .reduce(
+        (sum,val)=>sum + val,
+        0
+      );  
+    // Trier et garder seulement les 5 premières
+    const top5 = Object.entries(parCommune)
+      .map(([commune, superficie])=>({
+        commune,
+        superficie:Number(superficie.toFixed(2))
+      }))
+      .sort((a,b)=>b.superficie-a.superficie)
+      .slice(0,5);  
+    // Calcul cumul sur le total général
+    let cumul = 0;  
+    return top5.map(d=>{ 
+      cumul += d.superficie;  
+      return {
+        ...d,
+        pct:Number(
+          ((cumul / totalGeneral)*100)
+          .toFixed(1)
+        )
+      };  
+    });  
+  },[feuxCommune]);
+
+
+
+  const Graphique4 = ({chart4, year}) => {
+    const maxValue = Math.max(...chart4.map(d => d.superficie));
+    const roundedMax = Math.ceil(
+      Math.max(
+        maxValue,
+        ...chart4.map(d=>d.pct)
+      ) / 100
+    ) * 100;
+
+    const chart4Trend = chart4.map((d, index) => {
+      const a = chart4[0]?.superficie || 1;    
+      const k = 0.7; // coefficient de décroissance    
+      return {
+        ...d,
+        trend: Number(
+          (a * Math.exp(-k * index))
+          .toFixed(2)
+        )
+      };    
+    });
+
+    const chart4WithTrend = chart4.map((d,index)=>{
+      const a = chart4[0]?.superficie || 1;
+      const k = 0.7;
+    
+      return {
+        ...d,
+        trend:Number(
+          (a * Math.exp(-k*index))
+          .toFixed(2)
+        )
+      };
+    
+    });
   
+return (
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #d9d9d9",
+          borderRadius: 8,
+          padding: 10,
+          height: 300,
+          boxSizing: "border-box",
+          overflow: "hidden"
+        }}
+      >
+        <div
+          style={{
+            textAlign: "center",
+            color: "#b91c1c",
+            fontSize:12,
+            fontWeight: 700,
+            fontStyle: "italic",
+            marginBottom: 15,
+          }}
+        >
+          Communes les plus affectées par les feux en {year}
+        </div>
+  
+        <ResponsiveContainer width="100%" height="100%">
+            <ComposedChart 
+              data={chart4WithTrend}
+              margin={{ top:15,bottom:15 }}
+              barCategoryGap="25%"
+              >
+            <CartesianGrid stroke="#f3f4f6" />
+  
+            <XAxis
+              dataKey="commune"
+              angle={-15}
+              textAnchor="end"
+              interval={0}
+              tick={{ fontSize: 11 }}
+              height={60}
+            />
+  
+            <YAxis
+            yAxisId="left"
+            domain={[0, roundedMax]}
+            tick={{fontSize:11}}
+          />
+
+          <YAxis
+            yAxisId="right"
+            orientation="right"
+            domain={[0,100]}
+            hide
+          />
+  
+            <Legend
+              verticalAlign="bottom"
+              align="center"
+              wrapperStyle={{
+                fontSize: 11,
+                fontWeight: 600,
+                marginBottom: 10,
+              }}
+            />
+  
+            {/* BAR ROUGE */}
+            <Bar
+              yAxisId="left"
+              dataKey="superficie"
+              name="Superficie (ha)"
+              fill="url(#redGradient)"
+              barSize={40}
+              radius={[3, 3, 0, 0]}
+            >
+
+            <LabelList
+              dataKey="superficie"
+              position="insideTop"
+              fill="#ffffff"
+              fontSize={9}
+              fontWeight={600}
+            />
+
+            </Bar>
+  
+            {/* LINE CUMUL */}
+            <Line
+              name="Cumul (%)"
+              yAxisId="right"
+              type="monotone"
+              dataKey="pct"
+              stroke="#9e9e9e"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={{r:2}}
+            >
+              <LabelList
+                dataKey="pct"
+                position="top"
+                formatter={(v:number)=>`${v}%`}
+                fill="#000"
+                style={{
+                  fontWeight:"bold",
+                  fontSize:11
+                }}
+              />
+            </Line>
+            {/* TENDANCE EXPONENTIELLE */}
+            <Line
+              name="Tendance exponentielle"
+              yAxisId="left"
+              type="monotone"
+              dataKey="trend"
+              stroke="#2563eb"
+              strokeWidth={2}
+              strokeDasharray="8 5"
+              dot={false}
+              legendType="none"
+            />
+          </ComposedChart>
+        </ResponsiveContainer>  
+        {/* GRADIENT ROUGE */}
+        <svg width="0" height="0">
+          <defs>
+            <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#fca5a5" stopOpacity={0.6} />
+            </linearGradient>
+          </defs>
+        </svg>
+      </div>
+    );
+  };
+
+  const KPICard = ({ title, value, color, icon, index }: CardProps) => {
+    const isSixth = index === 5;  
     return (
       <div
       style={{
@@ -1692,6 +1773,9 @@ export default function Feux() {
   );
 
 
+  
+
+
   return (
     <div
         style={{
@@ -1943,7 +2027,10 @@ export default function Feux() {
     </div>
 
     <div style={{ width: "100%" }}>
-      <Graphique4 />
+    <Graphique4
+      chart4={chart4Data}
+      year={year}
+    />
     </div>
 
       {/* =====================EVOLUTION DU TAUX ===================== */}
