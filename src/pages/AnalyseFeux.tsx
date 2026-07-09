@@ -190,143 +190,7 @@ interface CardProps {
     index?: number;
   }
   
-  const KPICard = ({ title, value, color, icon, index }: CardProps) => {
-    const isSixth = index === 5;
   
-    return (
-      <div
-      style={{
-        background: "linear-gradient(to bottom,#ffffff,#f7f7f7)",
-        border: "1px solid #d6d6d6",
-        borderRadius: 8,
-        padding: "8px 12px",
-        height: 110,
-        boxSizing: "border-box",
-        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
-    }}
-      >
-        {/* TITRE */}  
-        <div
-          style={{
-            textAlign: "center",
-            color,
-            fontWeight: 700,
-            fontStyle: "italic",
-            fontSize: 12,
-            lineHeight: 1.15,
-          }}
-        >
-          {title}
-        </div>
-  
-        {!isSixth ? (
-          <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "70px 1fr",
-            alignItems: "center",
-            flex: 1,
-            marginTop: 2,
-          }}
-        >
-          {/* Icône */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color,
-            }}
-          >
-            {icon}
-          </div>
-        
-          {/* Valeur */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              color,
-              fontWeight: 800,
-              fontStyle: "italic",
-              fontSize: 16,
-            }}
-          >
-            {value}
-          </div>
-        </div>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                color,
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              {icon}
-            </div>
-  
-            <div
-              style={{
-                textAlign: "center",
-              }}
-            >
-              <div
-                style={{
-                  color: "#b40000",
-                  fontWeight: 800,
-                  fontSize: 16,
-                  lineHeight: 1,
-                }}
-              >
-                Ankarongana
-              </div>
-  
-              <div
-                style={{
-                  color: "#003399",
-                  fontWeight: 700,
-                  fontSize: 13,
-                }}
-              >
-                avec
-              </div>
-  
-              <div
-                style={{
-                  color: "#b40000",
-                  fontWeight: 800,
-                  fontSize: 14,
-                  lineHeight: 1,
-                }}
-              >
-                1 232,68 ha
-              </div>
-  
-              <div
-                style={{
-                  color: "#003399",
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                de surface totale brûlée
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
   const renderArrow = (props: any) => {
     if (!props || !props.payload) return null;
@@ -1212,30 +1076,22 @@ interface CardProps {
               {
 
               Array.from({length: 21}).map((_,i)=>{
-
                 const angleVert = -180 + i * 9;
-
                 const angleRouge = i * 9;
                 return (
                   <React.Fragment key={i}>
-
                     {/* graduation verte */}
-
                     {graduation(
                       angleVert,
                       i % 5 === 0 ? 18 : 10,
                       "#555"
                     )}
-
-
                     {/* graduation rouge */}
-
                     {graduation(
                       angleRouge,
                       i % 5 === 0 ? 18 : 10,
                       "#555"
                     )}
-
                   </React.Fragment>
                 );
 
@@ -1296,39 +1152,39 @@ export default function Feux() {
     });    
     }, [baseFeux, ap, year]);
 
-    console.log(
-      feuxCommune.map(f => ({
-        AP: f.properties.AP,
-        Annee: f.properties.Année,
-        Source: f.properties.Source,
-        Commune: f.properties.Commune,
-        Total: f.properties.Total
-      }))
-    );  
+      console.log(
+        feuxCommune.map(f => ({
+          AP: f.properties.AP,
+          Annee: f.properties.Année,
+          Source: f.properties.Source,
+          Commune: f.properties.Commune,
+          Total: f.properties.Total
+        }))
+      );  
 
-    console.log("Nombre de lignes filtrées :", feuxCommune.length);
+      console.log("Nombre de lignes filtrées :", feuxCommune.length);
 
-console.table(
-  feuxCommune.map(f => ({
-    Commune: f.properties.Commune,
-    Total: f.properties.Total,
-    AP: f.properties.AP,
-    Annee: f.properties.Année,
-    Source: f.properties.Source
-  }))
-);
+      console.table(
+        feuxCommune.map(f => ({
+          Commune: f.properties.Commune,
+          Total: f.properties.Total,
+          AP: f.properties.AP,
+          Annee: f.properties.Année,
+          Source: f.properties.Source
+        }))
+      );
 
-const doublons = feuxCommune.reduce((acc, f) => {
-  const key = `${f.properties.AP}-${f.properties.Année}-${f.properties.Commune}-${f.properties.Source}`;
+      const doublons = feuxCommune.reduce((acc, f) => {
+        const key = `${f.properties.AP}-${f.properties.Année}-${f.properties.Commune}-${f.properties.Source}`;
 
-  acc[key] = (acc[key] || 0) + 1;
+        acc[key] = (acc[key] || 0) + 1;
 
-  return acc;
-}, {});
+        return acc;
+      }, {});
 
-console.table(
-  Object.entries(doublons).filter(([, n]) => n > 1)
-);
+      console.table(
+        Object.entries(doublons).filter(([, n]) => n > 1)
+      );
 
     const totalCommune = useMemo(() => {
       const parCommune = {};    
@@ -1395,7 +1251,91 @@ console.table(
         return somme + (isNaN(total) ? 0 : total);    
       }, 0);    
     }, [feuxInterieur]);
+
+    const moisPrecedent = useMemo(() => {
+      const mois = [
+        "Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"
+      ];
     
+      // getMonth() : Janvier = 0
+      const index = new Date().getMonth();    
+      // Si on est en janvier, on prend décembre
+      return mois[index === 0 ? 11 : index - 1];    
+    }, []);
+
+    const totalMoisDernier = useMemo(() => {
+      return feuxCommune.reduce((somme, f) => {    
+        const valeur = Number(
+          String(f.properties[moisPrecedent] ?? "0")
+            .replace(",", ".")
+        );    
+        return somme + (isNaN(valeur) ? 0 : valeur);    
+      }, 0);    
+    }, [feuxCommune, moisPrecedent]);
+
+
+    const totalAnnuel = (annee:number) => {
+      return baseFeux
+        .filter(f => {    
+          const p = f.properties;    
+          return (
+            String(p.AP).trim() === String(ap).trim() &&
+            Number(p.Année) === annee &&
+            String(p.Source).trim().toLowerCase() === "commune"
+          );    
+        })
+        .reduce((somme, f) => {    
+          const total = Number(
+            String(f.properties.Total)
+              .replace(",", ".")
+          );    
+          return somme + (isNaN(total) ? 0 : total);    
+        }, 0);    
+    };
+
+    const totalAnnee = useMemo(
+      () => totalAnnuel(year),
+      [baseFeux, ap, year]
+    );
+    
+    const totalAnneePrecedente = useMemo(
+      () => totalAnnuel(year - 1),
+      [baseFeux, ap, year]
+    );
+
+    const evolutionAnnuelle = useMemo(() => {
+      if (totalAnneePrecedente === 0) return null;
+    
+      return (
+        (totalAnnee - totalAnneePrecedente) /
+        totalAnneePrecedente
+      ) * 100;    
+    }, [totalAnnee, totalAnneePrecedente]);
+
+
+    const communePlusTouchee = useMemo(() => {
+      const communes = baseFeux
+        .filter(f => {    
+          const p = f.properties;    
+          return (
+            String(p.AP).trim() === String(ap).trim() &&
+            Number(p.Année) === Number(year) &&
+            String(p.Source).trim().toLowerCase() === "commune"
+          );    
+        })
+        .map(f => ({    
+          commune: f.properties.Commune,    
+          total: Number(
+            String(f.properties.Total)
+              .replace(",", ".")
+          ) || 0    
+        }));    
+      if (communes.length === 0) return null;    
+      return communes.reduce((max, courant) =>
+        courant.total > max.total ? courant : max
+      );    
+    }, [baseFeux, ap, year]);
+
 
   const formatHa = (value:number) =>
   value.toLocaleString("fr-FR", {
@@ -1405,7 +1345,6 @@ console.table(
 
 
   const feuxFiltres = useMemo(() => {
-
     return baseFeux.filter(
       (f) =>
         Number(f.properties.Année) === year &&
@@ -1413,6 +1352,173 @@ console.table(
         f.properties.Source === source
     );  
   }, [baseFeux, year, ap, source]);
+
+  const KPICard = ({ title, value, color, icon, index }: CardProps) => {
+    const isSixth = index === 5;
+  
+    return (
+      <div
+      style={{
+        background: "linear-gradient(to bottom,#ffffff,#f7f7f7)",
+        border: "1px solid #d6d6d6",
+        borderRadius: 8,
+        padding: "8px 12px",
+        height: 110,
+        boxSizing: "border-box",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+    }}
+      >
+        {/* TITRE */}  
+        <div
+          style={{
+            textAlign: "center",
+            color,
+            fontWeight: 700,
+            fontStyle: "italic",
+            fontSize: 12,
+            lineHeight: 1.15,
+          }}
+        >
+          {title}
+        </div>
+  
+        {!isSixth ? (
+          <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "70px 1fr",
+            alignItems: "center",
+            flex: 1,
+            marginTop: 2,
+          }}
+        >
+          {/* Icône */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              color,
+            }}
+          >
+            {icon}
+          </div>
+        
+          {/* Valeur */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              color,
+              fontWeight: 800,
+              fontStyle: "italic",
+              fontSize: 16,
+            }}
+          >
+            {value}
+          </div>
+        </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                height: "100%",
+              }}
+            >
+          
+              {/* Ligne principale : icône + commune + superficie */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+          
+                {/* Icône */}
+                <div
+                  style={{
+                    color,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {icon}
+                </div>   
+          
+                {/* Informations */}
+                  <div
+                    style={{
+                      flex: 1,
+                      textAlign: "center",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >          
+                  {/* Commune */}
+                  <div
+                    style={{
+                      color: "#b40000",
+                      fontWeight: 800,
+                      fontSize: 13,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {communePlusTouchee?.commune ?? "--"}
+                  </div>          
+          
+                  {/* avec */}
+                  <div
+                    style={{
+                      color: "#003399",
+                      fontWeight: 700,
+                      marginTop: 5,
+                      fontSize: 12,
+                      lineHeight: 1.1,
+                    }}
+                  >
+                    avec
+                  </div>          
+          
+                  {/* Superficie */}
+                  <div
+                    style={{
+                      color: "#b40000",
+                      fontWeight: 800,
+                      fontSize: 12,
+                      marginTop: 5,
+                      lineHeight: 1,
+                    }}
+                  >
+                    {communePlusTouchee
+                      ? formatHa(communePlusTouchee.total)
+                      : "--"}
+                  </div>
+                </div>          
+              </div>          
+          
+              {/* Texte qui commence sous l'icône */}
+              <div
+                style={{
+                  color: "#003399",
+                  fontWeight: 700,
+                  fontSize: 11,
+                  marginTop: 5,
+                  textAlign: "right",
+                }}
+              >
+                de surface totale brûlée
+              </div>          
+            </div>
+          )}
+      </div>
+    );
+  };
 
   const kpis = useMemo(
     () => [
@@ -1470,7 +1576,7 @@ console.table(
   
       {
         title: "Superficies brûlées aux Communes riveraines du mois dernier",
-        value: "1 275,20 ha",
+        value: formatHa(totalMoisDernier),
         color: "#c00000",
   
         icon: <div style={{ position: "relative", width: 48, height: 48 }}>
@@ -1489,24 +1595,53 @@ console.table(
       },
   
       {
-        title: "Evolution annuelle par rapport à l'année précédente",
-        value: "-78,91%",
-        color: "green",
-  
-        icon: (
+        title: "Evolution annuelle par rapport à l'année précédente",      
+        value:
+          evolutionAnnuelle === null ? (
+            "--"
+          ) : (
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                color: evolutionAnnuelle >= 0 ? "#d32f2f" : "#2e7d32",
+                fontWeight: 700,
+              }}
+            >
+              {evolutionAnnuelle.toFixed(2)} %
+      
+              {evolutionAnnuelle >= 0 ? (
+                <TrendingUp
+                  size={22}
+                  color="#d32f2f"
+                  strokeWidth={2.8}
+                />
+              ) : (
+                <TrendingDown
+                  size={22}
+                  color="#2e7d32"
+                  strokeWidth={2.8}
+                />
+              )}
+            </span>
+          ),
+      
+        color: evolutionAnnuelle >= 0 ? "#d32f2f" : "#2e7d32",
+      
+          icon: (
             <div style={{ position: "relative", width: 48, height: 48 }}>
             <BarChart3 size={42} color="#ef4444" />
           </div>
         ),
-      },
-  
+      },  
       {
         title: "Commune la plus touchée",
         value: "",
         color: "#003399",
   
-        icon: <div style={{ position: "relative", width: 48, height: 48 }}>
-        <MapPinned size={44} color="#1d4ed8" />
+        icon: <div style={{ position: "relative", width: 45, height: 45 }}>
+        <MapPinned size={40} color="#1d4ed8" />
       </div>
       },
     ],
