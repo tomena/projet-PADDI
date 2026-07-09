@@ -6,17 +6,6 @@ import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxi
 import { createRoot } from "react-dom/client";
 
 //========================
-// GRAPHIQUE 2
-//========================
-
-const chart2 = [
-  { commune:"Ankarongana", y2025:1645, y2026:820 },
-  { commune:"Antsoha", y2025:418, y2026:125 },
-  { commune:"Anivorano_Nord", y2025:92, y2026:30 },
-  { commune:"Sadjaovato", y2025:0, y2026:0 },
-];
-
-//========================
 // GRAPHIQUE 4
 //========================
 
@@ -87,29 +76,33 @@ const impactFeux = [
   },
 ];
 
-const ArrowLabel = (props: any) => {
-  const { viewBox, payload } = props;
+const ArrowLabel = ({payload, year, viewBox, index}:any) => {
 
-  const diff = payload.y2026 - payload.y2025;
+  const actuel = payload[`y${year}`] ?? 0;
+  const precedent = payload[`y${year-1}`] ?? 0;
 
-  if (diff === 0) return null;
+  if(precedent === 0) return null;
 
-  const color = diff < 0 ? "#16a34a" : "#dc2626";
-  const Icon = diff < 0 ? ArrowDown : ArrowUp;
+  const variation =
+    ((actuel-precedent)/precedent)*100;
+
+  const color =
+    variation > 0 ? "#dc2626" : "#16a34a";
+
 
   return (
-    <foreignObject
-      x={viewBox.x - 10}
-      y={viewBox.y - 10}
-      width={30}
-      height={30}
+    <text
+      x={viewBox.x}
+      y={viewBox.y - (index % 2 === 0 ? 15 : 30)}
+      textAnchor="middle"
+      fontSize={8}
+      fontWeight="600"
+      fill={color}
     >
-      <Icon
-        size={15}
-        color={color}
-        strokeWidth={3}
-      />
-    </foreignObject>
+      {variation > 0 ? "▲":"▼"}
+      {" "}
+      {Math.abs(variation).toFixed(0)}%
+    </text>
   );
 };
 
@@ -170,157 +163,6 @@ interface CardProps {
     icon: React.ReactNode;
     index?: number;
   }
-  
-  
-
-  const renderArrow = (props: any) => {
-    if (!props || !props.payload) return null;
-  
-    const diff = (props.payload.y2026 ?? 0) - (props.payload.y2025 ?? 0);
-  
-    let symbol = "→";
-    let color = "#999";
-  
-    if (diff > 0) {
-      symbol = "▲";
-      color = "#2e7d32";
-    } else if (diff < 0) {
-      symbol = "▼";
-      color = "#d32f2f";
-    }
-  
-    return (
-      <text
-        x={props.x + props.width / 2}
-        y={props.y - 10}
-        textAnchor="middle"
-        fontSize={12}
-        fontWeight="bold"
-        fill={color}
-      >
-        {symbol}
-      </text>
-    );
-  };
-
-  const chart2Pro = chart2
-  .map(d => {
-    const variation = ((d.y2026 - d.y2025) / d.y2025) * 100;
-
-    return {
-      ...d,
-      variation: Number(variation.toFixed(1))
-    };
-  })
-  .sort((a, b) => b.y2026 - a.y2026);
-
-  const Graphique2Pro = ({ ap }) => {
-
-    const chart2Pro = chart2
-      .map(d => {
-        const variation = ((d.y2026 - d.y2025) / d.y2025) * 100;
-  
-        return {
-          ...d,
-          variation: Number(variation.toFixed(1))
-        };
-      })
-      .sort((a, b) => b.y2026 - a.y2026);
-  
-  
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #d9d9d9",
-          borderRadius: 8,
-          padding: 10,
-          marginBottom: 5,
-          boxShadow: "0 1px 3px rgba(0,0,0,.05)",
-          height: 280,
-          overflow: "hidden"
-        }}
-      >
-        <div
-  style={{
-    textAlign: "center",
-    color: "#d32f2f",
-    fontSize:12,
-    fontWeight: 700,
-    fontStyle: "italic",
-    marginBottom: 10,
-  }}
->
-  A l'intérieur de l'Aire Protégée {ap}
-</div>
-  
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={chart2Pro} barGap={2} barCategoryGap="10%"> 
-  
-            <XAxis
-              dataKey="commune"
-              angle={-25}
-              interval={0}
-              textAnchor="end"
-              height={60}
-              tick={{ fontSize: 10 }}
-              padding={{ left: 10, right: 10 }}
-            />
-  
-            <YAxis
-              domain={[0, (dataMax: number) => Math.ceil(dataMax / 100) * 100]}
-              tick={{ fontSize: 11 }}
-              allowDecimals={false}
-            />
-            <Legend
-              verticalAlign="top"
-              align="center"
-              wrapperStyle={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#1565c0",
-              }}
-            />
-  
-            <YAxis
-                domain={[0, 'dataMax']}
-                tick={{ fontSize: 11 }}
-                allowDecimals={false}
-              />
-
-              <Bar
-                dataKey="y2025"
-                name="2025"
-                fill="#fdba74"
-                opacity={0.85}
-                barSize={13}
-                radius={[3, 3, 0, 0]}
-              />
-              
-              <Bar
-                dataKey="y2026"
-                name="2026"
-                fill="#c2410c"
-                barSize={13}
-                radius={[3, 3, 0, 0]}
-              />
-
-              {chart2Pro.map((d, i) => (
-                <ReferenceDot
-                  key={i}
-                  x={d.commune}
-                  y={(d.y2025 + d.y2026) / 2}
-                  r={0}
-                  isFront
-                  label={<ArrowLabel payload={d} />}
-                />
-              ))}
-              <LabelList content={renderArrow} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    );
-  };
 
   const Graphique3 = () => {
     const chart3Pro = [
@@ -1096,6 +938,152 @@ interface CardProps {
     );
   };
 
+
+  const renderVariation = (props: any, year: number) => {
+    if (!props || !props.payload) return null;
+  
+    const actuel = props.payload[`y${year}`] ?? 0;
+    const precedent = props.payload[`y${year - 1}`] ?? 0;
+  
+    if (precedent === 0) return null;
+  
+    const variation = ((actuel - precedent) / precedent) * 100;
+  
+    const isDiminution = variation < 0;
+  
+    const color = isDiminution
+      ? "#16a34a"
+      : "#dc2626";
+  
+    const symbol = isDiminution
+      ? "▼"
+      : "▲";
+  
+    const afficherPourcentage = variation >= -60;
+  
+    return (
+      <text
+        x={props.x + props.width / 2 + 80}
+        y={props.y - 10}
+        textAnchor="middle"
+        fontSize={10}
+        fontWeight="700"
+        fill={color}
+      >
+        {symbol}
+        {afficherPourcentage &&
+          ` ${Math.abs(variation).toFixed(1)}%`}
+      </text>
+    );
+  };
+
+  
+  const Graphique2Pro = ({ ap, chart2Pro, year }) => {   
+    return (
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #d9d9d9",
+          borderRadius: 8,
+          padding: 10,
+          marginBottom: 5,
+          boxShadow: "0 1px 3px rgba(0,0,0,.05)",
+          height: 280,
+          overflow: "hidden"
+        }}
+      >
+        <div
+          style={{
+            textAlign: "center",
+            color: "#d32f2f",
+            fontSize:12,
+            fontWeight: 700,
+            fontStyle: "italic",
+            marginBottom: 10,
+          }}
+        >
+        A l'intérieur de l'Aire Protégée {ap}
+      </div>
+  
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart
+              data={chart2Pro}
+              barGap={6}
+              barCategoryGap="15%"
+              margin={{
+                top:5,
+                right:10,
+                left:0,
+                bottom:40
+              }}
+            >  
+            <XAxis
+              dataKey="commune"
+              angle={-25}
+              interval={0}
+              textAnchor="end"
+              height={60}
+              tick={{ fontSize: 10 }}
+              padding={{ left: 10, right: 10 }}
+            />
+  
+            <YAxis
+              domain={[0, (dataMax: number) => Math.ceil(dataMax / 100) * 100]}
+              tick={{ fontSize: 11 }}
+              allowDecimals={false}
+            />
+            <Legend
+              verticalAlign="top"
+              align="center"
+              wrapperStyle={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#1565c0",
+              }}
+            />
+
+              <Bar
+                dataKey={`y${year-1}`}
+                name={`${year-1}`}
+                fill="#fdba74"
+                opacity={0.85}
+                barSize={13}
+                radius={[3,3,0,0]}
+              />
+              <Bar
+                dataKey={`y${year}`}
+                name={`${year}`}
+                fill="#c2410c"
+                barSize={13}
+                radius={[3,3,0,0]}
+              >
+                <LabelList 
+                  content={(props)=>renderVariation(props, year)}
+                  position="top"
+                />
+              </Bar>
+
+              {chart2Pro.map((d,i)=>(
+                <ReferenceDot
+                  key={i}
+                  x={d.commune}
+                  y={d[`y${year}`]}
+                  r={0}
+                  isFront
+                  label={
+                    <ArrowLabel
+                      payload={d}
+                      year={year}
+                      index={i}
+                    />
+                  }
+                />
+              ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  };
   
 export default function Feux() {
   const [year, setYear] = useState<number>(2019);
@@ -1376,6 +1364,64 @@ export default function Feux() {
         f.properties.Source === source
     );  
   }, [baseFeux, year, ap, source]);
+
+
+  const chart2Pro = useMemo(() => {
+    const getDataByYear = (annee:number) => {  
+      const data = {};  
+      baseFeux
+        .filter(f => {
+  
+          const p = f.properties;  
+          return (
+            String(p.AP).trim() === String(ap).trim() &&
+            Number(p.Année) === annee &&
+            String(p.Source).trim().toLowerCase() === "interieur"
+          );  
+        })
+        .forEach(f => {  
+          const commune = f.properties.Commune;  
+          const total = Number(
+            String(f.properties.Total)
+            .replace(",", ".")
+          ) || 0;  
+          if (!data[commune]) {
+            data[commune] = 0;
+          }  
+          data[commune] += total;  
+        });  
+      return data;  
+    };  
+    const actuel = getDataByYear(year);
+    const precedent = getDataByYear(year - 1);  
+    const communes = Array.from(
+      new Set([
+        ...Object.keys(actuel),
+        ...Object.keys(precedent)
+      ])
+    );  
+  
+    return communes
+      .map(commune => {  
+        const yActuel = actuel[commune] || 0;
+        const yPrecedent = precedent[commune] || 0;  
+        const variation =
+          yPrecedent === 0
+          ? 0
+          : ((yActuel - yPrecedent) / yPrecedent) * 100;  
+  
+        return {  
+          commune,  
+          [`y${year-1}`]: yPrecedent,  
+          [`y${year}`]: yActuel,  
+          variation:Number(variation.toFixed(1))  
+        };  
+      })
+      .sort(
+        (a,b)=> 
+        b[`y${year}`] - a[`y${year}`]
+      );  
+  },[baseFeux, ap, year]);
 
   const KPICard = ({ title, value, color, icon, index }: CardProps) => {
     const isSixth = index === 5;
@@ -1913,9 +1959,11 @@ export default function Feux() {
 <div style={{ width: "100%" }}>
     <Graphique1 chart1={chart1} year={year}/>
     </div>
-    <div style={{ width: "100%" }}>
-    <Graphique2Pro data={feuxFiltres} ap={ap}/>
-    </div>
+    <Graphique2Pro
+      ap={ap}
+      chart2Pro={chart2Pro}
+      year={year}
+    />
 
     <div style={{ width: "100%" }}>
       <Graphique3 />
