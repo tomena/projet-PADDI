@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import {Trees,MapPinned,Flame,TrendingDown,BadgePercent, Medal,Calendar, MapPin, Slash, TreePine, X, BarChart3,TrendingUp, ArrowUp, ArrowDown
+import {Trees,MapPinned,Flame,Trophy,TrendingDown,BadgePercent, Medal,Calendar, MapPin, Slash, TreePine, X, BarChart3,TrendingUp, ArrowUp, ArrowDown
 } from "lucide-react";
 import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxis,CartesianGrid,Tooltip,Legend,LabelList,ReferenceLine,Cell,Customized, ReferenceDot, Area
 } from "recharts";
@@ -145,6 +145,146 @@ interface CardProps {
       )
       .toFixed(2)
     );
+  };
+
+
+  const ClassementCommunes = ({
+    baseFeux,
+    communesSuperficie,
+    ap,
+    year
+  }: any) => {  
+    const classement = useMemo(() => {  
+      const result = communesSuperficie  
+        // garder uniquement les communes de l'AP choisie
+        .filter((c:any)=>{  
+          return (
+            c.properties.AP === ap
+          );  
+        })  
+        .map((c:any)=>{  
+          const nomCommune =
+            c.properties.Commune;  
+          const superficieCommune =
+            Number(
+              c.properties.Superficie
+            );  
+          // somme des superficies brûlées
+          const superficieBrulee =  
+            baseFeux  
+            .filter((f:any)=>{  
+              const p = f.properties; 
+              return (  
+                String(p.AP).trim()
+                === ap 
+                &&  
+                String(p.Commune).trim()
+                === nomCommune  
+                &&  
+                Number(p.Année)
+                === Number(year)  
+                &&  
+                String(p.Source)
+                .trim()
+                .toLowerCase()
+                === "commune"  
+              );  
+            })  
+            .reduce((total:number,f:any)=>{  
+              return total +  
+              (  
+                Number(
+                  String(
+                    f.properties.Total
+                  )
+                  .replace(",",".")
+                )  
+                ||  
+                0  
+              );  
+            },0);  
+          // calcul pourcentage
+          const pourcentage =  
+            superficieCommune > 0  
+            ?  
+            (
+              superficieBrulee /
+              superficieCommune
+            )  
+            *100  
+            :  
+            0;  
+          return {  
+            commune:nomCommune,  
+            pourcentage  
+          };  
+        })
+  
+  
+        // du plus faible au plus élevé
+        .sort(
+          (a:any,b:any)=>
+          a.pourcentage-b.pourcentage
+        ) 
+        // garder seulement les 3 meilleures
+        .slice(0,3);  
+      return result;  
+    },[
+      baseFeux,
+      communesSuperficie,
+      ap,
+      year
+    ]);  
+    return (  
+      <>
+        {
+          classement.map(
+            (c:any,index:number)=>(
+  
+            <div
+              key={c.commune}
+              style={{
+                display:"flex",
+                alignItems:"center",
+                gap:6
+              }}
+            >
+  
+              <Medal
+                color={
+                  index===0
+                  ?
+                  "gold"
+                  :
+                  index===1
+                  ?
+                  "silver"
+                  :
+                  "#cd7f32"
+                }
+              />
+  
+  
+              <span>
+                {c.commune}
+              </span>
+  
+  
+              <span
+                style={{
+                  color:"#16a34a"
+                }}
+              >
+                (
+                {c.pourcentage.toFixed(2)}
+                %
+                )
+              </span>
+            </div> 
+          ))
+        }
+      </>  
+    );  
   };
 
 const Graphique3 = ({baseFeux,year, ap}:any) => {
@@ -1380,6 +1520,7 @@ export default function Feux() {
   const [ap, setAp] = useState<string>("Ankarafantsika");
   const [source, setSource] = useState<string>("Interieur");
   const [baseFeux, setBaseFeux] = useState<any[]>([]);
+  const [communesSuperficie,setCommunesSuperficie] = useState<any[]>([]);
 
   useEffect(() => {
     fetch("/data/Bases_Feux.geojson")
@@ -1388,6 +1529,16 @@ export default function Feux() {
         setBaseFeux(data.features);  
       });  
   }, []);
+
+  useEffect(()=>{
+
+    fetch("/data/communes_superficie.geojson")
+    .then(r=>r.json())
+    .then(data=>{
+       setCommunesSuperficie(data.features);
+    });
+   
+   },[]);
 
   useEffect(() => {
     console.log("Nombre total de features :", baseFeux.length);
@@ -2541,17 +2692,24 @@ return (
     borderRadius: 10,
   }}
 >
-  {/* TITRE */}
-  <div
-    style={{
-      fontWeight: 700,
-      color: "#003399",
-      fontSize: 13,
-      whiteSpace: "nowrap",
-    }}
-  >
-    Communes les moins brûlées par rapport à leur superficie
-  </div>
+<div
+  style={{
+    display:"flex",
+    alignItems:"center",
+    gap:8,
+    fontWeight:700,
+    color:"#003399",
+    fontSize:13,
+    whiteSpace:"nowrap",
+  }}
+>
+  <Trophy
+    size={18}
+    color="#d4af37"
+  />
+
+  Communes les moins brûlées par rapport à leur superficie
+</div>
 
   <div
   style={{
@@ -2563,23 +2721,12 @@ return (
     width: "100%",
   }}
 >
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <Medal color="gold" />
-    <span>Anivorano Nord</span>
-    <span style={{ color: "#16a34a" }}>(0,66%)</span>
-  </div>
-
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <Medal color="silver" />
-    <span>Sadjaovato</span>
-    <span style={{ color: "#16a34a" }}>(0,76%)</span>
-  </div>
-
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <Medal color="#cd7f32" />
-    <span>Ankarongana</span>
-    <span style={{ color: "#16a34a" }}>(1,47%)</span>
-  </div>
+<ClassementCommunes
+  baseFeux={baseFeux}
+  communesSuperficie={communesSuperficie}
+  ap={ap}
+  year={year}
+/>
 </div>
 </div>
 
