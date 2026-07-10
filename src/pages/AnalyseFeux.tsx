@@ -392,8 +392,48 @@ interface CardProps {
   };
 
   
-  const Graphique6 = () => {
-    const valeur = -6.25;  
+  const Graphique6 = ({baseFeux, ap, year}:any) => {
+    const valeur = useMemo(() => {
+      const getSuperficieByYear = (annee:number) => {    
+        return baseFeux
+          .filter(f => {    
+            const p = f.properties;    
+            return (
+              String(p.AP).trim() === String(ap).trim() &&
+              Number(p.Année) === annee &&
+              String(p.Source).trim().toLowerCase() === "5km"
+            );    
+          })
+          .reduce((total,f)=>{    
+            const superficie = Number(
+              String(f.properties.Total).replace(",", ".")
+            ) || 0;    
+            return total + superficie;    
+          },0);    
+      };    
+      // Superficie de l'année sélectionnée
+      const superficieAnnee = getSuperficieByYear(year);
+    
+      const moyenneReference =
+        (
+          getSuperficieByYear(2020) +
+          getSuperficieByYear(2021) +
+          getSuperficieByYear(2022) +
+          getSuperficieByYear(2023) +
+          getSuperficieByYear(2024)
+        ) / 5;    
+      if (moyenneReference === 0) {
+        return 0;
+      }    
+      const variation =
+        (
+          (superficieAnnee - moyenneReference)
+          /
+          moyenneReference
+        ) * 100;    
+      return Number(variation.toFixed(1));    
+    }, [baseFeux, ap, year]);
+
     const cx = 250;
     const cy = 120;
     const rayon = 80;
@@ -446,8 +486,18 @@ interface CardProps {
         />
       );
     };  
-  
-    const needleAngle = valueToAngle(valeur);  
+
+    const valeurJauge = Math.max(
+      -100,
+      Math.min(
+        100,
+        valeur < 0
+          ? Math.abs(valeur)
+          : -valeur
+      )
+    );    
+    const needleAngle = valueToAngle(valeurJauge);
+
     return (  
       <div
         style={{
@@ -467,7 +517,7 @@ interface CardProps {
             color:"#d32f2f"
           }}
         >
-          Variation de la superficie brûlée au péripherie de 5km
+          Variation de la superficie brûlée en périphérie de 5 km <br/>(réf. 2020–2024)
         </div>
         <svg
           width="100%"
@@ -625,22 +675,27 @@ interface CardProps {
               }
         </svg>
         <div
-          style={{
-            textAlign:"center",
-            fontSize:12,
-            fontWeight:700,
-            marginTop:-20,
-            color: valeur >= 0 ? "#2e7d32" : "#d32f2f"
-          }}
-        >
-          {
-            valeur >=0
-            ?
-            `La superficie brûlée a diminué de ${valeur}%`
-            :
-            `La superficie brûlée a augmenté de ${Math.abs(valeur)}%`
-          }
-        </div>
+            style={{
+              textAlign: "center",
+              fontSize: 12,
+              fontWeight: 700,
+              marginTop: -20,
+              color:
+                valeur < 0
+                  ? "#2e7d32"
+                  : valeur > 0
+                  ? "#d32f2f"
+                  : "#1565c0",
+            }}
+          >
+            {
+              valeur < 0
+                ? `La superficie brûlée a diminué de ${Math.abs(valeur)} %.`
+                : valeur > 0
+                ? `La superficie brûlée a augmenté de ${valeur} %.`
+                : `La superficie brûlée est identique à la moyenne de référence.`
+            }
+          </div>
       </div>
     );
   };
@@ -1401,6 +1456,67 @@ export default function Feux() {
       };
     
     });
+
+
+    const Graphique6 = ({baseFeux, ap, year}:any) => {
+      const valeur = useMemo(() => {    
+        // Fonction pour calculer la superficie brûlée 5km d'une année
+        const getSuperficieByYear = (annee:number) => {    
+          return baseFeux
+            .filter(f => {    
+              const p = f.properties;    
+              return (
+                String(p.AP).trim() === String(ap).trim() &&
+                Number(p.Année) === annee &&
+                String(p.Source).trim().toLowerCase() === "5km"
+              );    
+            })
+            .reduce((total,f)=>{    
+              const superficie = Number(
+                String(f.properties.Total)
+                .replace(",", ".")
+              ) || 0;    
+              return total + superficie;    
+            },0); 
+        };    
+        // Superficie de l'année choisie
+        const superficieAnnee = getSuperficieByYear(year);    
+        // Moyenne référence projet 2020-2024
+        const anneesReference = [
+          2020,
+          2021,
+          2022,
+          2023,
+          2024
+        ];    
+        const superficiesReference =
+          anneesReference.map(
+            annee => getSuperficieByYear(annee)
+          );    
+        const moyenneReference =
+          superficiesReference.reduce(
+            (a,b)=>a+b,
+            0
+          )
+          /
+          anneesReference.length;    
+        if(moyenneReference === 0){
+          return 0;
+        }    
+    
+        const variation =
+          (
+            (superficieAnnee - moyenneReference)
+            /
+            moyenneReference
+          )
+          * 100;    
+        return Number(
+          variation.toFixed(1)
+        );    
+      },[baseFeux, ap, year]);    
+      // le reste de ton code SVG reste ici
+    };
   
   
 return (
@@ -2234,7 +2350,11 @@ return (
 
 {/* ===================== JAUGE CIRCULAIRE===================== */}
 <div style={{ width: "100%" }}>
-<Graphique6 data={feuxFiltres}/>
+<Graphique6
+  baseFeux={baseFeux}
+  ap={ap}
+  year={year}
+/>
     </div>
 
     </div>
