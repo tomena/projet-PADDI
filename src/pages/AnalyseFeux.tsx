@@ -760,13 +760,14 @@ interface CardProps {
     const cy = 120;
     const rayon = 80;
   
-    const valueToAngle = (v) => {
+    const valueToAngle = (v:number) => {
       const value = Math.max(-100, Math.min(100, v));
+    
       if (value >= 0) {
         return 180 + (value / 100) * 180;
-      } else {
-        return 180 - (Math.abs(value) / 100) * 180;
-      }    
+      }
+    
+      return 180 - (Math.abs(value) / 100) * 180;
     };
     const polar = (angle, r) => {
       const rad = (angle * Math.PI) / 180;  
@@ -818,29 +819,27 @@ interface CardProps {
           : -valeur
       )
     );    
-    const targetAngle = valueToAngle(valeur);
+    const needleAngle = valueToAngle(valeurJauge);
 
-const [animatedAngle, setAnimatedAngle] = useState(targetAngle);
+const [displayAngle, setDisplayAngle] = useState(needleAngle);
 
 useEffect(() => {
-  let angle = animatedAngle;
+  const id = requestAnimationFrame(function animate() {
+    setDisplayAngle(prev => {
+      const diff = needleAngle - prev;
 
-  const timer = setInterval(() => {
-    const diff = targetAngle - angle;
+      if (Math.abs(diff) < 0.2) {
+        return needleAngle;
+      }
 
-    if (Math.abs(diff) < 0.5) {
-      angle = targetAngle;
-      setAnimatedAngle(targetAngle);
-      clearInterval(timer);
-      return;
-    }
+      requestAnimationFrame(animate);
 
-    angle += diff * 0.08; // vitesse de déplacement
-    setAnimatedAngle(angle);
-  }, 16); // ≈60 fps
+      return prev + diff * 0.12;
+    });
+  });
 
-  return () => clearInterval(timer);
-}, [targetAngle]);
+  return () => cancelAnimationFrame(id);
+}, [needleAngle]);
 
     return (  
       <div
@@ -939,7 +938,7 @@ useEffect(() => {
             {
             (() => {
 
-              const angle = animatedAngle;
+              const angle = displayAngle;
 
               // pointe de l'aiguille
               const pointe = polar(
@@ -1032,8 +1031,8 @@ useEffect(() => {
               valeur < 0
                 ? `La superficie brûlée a diminué de ${Math.abs(valeur)} %.`
                 : valeur > 0
-                ? `La superficie brûlée a augmenté de ${valeur} %.`
-                : `La superficie brûlée est identique à la moyenne de référence.`
+                  ? `La superficie brûlée a augmenté de ${valeur} %.`
+                  : `La superficie brûlée est identique à la moyenne de référence.`
             }
           </div>
       </div>
