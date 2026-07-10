@@ -117,21 +117,343 @@ interface CardProps {
     index?: number;
   }
 
-  const Graphique3 = () => {
-    const chart3Pro = [
-      {
-        zone: "Au périphérie de 5 km",
-        ecart: -6.25,
-        moyenne5ans: 10.56,
-        anneeDifficile: 12.7,
-      },
-      {
-        zone: "À l'intérieur du parc",
-        ecart: 21.12,
-        moyenne5ans: 0,
-        anneeDifficile: 1.63,
-      },
-    ];  
+  const Graphique3 = ({baseFeux,year, ap}:any) => {
+    const chart3Pro = useMemo(() => {
+      const AP_LIST = [
+        "Analamerana",
+        "Andohahela",
+        "Ankarafantsika",
+        "Ankarana",
+        "Marolambo",
+        "Befotaka-Midongy",
+        "Montagne d'Ambre"
+      ];   
+    
+      const superficie2018 = {
+        "Analamerana":2809.96,
+        "Andohahela":5584.04,
+        "Ankarafantsika":18496.40,
+        "Ankarana":5812.00,
+        "Marolambo":7120.84,
+        "Befotaka-Midongy":19312.32,
+        "Montagne d'Ambre":4092.20
+      };
+    
+      const getSuperficie = (
+        annee:number,
+        source:string,
+        nomAP:string
+      ) => {    
+
+        if(
+          annee === 2018 &&
+          source === "5km"
+        ){
+          return superficie2018[nomAP] || 0;
+        }    
+    
+        return baseFeux
+          .filter(f=>{
+    
+            const p = f.properties;
+    
+            return (
+              String(p.AP)
+              .trim()
+              === nomAP &&
+    
+              Number(p.Année)
+              === annee &&
+    
+              String(p.Source)
+              .trim()
+              .toLowerCase()
+              === source
+            );
+    
+          })
+          .reduce((total,f)=>{
+    
+            return total +
+            (
+              Number(
+                String(f.properties.Total)
+                .replace(",",".")
+              ) || 0
+            );    
+          },0);    
+      };   
+   
+      const calculMoyenneReference = (
+        source:string
+      )=>{    
+        const moyennesAP =
+          AP_LIST.map(nomAP=>{    
+    
+            const somme =
+              [2020,2021,2022,2023,2024]
+              .reduce((s,annee)=>{
+    
+                return s +
+                getSuperficie(
+                  annee,
+                  source,
+                  nomAP
+                );
+    
+              },0);    
+            return somme / 5;    
+          });   
+    
+        return (
+          moyennesAP.reduce(
+            (a,b)=>a+b,
+            0
+          )
+          /
+          AP_LIST.length
+        );    
+      };
+
+      const moyenneQuinquennaleAP = (
+        source:string,
+        nomAP:string
+      )=>{
+      
+        const somme =
+          [2020,2021,2022,2023,2024]
+          .reduce((s,annee)=>{
+      
+            return s +
+              getSuperficie(
+                annee,
+                source,
+                nomAP
+              );
+      
+          },0);
+      
+        return somme / 5;
+      };
+      // ===============================
+      // MOYENNE ANNEE DIFFICILE 7 AP
+      // ===============================
+    
+      const calculMoyenneDifficile = (
+        source:string,
+        annees:number[]
+      )=>{
+         const moyennesAP =
+          AP_LIST.map(nomAP=>{
+            const somme =
+              annees.reduce((s,annee)=>{
+                return s +
+                getSuperficie(
+                  annee,
+                  source,
+                  nomAP
+                );
+              },0);
+            return somme / annees.length;
+          });
+        return (
+          moyennesAP.reduce(
+            (a,b)=>a+b,
+            0
+          )
+          /
+          AP_LIST.length
+        );
+      };
+    
+      const calculVariation = (
+        superficie:number,
+        moyenne:number
+      )=>{
+      
+        if(moyenne===0)
+          return 0;
+      
+        return -(
+          (
+            superficie -
+            moyenne
+          )
+          /
+          moyenne
+        )*100;
+      
+      };
+      // Variation moyenne des 7 AP pour une année donnée
+      const moyenneVariation7AP = (
+        source:string,
+        annee:number
+      )=>{
+      
+        const variations = AP_LIST.map(nomAP=>{      
+          const moyenneAP =
+            moyenneQuinquennaleAP(
+              source,
+              nomAP
+            );      
+          const superficie =
+            getSuperficie(
+              annee,
+              source,
+              nomAP
+            );
+
+          return calculVariation(
+            superficie,
+            moyenneAP
+          );      
+        });      
+      
+        return (
+          variations.reduce(
+            (a,b)=>a+b,
+            0
+          )
+          /
+          variations.length
+        );      
+      };      
+      
+      // Variation année difficile moyenne 7 AP
+      const moyenneVariationDifficile = (
+        source:string,
+        annees:number[]
+      )=>{
+      
+       const variations = AP_LIST.map(nomAP=>{     
+         const moyenneAP =
+         moyenneQuinquennaleAP(
+           source,
+           nomAP
+         );
+      
+      
+         const superficieMoyenne =
+         annees.reduce(
+           (s,annee)=>
+             s +
+             getSuperficie(
+              annee,
+              source,
+              nomAP
+             ),
+           0
+         )
+         /
+         annees.length;
+      
+      
+         return calculVariation(
+           superficieMoyenne,
+           moyenneAP
+         );      
+       });   
+      
+       return (
+         variations.reduce(
+           (a,b)=>a+b,
+           0
+         )
+         /
+         variations.length
+       );      
+      };
+      // ===============================
+      // CALCUL FINAL
+      // ===============================
+    const ref5km =
+        calculMoyenneReference("5km");
+      const refInterieur =
+        calculMoyenneReference("interieur");
+      // années difficiles périphérie
+      const difficile5km =
+        calculMoyenneDifficile(
+          "5km",
+          [2018,2023,2025]
+        );
+      // années difficiles intérieur
+      const difficileInterieur =
+        calculMoyenneDifficile(
+          "interieur",
+          [2023,2025]
+        );
+
+        return [
+          {
+            zone:"Au périphérie de 5 km",
+        
+            // barre grise = même logique que la jauge pour l'AP choisie
+            ecart:Number(
+              calculVariation(
+                getSuperficie(
+                  year,
+                  "5km",
+                  ap
+                ),
+                moyenneQuinquennaleAP(
+                  "5km",
+                  ap
+                )
+              ).toFixed(2)
+            ),
+        
+            // ligne verte = moyenne des variations des 7 AP de l'année choisie
+            moyenne5ans:Number(
+              moyenneVariation7AP(
+                "5km",
+                year
+              ).toFixed(2)
+            ),
+        
+            // ligne rouge = moyenne des années difficiles des 7 AP
+            anneeDifficile:Number(
+              moyenneVariationDifficile(
+                "5km",
+                [2018,2023,2025]
+              ).toFixed(2)
+            )
+          },
+        
+          {
+            zone:"À l'intérieur du parc",
+        
+            ecart:Number(
+              calculVariation(
+                getSuperficie(
+                  year,
+                  "interieur",
+                  ap
+                ),
+                moyenneQuinquennaleAP(
+                  "interieur",
+                  ap
+                )
+              ).toFixed(2)
+            ),
+        
+            moyenne5ans:Number(
+              moyenneVariation7AP(
+                "interieur",
+                year
+              ).toFixed(2)
+            ),
+        
+            anneeDifficile:Number(
+              moyenneVariationDifficile(
+                "interieur",
+                [2023,2025]
+              ).toFixed(2)
+            )
+          }
+        ];
+    },[baseFeux,ap,year]);    
+    
+    
     const min = -40;
     const max = 100; 
   
@@ -496,7 +818,29 @@ interface CardProps {
           : -valeur
       )
     );    
-    const needleAngle = valueToAngle(valeurJauge);
+    const targetAngle = valueToAngle(valeur);
+
+const [animatedAngle, setAnimatedAngle] = useState(targetAngle);
+
+useEffect(() => {
+  let angle = animatedAngle;
+
+  const timer = setInterval(() => {
+    const diff = targetAngle - angle;
+
+    if (Math.abs(diff) < 0.5) {
+      angle = targetAngle;
+      setAnimatedAngle(targetAngle);
+      clearInterval(timer);
+      return;
+    }
+
+    angle += diff * 0.08; // vitesse de déplacement
+    setAnimatedAngle(angle);
+  }, 16); // ≈60 fps
+
+  return () => clearInterval(timer);
+}, [targetAngle]);
 
     return (  
       <div
@@ -599,7 +943,7 @@ interface CardProps {
             {
             (() => {
 
-              const angle = needleAngle;
+              const angle = animatedAngle;
 
               // pointe de l'aiguille
               const pointe = polar(
@@ -2196,7 +2540,7 @@ return (
     />
 
     <div style={{ width: "100%" }}>
-      <Graphique3 />
+    <Graphique3 baseFeux={baseFeux} year={year}/>
     </div>
 
     <div style={{ width: "100%" }}>
