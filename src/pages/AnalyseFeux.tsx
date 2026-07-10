@@ -117,7 +117,37 @@ interface CardProps {
     index?: number;
   }
 
-  const Graphique3 = ({baseFeux,year, ap}:any) => {
+
+  const valeurJauge = (
+    superficie:number,
+    moyenne:number
+  )=>{
+    
+    if(moyenne===0)
+      return 0;
+  
+    const variation =
+      -(
+        (
+          superficie -
+          moyenne
+        )
+        /
+        moyenne
+      )
+      *100;
+  
+    return Number(
+      (
+        variation < 0
+        ? Math.abs(variation)
+        : -variation
+      )
+      .toFixed(2)
+    );
+  };
+
+const Graphique3 = ({baseFeux,year, ap}:any) => {
     const chart3Pro = useMemo(() => {
       const AP_LIST = [
         "Analamerana",
@@ -235,9 +265,6 @@ interface CardProps {
       
         return somme / 5;
       };
-      // ===============================
-      // MOYENNE ANNEE DIFFICILE 7 AP
-      // ===============================
     
       const calculMoyenneDifficile = (
         source:string,
@@ -273,7 +300,7 @@ interface CardProps {
       
         if(moyenne===0)
           return 0;
-      
+
         return -(
           (
             superficie -
@@ -318,7 +345,7 @@ interface CardProps {
           variations.length
         );      
       };      
-      
+
       // Variation année difficile moyenne 7 AP
       const moyenneVariationDifficile = (
         source:string,
@@ -387,9 +414,8 @@ interface CardProps {
           {
             zone:"Au périphérie de 5 km",
         
-            // barre grise = même logique que la jauge pour l'AP choisie
-            ecart:Number(
-              calculVariation(
+            ecart:
+              valeurJauge(
                 getSuperficie(
                   year,
                   "5km",
@@ -399,18 +425,15 @@ interface CardProps {
                   "5km",
                   ap
                 )
-              ).toFixed(2)
-            ),
-        
-            // ligne verte = moyenne des variations des 7 AP de l'année choisie
+              ),
+
             moyenne5ans:Number(
               moyenneVariation7AP(
                 "5km",
                 year
               ).toFixed(2)
             ),
-        
-            // ligne rouge = moyenne des années difficiles des 7 AP
+ 
             anneeDifficile:Number(
               moyenneVariationDifficile(
                 "5km",
@@ -422,8 +445,8 @@ interface CardProps {
           {
             zone:"À l'intérieur du parc",
         
-            ecart:Number(
-              calculVariation(
+            ecart:
+              valeurJauge(
                 getSuperficie(
                   year,
                   "interieur",
@@ -433,8 +456,7 @@ interface CardProps {
                   "interieur",
                   ap
                 )
-              ).toFixed(2)
-            ),
+              ),
         
             moyenne5ans:Number(
               moyenneVariation7AP(
@@ -451,13 +473,64 @@ interface CardProps {
             )
           }
         ];
+
+        console.log({
+          ap,
+          year,
+          ecart5km: valeurJauge(
+            getSuperficie(year,"5km",ap),
+            moyenneQuinquennaleAP("5km",ap)
+          )
+        });
+
+        const resultat = [
+          {
+            zone:"Au périphérie de 5 km",
+            ecart:
+              valeurJauge(
+                getSuperficie(
+                  year,
+                  "5km",
+                  ap
+                ),
+                moyenneQuinquennaleAP(
+                  "5km",
+                  ap
+                )
+              ),
+        
+            moyenne5ans:Number(
+              moyenneVariation7AP(
+                "5km",
+                year
+              ).toFixed(2)
+            ),
+        
+            anneeDifficile:Number(
+              moyenneVariationDifficile(
+                "5km",
+                [2018,2023,2025]
+              ).toFixed(2)
+            )
+          }
+        ];
+        
+        console.log("RESULTAT Graphique3", resultat);
+        
+        return resultat;
+      
+        console.log("Graphique3 :", resultat);
+      
+        return resultat;
+
     },[baseFeux,ap,year]);    
     
     
     const min = -40;
-    const max = 100; 
+    const max = 100;
+
   
-    return (
+  return (
       <div
         style={{
           background:"#fff",
@@ -474,7 +547,7 @@ interface CardProps {
             fontSize:12,
             fontWeight:700,
             fontStyle:"italic",
-            marginBottom:10
+            marginBottom:5
           }}
         >
           Écart entre l'année choisie par rapport aux superficies moyennes
@@ -484,7 +557,7 @@ interface CardProps {
         <svg
           width="100%"
           height="100%"
-          viewBox="0 0 400 300"
+          viewBox="0 0 450 300"
         >  
           {/* paramètres graphiques */}
           {(() => {  
@@ -501,7 +574,7 @@ interface CardProps {
             return (
               <>  
                 {
-                  [-40,-20,0,20,40,60,80,100].map((v)=>(
+                  [-60,-40,-20,0,20,40,60,80,100].map((v)=>(
                     <g key={v}>  
                       <line
                         x1="55"
@@ -566,8 +639,15 @@ interface CardProps {
                  
                  {
                     chart3Pro.map((d,i)=>{
+
                       const x = i===0 ? 100 : 250;
                       const width = 80;
+                    
+                      const valeur = Math.max(
+                        min,
+                        Math.min(max, -d.ecart)
+                      );
+                    
                       return(
                         <g key={d.zone}>
                           {/* fond -40 à 100 */}
@@ -576,36 +656,42 @@ interface CardProps {
                             y={yScale(100)}
                             width={width}
                             height={
-                              yScale(-40)-yScale(100)
+                              yScale(-60)-yScale(100)
                             }
                             fill="white"
                             fillOpacity="0.35"
                             stroke="#bdbdbd"
                           />
-                          {/* barre d'écart */}
-                          {
-                            d.ecart >= 0 ? (
+
+                            {/* ================= BARRE GRISE ================= */}
+                            {(() => {
+                            const valeur = Math.max(
+                              min,
+                              Math.min(max, -d.ecart)
+                            );
+
+                            const y =
+                              valeur >= 0
+                              ? yScale(valeur)
+                              : yScale(0);
+
+                            const hauteur =
+                              Math.abs(
+                                yScale(valeur) - yScale(0)
+                              );
+
+                            return (
                               <rect
                                 x={x}
-                                y={yScale(d.ecart)}
+                                y={y}
                                 width={width}
-                                height={
-                                  yScale(0)-yScale(d.ecart)
-                                }
-                                fill="#999999"
+                                height={hauteur}
+                                fill="#666666"
                               />
-                            ) : (
-                              <rect
-                                x={x}
-                                y={yScale(0)}
-                                width={width}
-                                height={
-                                  yScale(d.ecart)-yScale(0)
-                                }
-                                fill="#555555"
-                              />
-                            )
-                          }
+                            );
+
+                            })()}
+
                           {/* ligne zéro */}
                           <line
                             x1={x}
@@ -672,29 +758,29 @@ interface CardProps {
                               {d.anneeDifficile}%
                             </text>
                           {/* valeur écart */}
-                          <text
-                            x={x+width/2}
-                            y={
-                              d.ecart >=0
-                              ? yScale(d.ecart)-8
-                              : yScale(d.ecart)+18
-                            }
-                            textAnchor="middle"
-                            fontSize="12"
-                            fontWeight="700"
-                            fill={
-                              d.ecart>=0
-                              ? "#555"
-                              : "#333"
-                            }
-                          >
-                            {d.ecart > 0 ? "+" : ""}
-                            {d.ecart}%
-                          </text>
+                            <text
+                              x={x + width / 2}
+                              y={
+                                valeur >= 0
+                                ? yScale(valeur) - 8
+                                : yScale(valeur) + 18
+                              }
+                              textAnchor="middle"
+                              fontSize="12"
+                              fontWeight="700"
+                              fill={
+                                valeur >= 0
+                                ? "#555"
+                                : "#333"
+                              }
+                            >
+                              {valeur > 0 ? "+" : ""}
+                              {valeur.toFixed(0)}%
+                            </text>
                           {/* nom zone */}
                           <text
                             x={x+width/2}
-                            y="250"
+                            y="275"
                             textAnchor="middle"
                             fontSize="11"
                             fontWeight="600"
@@ -2535,7 +2621,11 @@ return (
     />
 
     <div style={{ width: "100%" }}>
-    <Graphique3 baseFeux={baseFeux} year={year}/>
+    <Graphique3 
+      baseFeux={baseFeux}
+      year={year}
+      ap={ap}
+    />
     </div>
 
     <div style={{ width: "100%" }}>
