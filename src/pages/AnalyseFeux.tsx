@@ -5,65 +5,6 @@ import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxi
 } from "recharts";
 import { createRoot } from "react-dom/client";
 
-//========================
-// GRAPHIQUE 5
-//========================
-
-const chart5 = [
-  {
-    commune: "Anivorano_Nord",
-    total: 546.64,
-    peripherie: 154.80,
-    interieur: 0,
-  },
-  {
-    commune: "Ankarongana",
-    total: 1232.68,
-    peripherie: 164.52,
-    interieur: 820.16,
-  },
-  {
-    commune: "Antsoha",
-    total: 660.76,
-    peripherie: 515.90,
-    interieur: 144.86,
-  },
-  {
-    commune: "Sadjoavato",
-    total: 71.00,
-    peripherie: 0,
-    interieur: 0,
-  },
-];
-
-
-const impactFeux = [
-  {
-    commune: "Anivorano_Nord",
-    total: 454.64,
-    peripherie: 150,
-    interieur: 0,
-  },
-  {
-    commune: "Ankarongana",
-    total: 1232.05,
-    peripherie: 160,
-    interieur: 1000,
-  },
-  {
-    commune: "Antsoha",
-    total: 650.75,
-    peripherie: 500,
-    interieur: 200,
-  },
-  {
-    commune: "Sadjoavato",
-    total: 71.05,
-    peripherie: 0,
-    interieur: 0,
-  },
-];
-
 const ArrowLabel = ({ payload, year, viewBox, index }: any) => {
   const actuel = payload[`y${year}`] ?? 0;
   const precedent = payload[`y${year - 1}`] ?? 0;
@@ -90,52 +31,80 @@ const ArrowLabel = ({ payload, year, viewBox, index }: any) => {
   );
 };
 
+const CustomXAxisTick = ({ x, y, payload }:any) => {
+  const nom = payload.value;
+  const affichage =
+    nom.length > 8
+    ? nom.substring(0,8) + "..."
+    : nom;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={5}
+        textAnchor="end"
+        transform="rotate(-25)"
+        fontSize={10}
+        fill="#333"
+      >
+        {affichage}
+      </text>
+    </g>
+  );
+};
+
 const CustomTotalBar = (props:any) => {
-  const {x,y,width,height,payload,background
+  const {
+    x,
+    y,
+    width,
+    height,
+    payload
   } = props;
+  const espace = 2;
+  const total = payload.total || 1;
+  // hauteur proportionnelle
+  const hauteurInterieur =
+    (payload.interieur / total) * height;
 
-  const total = payload.total;
-  const interieur = payload.interieur;
-  const peripherie = payload.peripherie;
-
-  // largeur fixe des deux barres internes
-  const innerBarWidth = 18;
-  const gap = 4;
-
-  // position horizontale centrée
-  const startX = x + (width - (innerBarWidth * 2 + gap)) / 2;
-
-  // conversion hauteur selon le total
-  const interieurHeight = (interieur / total) * height;
-  const peripherieHeight = (peripherie / total) * height;
-
+  const hauteurPeripherie =
+    (payload.peripherie / total) * height;
+    const largeurPetiteBarre = 
+      (width * 0.45); // 35% de la barre totale    
+    const largeurInterne =
+      largeurPetiteBarre * 2 + espace;    
+    const debutX =
+      x + (width - largeurInterne) / 2;
   return (
     <g>
-      {/* BARRE MERE TOTAL */}
+
+      {/* Total arrière */}
       <rect
         x={x}
         y={y}
         width={width}
         height={height}
         fill="#d9edf7"
-        rx={2}
+        rx={4}
       />
-      {/* INTERIEUR AP */}
+      {/* Intérieur AP */}
       <rect
-        x={startX}
-        y={y + height - interieurHeight}
-        width={innerBarWidth}
-        height={interieurHeight}
+        x={debutX}
+        y={y + height - hauteurInterieur}
+        width={largeurPetiteBarre}
+        height={hauteurInterieur}
         fill="#ff0000"
       />
-      {/* PERIPHERIE 5KM */}
+      {/* Périphérie 5km */}
       <rect
-        x={startX + innerBarWidth + gap}
-        y={y + height - peripherieHeight}
-        width={innerBarWidth}
-        height={peripherieHeight}
+        x={debutX + largeurPetiteBarre + espace}
+        y={y + height - hauteurPeripherie}
+        width={largeurPetiteBarre}
+        height={hauteurPeripherie}
         fill="#ffff00"
       />
+
     </g>
   );
 };
@@ -863,25 +832,25 @@ interface CardProps {
         A l'intérieur de l'Aire Protégée {ap}
       </div>
   
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height="100%">
           <BarChart
               data={chart2Pro}
               barGap={5}
-              barCategoryGap="20%"
+              barCategoryGap="25%"
               margin={{
-                top:5,
+                top:10,
                 right:10,
                 left:0,
-                bottom:40
+                bottom:20
               }}
             >  
             <XAxis
               dataKey="commune"
               angle={-25}
               interval={0}
+              tick={<CustomXAxisTick />}
               textAnchor="end"
-              height={60}
-              tick={{ fontSize: 10 }}
+              height={50}
               padding={{ left: 10, right: 10 }}
             />
   
@@ -1208,30 +1177,29 @@ export default function Feux() {
 
 
   const chart2Pro = useMemo(() => {
-    const getDataByYear = (annee:number) => {  
-      const data = {};  
+    const getDataByYear = (annee:number) => {
+      const data:any = {};  
       baseFeux
         .filter(f => {
-  
           const p = f.properties;  
           return (
             String(p.AP).trim() === String(ap).trim() &&
             Number(p.Année) === annee &&
             String(p.Source).trim().toLowerCase() === "interieur"
-          );  
+          );
         })
         .forEach(f => {  
           const commune = f.properties.Commune;  
           const total = Number(
             String(f.properties.Total)
-            .replace(",", ".")
+              .replace(",", ".")
           ) || 0;  
           if (!data[commune]) {
             data[commune] = 0;
           }  
           data[commune] += total;  
         });  
-      return data;  
+      return data;
     };  
     const actuel = getDataByYear(year);
     const precedent = getDataByYear(year - 1);  
@@ -1241,27 +1209,33 @@ export default function Feux() {
         ...Object.keys(precedent)
       ])
     );  
+    const resultat = communes.map(commune => {  
+      const yActuel = actuel[commune] || 0;
+      const yPrecedent = precedent[commune] || 0;  
+      const variation =
+        yPrecedent === 0
+        ? 0
+        : ((yActuel - yPrecedent) / yPrecedent) * 100;  
   
-    return communes
-      .map(commune => {  
-        const yActuel = actuel[commune] || 0;
-        const yPrecedent = precedent[commune] || 0;  
-        const variation =
-          yPrecedent === 0
-          ? 0
-          : ((yActuel - yPrecedent) / yPrecedent) * 100;  
-  
-        return {  
-          commune,  
-          [`y${year-1}`]: yPrecedent,  
-          [`y${year}`]: yActuel,  
-          variation:Number(variation.toFixed(1))  
-        };  
-      })
+      return {
+        commune,
+        [`y${year-1}`]: yPrecedent,
+        [`y${year}`]: yActuel,
+        variation:Number(variation.toFixed(1))
+      };  
+    });  
+    // 1 - prendre les 11 communes les plus brûlées de l'année choisie
+    const top11 = resultat
       .sort(
-        (a,b)=> 
+        (a,b) =>
         b[`y${year}`] - a[`y${year}`]
-      );  
+      )
+      .slice(0,11);  
+    // 2 - afficher ces 11 communes par ordre alphabétique
+    return top11.sort(
+      (a,b) =>
+      a.commune.localeCompare(b.commune)
+    );  
   },[baseFeux, ap, year]);
 
 
@@ -1308,6 +1282,90 @@ export default function Feux() {
   },[feuxCommune]);
 
 
+  const impactFeux = useMemo(() => {
+    const communes: Record<
+      string,
+      {
+        commune: string;
+        total: number;
+        peripherie: number;
+        interieur: number;
+      }
+    > = {};  
+    baseFeux.forEach(f => {
+      const p = f.properties;  
+      if (
+        String(p.AP).trim() !== String(ap).trim() ||
+        Number(p.Année) !== Number(year)
+      ) {
+        return;
+      }  
+      const commune = p.Commune;  
+      const total =
+        Number(String(p.Total).replace(",", ".")) || 0;  
+      if (!communes[commune]) {
+        communes[commune] = {
+          commune,
+          total: 0,
+          peripherie: 0,
+          interieur: 0,
+        };      }  
+      const source = String(p.Source).trim().toLowerCase();  
+      if (source === "interieur") {
+        communes[commune].interieur += total;
+      }  
+      if (source === "5km") {
+        communes[commune].peripherie += total;
+      }  
+      communes[commune].total += total;
+    });  
+    return Object.values(communes)  
+      // 1. garder les plus grandes superficies
+      .sort((a, b) => b.total - a.total)  
+      // 2. seulement les 11 premières
+      .slice(0, 11)  
+      // 3. puis ordre alphabétique
+      .sort((a, b) =>
+        a.commune.localeCompare(b.commune)
+      );  
+  }, [baseFeux, ap, year]);
+
+
+  const maxY = Math.max(
+    ...impactFeux.map(d => d.total),
+    0
+  );  
+  const roundedMax = Math.max(
+    500,
+    Math.ceil(maxY / 500) * 500
+  );
+  
+  const ticks = Array.from(
+    { length: roundedMax / 500 + 1 },
+    (_, i) => i * 500
+  );
+
+  const CustomXAxisTick = ({ x, y, payload }: any) => {
+    const nom = payload.value;
+    const texteCourt =
+      nom.length > 8 ? nom.substring(0, 8) + "..." : nom;
+  
+    return (
+      <g transform={`translate(${x},${y})`}>
+        <text
+          x={0}
+          y={0}
+          dy={12}
+          textAnchor="end"
+          transform="rotate(-30)"
+          fill="#333"
+          fontSize={11}
+        >
+          {texteCourt}
+        </text>
+      </g>
+    );
+  };
 
   const Graphique4 = ({chart4, year}) => {
     const maxValue = Math.max(...chart4.map(d => d.superficie));
@@ -1343,6 +1401,7 @@ export default function Feux() {
       };
     
     });
+  
   
 return (
       <div
@@ -1387,10 +1446,10 @@ return (
             />
   
             <YAxis
-            yAxisId="left"
-            domain={[0, roundedMax]}
-            tick={{fontSize:11}}
-          />
+              yAxisId="left"
+              domain={[0, roundedMax]}
+              tick={{fontSize:11}}
+            />
 
           <YAxis
             yAxisId="right"
@@ -1771,8 +1830,6 @@ return (
     ],
     [year, ap, totalCommune]
   );
-
-
   
 
 
@@ -2033,7 +2090,7 @@ return (
     />
     </div>
 
-      {/* =====================EVOLUTION DU TAUX ===================== */}
+      {/* =====================IMPACT DES FEUX PAR COMMUNE ===================== */}
     <div
         style={{
           background: "#fff",
@@ -2055,30 +2112,26 @@ return (
             marginBottom: 10,
           }}
         >
-          Impact des feux par Commune et par zone géographique
+          Impact des feux aux 11 Communes les plus touchés autour de {ap}
         </div>
 
       <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={impactFeux}
-            margin={{
-              top: 10,
-              right: 10,
-              left: 0,
-              bottom: 20,
-            }}
-            barCategoryGap="25%"      >
+      <BarChart
+          data={impactFeux}
+          margin={{
+            top:20,
+            right:10,
+            left:0,
+            bottom:35,
+          }}
+          barCategoryGap="25%"
+          barGap={-18}
+        >
 
             <XAxis
               dataKey="commune"
-              angle={-15}
-              textAnchor="end"
               interval={0}
-              dy={0}
-              tick={{
-                fill: "#333",
-                fontSize: 11,
-              }}
+              tick={<CustomXAxisTick />}
               axisLine={{
                 stroke: "#0066cc",
                 strokeWidth: 1.5,
@@ -2087,70 +2140,71 @@ return (
             />
 
             <YAxis
-              domain={[0, 1500]}
-              ticks={[0,500,1000,1500]}
+              domain={[0, roundedMax]}
+              ticks={ticks}
               tick={{
-                fill:"#555",
-                fontSize:11,
+                fill: "#555",
+                fontSize: 11,
               }}
               axisLine={{
-                stroke:"#0066cc",
-                strokeWidth:1.5,
+                stroke: "#0066cc",
+                strokeWidth: 1.5,
               }}
               tickLine={{
-                stroke:"#0066cc"
+                stroke: "#0066cc",
               }}
             />
             <Legend
               verticalAlign="bottom"
               align="center"
               wrapperStyle={{
-                fontSize: 12,
-                paddingTop: 15,
+                fontSize: 11,
+                paddingTop: 20,
               }}
               content={() => (
                 <div
                   style={{
                     display: "flex",
                     justifyContent: "center",
-                    gap: "20px",
+                    gap: 10,
                     fontSize: 12,
                   }}
                 >
-                  <div style={{display:"flex", alignItems:"center"}}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
                     <span
                       style={{
-                        width:10,
-                        height:10,
-                        background:"#ff0000",
-                        display:"inline-block",
-                        marginRight:5
+                        width: 12,
+                        height: 12,
+                        background: "#ff0000",
+                        display: "inline-block",
+                        marginRight: 6,
                       }}
                     />
                     Intérieur AP
                   </div>
 
-                  <div style={{display:"flex", alignItems:"center"}}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
                     <span
                       style={{
-                        width:10,
-                        height:10,
-                        background:"#ffff00",
-                        display:"inline-block",
-                        marginRight:5
+                        width: 12,
+                        height: 12,
+                        background: "#ffff00",
+                        border: "1px solid #999",
+                        display: "inline-block",
+                        marginRight: 6,
                       }}
                     />
-                    Périphérie 5km
+                    Périphérie 5 km
                   </div>
 
-                  <div style={{display:"flex", alignItems:"center"}}>
+                  <div style={{ display: "flex", alignItems: "center" }}>
                     <span
                       style={{
-                        width:10,
-                        height:10,
-                        background:"#d9edf7",
-                        display:"inline-block",
-                        marginRight:5
+                        width: 12,
+                        height: 12,
+                        background: "#d9edf7",
+                        display: "inline-block",
+                        marginRight: 6,
                       }}
                     />
                     Total
@@ -2158,20 +2212,22 @@ return (
                 </div>
               )}
             />
-              <Bar
+            
+            {/* BARRE TOTALE EN ARRIERE */}
+            <Bar
+              dataKey="total"
+              name="Total"
+              shape={<CustomTotalBar />}
+              barSize={20}
+            >
+              <LabelList
                 dataKey="total"
-                name="Total"
-                shape={<CustomTotalBar />}
-                barSize={45}
-              >
-                <LabelList
-                  dataKey="total"
-                  position="top"
-                  fill="#0099ff"
-                  fontSize={10}
-                  formatter={(v:number)=>v.toFixed(2)}
-                />
-              </Bar>
+                position="top"
+                fill="#0099ff"
+                fontSize={10}
+                formatter={(v:number)=>Math.round(v).toLocaleString("fr-FR")}
+              />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
