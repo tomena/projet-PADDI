@@ -253,6 +253,7 @@ export default function SuperficiesBrulees({ data }: any) {
   const [selectedRegion, setSelectedRegion] = useState("");
   const [selectedAP, setSelectedAP] = useState("");
   const [regionsData, setRegionsData] = useState(null);
+  const [feuxData, setFeuxData] = useState<any[]>([]);
 
     useEffect(() => {
       fetch("/data/madagascar_24_region.geojson")
@@ -263,6 +264,277 @@ export default function SuperficiesBrulees({ data }: any) {
         .then(setRegionsData)
         .catch(err => console.error("Erreur chargement GeoJSON:", err));
     }, []);
+
+    useEffect(() => {
+      fetch("/data/Bases_Feux.geojson")
+      .then(res => res.json())
+      .then(data => {      
+      const features = data.features.map((f:any)=>f.properties);      
+      setFeuxData(features);      
+      })
+      .catch(err=>console.error(err));      
+      }, []);
+
+
+    const tableauVirtuel = useMemo(() => {
+        if (!feuxData.length) return [];      
+        const getValue = (v: any) =>
+          Number(String(v ?? 0).replace(",", "."));      
+        // uniquement les données 5 km
+        const data5km = feuxData.filter(
+          (d: any) => d.Source === "5km"
+        );      
+        // toutes les AP présentes
+        const aps = [...new Set(data5km.map((d:any)=>d.AP))];
+          aps.push("");      
+        // on ajoute la ligne "Toutes"
+        aps.push(""); 
+
+        const annees = [2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030
+                        ];
+
+        const table: any[] = [];      
+        aps.forEach(ap => { 
+
+          const dataAP =
+              ap === ""
+              ? data5km
+              : data5km.filter(
+                  (d:any)=>d.AP===ap
+                );      
+          //----------------------------------
+          // BASELINE 2020-2024
+          //----------------------------------      
+          const baseline =
+            [2020,2021,2022,2023,2024]
+              .map(an =>      
+                dataAP
+                  .filter((d:any)=>
+                    Number(d["Année"])===an
+                  )
+                  .reduce(
+                    (s:number,d:any)=>
+                      s+getValue(d.Total),
+                    0
+                  )      
+              )
+              .reduce((a,b)=>a+b,0)/5;      
+          const objectif = baseline*0.75;      
+          //----------------------------------
+          // Une ligne par année
+          //----------------------------------      
+          annees.forEach(an=>{      
+            const lignesAnnee = dataAP.filter(
+              (d:any)=>
+                Number(d["Année"]) === an
+            );
+            
+            
+            // vérifier si on a réellement des données
+            const hasData = lignesAnnee.length > 0;
+            
+            
+            const superficie =
+            lignesAnnee.reduce(
+              (s:number,d:any)=>
+                s + getValue(d.Total),
+              0
+            );
+            
+            
+            // variation par rapport à la référence
+            const variation =
+            !hasData || baseline===0
+            ? 0
+            : ((superficie-baseline)/baseline)*100;
+            
+            
+            // réduction obtenue
+            const reduction =
+            !hasData || baseline===0
+            ? 0
+            : ((baseline-superficie)/baseline)*100;
+
+              const ecartCible =
+                  reduction - 25;
+              // ================================
+              // OBJECTIF FINAL 2030 (-25%)
+              // ================================
+              
+              const objectifReduction2030 = 25;
+              // Progression vers l'objectif final
+              const tauxAtteinte2030 =
+                Math.max(
+                  0,
+                  Math.min(
+                    (reduction / objectifReduction2030) * 100,
+                    100
+                  )
+                );
+              // ================================
+              // TRAJECTOIRE ANNUELLE
+              // ================================
+              
+              // Nombre d'années entre 2025 et 2030
+              const duree = 6;              
+              // réduction attendue cette année
+              const reductionAttendue =
+                an >= 2025
+                ? (objectifReduction2030 / duree) * (an - 2024)
+                : 0;
+              // cible superficie cette année
+              const superficieCible =
+                baseline * (1 - reductionAttendue / 100);
+              // comparaison réel vs cible annuelle
+              const tauxTrajectoire =
+                reductionAttendue === 0
+                ? 0
+                :
+                (reduction / reductionAttendue) * 100;             
+              // écart par rapport à la trajectoire
+              const ecartTrajectoire =
+                reduction - reductionAttendue;
+
+                table.push({
+                  AP: ap,                
+                  Annee: an,                
+                
+                  // valeurs principales
+                  Baseline: baseline,                
+                  Objectif2030:
+                    baseline * 0.75,                
+                
+                  Superficie:
+                    superficie,                
+                
+                  Variation:
+                    variation,                
+                
+                  Reduction:
+                    reduction,                
+                
+                  // Donut principal
+                  TauxAtteinte2030:
+                    tauxAtteinte2030,                
+                
+                  // Nouvelle mesure
+                  ReductionAttendue:
+                    reductionAttendue,               
+                
+                  SuperficieCible:
+                    superficieCible,                
+                
+                  TauxTrajectoire:
+                    tauxTrajectoire,                
+                
+                  EcartTrajectoire:
+                    ecartTrajectoire,
+
+                  EcartCible: ecartCible,                
+                });      
+          });      
+        });      
+        return table;      
+      },[feuxData]);
+
+      const donutKPI = useMemo(() => {
+        const resultat = tableauVirtuel.find(
+          d =>
+            (
+              selectedAP === ""
+              ? d.AP === ""
+              : String(d.AP).trim() === String(selectedAP).trim()
+            )
+            &&
+            Number(d.Annee) === Number(selectedYear)
+        );
+      
+        return resultat ?? {
+
+          AP:selectedAP,        
+          Annee:selectedYear,        
+          Baseline:0,        
+          Objectif2030:0,        
+          Superficie:0,        
+          Variation:0,        
+          Reduction:0,        
+          TauxAtteinte2030:0,        
+          ReductionAttendue:0,        
+          SuperficieCible:0,        
+          TauxTrajectoire:0,        
+          EcartTrajectoire:0,
+          EcartCible:0
+        
+        };
+      
+      }, [
+        tableauVirtuel,
+        selectedAP,
+        selectedYear
+      ]);
+
+
+      const evolution = useMemo(() => {
+        if (!tableauVirtuel.length) return [];      
+        const lignes = tableauVirtuel.filter(d =>
+          (
+            selectedAP === ""
+            ? d.AP === ""
+            : String(d.AP).trim() === String(selectedAP).trim()
+          )
+          &&
+          Number(d.Annee)>=2025 &&
+          Number(d.Annee)<=2030
+        );   
+      
+        const unique = lignes.reduce((acc:any[], item:any)=>{      
+          const existe = acc.find(
+            x=>x.annee===Number(item.Annee)
+          );
+      
+          if(!existe){
+
+            const reduction = 
+            item.Reduction === null ||
+            item.Reduction === undefined ||
+            item.Reduction === ""
+            ? 0
+            : Number(item.Reduction);
+          
+          
+          acc.push({
+            annee:Number(item.Annee),
+          
+            valeur:
+              reduction * -1,
+          
+            cible:-25
+          });
+          
+          }
+      
+          return acc;
+      
+        },[]);
+      
+      
+        return unique.sort(
+          (a,b)=>a.annee-b.annee
+        );
+      
+      
+      },[
+       tableauVirtuel,
+       selectedAP
+      ]);
+
+      console.log("selectedAP =", selectedAP);
+      console.log("selectedYear =", selectedYear);
+      console.log("tableauVirtuel =", tableauVirtuel);
+      console.log("DONUT KPI =", donutKPI);
+      console.log("Evolution graph =", evolution);
+      
+  
 
   const VALID_ANTENNES = ["Tanà","Ambositra", "Boeny", "Diana", "Farafangana", "Fort-Dauphin"];
 
@@ -368,16 +640,6 @@ export default function SuperficiesBrulees({ data }: any) {
   console.log("features:", regionsData?.features);
   console.log("antennes:", antennes);
 
-  const evolution = [
-    { annee: "", },
-    { annee: 2025, valeur: -16 },
-    { annee: 2026, valeur: -17.5 },
-    { annee: 2027, valeur: -19 },
-    { annee: 2028, valeur: -20.5 },
-    { annee: 2029, valeur: -22.5 },
-    { annee: 2030, valeur: -25 },
-  ];
-
   const evolutionWithTarget = evolution.map(d => ({
     ...d,
     cible: -25,
@@ -395,79 +657,98 @@ export default function SuperficiesBrulees({ data }: any) {
 
   const COLORS = ['#16a34a', '#22c55e', '#84cc16', '#f59e0b', '#ef4444', '#9333ea', '#2563eb'];
 
-  const kpiValue = 64;
+  const kpiValue = donutKPI.TauxAtteinte2030 ?? 0;
+  const ecartCible = donutKPI.EcartCible ?? 0;
+  const variation = Number(donutKPI?.Variation ?? 0);
 
-  const dataDonut = [
-    { name: 'atteint', value: kpiValue },
-    { name: 'reste', value: 100 - kpiValue },
-  ];
+console.log("kpiValue =", kpiValue);
 
-  const donutColor = '#16a34a';
-  const restColor = '#e5e7eb';
+const dataDonut = [
+  {
+    name: "atteint",
+    value: kpiValue
+  },
+  {
+    name: "reste",
+    value: Math.max(0, 100 - kpiValue)
+  }
+];
 
-  const comparisonData = [
 
-    {
-      annee: 2025,
-      MDA: -5,
-      ANK: -12.02,
-      ANLM: -15,
-      AKF: -18,
-      ADH: -22.05,
-      MDS: -25.05,
-      MLB: -30.2,
-    },
-    {
-      annee: 2026,
-      MDA: -7,
-      ANK: -14.02,
-      ANLM: -16,
-      AKF: -16.5,
-      ADH: -26,
-      MDS: -28.02,
-      MLB: -32,
-    },
-    {
-      annee: 2027,
-      MDA: -10,
-      ANK: -16,
-      ANLM: -17,
-      AKF: -25,
-      ADH: -25,
-      MDS: -30,
-      MLB: -34.02,
-    },
-    {
-      annee: 2028,
-      MDA: -12,
-      ANK: -18,
-      ANLM: -18.5,
-      AKF: -22,
-      ADH: -26,
-      MDS: -32,
-      MLB: -36,
-    },
-    {
-      annee: 2029,
-      MDA: -14,
-      ANK: -20,
-      ANLM: -22,
-      AKF: -24,
-      ADH: -27.02,
-      MDS: -34.05,
-      MLB: -38,
-    },
-    {
-      annee: 2030,
-      MDA: -15,
-      ANK: -22,
-      ANLM: -22.5,
-      AKF: -24.25,
-      ADH: -28,
-      MDS: -36,
-      MLB: -40,
-    },
-  ];
+const donutColor =
+  variation <= -25
+    ? "#2563eb"
+    : variation <= -15
+    ? "#16a34a"
+    : variation <= -5
+    ? "#f59e0b"
+    : "#dc2626";
+
+
+const restColor = "#e5e7eb";
+
+const formatHa = (value:number) => {
+  const ha = Number(value ?? 0);
+
+  return ha
+    .toLocaleString("fr-FR", {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1
+    }) + " ha";
+};
+
+
+const apCode: Record<string, string> = {
+  "Montagne d'Ambre": "MDA",
+  "Ankarana": "ANK",
+  "Analamerana": "ANLM",
+  "Ankarafantsika": "AKF",
+  "Andohahela": "ADH",
+  "Befotaka-Midongy": "MDS",
+  "Marolambo": "MLB"
+};
+
+const comparisonData = useMemo(() => {
+  if (!tableauVirtuel.length) return [];
+
+  const annees = [2025,2026,2027,2028,2029,2030];
+  return annees.map(an => {
+
+    const ligne:any = {
+      annee: an
+    };
+    tableauVirtuel
+      .filter(d =>
+        Number(d.Annee) === an &&
+        d.AP !== "Toutes"
+      )
+      .forEach(d => {
+
+        console.log(
+          d.AP,
+          "=>",
+          apCode[d.AP]
+        );
+
+        const code = apCode[d.AP];
+
+              if(code){
+
+                ligne[code] =
+                  Number(d.Variation ?? 0);
+              }
+      });
+
+    return ligne;
+
+  });
+},[
+ tableauVirtuel
+]);
+
+console.log("comparisonData =", comparisonData);
+console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
+
 
   const filteredData = useMemo(() => {
     if (!data?.features) return null;
@@ -516,22 +797,17 @@ export default function SuperficiesBrulees({ data }: any) {
   }, [aireProtegeeData, selectedRegion, selectedAntenne]);
 
 
-
-
   return (
     <div style={styles.container}>
 
       {/* ================= HEADER ================= */}
       <div style={styles.header}>
-
             {/* LEFT */}
             <h2 style={styles.title}>
                 Système de suivi de feux
             </h2>
-
             {/* RIGHT */}
             <div style={styles.filterRow}>
-
                 <div style={styles.filterBlock}>
                   <div style={styles.filterLabel}>
                       <Calendar size={14} /> Année
@@ -541,13 +817,13 @@ export default function SuperficiesBrulees({ data }: any) {
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                   >
-                    <option value={2030}>2030</option>
-                    <option value={2029}>2029</option>
-                    <option value={2028}>2028</option>
-                    <option value={2027}>2027</option>
-                    <option value={2026}>2026</option>
-                    <option value={2025}>2025</option>
                     <option value={2024}>2024</option>
+                    <option value={2025}>2025</option>
+                    <option value={2026}>2026</option>
+                    <option value={2027}>2027</option>
+                    <option value={2028}>2028</option>
+                    <option value={2029}>2029</option>
+                    <option value={2030}>2030</option>
                   </select>
                 </div>
             <div style={styles.filterBlock}>
@@ -618,7 +894,7 @@ export default function SuperficiesBrulees({ data }: any) {
     TAUX D’ATTEINTE DE LA CIBLE
   </div>
 
-  <ResponsiveContainer width="100%" height={220}>
+  <ResponsiveContainer width="100%" height={200}>
     <PieChart>
       <Pie
         data={dataDonut}
@@ -637,24 +913,115 @@ export default function SuperficiesBrulees({ data }: any) {
 
   {/* TEXTE CENTRÉ DANS LE DONUT */}
   <div style={styles.kpiCenterOverlay}>
-    <div style={{ ...styles.kpiValue, color: donutColor }}>
-    {kpiValue.toFixed(1).replace('.', ',')}%
+  <div
+      style={{
+        ...styles.kpiValue,
+        color: donutColor,
+        fontSize: "24px"
+      }}
+      >
+        {Number(kpiValue)
+          .toFixed(1)
+          .replace(".", ",")}%
+      </div>
+      <div
+      style={{
+        ...styles.kpiSubtitle,
+        fontSize:"12px"
+      }}
+      >
+        de la cible atteinte
+      </div>
+      {
+        ecartCible !== 0 &&
+        (
+          <div
+          style={{
+            fontSize:"12px",
+            fontWeight:600,
+            marginTop:3,
+            color:
+              ecartCible > 0
+              ? "#2563eb"
+              : "#dc2626"
+          }}
+          >
+          {
+            ecartCible > 0
+            ? `+${ecartCible.toFixed(1).replace(".",",")}% au-delà`
+            : `${Math.abs(ecartCible).toFixed(1).replace(".",",")}% de retard`
+          }
+          </div>
+        )
+      }
     </div>
-    <div style={styles.kpiLabel}>
-      de la cible atteinte
-    </div>
+
+  {/* TABLEAU SYNTHÈSE SOUS LE DONUT */}
+
+<div
+  style={{
+    width:"100%",
+    marginTop:-25,
+    border:"1px solid #e5e7eb",
+    borderRadius:6,
+    overflow:"hidden",
+    fontSize:13
+  }}
+>
+
+  <div style={styles.tableRow}>
+    <span>
+      Référence (2020-2024)
+    </span>
+
+    <strong>
+      {formatHa(donutKPI.Baseline)}
+    </strong>
   </div>
 
-  {/* TEXTE OBJECTIF SOUS LE DONUT */}
-  <div style={styles.kpiTextBlock}>
-    <div style={styles.objectifTitle}>
-      Objectif : -25% de superficies brûlées d'ici 2030
-    </div>
 
-    <div style={styles.kpiLine}>Référence (2020 - 2024) : 100%</div>
-    <div style={styles.kpiLine}>Valeur actuelle ({selectedYear}) : -16,0%</div>
-    <div style={styles.kpiLine}>Cible (2030): -25%</div>
+  <div style={styles.tableRow}>
+    <span>
+      Superficie {selectedYear}
+    </span>
+
+    <strong>
+      {formatHa(donutKPI.Superficie)}
+    </strong>
   </div>
+
+
+  <div style={styles.tableRow}>
+    <span>
+      Variation
+    </span>
+
+    <strong
+      style={{
+        color:
+          Number(donutKPI.Variation ?? 0) <= 0
+          ? "#16a34a"
+          : "#dc2626"
+      }}
+    >
+      {Number(donutKPI.Variation ?? 0)
+      .toFixed(1)
+      .replace(".",",")} %
+    </strong>
+  </div>
+
+
+  <div style={styles.tableRow}>
+    <span>
+      Objectif 2030 (-25%)
+    </span>
+
+    <strong>
+    {formatHa(donutKPI.Objectif2030)}
+    </strong>
+  </div>
+
+</div>
 </div>
 
 {/* LINE CHART */}
@@ -679,18 +1046,30 @@ export default function SuperficiesBrulees({ data }: any) {
       <XAxis
         dataKey="annee"
         tick={{ fontSize: 11 }}
+        padding={{ left: 20, right: 20 }}
       />
 
       {/* AXE Y FIXE */}
       <YAxis
-        domain={[-30, 30]}
-        ticks={[30, 20, 10, 0, -10, -20, -30]}
+        domain={[-30,0]}
+        ticks={[
+          0,
+          -5,
+          -10,
+          -15,
+          -20,
+          -25,
+          -30
+        ]}
         tick={{ fontSize: 11 }}
       />
 
       <Tooltip
-        contentStyle={{ fontSize: 11 }}
-        formatter={(value: number) => `${value}%`}
+      formatter={(v:number)=>
+        `${Number(v)
+        .toFixed(1)
+        .replace(".",",")}%`
+      }
       />
 
       {/* LIGNE OBJECTIF -25% */}
@@ -708,25 +1087,39 @@ export default function SuperficiesBrulees({ data }: any) {
 
       {/* COURBE */}
       <Line
-        type="monotone"
-        dataKey="valeur"
-        name="Variation des superficies brûlées (%)"
-        stroke="#16a34a"
-        strokeWidth={2}
-        dot={{ r: 3 }}
-        label={({ x, y, value }) => (
-          <text
-            x={x}
-            y={y - 8}
-            fontSize={10}
-            fontWeight={700}
-            fill="#111827"
-            textAnchor="middle"
-          >
-            {value}%
-          </text>
-        )}
-      />
+  type="monotone"
+  dataKey="valeur"
+  name="Variation des superficies brûlées (%)"
+  stroke="#16a34a"
+  strokeWidth={2}
+  dot={{ r: 3 }}
+  connectNulls={false}
+  label={({ x, y, value }) => {
+
+    if (
+      value === null ||
+      value === undefined ||
+      Number(value) === 0
+    ) {
+      return null;
+    }
+
+    return (
+      <text
+        x={x}
+        y={y - 8}
+        fontSize={10}
+        fontWeight={700}
+        fill="#111827"
+        textAnchor="middle"
+      >
+        {Number(value)
+          .toFixed(1)
+          .replace(".",",")}%
+      </text>
+    );
+  }}
+/>
 
       {/* LÉGENDE */}
       <Legend
@@ -806,109 +1199,60 @@ export default function SuperficiesBrulees({ data }: any) {
           padding={{ left: 20, right: 20 }}
         />
         <YAxis
-          domain={['dataMin', 'dataMax + 20']}
-          tick={{ fontSize: 11 }}>
+  domain={['dataMin', 'dataMax + 20']}
+  tick={{ fontSize: 11 }}
+  tickFormatter={(value) =>
+    `${Number(value).toFixed(1).replace(".", ",")}%`
+  }
+>
+  <Label
+    value="Variation (%)"
+    angle={-90}
+    position="insideLeft"
+    style={{
+      textAnchor: 'middle',
+      fontSize: 12,
+      fontWeight: 600,
+      fill: '#374151',
+    }}
+  />
+</YAxis>
 
-          <Label
-            value="Variation (%)"
-            angle={-90}
-            position="insideLeft"
-            style={{
-              textAnchor: 'middle',
-              fontSize: 12,
-              fontWeight: 600,
-              fill: '#374151',
-            }}
+        <Tooltip
+          formatter={(value:number)=>
+            `${Number(value)
+            .toFixed(1)
+            .replace(".",",")}%`
+          }
           />
-        </YAxis>
-
-        <Tooltip formatter={(v: number) => `${v}%`} />
 
         {/* 7 COURBES */}
-        <Line dataKey="MDA" type="natural" stroke="#16a34a" strokeWidth={2} name="Montagne d’Ambre (MDA)" dot={{ r: 3 }} activeDot={{ r: 5 }} label={({ x, y, value }) => (
-            <text
-              x={x}
-              y={y - 6}
-              fontSize={9}
-              fontWeight={600}
-              fill="#111827"
-              textAnchor="middle"
-            >
-              {value}%
-            </text>
-          )}/>
-                <Line dataKey="ANK" type="natural" stroke="#22c55e" strokeWidth={2} name="Ankarana (ANK)" dot={{ r: 3 }}  activeDot={{ r: 5 }} label={({ x, y, value }) => (
-            <text
-              x={x}
-              y={y - 6}
-              fontSize={9}
-              fontWeight={600}
-              fill="#111827"
-              textAnchor="middle"
-            >
-              {value}%
-            </text>
-          )}/>
-                <Line dataKey="ANLM" type="natural" stroke="#84cc16" strokeWidth={2} name="Analamerana (ANLM)" dot={{ r: 3 }}  activeDot={{ r: 5 }} label={({ x, y, value }) => (
-            <text
-              x={x}
-              y={y - 6}
-              fontSize={9}
-              fontWeight={600}
-              fill="#111827"
-              textAnchor="middle"
-            >
-              {value}%
-            </text>
-          )}/>
-                <Line dataKey="AKF" type="natural" stroke="#f59e0b" strokeWidth={2} name="Ankarafantsika (AKF)" dot={{ r: 3 }}  activeDot={{ r: 5 }} label={({ x, y, value }) => (
-            <text
-              x={x}
-              y={y - 6}
-              fontSize={9}
-              fontWeight={600}
-              fill="#111827"
-              textAnchor="middle"
-            >
-              {value}%
-            </text>
-          )}/>
-                <Line dataKey="ADH" type="natural" stroke="#ef4444" strokeWidth={2} name="Andohahela (ADH)" dot={{ r: 3 }}  activeDot={{ r: 5 }} label={({ x, y, value }) => (
-            <text
-              x={x}
-              y={y - 6}
-              fontSize={9}
-              fontWeight={600}
-              fill="#111827"
-              textAnchor="middle"
-            >
-              {value}%
-            </text>
-          )}/>
-                <Line dataKey="MDS" type="natural" stroke="#9333ea" strokeWidth={2} name="Midongy du Sud (MDS)" dot={{ r: 3 }}  activeDot={{ r: 5 }} label={({ x, y, value }) => (
-            <text
-              x={x}
-              y={y - 6}
-              fontSize={9}
-              fontWeight={600}
-              fill="#111827"
-              textAnchor="middle"
-            >
-              {value}%
-            </text>
-          )}/>
-                <Line dataKey="MLB" type="natural" stroke="#2563eb" strokeWidth={2} name="Marolambo (MLB)" dot={{ r: 3 }}  activeDot={{ r: 5 }} label={({ x, y, value }) => (
-            <text
-              x={x}
-              y={y - 6}
-              fontSize={9}
-              fontWeight={600}
-              fill="#111827"
-              textAnchor="middle"
-            >
-              {value}%
-            </text>
-          )}/>
+        <Line dataKey="MDA" type="natural" stroke="#16a34a" strokeWidth={2} name="Montagne d’Ambre (MDA)" dot={{ r: 2 }} activeDot={{ r: 5 }} 
+        />
+        <Line dataKey="ANK" type="natural" stroke="#22c55e" strokeWidth={2} name="Ankarana (ANK)" dot={{ r: 2 }}  activeDot={{ r: 5 }} 
+        />
+        <Line dataKey="ANLM" type="natural" stroke="#84cc16" strokeWidth={2} name="Analamerana (ANLM)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
+        />
+        <Line dataKey="AKF" type="natural" stroke="#f59e0b" strokeWidth={2} name="Ankarafantsika (AKF)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
+        />
+        <Line dataKey="ADH" type="natural" stroke="#ef4444" strokeWidth={2} name="Andohahela (ADH)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
+        />
+        <Line dataKey="MDS" type="natural" stroke="#9333ea" strokeWidth={2} name="Midongy du Sud (MDS)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
+        />
+        <Line dataKey="MLB" type="natural" stroke="#2563eb" strokeWidth={2} name="Marolambo (MLB)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
+        />
+
+            <ReferenceLine
+            y={-25}
+            stroke="#dc2626"
+            strokeDasharray="5 5"
+            label={{
+              value:"Objectif 2030 : -25%",
+              position:"insideLeft",
+              fill:"#dc2626",
+              fontSize:11
+            }}
+            />
 
       </LineChart>
     </ResponsiveContainer>
@@ -1144,24 +1488,24 @@ const styles: any = {
       gridComparison: {
         display: 'grid',
         gridTemplateColumns: '4fr 0.8fr', // réduit largeur
-        gap: 10,
+        gap: 5,
       },
     
     card: {
       background: '#fff',
-      padding: 10,
+      padding: 5,
       borderRadius: 12,
     },
     
     cardLarge: {
       background: '#fff',
-      padding: 16,
+      padding: 5,
       borderRadius: 12,
     },
     
     cardBottom: {
       background: '#fff',
-      padding: 16,
+      padding: 6,
       borderRadius: 12,
     },
     
@@ -1237,7 +1581,7 @@ const styles: any = {
       },
       
       kpiTextBlock: {
-        marginTop: -20,
+        marginTop: 0,
         textAlign: 'center',
         fontSize: 12,
         color: '#374151',
@@ -1318,4 +1662,12 @@ const styles: any = {
         borderRadius: 2,
         flexShrink: 0,
       },
+
+      tableRow:{
+        display:"grid",
+        gridTemplateColumns:"1fr auto",
+        padding:"7px 10px",
+        alignItems:"center",
+        borderBottom:"1px solid #f1f5f9"
+      }
     };
