@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import {Trees,MapPinned,Flame,TrendingDown,BadgePercent, Medal,Calendar, MapPin, Slash, TreePine, X, BarChart3,TrendingUp
+import React, { useState, useMemo, useEffect } from "react";
+import {Trees,MapPinned,Flame,TrendingDown,BadgePercent, Medal,Calendar, MapPin, Slash, TreePine, X, BarChart3,TrendingUp, ShieldCheck
 } from "lucide-react";
 import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxis,CartesianGrid,Tooltip,Legend,LabelList,ReferenceLine,Cell,
 } from "recharts";
@@ -167,7 +167,15 @@ interface CardProps {
     index?: number;
   }
 
-  const KPICard = ({ title, value, color, icon, index }: CardProps) => {
+  const KPICard = ({
+    title,
+    value,
+    color,
+    icon,
+    index,
+    commune,
+    taux
+   }: CardProps) => {
     const isSixth = index === 5; // 👈 6e carte
   
     return (
@@ -203,38 +211,75 @@ interface CardProps {
             </div>
   
             {/* CONTENU SPÉCIAL */}
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              
-              <div style={{ color, display: "flex", alignItems: "center" }}>
+            <div
+              style={{
+                display:"flex",
+                alignItems:"center",
+                justifyContent:"center",
+                gap:8,
+                width:"100%",
+              }}
+            >
+              <div
+                style={{
+                  color,
+                  display:"flex",
+                  alignItems:"center"
+                }}
+              >
                 {icon}
               </div>
-  
-              <div style={{ display: "flex", flexDirection: "column" }}>
-  
-                <div style={{ fontSize: 16, fontWeight: 700, color: "#dc2626" }}>
-                    Tsaramandroso
-                </div>
-
-                <div style={{ fontSize: 13, fontWeight: 600 }}>
-                    <span style={{ color: "#2563eb" }}>
-                    avec une perte
-                    </span>{" "}
-                    <span style={{ color: "#dc2626", fontWeight: 800 }}>
-                    57,93%
-                    </span>
-                </div>
+              <div
+                style={{
+                  display:"flex",
+                  flexDirection:"column",
+                  alignItems:"center",
+                  textAlign:"center",
+                }}
+              >
 
                 <div
-                    style={{
-                    fontSize: 13,
-                    color: "#2563eb", 
-                    fontWeight: 600,
-                    marginTop: 8,
-                    }}
+                  style={{
+                    fontSize:16,
+                    fontWeight:700,
+                    color:"#dc2626"
+                  }}
                 >
-                    de sa couverture forestière
+                  {commune || "-"}
                 </div>
+                <div
+                  style={{
+                    fontSize:13,
+                    fontWeight:600
+                  }}
+                >
+                  <span style={{color:"#2563eb"}}>
+                    avec une perte
+                  </span>{" "}
+
+                  <span
+                    style={{
+                      color:"#dc2626",
+                      fontWeight:800
+                    }}
+                  >
+                    {taux !== undefined
+                      ? taux.toFixed(1)
+                      : "0.0"
+                    }%
+                  </span>
                 </div>
+                <div
+                  style={{
+                    fontSize:11,
+                    color:"#2563eb",
+                    fontWeight:600,
+                    marginTop:8,
+                  }}
+                >
+                  de sa couverture de l'année précédente
+                </div>
+              </div>
             </div>
           </>
         ) : (
@@ -773,25 +818,269 @@ interface CardProps {
 export default function Deforestation() {
   const [year, setYear] = useState<number>(2019);
   const [ap, setAp] = useState<string>("Ankarafantsika");
+  const [baseDeforestation,setBaseDeforestation]=useState<any[]>([]);
 
-  const maxChart6 = Math.max(...chart6.map((d) => d.valeur));
+  useEffect(() => {
+
+    fetch("/data/Bases_Deforestation.geojson")
+    .then(res => res.json())
+    .then(data => {    
+    console.log("Deforestation chargée :",data.features.length);    
+    setBaseDeforestation(data.features);    
+    });
+    
+    },[]);
+
+    const dataAP = useMemo(()=>{
+      return baseDeforestation.filter(
+      f =>
+      String(f.properties.AP)
+      .trim()
+      .toLowerCase()
+      ===
+      String(ap)
+      .trim()
+      .toLowerCase()
+      );
+      
+      },[
+      baseDeforestation,
+      ap
+      ]);
+
+      useEffect(() => {
+        console.log("AP :", ap);
+        console.log("Nombre de lignes :", dataAP.length);
+      
+        if (dataAP.length > 0) {
+          console.log(dataAP[0].properties.AP);
+        }
+      }, [ap, dataAP]);
+
+  const couverture2000 = useMemo(()=>{
+    return baseDeforestation
+      .filter(f =>
+        f.properties.AP === ap
+      )
+      .reduce(
+      (total,f)=>
+      total +
+      Number(f.properties.Couverture2000 || 0)
+      ,0
+      );
+    
+    },[
+      baseDeforestation,
+      ap
+    ]);
+
+  const getPerteCumulee = (
+      properties:any,
+      annee:number
+      )=>{
+      
+      return Object.keys(properties)
+      .filter(key =>
+        Number(key)>=2001 &&
+        Number(key)<=annee
+      )
+      .reduce(
+      (total,key)=>
+       total +
+       Number(properties[key] || 0)
+      ,0);
+      
+      };
+
+  const superficieRestante = useMemo(()=>{
+        return dataAP.reduce(
+        (total,f)=>{        
+        const p=f.properties;        
+        const perte =
+        getPerteCumulee(
+         p,
+         year
+        );        
+        return total +
+        (
+         Number(p.Couverture2000)
+         -
+         perte
+        );        
+        },0);        
+        },[
+        dataAP,
+        year
+        ]);
+
+    const perteAnnee = useMemo(()=>{
+          return dataAP
+          .filter(f =>
+           f.properties.Source==="Interrieur"
+          )
+          .reduce(
+          (total,f)=>
+           total+
+           Number(
+             f.properties[String(year)] || 0
+           )
+          ,0);
+          
+          
+          },[
+          dataAP,
+          year
+          ]);
+
+  const moyenneAnnuelle = useMemo(()=>{
+            const perteTotale =
+            dataAP.reduce(
+            (total,f)=>
+             total+
+             getPerteCumulee(
+               f.properties,
+               year
+             )
+            ,0);            
+            const nombreAnnees =
+            year - 2000;            
+            return nombreAnnees>0
+            ?
+            perteTotale/nombreAnnees
+            :
+            0;           
+            
+            },[
+            dataAP,
+            year
+            ]);
+
+            const tauxPerte = useMemo(()=>{
+              const perte =
+              couverture2000 -
+              superficieRestante;              
+              return couverture2000>0
+              ?
+              (perte/couverture2000)*100
+              :
+              0;             
+              
+              },[
+              couverture2000,
+              superficieRestante
+              ]);
+
+              const communeImpactee = useMemo(()=>{
+                const communes = dataAP.map(f=>{
+                const p = f.properties;
+                // perte de l'année choisie
+                const perteAnnee =
+                Number(
+                  p[String(year)] || 0
+                );
+                // couverture restante avant cette année
+                const perteAvant =
+                Object.keys(p)
+                .filter(key =>
+                  Number(key)>=2001 &&
+                  Number(key)<year
+                )
+                .reduce(
+                (total,key)=>
+                 total + Number(p[key] || 0)
+                ,0);
+                const couvertureAvant =
+                Number(p.Couverture2000 || 0)
+                -
+                perteAvant;
+                // taux de perte de l'année
+                const taux =
+                couvertureAvant > 0
+                ?
+                (perteAnnee / couvertureAvant)*100
+                :
+                0;
+                return {
+                 commune:p.Commune,
+                 perte:perteAnnee,
+                 taux:taux
+                };
+                });
+                // commune avec le plus grand taux de perte cette année
+                return communes.sort(
+                (a,b)=>b.taux-a.taux
+                )[0] || {
+                 commune:"-",
+                 taux:0,
+                 perte:0
+                };
+                },[
+                dataAP,
+                year
+                ]);
+    
+  const maxChart6 =chart6 && chart6.length>0
+                ?
+                Math.max(...chart6.map(d=>d.valeur))
+                :
+                0;
+
+  console.log("Commune impactée :", communeImpactee);
+
+
+  const communesMoinsDeforestees = useMemo(()=>{
+    const communes = dataAP.map(f=>{  
+      const p = f.properties;
+      // perte cumulée depuis 2001 jusqu'à l'année choisie
+      const perteCumulee =
+        Object.keys(p)
+        .filter(key =>
+          Number(key)>=2001 &&
+          Number(key)<=year
+        )
+        .reduce(
+          (total,key)=>
+            total + Number(p[key] || 0)
+        ,0);
+      // taux de perte par rapport à la couverture initiale 2000
+      const taux =
+        Number(p.Couverture2000)>0
+        ?
+        (perteCumulee /
+         Number(p.Couverture2000))
+         *100
+        :
+        0;
+      return {
+        commune:p.Commune,
+        taux:taux,
+        perte:perteCumulee
+      };
+    });
+    return communes
+      .sort((a,b)=>a.taux-b.taux)
+      .slice(0,3);
+  },[
+  dataAP,
+  year
+  ]);
 
   const kpis = useMemo(() => [
     {
       title: "Couverture forestière des Communes riveraines (2000)",
-      value: "199 305,18 ha",
+      value:`${couverture2000.toLocaleString()} ha`,
       color: "#2e7d32",
       icon: <Trees size={40} />,
     },
     {
       title: `Superficie restante autour de l'Aire Protégée en ${year}`,
-      value: "112 338,00 ha",
+      value:`${superficieRestante.toLocaleString(undefined,{maximumFractionDigits:2})} ha`,
       color: "#2e7d32",
       icon: <Trees size={40} />,
     },
     {
       title: `Superficie perdue à l'intérieur de l'Aire Protégée en ${year}`,
-      value: "24 625,98 ha",
+      value:`${perteAnnee.toLocaleString(undefined,{maximumFractionDigits:2})} ha`,
       color: "#c40000",
       icon: (
         <div style={{ position: "relative", width: 40, height: 40 }}>
@@ -801,13 +1090,13 @@ export default function Deforestation() {
     },
     {
       title: "Superficie moyenne annuelle de déforestation",
-      value: "218,74 ha/an",
+      value:`${moyenneAnnuelle.toLocaleString(undefined,{maximumFractionDigits:2})} ha/an`,
       color: "#c40000",
       icon: <TrendingDown size={40} />,
     },
     {
       title: "Taux cumulé de perte forestière",
-      value: "31,28%",
+      value:`${tauxPerte.toFixed(2)}%`,
       color: "#ff6600",
       icon: (
         <div style={{ position: "relative" }}>
@@ -822,11 +1111,20 @@ export default function Deforestation() {
     },
     {
       title: "Commune la plus touchée",
-      value: "Tsaramandroso",
+      value:"",commune: communeImpactee?.commune,taux: communeImpactee?.taux,
       color: "#003399",
       icon: <MapPinned size={40} />,
     },
-  ], [year]);
+  ], [
+    year,
+    ap,
+    couverture2000,
+    superficieRestante,
+    perteAnnee,
+    moyenneAnnuelle,
+    tauxPerte,
+    communeImpactee
+  ]);
 
   const n = chart6.length;
 
@@ -944,7 +1242,23 @@ const maxValue = Math.max(...chart6Trend.map(d => d.valeur));
               onBlur={(e) =>
                 (e.currentTarget.style.border = "1px solid #d1d5db")
               }
-            >
+            > <option value={2001}>2001</option>
+              <option value={2002}>2002</option>
+              <option value={2003}>2003</option>
+              <option value={2004}>2004</option>
+              <option value={2005}>2005</option>
+              <option value={2006}>2006</option>
+              <option value={2007}>2007</option>
+              <option value={2008}>2008</option>
+              <option value={2009}>2009</option>
+              <option value={2010}>2010</option>
+              <option value={2011}>2011</option>
+              <option value={2012}>2012</option>
+              <option value={2013}>2013</option>
+              <option value={2014}>2014</option>
+              <option value={2015}>2015</option>
+              <option value={2016}>2016</option>
+              <option value={2017}>2017</option>
               <option value={2018}>2018</option>
               <option value={2019}>2019</option>
               <option value={2020}>2020</option>
@@ -1013,59 +1327,104 @@ const maxValue = Math.max(...chart6Trend.map(d => d.valeur));
         </div>
       </div>
 
+      <div
+style={{
+  display:"flex",
+  justifyContent:"space-between",
+  alignItems:"center",
+  marginBottom:6,
+  padding:10,
+  background:"#fff",
+  border:"1px solid #e5e7eb",
+  borderRadius:10,
+}}
+>
+
+{/* TITRE */}
 <div
-  style={{
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 6,
-    padding: 10,
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 10,
-  }}
+style={{
+  display:"flex",
+  alignItems:"center",
+  gap:8,
+  fontWeight:700,
+  color:"#003399",
+  fontSize:13,
+  whiteSpace:"nowrap",
+}}
 >
-  {/* TITRE */}
-  <div
-    style={{
-      fontWeight: 700,
-      color: "#003399",
-      fontSize: 13,
-      whiteSpace: "nowrap",
-    }}
-  >
-    Communes les moins déforestées par rapport à leur couverture forestière en {year}
-  </div>
 
-  <div
-  style={{
-    display: "flex",
-    justifyContent: "flex-end",
-    alignItems: "center",
-    fontSize: 12,
-    gap: 18,
-    width: "100%",
-  }}
+<ShieldCheck
+size={18}
+color="#16a34a"
+/>
+
+Communes les moins déforestées par rapport à leur couverture forestière en {year}
+
+</div>
+
+
+{/* CLASSEMENT */}
+<div
+style={{
+  display:"flex",
+  justifyContent:"flex-end",
+  alignItems:"center",
+  fontSize:12,
+  gap:18,
+  width:"100%",
+}}
 >
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <Medal color="gold" />
-    <span>Ambolomoty</span>
-    <span style={{ color: "#16a34a" }}>(0%)</span>
-  </div>
 
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <Medal color="silver" />
-    <span>Tsararano</span>
-    <span style={{ color: "#16a34a" }}>(0.15%)</span>
-  </div>
+{
+communesMoinsDeforestees.map((item,index)=>{
 
-  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-    <Medal color="#cd7f32" />
-    <span>Antanimasaka</span>
-    <span style={{ color: "#16a34a" }}>(0.17%)</span>
-  </div>
+const medals = [
+"gold",
+"silver",
+"#cd7f32"
+];
+
+return (
+
+<div
+key={item.commune}
+style={{
+display:"flex",
+alignItems:"center",
+gap:6
+}}
+>
+
+<Medal
+color={medals[index]}
+/>
+
+<span>
+{item.commune}
+</span>
+
+<span
+style={{
+color:"#16a34a",
+fontWeight:600
+}}
+>
+(
+{item.taux.toFixed(2)}%
+)
+</span>
+
 </div>
+
+)
+
+})
+}
+
 </div>
+
+</div>
+
 
 <div
   style={{
@@ -1083,6 +1442,8 @@ const maxValue = Math.max(...chart6Trend.map(d => d.valeur));
     value={k.value}
     color={k.color}
     icon={k.icon}
+    commune={k.commune}
+    taux={k.taux}
   />
 ))}
 </div>
