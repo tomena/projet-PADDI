@@ -483,7 +483,7 @@ export default function SuperficiesBrulees({ data }: any) {
             : String(d.AP).trim() === String(selectedAP).trim()
           )
           &&
-          Number(d.Annee)>=2025 &&
+          Number(d.Annee)>=2020 &&
           Number(d.Annee)<=2030
         );   
       
@@ -711,7 +711,7 @@ const apCode: Record<string, string> = {
 const comparisonData = useMemo(() => {
   if (!tableauVirtuel.length) return [];
 
-  const annees = [2025,2026,2027,2028,2029,2030];
+  const annees = [2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030];
   return annees.map(an => {
 
     const ligne:any = {
@@ -817,6 +817,10 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
                     value={selectedYear}
                     onChange={(e) => setSelectedYear(Number(e.target.value))}
                   >
+                    <option value={2020}>2020</option>
+                    <option value={2021}>2021</option>
+                    <option value={2022}>2022</option>
+                    <option value={2023}>2023</option>
                     <option value={2024}>2024</option>
                     <option value={2025}>2025</option>
                     <option value={2026}>2026</option>
