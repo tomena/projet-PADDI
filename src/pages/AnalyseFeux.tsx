@@ -263,13 +263,9 @@ interface CardProps {
                   "#cd7f32"
                 }
               />
-  
-  
               <span>
                 {c.commune}
               </span>
-  
-  
               <span
                 style={{
                   color:"#16a34a"
@@ -289,6 +285,7 @@ interface CardProps {
 
 const Graphique3 = ({baseFeux,year, ap}:any) => {
     const chart3Pro = useMemo(() => {
+      if(!ap) return [];
       const AP_LIST = [
         "Analamerana",
         "Andohahela",
@@ -406,31 +403,27 @@ const Graphique3 = ({baseFeux,year, ap}:any) => {
         return somme / 5;
       };
     
-      const calculMoyenneDifficile = (
+      const moyenneDifficileAP = (
         source:string,
+        nomAP:string,
         annees:number[]
       )=>{
-         const moyennesAP =
-          AP_LIST.map(nomAP=>{
-            const somme =
-              annees.reduce((s,annee)=>{
-                return s +
-                getSuperficie(
-                  annee,
-                  source,
-                  nomAP
-                );
-              },0);
-            return somme / annees.length;
-          });
-        return (
-          moyennesAP.reduce(
-            (a,b)=>a+b,
-            0
-          )
-          /
-          AP_LIST.length
-        );
+      
+        const somme =
+          annees.reduce((s,annee)=>{
+      
+            return s +
+              getSuperficie(
+                annee,
+                source,
+                nomAP
+              );
+      
+          },0);
+      
+      
+        return somme / annees.length;
+      
       };
     
       const calculVariation = (
@@ -497,8 +490,7 @@ const Graphique3 = ({baseFeux,year, ap}:any) => {
          moyenneQuinquennaleAP(
            source,
            nomAP
-         );
-      
+         );      
       
          const superficieMoyenne =
          annees.reduce(
@@ -530,413 +522,268 @@ const Graphique3 = ({baseFeux,year, ap}:any) => {
          variations.length
        );      
       };
-      // ===============================
-      // CALCUL FINAL
-      // ===============================
-    const ref5km =
-        calculMoyenneReference("5km");
-      const refInterieur =
-        calculMoyenneReference("interieur");
-      // années difficiles périphérie
-      const difficile5km =
-        calculMoyenneDifficile(
-          "5km",
-          [2018,2023,2025]
-        );
-      // années difficiles intérieur
-      const difficileInterieur =
-        calculMoyenneDifficile(
-          "interieur",
-          [2023,2025]
-        );
 
-        return [
-          {
-            zone:"Au périphérie de 5 km",
-        
-            ecart:
-              valeurJauge(
-                getSuperficie(
-                  year,
-                  "5km",
-                  ap
-                ),
-                moyenneQuinquennaleAP(
-                  "5km",
-                  ap
-                )
-              ),
+return [
+  {
+    zone: "Périphérie 5 km",
+    annee: getSuperficie(
+      year,
+      "5km",
+      ap
+    ),
+    moyenne: moyenneQuinquennaleAP(
+      "5km",
+      ap
+    ),
+    difficile: moyenneDifficileAP(
+      "5km",
+      ap,
+      [2018,2023,2025]
+    )
+  },
+  {
+    zone: "Intérieur du parc",
+    annee: getSuperficie(
+      year,
+      "interieur",
+      ap
+    ),
+    moyenne: moyenneQuinquennaleAP(
+      "interieur",
+      ap
+    ),
+    difficile: moyenneDifficileAP(
+      "interieur",
+      ap,
+      [2023,2025]
+    )
+    }
+];
 
-            moyenne5ans:Number(
-              moyenneVariation7AP(
-                "5km",
-                year
-              ).toFixed(2)
-            ),
- 
-            anneeDifficile:Number(
-              moyenneVariationDifficile(
-                "5km",
-                [2018,2023,2025]
-              ).toFixed(2)
-            )
-          },
-        
-          {
-            zone:"À l'intérieur du parc",
-        
-            ecart:
-              valeurJauge(
-                getSuperficie(
-                  year,
-                  "interieur",
-                  ap
-                ),
-                moyenneQuinquennaleAP(
-                  "interieur",
-                  ap
-                )
-              ),
-        
-            moyenne5ans:Number(
-              moyenneVariation7AP(
-                "interieur",
-                year
-              ).toFixed(2)
-            ),
-        
-            anneeDifficile:Number(
-              moyenneVariationDifficile(
-                "interieur",
-                [2023,2025]
-              ).toFixed(2)
-            )
-          }
-        ];
+    },[baseFeux,ap,year]);
 
-        console.log({
-          ap,
-          year,
-          ecart5km: valeurJauge(
-            getSuperficie(year,"5km",ap),
-            moyenneQuinquennaleAP("5km",ap)
-          )
-        });
-
-        const resultat = [
-          {
-            zone:"Au périphérie de 5 km",
-            ecart:
-              valeurJauge(
-                getSuperficie(
-                  year,
-                  "5km",
-                  ap
-                ),
-                moyenneQuinquennaleAP(
-                  "5km",
-                  ap
-                )
-              ),
-        
-            moyenne5ans:Number(
-              moyenneVariation7AP(
-                "5km",
-                year
-              ).toFixed(2)
-            ),
-        
-            anneeDifficile:Number(
-              moyenneVariationDifficile(
-                "5km",
-                [2018,2023,2025]
-              ).toFixed(2)
-            )
-          }
-        ];
-        
-        console.log("RESULTAT Graphique3", resultat);
-        
-        return resultat;
-      
-        console.log("Graphique3 :", resultat);
-      
-        return resultat;
-
-    },[baseFeux,ap,year]);    
-    
-    
-    const min = -40;
-    const max = 100;
-
-  
-  return (
+    return (
       <div
         style={{
           background:"#fff",
           border:"1px solid #d9d9d9",
           borderRadius:8,
-          padding:10,
-          height:280,
+          padding:15,
+          height:"auto",
         }}
-      >  
-        <div
-          style={{
-            textAlign:"center",
-            color:"#d32f2f",
-            fontSize:12,
-            fontWeight:700,
-            fontStyle:"italic",
-            marginBottom:5
-          }}
-        >
-          Écart entre l'année choisie par rapport aux superficies moyennes
-          brûlées sur 5 ans (2020 - 2024)
-        </div> 
-  
-        <svg
-          width="100%"
-          height="100%"
-          viewBox="0 0 450 300"
-        >  
-          {/* paramètres graphiques */}
-          {(() => {  
-            const chartHeight = 200;
-            const top = 20;
-            const bottom = 230;  
-            const yScale = (value) =>
-              bottom -
-              ((value - min) / (max - min)) *
-              chartHeight;  
-  
-            const zeroY = yScale(0); 
-  
-            return (
-              <>  
+      >
+      
+      <div
+        style={{
+          textAlign:"center",
+          color:"#d32f2f",
+          fontSize:12,
+          fontWeight:700,
+          fontStyle:"italic",
+          marginBottom:10
+        }}
+      >
+      Écart des superficies brûlées par rapport à la moyenne historique 2020-2024
+      </div>      
+      {chart3Pro.map((item,index)=>(      
+          <div key={item.zone} style={{marginBottom:5}}>
+
+          {/* TITRE ZONE */}
+          <div
+            style={{
+              color:"#1565c0",
+              fontSize:12,
+              fontWeight:700,
+              marginBottom:3
+            }}
+          >
+          {item.zone}
+          </div>      
+      
+      <ResponsiveContainer width="100%" height={100}>      
+        <BarChart          
+          data={[
+            {
+              nom:String(year),
+              val:item.annee,
+              moyenne:item.moyenne,
+              type:"annee"
+            },
+            {
+              nom:"Moyenne 2020 - 2024",
+              val:item.moyenne,
+              type:"moyenne"
+            },
+            {
+              nom:"Années à forte pression",
+              val:item.difficile,
+              type:"difficile"
+            }
+            ]}          
+            layout="vertical"          
+            margin={{
+                top:0,
+                right:15,
+                left:5,
+                bottom:2
+              }}          
+          >          
+          <XAxis
+            type="number"
+            hide
+          />
+          <YAxis          
+            type="category"          
+            dataKey="nom"          
+            width={100}          
+            tick={{
+              fontSize:11,
+              fill:"#333",
+            }}
+            tickFormatter={(value)=>value}
+          />
+          <CartesianGrid
+            horizontal={false}
+            strokeDasharray="3 3"
+          />
+          <Bar
+            dataKey="val"
+            barSize={25}
+            radius={[0,3,3,0]}
+            >
+            {
+            [
+            "#9ca3af",
+            "#EAB308",
+            "#d32f2f"
+            ].map((color,i)=>(
+            <Cell
+            key={i}
+            fill={color}
+            />
+            ))
+            }
+        
+        <LabelList
+            dataKey="val"
+            content={(props:any)=>{
+              const {x,y,width,height,value,index
+                  } = props;
+
+              const data = [
                 {
-                  [-60,-40,-20,0,20,40,60,80,100].map((v)=>(
-                    <g key={v}>  
-                      <line
-                        x1="55"
-                        x2="560"
-                        y1={yScale(v)}
-                        y2={yScale(v)}
-                        stroke={
-                          v===0
-                          ? "#555"
-                          : "#e5e7eb"
-                        }
-                      />  
-                      <text
-                        x="45"
-                        y={yScale(v)+4}
-                        textAnchor="end"
-                        fontSize="11"
-                      >
-                        {v}%
-                      </text>  
-                    </g>
-                  ))
-                } 
-                {/* Légende horizontale */}
-                  <g>
-                    {/* Ligne verte */}
-                    <line
-                      x1="10"
-                      x2="30"
-                      y1="5"
-                      y2="5"
-                      stroke="#00aa55"
-                      strokeWidth="5"
-                    />
+                  nom:String(year),
+                  val:item.annee,
+                  moyenne:item.moyenne,
+                  type:"annee"
+                },
+                {
+                  nom:"Moyenne 2020 - 2024",
+                  val:item.moyenne,
+                  type:"moyenne"
+                },
+                {
+                  nom:"Années à forte pression",
+                  val:item.difficile,
+                  type:"difficile"
+                }
+              ];
+              const element = data[index];
+
+              const text =
+                `${Math.round(value).toLocaleString()} ha`;
+
+              const textWidth =
+                text.length * 6;
+
+              const inside =
+                width > textWidth + 40;
+
+              // couleur du pourcentage
+              let variationColor = "#2563eb";
+              let variationText = "";
+              if(element.type==="annee"){
+                const variation =
+                  element.moyenne !==0
+                  ?
+                  ((element.val - element.moyenne)
+                  /
+                  element.moyenne)*100
+                  :
+                  0;
+                variationText =
+                  ` (${variation>0?"+":""}${variation.toFixed(1)}%)`;
+
+                if(variation>0){
+                  variationColor="#ef4444"; // rouge dépassement
+                }
+                else if(variation<0){
+                  variationColor="#2563eb"; // vert diminution
+                }
+                else{
+                  variationColor="#22c55e"; // bleu constant
+                }
+              }
+
+              return (
+                <g>
+                  {/* valeur ha */}
+                  <text
+                    x={
+                      inside
+                      ? x + width - 8
+                      : x + width + 8
+                    }
+                    y={y + height/2}
+                    dy={4}
+                    textAnchor={
+                      inside
+                      ? "end"
+                      : "start"
+                    }
+                    fill={
+                      inside
+                      ? "#fff"
+                      : "#000"
+                    }
+                    fontSize={11}
+                    fontWeight={600}
+                  >
+                    {text}
+                  </text>
+                  {/* variation */}
+                    {
+                    variationText &&
+                    (
                     <text
-                      x="35"
-                      y="7"
-                      fontSize="11"
-                      fontWeight="600"
+                      x={
+                        inside
+                        ? x + width - text.length * 6 - 4
+                        : x + width + 8 + text.length * 6
+                      }
+                      y={y + height/2}
+                      dy={4}
+                      textAnchor={inside ? "end" : "start"}
+                      fill={variationColor}
+                      fontSize={11}
+                      fontWeight={700}
                     >
-                      Moyenne brûlée sur 5 ans (2020-2024)
+                      {variationText}
                     </text>
-                    {/* Ligne rouge */}
-                    <line
-                      x1="240"
-                      x2="260"
-                      y1="5"
-                      y2="5"
-                      stroke="red"
-                      strokeWidth="5"
-                    />
-                    <text
-                      x="265"
-                      y="7"
-                      fontSize="11"
-                      fontWeight="600"
-                    >
-                      Moyenne année difficile
-                    </text>
-
-                  </g>
-                 
-                 {
-                    chart3Pro.map((d,i)=>{
-
-                      const x = i===0 ? 100 : 250;
-                      const width = 80;
-                    
-                      const valeur = Math.max(
-                        min,
-                        Math.min(max, -d.ecart)
-                      );
-                    
-                      return(
-                        <g key={d.zone}>
-                          {/* fond -40 à 100 */}
-                          <rect
-                            x={x}
-                            y={yScale(100)}
-                            width={width}
-                            height={
-                              yScale(-60)-yScale(100)
-                            }
-                            fill="white"
-                            fillOpacity="0.35"
-                            stroke="#bdbdbd"
-                          />
-
-                            {/* ================= BARRE GRISE ================= */}
-                            {(() => {
-                            const valeur = Math.max(
-                              min,
-                              Math.min(max, -d.ecart)
-                            );
-
-                            const y =
-                              valeur >= 0
-                              ? yScale(valeur)
-                              : yScale(0);
-
-                            const hauteur =
-                              Math.abs(
-                                yScale(valeur) - yScale(0)
-                              );
-
-                            return (
-                              <rect
-                                x={x}
-                                y={y}
-                                width={width}
-                                height={hauteur}
-                                fill="#666666"
-                              />
-                            );
-
-                            })()}
-
-                          {/* ligne zéro */}
-                          <line
-                            x1={x}
-                            x2={x+width}
-                            y1={yScale(0)}
-                            y2={yScale(0)}
-                            stroke="#555"
-                          />
-                          {/* ligne verte moyenne 5 ans */}
-                            <line
-                              x1={x}
-                              x2={x+width}
-                              y1={yScale(d.moyenne5ans)}
-                              y2={yScale(d.moyenne5ans)}
-                              stroke="#00aa55"
-                              strokeWidth="2"
-                            />
-                            {/* liaison inclinée + valeur ligne verte */}
-                            <line
-                              x1={x + width}
-                              y1={yScale(d.moyenne5ans)}
-                              x2={x + width + 25}
-                              y2={yScale(d.moyenne5ans) + 12}
-                              stroke="#00aa55"
-                              strokeWidth="1.2"
-                            />
-
-                            <text
-                              x={x + width + 30}
-                              y={yScale(d.moyenne5ans) + 16}
-                              fontSize="11"
-                              fill="#00aa55"
-                              fontWeight="700"
-                            >
-                              {d.moyenne5ans}%
-                            </text>
-
-                          {/* ligne rouge année difficile */}
-                            <line
-                              x1={x}
-                              x2={x+width}
-                              y1={yScale(d.anneeDifficile)}
-                              y2={yScale(d.anneeDifficile)}
-                              stroke="red"
-                              strokeWidth="2"
-                            />
-                            {/* liaison inclinée + valeur ligne rouge */}
-                            <line
-                              x1={x + width}
-                              y1={yScale(d.anneeDifficile)}
-                              x2={x + width + 25}
-                              y2={yScale(d.anneeDifficile) - 12}
-                              stroke="red"
-                              strokeWidth="1.2"
-                            />
-
-                            <text
-                              x={x + width + 30}
-                              y={yScale(d.anneeDifficile) - 14}
-                              fontSize="11"
-                              fill="red"
-                              fontWeight="700"
-                            >
-                              {d.anneeDifficile}%
-                            </text>
-                          {/* valeur écart */}
-                            <text
-                              x={x + width / 2}
-                              y={
-                                valeur >= 0
-                                ? yScale(valeur) - 8
-                                : yScale(valeur) + 18
-                              }
-                              textAnchor="middle"
-                              fontSize="12"
-                              fontWeight="700"
-                              fill={
-                                valeur >= 0
-                                ? "#555"
-                                : "#333"
-                              }
-                            >
-                              {valeur > 0 ? "+" : ""}
-                              {valeur.toFixed(0)}%
-                            </text>
-                          {/* nom zone */}
-                          <text
-                            x={x+width/2}
-                            y="275"
-                            textAnchor="middle"
-                            fontSize="11"
-                            fontWeight="600"
-                          >
-                            {d.zone}
-                          </text>
-                        </g>
-                      )
-                    })
-                  }
-              </>
-            )
-          })()}
-        </svg>
+                    )
+                    }
+                </g>
+              );
+            }}
+            />
+          </Bar>
+        </BarChart>      
+      </ResponsiveContainer>
       </div>
-    );
+      ))      
+      }
+    </div>
+      );
   };
 
   
@@ -2202,18 +2049,6 @@ return (
                 }}
               />
             </Line>
-            {/* TENDANCE EXPONENTIELLE */}
-            <Line
-              name="Tendance exponentielle"
-              yAxisId="left"
-              type="monotone"
-              dataKey="trend"
-              stroke="#2563eb"
-              strokeWidth={2}
-              strokeDasharray="8 5"
-              dot={false}
-              legendType="none"
-            />
           </ComposedChart>
         </ResponsiveContainer>  
         {/* GRADIENT ROUGE */}
