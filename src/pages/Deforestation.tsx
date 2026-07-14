@@ -4,70 +4,6 @@ import {Trees,MapPinned,Flame,TrendingDown,BadgePercent, Medal,Calendar, MapPin,
 import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxis,CartesianGrid,Tooltip,Legend,LabelList,ReferenceLine,Cell,
 } from "recharts";
 
-const data = [
-  {
-    commune: "Tsaramandroso",
-    superficie: 859.77,
-    perte: 1540,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Marosakoa",
-    superficie: 497.34,
-    perte: 1480,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Marenireno",
-    superficie: 288.99,
-    perte: 910,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Madirovalo",
-    superficie: 219.42,
-    perte: 620,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-  {
-    commune: "Andranofasika",
-    superficie: 181.8,
-    perte: 75,
-    annee: 2019,
-    ap: "Ankarafantsika",
-  },
-];
-//========================
-// GRAPHIQUE 6
-//========================
-
-const chart6 = [
-{annee:2001,valeur:1200},
-{annee:2002,valeur:2300},
-{annee:2003,valeur:2000},
-{annee:2004,valeur:8200},
-{annee:2005,valeur:2500},
-{annee:2006,valeur:1000},
-{annee:2007,valeur:1800},
-{annee:2008,valeur:2700},
-{annee:2009,valeur:1000},
-{annee:2010,valeur:3200},
-{annee:2011,valeur:5800},
-{annee:2012,valeur:2800},
-{annee:2013,valeur:8400},
-{annee:2014,valeur:6800},
-{annee:2015,valeur:6100},
-{annee:2016,valeur:2200},
-{annee:2017,valeur:2600},
-{annee:2018,valeur:4700},
-{annee:2019,valeur:4000},
-{annee:2020,valeur:1500},
-];
-
 interface CardProps {
     title: string;
     value: string;
@@ -242,14 +178,12 @@ export default function Deforestation() {
   const [yearCompareG3,setYearCompareG3] = useState(2018);
 
   useEffect(() => {
-
     fetch("/data/Bases_Deforestation.geojson")
     .then(res => res.json())
     .then(data => {    
     console.log("Deforestation chargée :",data.features.length);    
     setBaseDeforestation(data.features);    
-    });
-    
+    });    
     },[]);
 
     const dataAP = useMemo(()=>{
@@ -262,8 +196,7 @@ export default function Deforestation() {
       String(ap)
       .trim()
       .toLowerCase()
-      );
-      
+      );      
       },[
       baseDeforestation,
       ap
@@ -271,8 +204,7 @@ export default function Deforestation() {
 
       useEffect(() => {
         console.log("AP :", ap);
-        console.log("Nombre de lignes :", dataAP.length);
-      
+        console.log("Nombre de lignes :", dataAP.length);      
         if (dataAP.length > 0) {
           console.log(dataAP[0].properties.AP);
         }
@@ -545,15 +477,8 @@ export default function Deforestation() {
         dataCommunes,
         year
       ]);
-    
-  const maxChart6 =chart6 && chart6.length>0
-                ?
-                Math.max(...chart6.map(d=>d.valeur))
-                :
-                0;
 
   console.log("Commune impactée :", communeImpactee);
-
 
   const communesMoinsDeforestees = useMemo(()=>{
     const communes = dataAP
@@ -669,36 +594,6 @@ export default function Deforestation() {
     communeImpactee
   ]);
 
-  const n = chart6.length;
-
-let sumX = 0;
-let sumY = 0;
-let sumXY = 0;
-let sumX2 = 0;
-
-chart6.forEach((d, i) => {
-  const x = i + 1;
-  const y = Math.log(d.valeur);
-
-  sumX += x;
-  sumY += y;
-  sumXY += x * y;
-  sumX2 += x * x;
-});
-
-const b =
-  (n * sumXY - sumX * sumY) /
-  (n * sumX2 - sumX * sumX);
-
-const a = Math.exp((sumY - b * sumX) / n);
-
-const chart6Trend = chart6.map((d, i) => ({
-  ...d,
-  tendance: a * Math.exp(b * (i + 1)),
-}));
-
-const maxValue = Math.max(...chart6Trend.map(d => d.valeur));
-
 const chart1 = useMemo(()=>{
   // Toutes les communes de l'AP choisie
   const toutesCommunes = dataAP
@@ -793,7 +688,6 @@ return communes;
   yearCompareG2
  ]);
 
-
 const chart3Pro = useMemo(()=>{
   const communes = dataAP
     .filter(f =>
@@ -826,7 +720,6 @@ const chart3Pro = useMemo(()=>{
       d.commune
     }));
 return communes;
-
 },[
   dataAP,
   year,
@@ -893,13 +786,12 @@ const chart4 = useMemo(()=>{
         )
         :
         0
-    };
-  });
-},[
- dataAP,
- year
-]);
-
+      };
+    });
+  },[
+  dataAP,
+  year
+  ]);
 
 const chart5Pro = useMemo(() => {
   const lignes = dataAP.filter(
@@ -992,6 +884,125 @@ const chartEvolution = useMemo(() => {
     };
   });
 }, [dataAP]);
+
+
+const chartInterieurDecennie = useMemo(()=>{
+  const calculInterieur = (annees:number[])=>{  
+    return dataAP
+        .filter(f =>
+          String(f.properties.Source)
+          .trim()
+          .toLowerCase()
+          ==="interrieur"
+        )
+    .reduce(
+    (total,f)=>{
+    
+    return total +
+      annees.reduce(
+      (s,annee)=>
+      s +
+      Number(
+      f.properties[String(annee)] || 0
+      )
+      ,0);    
+    },
+    0);    
+    };  
+  
+  return [  
+  {
+  periode:"2001 - 2010",
+  valeur:calculInterieur([
+  2001,2002,2003,2004,2005,
+  2006,2007,2008,2009,2010
+  ])
+  },  
+  {
+  periode:"2011 - 2020",
+  valeur:calculInterieur([
+  2011,2012,2013,2014,2015,
+  2016,2017,2018,2019,2020
+  ])
+  },  
+  {
+  periode:"2021 - 2024",
+  valeur:calculInterieur([
+  2021,2022,2023,2024
+  ])
+  }  
+  ];  
+  },[
+  dataAP,
+  ap
+  ]);
+  const chartExterieurDecennie = useMemo(()=>{
+    const calculSource = (
+      source:string,
+      annees:number[]
+      )=>{    
+    return dataAP
+      .filter(f =>
+        String(f.properties.Source)
+        .trim()
+        .toLowerCase()
+        ===source.toLowerCase()
+      )
+    .reduce(
+    (total,f)=>{    
+    return total +
+    annees.reduce(
+    (s,annee)=>
+    s+
+    Number(
+    f.properties[String(annee)] || 0
+    )
+    ,0);    
+    },
+    0);    
+    };
+
+    const calculExterieur = (annees:number[])=>{    
+    return (
+    calculSource(
+    "Commune",
+    annees
+    )
+    -
+    calculSource(
+    "Interrieur",
+    annees
+    )
+    );    
+    };   
+    
+    
+    return [    
+    {
+    periode:"2001 - 2010",
+    valeur:calculExterieur([
+    2001,2002,2003,2004,2005,
+    2006,2007,2008,2009,2010
+    ])
+    },    
+    {
+    periode:"2011 - 2020",
+    valeur:calculExterieur([
+    2011,2012,2013,2014,2015,
+    2016,2017,2018,2019,2020
+    ])
+    },    
+    {
+    periode:"2021 - 2024",
+    valeur:calculExterieur([
+    2021,2022,2023,2024
+    ])
+    }    
+    ];    
+    },[
+    dataAP,
+    ap
+    ]);
 
 
 const Graphique1 = () => {
@@ -1193,7 +1204,6 @@ const Graphique2Pro = () => {
             borderRadius:6
           }}
         >
-
         {
           Array.from(
           {length:24},
@@ -1882,7 +1892,7 @@ return (
             <Graphique4 />
           </div>
 
-        {/* =====================EVOLUTION DU TAUX ===================== */}
+        {/* =====================EVOLUTION ===================== */}
         <div
           style={{
             background: "#fff",
@@ -2001,83 +2011,244 @@ return (
           </ResponsiveContainer>
         </div>
 
-{/* ===================== HISTOGRAMME ANNUEL ===================== */}
-<div
-  style={{
-    background: "#fff",
-    border: "1px solid #d9d9d9",
-    borderRadius: 8,
-    padding: 10,
-    height: 280,
-    boxSizing: "border-box",
-    overflow: "hidden"
-  }}
->
-  <div
-          style={{
-            textAlign: "center",
-            color: "#d32f2f",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 5,
-          }}
-        >
-    Evolution annuelle de la perte forestière (ha)
-  </div>
+          {/* ===================== HISTOGRAMME ANNUEL ===================== */}
+          <div
+            style={{
+              background:"#fff",
+              border:"1px solid #d9d9d9",
+              borderRadius:8,
+              padding:10,
+              height:"auto"
+            }}
+          >
+          {/* TITRE PRINCIPAL */}
+          <div
+            style={{
+              textAlign:"center",
+              color:"#d32f2f",
+              fontSize:12,
+              fontWeight:700,
+              fontStyle:"italic",
+              marginBottom:5
+            }}
+          >
+          Evolution décennale de la déforestation autour de l'Aire Protégée
+          </div>
+          {/* ================= INTERIEUR ================= */}
+          <div
+            style={{
+              color:"#d97706",
+              fontSize:12,
+              fontWeight:700,
+              marginBottom:3
+            }}
+          >
+          A l'intérieur du parc
+          </div>
+          <ResponsiveContainer width="100%" height={90}>
+            <BarChart
+              data={chartInterieurDecennie}
+              layout="vertical"
+              margin={{
+              left:5,
+              right:10
+              }}
+            >
+            <XAxis
+              type="number"
+              hide
+            />
+            <YAxis
+              type="category"
+              dataKey="periode"
+              width={90}
+              tick={{
+                fontSize:11,
+                fill:"#333"
+              }}
+            />
+              <Bar
+                dataKey="valeur"
+                barSize={22}
+                radius={[0,2,2,0]}
+              >
+              {
+              [
+              "#fde68a",
+              "#f59e0b",
+              "#d97706"
+              ].map((color,index)=>(
 
-  <ResponsiveContainer width="100%" height="100%">
-      <ComposedChart
-        data={chart6Trend}
-        barCategoryGap="40%"
-      >
+              <Cell
+                key={index}
+                fill={color}
+              />
+              ))
+              }
+              <LabelList
+                dataKey="valeur"
+                content={(props:any)=>{
+                const {
+                    x,
+                    y,
+                    width,
+                    height,
+                    value
+                  }=props;
+                const texte =
+                `${Math.round(value).toLocaleString()} ha`;
+                const largeurTexte =
+                texte.length * 6;
 
-        <defs>
-          <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#bfdbfe" />
-            <stop offset="100%" stopColor="#60a5fa" />
-          </linearGradient>
-        </defs>
+                // Si la barre est assez grande
+                const inside =
+                width > largeurTexte + 30;
 
-      <CartesianGrid stroke="#e5e7eb" />
+              return (
+              <text
+                  x={
+                    inside
+                    ?
+                    x + width - 5
+                    :
+                    x + width + 5
+                  }
+                  y={
+                    y + height/2
+                  }
+                  dy={4}
+                  textAnchor={
+                    inside
+                    ?
+                    "end"
+                    :
+                    "start"
+                  }
+                  fill={
+                    inside
+                    ?
+                    "#fff"
+                    :
+                    "#333"
+                  }
+                  fontSize={11}
+                  fontWeight={700}
+                >
+              {texte}
+              </text>
+              );
+              }}
+              />
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
 
-      <XAxis dataKey="annee" tick={{ fontSize: 11 }} 
-      
-      />
-
-      <YAxis
-        domain={[0, (dataMax: number) => Math.ceil(dataMax / 1000) * 1000]}
-        tick={{ fontSize: 11 }}
-      />
-
-<Bar
-  dataKey="valeur"
-  stroke="#1e3a8a"
-  strokeWidth={1.5}
-  fill="#93c5fd"   // couleur normale plus claire
-  barSize={10}
-  radius={[3, 3, 0, 0]}
->
-  {chart6Trend.map((entry, index) => (
-    <Cell
-      key={`cell-${index}`}
-      fill={entry.valeur === maxValue ? "#dc2626" : "#93c5fd"}
-    />
-  ))}
-        <Line
-          type="monotone"
-          dataKey="tendance"
-          stroke="#dc2626"
-          strokeWidth={3}
-          dot={false}
-          activeDot={false}
-          strokeDasharray="8 4"
-        />
-      </Bar>
-    </ComposedChart>
-  </ResponsiveContainer>
-</div>
-    
+          {/* ================= EXTERIEUR ================= */}
+          <div
+              style={{
+                color:"#2563eb",
+                fontSize:12,
+                fontWeight:700,
+                marginTop:8,
+                marginBottom:3
+              }}
+          >
+            A l'extérieur du parc
+          </div>
+          <ResponsiveContainer width="100%" height={90}>
+              <BarChart
+                data={chartExterieurDecennie}
+                layout="vertical"
+                margin={{
+                left:5,
+                right:30
+                }}
+              >
+              <XAxis
+                type="number"
+                hide
+              />
+              <YAxis
+                type="category"
+                dataKey="periode"
+                width={90}
+                tick={{
+                fontSize:11,
+                fill:"#333"
+              }}
+              />
+              <Bar
+                dataKey="valeur"
+                barSize={22}
+                radius={[0,4,4,0]}
+              >
+                {
+                [
+                "#bfdbfe",
+                "#60a5fa",
+                "#2563eb"
+                ].map((color,index)=>(
+                <Cell
+                  key={index}
+                  fill={color}
+                />
+                ))
+                }
+                <LabelList
+                  dataKey="valeur"
+                  content={(props:any)=>{
+                const {
+                  x,
+                  y,
+                  width,
+                  height,
+                  value
+                }=props;
+                const texte =
+                `${Math.round(value).toLocaleString()} ha`;
+                const largeurTexte =
+                texte.length * 6;
+                const inside =
+                width > largeurTexte + 30;
+                return (
+                <text
+                    x={
+                    inside
+                    ?
+                    x + width - 5
+                    :
+                    x + width + 5
+                    }
+                    y={
+                    y + height/2
+                    }
+                    dy={4}
+                    textAnchor={
+                    inside
+                    ?
+                    "end"
+                    :
+                    "start"
+                    }
+                    fill={
+                    inside
+                    ?
+                    "#fff"
+                    :
+                    "#333"
+                    }
+                    fontSize={11}
+                    fontWeight={700}
+                    >
+                    {texte}
+                  </text>
+                );
+                }}
+              />
+              </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>   
   </div>
   </div>
   );
