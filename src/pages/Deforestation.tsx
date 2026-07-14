@@ -60,24 +60,6 @@ const chart2 = [
   { commune:"Autres", y2018:60, y2019:80 },
 ];
 
-
-//========================
-// GRAPHIQUE 3
-//========================
-
-const chart3 = [
-  { commune:"Andranofasika", y2018:120, y2019:180 },
-  { commune:"Ankijabe", y2018:400, y2019:120 },
-  { commune:"Madirovalo", y2018:580, y2019:60 },
-  { commune:"Manerinerina", y2018:580, y2019:100 },
-  { commune:"Tsaramandroso", y2018:1580, y2019:200 },
-  { commune:"Ambolomoty", y2018:10, y2019:5 },
-  { commune:"Ankazomborona", y2018:930, y2019:90 },
-  { commune:"Marosakoa", y2018:1460, y2019:440 },
-  { commune:"Marovoay Banlieu", y2018:0, y2019:0 },
-  { commune:"Tsararano", y2018:930, y2019:90 },
-];
-
 //========================
 // GRAPHIQUE 5
 //========================
@@ -438,121 +420,12 @@ interface CardProps {
     );
   };
 
-  const chart3Pro = chart3
-  .map(d => {
-    const variation = ((d.y2019 - d.y2018) / d.y2018) * 100;
-
-    return {
-      ...d,
-      variation: Number(variation.toFixed(1)),
-      trend: d.y2019 > d.y2018 ? "up" : d.y2019 < d.y2018 ? "down" : "stable"
-    };
-  })
-  .sort((a, b) => a.commune.localeCompare(b.commune));
-
-  const Graphique3 = () => {
-
-    const chart3Pro = chart3
-      .map(d => {
-        const variation = d.y2018
-          ? ((d.y2019 - d.y2018) / d.y2018) * 100
-          : 0;
-  
-        return {
-          ...d,
-          variation: Number(variation.toFixed(1)),
-        };
-      })
-      .sort((a, b) => a.commune.localeCompare(b.commune));
-  
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #d9d9d9",
-          borderRadius: 8,
-          padding: 10,
-          marginBottom: 5,
-          boxShadow: "0 1px 3px rgba(0,0,0,.05)",
-          height: 280,
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#d32f2f",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 5,
-          }}
-        >
-          Déforestation dans les Communes riveraines
-        </div>
-  
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chart3Pro}>
-            <CartesianGrid stroke="#e5e7eb" />
-  
-            <XAxis
-              dataKey="commune"
-              angle ={-25}
-              interval={0}
-              textAnchor="end"
-              height={60}
-              tick={{ fontSize: 10 }}
-              padding={{ left: 10, right: 10 }}
-            />
-  
-            <YAxis
-              domain={[0, (dataMax) => Math.ceil(dataMax * 1.1)]}
-              tick={{ fontSize: 12 }}
-            />
-  
-            <Legend
-              verticalAlign="top"
-              align="center"
-              iconType="line"
-              wrapperStyle={{
-                fontSize: 12,
-                fontWeight: 600,
-                color: "#1565c0",
-              }}
-            />
-  
-            {/* 2018 */}
-            <Line
-              type="monotone"
-              dataKey="y2018"
-              name="2018"
-              stroke="#90caf9"
-              margin={{ bottom: 20 }}
-              strokeWidth={2}
-              dot={{ r: 1 }}
-            />
-  
-            {/* 2019 */}
-            <Line
-              type="monotone"
-              dataKey="y2019"
-              name="2019"
-              stroke="#1d4ed8"
-              strokeWidth={2}
-              margin={{ bottom: 20 }}
-              dot={{ r: 1 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-    );
-  };
-
-
   
 export default function Deforestation() {
   const [year, setYear] = useState<number>(2019);
   const [ap, setAp] = useState<string>("Ankarafantsika");
   const [baseDeforestation,setBaseDeforestation]=useState<any[]>([]);
+  const [yearCompare, setYearCompare] = useState(2018);
 
   useEffect(() => {
 
@@ -1068,6 +941,46 @@ const chart1 = useMemo(()=>{
 ]);
 
 
+const chart3Pro = useMemo(()=>{
+  const communes = dataAP
+    .filter(f =>
+      f.properties.Source === "Commune"
+    )
+    .map(f=>{
+      const p = f.properties;
+      return {
+        commune:p.Commune,
+        y1:Number(p[String(yearCompare)] || 0),
+        y2:Number(p[String(year)] || 0)
+      };
+    })
+    // prendre les 11 plus touchées
+    .sort((a,b)=>{
+      return (b.y1 + b.y2) - (a.y1 + a.y2);
+    })
+    .slice(0,11)
+    // puis classement alphabétique
+    .sort((a,b)=>
+      a.commune.localeCompare(b.commune)
+    )
+    .map(d=>({
+      ...d,
+      communeCourt:
+      d.commune.length > 8
+      ?
+      d.commune.substring(0,8)+"..."
+      :
+      d.commune
+    }));
+return communes;
+
+},[
+dataAP,
+year,
+yearCompare
+]);
+
+
 const chart4 = useMemo(()=>{
   // toutes les communes riveraines de l'AP choisi
   const toutesCommunes = dataAP
@@ -1245,20 +1158,237 @@ const Graphique1 = () => {
   );
 };
 
-const Graphique4 = () => {
-  const chart4Pro = chart4
-    .sort((a, b) => b.superficie - a.superficie)
-    .map((d, index, arr) => {
-      const total = arr.reduce((sum, x) => sum + x.superficie, 0);
-      const cumulated = arr
-        .slice(0, index + 1)
-        .reduce((sum, x) => sum + x.superficie, 0);
+const Graphique3 = () => {
+  const CustomDot = (props:any) => {
+    const {
+      cx,
+      cy,
+      payload
+    } = props;  
+  
+    const difference =
+      payload.y2 - payload.y1;  
+  
+    const isIncrease = difference > 0;
+    const isDecrease = difference < 0;  
+  
+    if(difference === 0){
+      return (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={3}
+          fill="#2563eb"
+        />
+      );
+    }  
+  
+    return (
+      <g>  
+        {/* point */}
+        <circle
+          cx={cx}
+          cy={cy}
+          r={2}
+          fill="#2563eb"
+        />  
+  
+        {/* flèche */}
+        <text
+          x={cx}
+          y={cy-10}
+          textAnchor="middle"
+          fontSize={8}
+          fontWeight={700}
+          fill={
+            isIncrease
+            ? "#dc2626"
+            : "#16a34a"
+          }
+        >
+          {
+            isIncrease
+            ? "▲"
+            : "▼"
+          }
+        </text>
+  
+  
+        {/* différence ha */}
+        <text
+          x={cx}
+          y={cy-2}
+          textAnchor="middle"
+          fontSize={8}
+          fontWeight={700}
+          fill={
+            isIncrease
+            ? "#dc2626"
+            : "#16a34a"
+          }
+        >
+          {
+            Math.abs(difference)
+            .toFixed(1)
+          } ha
+        </text>
+      </g>
+    );
+  };
 
-      return {
-        ...d,
-        pctCum: Number(((cumulated / total) * 100).toFixed(1)),
-      };
-    });
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #d9d9d9",
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 5,
+        boxShadow: "0 1px 3px rgba(0,0,0,.05)",
+        height: 280,
+      }}
+    >
+      <div
+          style={{
+          textAlign:"center",
+          color:"#d32f2f",
+          fontSize:12,
+          fontWeight:700,
+          fontStyle:"italic",
+          marginBottom:5,
+          }}
+          >
+          Déforestation dans les Communes riveraines
+          </div>
+          <div
+            style={{
+            display:"flex",
+            justifyContent:"center",
+            alignItems:"center",
+            gap:10,
+            marginBottom:2
+          }}
+          >
+          <span
+            style={{
+            fontSize:11,
+            fontWeight:600,
+            color:"#333"
+          }}
+          >
+          Comparer avec :
+          </span>
+          <select
+            value={yearCompare}
+            onChange={(e)=>
+            setYearCompare(Number(e.target.value))
+          }
+          style={{
+            padding:"3px 8px",
+            borderRadius:6,
+            border:"1px solid #d1d5db",
+            fontSize:11,
+            fontWeight:600
+          }}
+          >
+          {[2001,2002,2003,2004,2005,
+          2006,2007,2008,2009,2010,
+          2011,2012,2013,2014,2015,
+          2016,2017,2018,2019,2020,
+          2021,2022,2023,2024]
+          .map(y=>
+          <option key={y}>
+          {y}
+          </option>
+          )}
+          </select>
+        </div>
+
+      <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={chart3Pro}
+          >
+          <CartesianGrid stroke="#e5e7eb" />
+
+          <XAxis
+            dataKey="communeCourt"
+            angle={-20}
+            interval={0}
+            textAnchor="end"
+            height={70}
+            tick={{fontSize:10}}
+            padding={{left:10,right:10}}
+          />
+
+          <YAxis
+            domain={[0, (dataMax) => Math.ceil(dataMax * 1.1)]}
+            tick={{ fontSize: 12 }}
+          />
+
+        <Legend
+          verticalAlign="top"
+          align="center"
+          iconType="line"
+          wrapperStyle={{
+          fontSize:12,
+          fontWeight:600,
+          color:"#1565c0",
+          }}
+        />
+
+          {/* 2018 */}
+          <Line
+            type="monotone"
+            dataKey="y1"
+            name={String(yearCompare)}
+            stroke="#dc2626"
+            strokeWidth={2}
+            dot={{r:1}}
+          />
+
+          {/* 2019 */}
+          <Line
+            type="monotone"
+            dataKey="y2"
+            name={String(year)}
+            stroke="#2563eb"
+            strokeWidth={2}
+            dot={<CustomDot />}
+            />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+const Graphique4 = () => {
+  const chart4Pro = [...chart4]
+.sort((a, b) => b.superficie - a.superficie)
+.map((d, index, arr) => {
+
+  const total = arr.reduce(
+    (sum, x) => sum + x.superficie,
+    0
+  );
+
+  const cumulated = arr
+    .slice(0, index + 1)
+    .reduce(
+      (sum, x) => sum + x.superficie,
+      0
+    );
+
+
+  return {
+    ...d,
+    pctCum:
+      Number(
+        ((cumulated / total) * 100)
+        .toFixed(1)
+      )
+  };
+
+});
 
   return (
     <div
