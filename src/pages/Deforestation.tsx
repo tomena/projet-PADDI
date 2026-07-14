@@ -43,24 +43,6 @@ const data = [
 ];
 
 //========================
-// GRAPHIQUE 2
-//========================
-
-const chart2 = [
-  { commune:"Andranofasika", y2018:120, y2019:180 },
-  { commune:"Ankijabe", y2018:400, y2019:120 },
-  { commune:"Madirovalo", y2018:580, y2019:60 },
-  { commune:"Manerinerina", y2018:580, y2019:100 },
-  { commune:"Tsaramandroso", y2018:1580, y2019:200 },
-  { commune:"Ambolomoty", y2018:10, y2019:5 },
-  { commune:"Ankazomborona", y2018:930, y2019:90 },
-  { commune:"Marosakoa", y2018:1460, y2019:440 },
-  { commune:"Marovoay Banlieu", y2018:0, y2019:0 },
-  { commune:"Tsararano", y2018:930, y2019:90 },
-  { commune:"Autres", y2018:60, y2019:80 },
-];
-
-//========================
 // GRAPHIQUE 5
 //========================
 
@@ -281,151 +263,13 @@ interface CardProps {
     );
   };
 
-
-  const renderArrow = (props: any) => {
-    if (!props || !props.payload) return null;
-  
-    const diff = (props.payload.y2019 ?? 0) - (props.payload.y2018 ?? 0);
-  
-    let symbol = "→";
-    let color = "#999";
-  
-    if (diff > 0) {
-      symbol = "▲";
-      color = "#2e7d32";
-    } else if (diff < 0) {
-      symbol = "▼";
-      color = "#d32f2f";
-    }
-  
-    return (
-      <text
-        x={props.x + props.width / 2}
-        y={props.y - 10}
-        textAnchor="middle"
-        fontSize={12}
-        fontWeight="bold"
-        fill={color}
-      >
-        {symbol}
-      </text>
-    );
-  };
-
-  
-
-  const chart2Pro = chart2
-  .map(d => {
-    const variation = ((d.y2019 - d.y2018) / d.y2018) * 100;
-
-    return {
-      ...d,
-      variation: Number(variation.toFixed(1))
-    };
-  })
-  .sort((a, b) => b.y2019 - a.y2019);
-
-  const Graphique2Pro = () => {
-    const chart2Pro = chart2
-      .map(d => {
-        const variation = ((d.y2019 - d.y2018) / d.y2018) * 100;
-  
-        return {
-          ...d,
-          variation: Number(variation.toFixed(1))
-        };
-      })
-      .sort((a, b) => b.y2019 - a.y2019);
-  
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #d9d9d9",
-          borderRadius: 8,
-          padding: 10,
-          marginBottom: 5,
-          boxShadow: "0 1px 3px rgba(0,0,0,.05)",
-          height: 280,
-          overflow: "hidden"
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#d32f2f",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 10,
-          }}
-        >
-          Déforestation par Commune à l'intérieur de l'Aire Protégée
-        </div>
-  
-        <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={chart2Pro} barGap={2} barCategoryGap="10%"> 
-  
-            <XAxis
-              dataKey="commune"
-              angle={-25}
-              interval={0}
-              textAnchor="end"
-              height={60}
-              tick={{ fontSize: 10 }}
-              padding={{ left: 10, right: 10 }}
-            />
-  
-            <YAxis
-              domain={[0, (dataMax: number) => Math.ceil(dataMax / 100) * 100]}
-              tick={{ fontSize: 11 }}
-              allowDecimals={false}
-            />
-            <Legend
-              verticalAlign="top"
-              align="center"
-              wrapperStyle={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#1565c0",
-              }}
-            />
-  
-            <YAxis
-                domain={[0, 'dataMax']}
-                tick={{ fontSize: 11 }}
-                allowDecimals={false}
-              />
-
-              <Bar
-                dataKey="y2018"
-                name="2018"
-                fill="#fdba74"
-                opacity={0.85}
-                barSize={13}
-                radius={[3, 3, 0, 0]}
-              />
-              
-              <Bar
-                dataKey="y2019"
-                name="2019"
-                fill="#c2410c"
-                barSize={13}
-                radius={[3, 3, 0, 0]}
-              />
-              <LabelList content={renderArrow} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    );
-  };
-
   
 export default function Deforestation() {
   const [year, setYear] = useState<number>(2019);
   const [ap, setAp] = useState<string>("Ankarafantsika");
   const [baseDeforestation,setBaseDeforestation]=useState<any[]>([]);
-  const [yearCompare, setYearCompare] = useState(2018);
+  const [yearCompareG2,setYearCompareG2] = useState(2018);
+  const [yearCompareG3,setYearCompareG3] = useState(2018);
 
   useEffect(() => {
 
@@ -940,6 +784,45 @@ const chart1 = useMemo(()=>{
  year
 ]);
 
+const chart2Pro = useMemo(()=>{
+  const communes = dataAP
+    .filter(f =>
+      f.properties.Source === "Interrieur"
+    )
+    .map(f=>{  
+      const p = f.properties;  
+      return {
+        commune:p.Commune,
+        y1:Number(p[String(yearCompareG2)] || 0),
+        y2:Number(p[String(year)] || 0)
+      };  
+    })  
+    // garder les 11 plus touchées
+    .sort((a,b)=>
+      (b.y1+b.y2)-(a.y1+a.y2)
+    )  
+    .slice(0,11)
+    // affichage alphabétique
+    .sort((a,b)=>
+      a.commune.localeCompare(b.commune)
+    )
+    .map(d=>({  
+      ...d,
+      communeCourt:
+      d.commune.length>8
+      ?
+      d.commune.substring(0,8)+"..."
+      :
+      d.commune  
+    }));
+return communes;  
+
+},[
+  dataAP,
+  year,
+  yearCompareG2
+ ]);
+
 
 const chart3Pro = useMemo(()=>{
   const communes = dataAP
@@ -950,7 +833,7 @@ const chart3Pro = useMemo(()=>{
       const p = f.properties;
       return {
         commune:p.Commune,
-        y1:Number(p[String(yearCompare)] || 0),
+        y1:Number(p[String(yearCompareG3)] || 0),
         y2:Number(p[String(year)] || 0)
       };
     })
@@ -975,10 +858,10 @@ const chart3Pro = useMemo(()=>{
 return communes;
 
 },[
-dataAP,
-year,
-yearCompare
-]);
+  dataAP,
+  year,
+  yearCompareG3
+ ]);
 
 
 const chart4 = useMemo(()=>{
@@ -1158,6 +1041,175 @@ const Graphique1 = () => {
   );
 };
 
+
+const Graphique2Pro = () => {
+  const renderArrow = (props:any)=>{
+    const {
+      x,
+      y,
+      width,
+      index
+    } = props;
+    const item = chart2Pro[index];
+    if(!item){
+      return null;
+    }
+    const difference =
+      item.y2 - item.y1;
+    if(difference === 0){
+      return null;
+    }
+    return (
+      <text
+        x={x + width / 2}
+        y={y - 1}
+        textAnchor="middle"
+        fontSize={10}
+        fontWeight={700}
+        fill={
+          difference > 0
+          ? "#dc2626"
+          : "#16a34a"
+        }
+      >
+        {
+          difference > 0
+          ? "▲"
+          : "▼"
+        }
+      </text>
+    );
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #d9d9d9",
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 5,
+        boxShadow: "0 1px 3px rgba(0,0,0,.05)",
+        height: 280,
+        overflow: "hidden"
+      }}
+    >
+      <div
+        style={{
+        textAlign:"center",
+        color:"#d32f2f",
+        fontSize:12,
+        fontWeight:700,
+        fontStyle:"italic",
+        marginBottom:5,
+        }}
+        >
+        Déforestation par Commune à l'intérieur de l'Aire Protégée
+        </div>
+        <div
+          style={{
+          display:"flex",
+          justifyContent:"center",
+          alignItems:"center",
+          gap:8,
+          marginBottom:5
+          }}
+        >
+
+        <span
+          style={{
+          fontSize:11,
+          fontWeight:600
+          }}
+        >
+        Comparer avec :
+        </span>
+        <select
+          value={yearCompareG2}
+          onChange={(e)=>
+          setYearCompareG2(Number(e.target.value))
+          }
+          style={{
+            fontSize:11,
+            padding:"3px 8px",
+            borderRadius:6
+          }}
+        >
+
+        {
+          Array.from(
+          {length:24},
+          (_,i)=>2001+i
+          )
+          .map(y=>
+          <option key={y}>
+          {y}
+        </option>
+        )
+        }
+        </select>
+      </div>
+
+      <ResponsiveContainer width="100%" height="100%" >
+        <BarChart data={chart2Pro} barGap={1} barCategoryGap="20%"> 
+
+          <XAxis
+            dataKey="communeCourt"
+            angle={-20}
+            interval={0}
+            textAnchor="end"
+            height={70}
+            tick={{ fontSize: 10 }}
+            padding={{ left: 10, right: 10 }}
+          />
+
+          <YAxis
+            domain={[0, (dataMax: number) => Math.ceil(dataMax / 100) * 100]}
+            tick={{ fontSize: 11 }}
+            allowDecimals={false}
+          />
+          <Legend
+            verticalAlign="top"
+            align="center"
+            wrapperStyle={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#1565c0",
+            }}
+          />
+
+          <YAxis
+              domain={[0, 'dataMax']}
+              tick={{ fontSize: 11 }}
+              allowDecimals={false}
+            />
+
+          <Bar
+            dataKey="y1"
+            name={String(yearCompareG2)}
+            fill="#fdba74"
+            barSize={13}
+            radius={[2,2,0,0]}
+          />
+            
+            <Bar
+                dataKey="y2"
+                name={String(year)}
+                fill="#c2410c"
+                barSize={13}
+                radius={[2,2,0,0]}
+                >
+                <LabelList
+                content={renderArrow}
+              />
+            </Bar>
+            <LabelList content={renderArrow} />
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
 const Graphique3 = () => {
   const CustomDot = (props:any) => {
     const {
@@ -1230,7 +1282,7 @@ const Graphique3 = () => {
           {
             Math.abs(difference)
             .toFixed(1)
-          } ha
+          }
         </text>
       </g>
     );
@@ -1279,7 +1331,7 @@ const Graphique3 = () => {
           Comparer avec :
           </span>
           <select
-            value={yearCompare}
+            value={yearCompareG3}
             onChange={(e)=>
             setYearCompare(Number(e.target.value))
           }
@@ -1340,7 +1392,7 @@ const Graphique3 = () => {
           <Line
             type="monotone"
             dataKey="y1"
-            name={String(yearCompare)}
+            name={String(yearCompareG3)}
             stroke="#dc2626"
             strokeWidth={2}
             dot={{r:1}}
