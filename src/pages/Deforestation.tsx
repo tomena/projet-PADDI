@@ -43,19 +43,6 @@ const data = [
 ];
 
 //========================
-// GRAPHIQUE 1
-//========================
-
-const chart1 = [
-  { commune: "Tsaramandroso", superficie: 859.77, pct: 55.9 },
-  { commune: "Marosakoa", superficie: 497.34, pct: 67.8 },
-  { commune: "Manerinerina", superficie: 288.99, pct: 76.9 },
-  { commune: "Madirovalo", superficie: 219.42, pct: 84.6 },
-  { commune: "Andranofasika", superficie: 181.80, pct: 84.6 },
-];
-
-
-//========================
 // GRAPHIQUE 2
 //========================
 
@@ -89,18 +76,6 @@ const chart3 = [
   { commune:"Marosakoa", y2018:1460, y2019:440 },
   { commune:"Marovoay Banlieu", y2018:0, y2019:0 },
   { commune:"Tsararano", y2018:930, y2019:90 },
-];
-
-//========================
-// GRAPHIQUE 4
-//========================
-
-const chart4 = [
-  { commune:"Ankazomborona", superficie:11586.78, pct:18.6 },
-  { commune:"Tsaramandroso", superficie:11011.86, pct:37.2 },
-  { commune:"Marosakoa", superficie:10888.83, pct:53.7 },
-  { commune:"Madirovalo", superficie:8476.92, pct:67.3 },
-  { commune:"Ankijabe", superficie:5559.84, pct:76.2 },
 ];
 
 //========================
@@ -355,110 +330,7 @@ interface CardProps {
     );
   };
 
-  const Graphique1 = () => {
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #d9d9d9",
-          borderRadius: 8,
-          padding: 10,
-          marginBottom:5,
-          boxShadow: "0 1px 3px rgba(0,0,0,.05)",
-          height: 280,
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#d32f2f",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 2,
-          }}
-        >
-          Communes les plus affectées en {2019}
-        </div>  
-        <ResponsiveContainer width="100%" height={280}>
-          <ComposedChart data={chart1}>
-
-            <defs>
-              <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#1d4ed8" stopOpacity={0.9} />
-                <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.6} />
-              </linearGradient>
-            </defs>
-
-            <CartesianGrid stroke="#e5e7eb" />
-
-            <XAxis
-              dataKey="commune"
-              angle={-25}
-              interval={0}
-              textAnchor="end"
-              height={60}
-              tick={{ fontSize: 10 }}
-              padding={{ left: 0, right: 0 }}
-            />
-
-            <YAxis
-              yAxisId="left"
-              domain={[0, "dataMax"]}
-              tick={{ fontSize: 11 }}
-            />
-
-            <Bar
-              yAxisId="left"
-              name="Superficie"
-              dataKey="superficie"
-              fill="url(#blueGradient)"
-              barSize={45}
-              radius={[3, 3, 0, 0]}
-            >
-              <LabelList
-                dataKey="superficie"
-                position="insideTop"
-                fill="#ffffff"
-                fontSize={9}
-                fontWeight={600}
-              />
-            </Bar>
-
-            <Line
-              name="Cumul (%)"
-              yAxisId="right"
-              type="monotone"
-              dataKey="pct"
-              stroke="#9e9e9e"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={{ r: 2 }}
-            >
-              <LabelList
-                dataKey="pct"
-                position="top"
-                formatter={(v: number) => `${v}%`}
-                fill="#000"
-                style={{ fontWeight: "bold", fontSize: 11 }}
-              />
-            </Line>
-
-            <Legend
-              verticalAlign="top"
-              align="center"
-              wrapperStyle={{
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#1565c0",
-              }}
-            />
-
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-    );
-  };
+  
 
   const chart2Pro = chart2
   .map(d => {
@@ -671,144 +543,6 @@ interface CardProps {
             />
           </LineChart>
         </ResponsiveContainer>
-      </div>
-    );
-  };
-
-  const chart4Pro = chart4
-  .sort((a, b) => b.superficie - a.superficie)
-  .map((d, index, arr) => {
-    const total = arr.reduce((sum, x) => sum + x.superficie, 0);
-    const cumulated = arr
-      .slice(0, index + 1)
-      .reduce((sum, x) => sum + x.superficie, 0);
-
-    return {
-      ...d,
-      pctCum: Number(((cumulated / total) * 100).toFixed(1)),
-    };
-  });
-
-  const Graphique4 = () => {
-    const chart4Pro = chart4
-      .sort((a, b) => b.superficie - a.superficie)
-      .map((d, index, arr) => {
-        const total = arr.reduce((sum, x) => sum + x.superficie, 0);
-        const cumulated = arr
-          .slice(0, index + 1)
-          .reduce((sum, x) => sum + x.superficie, 0);
-  
-        return {
-          ...d,
-          pctCum: Number(((cumulated / total) * 100).toFixed(1)),
-        };
-      });
-  
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #d9d9d9",
-          borderRadius: 8,
-          padding: 10,
-          height: 280,
-          boxSizing: "border-box",
-          overflow: "hidden"
-        }}
-      >
-        <div
-          style={{
-            textAlign: "center",
-            color: "#b91c1c",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 5,
-          }}
-        >
-          Communes les plus touchées depuis 2001 jusqu'en {2019}
-        </div>
-  
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chart4Pro} margin={{ top: 10, bottom: 15 }} barCategoryGap="25%">
-            <CartesianGrid stroke="#f3f4f6" />
-  
-            <XAxis
-              dataKey="commune"
-              angle={-25}
-              textAnchor="end"
-              interval={0}
-              tick={{ fontSize: 11 }}
-              height={60}
-            />
-  
-            <YAxis
-              yAxisId="left"
-              domain={[0, "dataMax"]}
-              tick={{ fontSize: 11 }}
-            />
-  
-            <Legend
-              verticalAlign="bottom"
-              align="center"
-              wrapperStyle={{
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 5,
-              }}
-            />
-  
-            {/* BAR ROUGE */}
-            <Bar
-              yAxisId="left"
-              dataKey="superficie"
-              name="Superficie (ha)"
-              fill="url(#redGradient)"
-              barSize={40}
-              radius={[3, 3, 0, 0]}
-            >
-
-            <LabelList
-              dataKey="superficie"
-              position="insideTop"
-              fill="#ffffff"
-              fontSize={9}
-              fontWeight={600}
-            />
-
-            </Bar>
-  
-            {/* LINE CUMUL */}
-            <Line
-              name="Cumul (%)"
-              yAxisId="right"
-              type="monotone"
-              dataKey="pct"
-              stroke="#9e9e9e"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={{ r: 2 }}
-            >
-              <LabelList
-                dataKey="pct"
-                position="top"
-                formatter={(v: number) => `${v}%`}
-                fill="#000"
-                style={{ fontWeight: "bold", fontSize: 11 }}
-              />
-            </Line>
-          </ComposedChart>
-        </ResponsiveContainer>
-  
-        {/* GRADIENT ROUGE */}
-        <svg width="0" height="0">
-          <defs>
-            <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
-              <stop offset="100%" stopColor="#fca5a5" stopOpacity={0.6} />
-            </linearGradient>
-          </defs>
-        </svg>
       </div>
     );
   };
@@ -1182,10 +916,10 @@ export default function Deforestation() {
     return communes
       .sort((a,b)=>a.taux-b.taux)
       .slice(0,3);
-  },[
-    dataAP,
-    year
-  ]);
+    },[
+      dataAP,
+      year
+    ]);
 
   const kpis = useMemo(() => [
     {
@@ -1278,10 +1012,375 @@ const chart6Trend = chart6.map((d, i) => ({
 
 const maxValue = Math.max(...chart6Trend.map(d => d.valeur));
 
+const chart1 = useMemo(()=>{
+  // Toutes les communes de l'AP choisie
+  const toutesCommunes = dataAP
+    .filter(f =>
+      String(f.properties.Source)
+      .trim()
+      .toLowerCase() === "commune"
+    )
+    .map(f=>{
+      const p = f.properties;
+      return {
+        commune:p.Commune,
+        superficie:
+          Number(
+            p[String(year)] || 0
+          )
+      };
+    })
+    .filter(d=>d.superficie>0)
+    .sort(
+      (a,b)=>
+        b.superficie-a.superficie
+    );
+  // perte totale de toutes les communes
+  const totalToutesCommunes =
+    toutesCommunes.reduce(
+      (s,d)=>s+d.superficie,
+      0
+    );
+  // seulement les 5 premières
+  const top5 =
+    toutesCommunes.slice(0,5);
+  let cumul = 0;
+  return top5.map(d=>{
+    cumul += d.superficie;
+    return {
+      commune:d.commune,
+      superficie:d.superficie,
+      pct:
+        totalToutesCommunes>0
+        ?
+        Number(
+          ((cumul/totalToutesCommunes)*100)
+          .toFixed(1)
+        )
+        :
+        0
+    };
+
+  });
+},[
+ dataAP,
+ year
+]);
+
+
+const chart4 = useMemo(()=>{
+  // toutes les communes riveraines de l'AP choisi
+  const toutesCommunes = dataAP
+    .filter(f =>
+      String(f.properties.Source)
+      .trim()
+      .toLowerCase() === "commune"
+    )
+    .map(f=>{
+      const p = f.properties;
+      // perte cumulée depuis 2001 jusqu'à l'année choisie
+      const perteCumulee =
+        Object.keys(p)
+        .filter(key =>
+          Number(key)>=2001 &&
+          Number(key)<=year
+        )
+        .reduce(
+          (total,key)=>
+            total +
+            Number(p[key] || 0),
+          0
+        );
+      return {
+        commune:p.Commune,
+        superficie:perteCumulee
+      };
+    })
+    .filter(d=>d.superficie>0)
+    .sort(
+      (a,b)=>
+      b.superficie-a.superficie
+    );
+  // perte totale de toutes les communes
+  const total =
+    toutesCommunes.reduce(
+      (s,d)=>s+d.superficie,
+      0
+    );
+  // garder seulement les 5 plus touchées
+  const top5 =
+    toutesCommunes.slice(0,5);
+  let cumul = 0;
+  return top5.map(d=>{
+    cumul += d.superficie;
+    return {
+      commune:d.commune,
+      superficie:
+        Number(
+          d.superficie.toFixed(2)
+        ),
+      pct:
+        total>0
+        ?
+        Number(
+          ((cumul/total)*100)
+          .toFixed(1)
+        )
+        :
+        0
+    };
+  });
+},[
+ dataAP,
+ year
+]);
+
+const Graphique1 = () => {
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #d9d9d9",
+        borderRadius: 8,
+        padding: 10,
+        marginBottom:5,
+        boxShadow: "0 1px 3px rgba(0,0,0,.05)",
+        height: 280,
+      }}
+    >
+      <div
+        style={{
+          textAlign: "center",
+          color: "#d32f2f",
+          fontSize:12,
+          fontWeight: 700,
+          fontStyle: "italic",
+          marginBottom: 2,
+        }}
+      >
+        Les 05 Communes les plus affectées en {year}
+      </div>  
+      <ResponsiveContainer width="100%" height={280}>
+        <ComposedChart data={chart1}>
+
+          <defs>
+            <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#1d4ed8" stopOpacity={0.9} />
+              <stop offset="100%" stopColor="#60a5fa" stopOpacity={0.6} />
+            </linearGradient>
+          </defs>
+
+          <CartesianGrid stroke="#e5e7eb" />
+
+          <XAxis
+            dataKey="commune"
+            angle={-20}
+            interval={0}
+            textAnchor="end"
+            height={60}
+            tick={{ fontSize: 10 }}
+            padding={{ left: 0, right: 0 }}
+            tickFormatter={(value)=> 
+              value.length > 8
+                ? `${value.substring(0,8)}...`
+                : value
+            }
+          />
+
+          <YAxis
+            yAxisId="left"
+            domain={[0, "dataMax"]}
+            tick={{ fontSize: 11 }}
+          />
+
+          <Bar
+            yAxisId="left"
+            name="Superficie"
+            dataKey="superficie"
+            fill="url(#blueGradient)"
+            barSize={45}
+            radius={[3, 3, 0, 0]}
+          >
+            <LabelList
+              dataKey="superficie"
+              position="insideTop"
+              fill="#ffffff"
+              fontSize={9}
+              fontWeight={600}
+            />
+          </Bar>
+
+          <Line
+            name="Cumul (%)"
+            yAxisId="right"
+            type="monotone"
+            dataKey="pct"
+            stroke="#9e9e9e"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={{ r: 2 }}
+          >
+            <LabelList
+              dataKey="pct"
+              position="top"
+              formatter={(v: number) => `${v}%`}
+              fill="#000"
+              style={{ fontWeight: "bold", fontSize: 11 }}
+            />
+          </Line>
+
+          <Legend
+            verticalAlign="top"
+            align="center"
+            wrapperStyle={{
+              fontSize: 11,
+              fontWeight: 600,
+              color: "#1565c0",
+            }}
+          />
+
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+};
+
+const Graphique4 = () => {
+  const chart4Pro = chart4
+    .sort((a, b) => b.superficie - a.superficie)
+    .map((d, index, arr) => {
+      const total = arr.reduce((sum, x) => sum + x.superficie, 0);
+      const cumulated = arr
+        .slice(0, index + 1)
+        .reduce((sum, x) => sum + x.superficie, 0);
+
+      return {
+        ...d,
+        pctCum: Number(((cumulated / total) * 100).toFixed(1)),
+      };
+    });
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #d9d9d9",
+        borderRadius: 8,
+        padding: 10,
+        height: 280,
+        boxSizing: "border-box",
+        overflow: "hidden"
+      }}
+    >
+      <div
+        style={{
+          textAlign: "center",
+          color: "#b91c1c",
+          fontSize:12,
+          fontWeight: 700,
+          fontStyle: "italic",
+          marginBottom: 5,
+        }}
+      >
+        Communes les plus touchées depuis 2001 jusqu'en {year}
+      </div>
+
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart data={chart4} margin={{ top: 15, bottom: 15 }} barCategoryGap="25%">
+          <CartesianGrid stroke="#f3f4f6" />
+
+          <XAxis
+            dataKey="commune"
+            angle={-20}
+            textAnchor="end"
+            interval={0}
+            tick={{ fontSize: 11 }}
+            height={50}
+            tickFormatter={(value)=> 
+              value.length > 8
+                ? `${value.substring(0,8)}...`
+                : value
+            }
+          />
+
+          <YAxis
+            yAxisId="left"
+            domain={[0, "dataMax"]}
+            tick={{ fontSize: 11 }}
+          />
+
+          <Legend
+            verticalAlign="bottom"
+            align="center"
+            wrapperStyle={{
+              fontSize: 13,
+              fontWeight: 600,
+              marginBottom: 5,
+            }}
+          />
+
+          {/* BAR ROUGE */}
+          <Bar
+            yAxisId="left"
+            dataKey="superficie"
+            name="Superficie (ha)"
+            fill="url(#redGradient)"
+            barSize={40}
+            radius={[3, 3, 0, 0]}
+          >
+
+          <LabelList
+            dataKey="superficie"
+            position="insideTop"
+            fill="#ffffff"
+            fontSize={9}
+            fontWeight={600}
+          />
+
+          </Bar>
+
+          {/* LINE CUMUL */}
+          <Line
+            name="Cumul (%)"
+            yAxisId="right"
+            type="monotone"
+            dataKey="pct"
+            stroke="#9e9e9e"
+            strokeWidth={2}
+            strokeDasharray="5 5"
+            dot={{ r: 2 }}
+          >
+            <LabelList
+              dataKey="pct"
+              position="top"
+              formatter={(v: number) => `${v}%`}
+              fill="#000"
+              style={{ fontWeight: "bold", fontSize: 11 }}
+            />
+          </Line>
+        </ComposedChart>
+      </ResponsiveContainer>
+
+      {/* GRADIENT ROUGE */}
+      <svg width="0" height="0">
+        <defs>
+          <linearGradient id="redGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
+            <stop offset="100%" stopColor="#fca5a5" stopOpacity={0.6} />
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+  );
+};
+
+
+
+
   return (
     <div
         style={{
-          padding: 16,
+          padding: 12,
           background: "#eef3f8",
           minHeight: "100vh",
         }}
@@ -1449,104 +1548,85 @@ const maxValue = Math.max(...chart6Trend.map(d => d.valeur));
         </div>
       </div>
 
-      <div
-style={{
-  display:"flex",
-  justifyContent:"space-between",
-  alignItems:"center",
-  marginBottom:6,
-  padding:10,
-  background:"#fff",
-  border:"1px solid #e5e7eb",
-  borderRadius:10,
-}}
->
+        <div
+          style={{
+            display:"flex",
+            justifyContent:"space-between",
+            alignItems:"center",
+            marginBottom:6,
+            padding:10,
+            background:"#fff",
+            border:"1px solid #e5e7eb",
+            borderRadius:10,
+          }}
+        >
 
-{/* TITRE */}
-<div
-style={{
-  display:"flex",
-  alignItems:"center",
-  gap:8,
-  fontWeight:700,
-  color:"#003399",
-  fontSize:13,
-  whiteSpace:"nowrap",
-}}
->
+          {/* TITRE */}
+          <div
+            style={{
+              display:"flex",
+              alignItems:"center",
+              gap:8,
+              fontWeight:700,
+              color:"#003399",
+              fontSize:13,
+              whiteSpace:"nowrap",
+            }}
+          >
+          <ShieldCheck
+            size={18}
+            color="#16a34a"
+          />
+          Communes les moins déforestées par rapport à leur couverture forestière en {year}
+          </div>
 
-<ShieldCheck
-size={18}
-color="#16a34a"
-/>
+          {/* CLASSEMENT */}
+          <div
+            style={{
+              display:"flex",
+              justifyContent:"flex-end",
+              alignItems:"center",
+              fontSize:12,
+              gap:18,
+              width:"100%",
+            }}
+          >
+          { communesMoinsDeforestees.map((item,index)=>{
 
-Communes les moins déforestées par rapport à leur couverture forestière en {year}
-
-</div>
-
-
-{/* CLASSEMENT */}
-<div
-style={{
-  display:"flex",
-  justifyContent:"flex-end",
-  alignItems:"center",
-  fontSize:12,
-  gap:18,
-  width:"100%",
-}}
->
-
-{
-communesMoinsDeforestees.map((item,index)=>{
-
-const medals = [
-"gold",
-"silver",
-"#cd7f32"
-];
-
-return (
-
-<div
-key={item.commune}
-style={{
-display:"flex",
-alignItems:"center",
-gap:6
-}}
->
-
-<Medal
-color={medals[index]}
-/>
-
-<span>
-{item.commune}
-</span>
-
-<span
-style={{
-color:"#16a34a",
-fontWeight:600
-}}
->
-(
-{item.taux.toFixed(2)}%
-)
-</span>
-
-</div>
-
-)
-
-})
-}
-
-</div>
-
-</div>
-
+              const medals = [
+              "gold",
+              "silver",
+              "#cd7f32"
+              ];
+          return (
+            <div
+                key={item.commune}
+                style={{
+                display:"flex",
+                alignItems:"center",
+                gap:6
+                }}
+              >
+              <Medal
+                color={medals[index]}
+              />
+              <span>
+                {item.commune}
+              </span>
+              <span
+                style={{
+                color:"#16a34a",
+                fontWeight:600
+                }}
+              >
+                ({item.taux.toFixed(2)}%)
+              </span>
+            </div>
+          )
+          })
+          }
+        </div>
+      </div>
 
 <div
   style={{
