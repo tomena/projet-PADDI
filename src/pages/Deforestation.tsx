@@ -1173,7 +1173,7 @@ const Graphique2Pro = () => {
         marginBottom:5,
         }}
         >
-        Déforestation par Commune à l'intérieur de l'Aire Protégée
+        Déforestation par Commune à l'intérieur de l'Aire Protégée 
         </div>
         <div
           style={{
@@ -2032,7 +2032,7 @@ return (
               marginBottom:5
             }}
           >
-          Evolution décennale de la déforestation autour de l'Aire Protégée
+          Evolution décennale de la déforestation autour de l'Aire Protégée {ap}
           </div>
           {/* ================= INTERIEUR ================= */}
           <div
