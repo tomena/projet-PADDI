@@ -956,6 +956,44 @@ const picTaux = useMemo(() => {
 }, [chart5Pro]);
 
 
+const chartEvolution = useMemo(() => {
+  const annees = Array.from({ length: 24 }, (_, i) => 2001 + i);
+  return annees.map((annee) => {
+    // Perte annuelle (ha)
+    const superficie = dataAP
+      .filter(f => f.properties.Source === "Commune")
+      .reduce(
+        (total, f) =>
+          total + Number(f.properties[String(annee)] || 0),
+        0
+      );
+    // Couverture restante avant cette année
+    const couvertureAvant = dataAP
+      .filter(f => f.properties.Source === "Commune")
+      .reduce((total, f) => {
+        const p = f.properties;
+        const perteAvant = Object.keys(p)
+          .filter(key => Number(key) >= 2001 && Number(key) < annee)
+          .reduce(
+            (s, key) => s + Number(p[key] || 0),
+            0
+          );
+        return total + (Number(p.Couverture2000) - perteAvant);
+      }, 0);
+    // Taux annuel (%)
+    const taux =
+      couvertureAvant > 0
+        ? (superficie / couvertureAvant) * 100
+        : 0;
+    return {
+      annee,
+      superficie,
+      taux: Number(taux.toFixed(2)),
+    };
+  });
+}, [dataAP]);
+
+
 const Graphique1 = () => {
   return (
     <div
@@ -1863,24 +1901,14 @@ return (
                     fontSize:12,
                     fontWeight: 700,
                     fontStyle: "italic",
-                    marginBottom: 10,
+                    marginBottom: 5,
                   }}
                 >
-            Tendance de taux de déforestation à l'intérieur de l'Aire Protégée
+            Évolution annuelle des pertes forestières et du taux de déforestation des Communes riveraines
           </div>
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-                data={chart5Pro}
-                margin={{ left: 0, right: 10, top: 10, bottom: 10 }}
-              >
+            <ComposedChart data={chartEvolution}>
                 <CartesianGrid stroke="#e5e7eb" />
-
-                <Tooltip
-                  formatter={(value:any)=>[
-                    `${value}%`,
-                    "Taux"
-                  ]}
-                  />
                   <XAxis
                     dataKey="annee"
                     interval={0}
@@ -1888,58 +1916,71 @@ return (
                     textAnchor="end"
                     height={60}
                     tick={{ fontSize: 10 }}
-                    padding={{ left: 10, right: 10 }}
+                    padding={{ left: 5, right: 5 }}
                   />
                 <YAxis
-                  width={45}
+                  yAxisId="left"
                   tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => `${v}%`}
-                  domain={[0, (dataMax: number) => Math.ceil(dataMax)]}
+                  domain={[
+                    0,
+                    (dataMax: number) => Math.ceil(dataMax / 1000) * 1000
+                  ]}
+                />
+                <YAxis
+                  yAxisId="right"
+                  orientation="right"
+                  hide={true}
+                />
+                <Bar
+                    yAxisId="left"
+                    dataKey="superficie"
+                    name="Superficie"
+                    fill="#93c5fd"
+                    barSize={10}
                 />
                 <Line
-                  type="linear"
+                  yAxisId="right"
+                  type="monotone"
                   dataKey="taux"
+                  name="Taux de perte (%)"
                   stroke="#dc2626"
-                  strokeWidth={2}
+                  strokeWidth={1.5}
                   dot={(props:any)=>{
                     const {
                       cx,
                       cy,
                       payload
-                    } = props;                  
-                    const isPeak =
-                      payload.annee === picTaux.annee;                  
-                    return (                  
-                      <g>                  
+                    } = props;
+                  
+                    const isPeak = payload.annee === picTaux.annee;
+                  
+                    if (!isPeak) {
+                      return null;
+                    }
+                  
+                    return (
+                      <g>
                         <circle
                           cx={cx}
                           cy={cy}
-                          r={isPeak ? 5 : 3}
-                          fill={
-                            isPeak
-                            ? "#f59e0b"
-                            : "#2563eb"
-                          }
+                          r={5}
+                          fill="#dc2626"
                           stroke="#fff"
                           strokeWidth={1.5}
-                        />                  
-                        {
-                          isPeak &&
-                          (
-                            <text
-                              x={cx}
-                              y={cy-12}
-                              textAnchor="middle"
-                              fontSize={11}
-                              fontWeight={700}
-                              fill="#f59e0b"
-                            >
-                              {payload.taux.toFixed(2)}%
-                            </text>
-                          )
-                        }                  
-                      </g>                  
-                    );                  
+                        />
+                  
+                        <text
+                          x={cx}
+                          y={cy - 12}
+                          textAnchor="middle"
+                          fontSize={11}
+                          fontWeight={700}
+                          fill="#dc2626"
+                        >
+                          {payload.taux.toFixed(1)}%
+                        </text>
+                      </g>
+                    );
                   }}
                 />
               <LabelList
@@ -1948,7 +1989,15 @@ return (
                 formatter={(v:number)=>`${v}%`}
                 fontSize={10}
               />
-              </LineChart>
+              <Legend
+                verticalAlign="top"
+                align="center"
+                wrapperStyle={{
+                  fontSize: 11,
+                  fontWeight: 600
+                }}
+              />
+              </ComposedChart>
           </ResponsiveContainer>
         </div>
 
