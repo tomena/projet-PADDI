@@ -277,7 +277,7 @@ interface CardProps {
                     marginTop:8,
                   }}
                 >
-                  de sa couverture de l'année précédente
+                  de sa couverture forestière
                 </div>
               </div>
             </div>
@@ -857,167 +857,273 @@ export default function Deforestation() {
         }
       }, [ap, dataAP]);
 
-  const couverture2000 = useMemo(()=>{
-    return baseDeforestation
-      .filter(f =>
-        f.properties.AP === ap
-      )
-      .reduce(
-      (total,f)=>
-      total +
-      Number(f.properties.Couverture2000 || 0)
-      ,0
-      );
-    
-    },[
-      baseDeforestation,
-      ap
-    ]);
-
-  const getPerteCumulee = (
-      properties:any,
-      annee:number
-      )=>{
+      const dataCommunes = useMemo(() => {
+        return dataAP.filter(f =>
+          String(f.properties.Source)
+            .trim()
+            .toLowerCase() === "commune"
+        );
+      }, [dataAP]);
       
-      return Object.keys(properties)
-      .filter(key =>
-        Number(key)>=2001 &&
-        Number(key)<=annee
-      )
-      .reduce(
-      (total,key)=>
-       total +
-       Number(properties[key] || 0)
-      ,0);
-      
-      };
+      const dataInterieur = useMemo(() => {
+        return dataAP.filter(f =>
+          String(f.properties.Source)
+            .trim()
+            .toLowerCase() === "interrieur"
+        );
+      }, [dataAP]);
 
-  const superficieRestante = useMemo(()=>{
-        return dataAP.reduce(
-        (total,f)=>{        
-        const p=f.properties;        
-        const perte =
-        getPerteCumulee(
-         p,
-         year
-        );        
-        return total +
-        (
-         Number(p.Couverture2000)
-         -
-         perte
-        );        
-        },0);        
-        },[
-        dataAP,
-        year
-        ]);
+      const couverture2000 = useMemo(() => {
+        return baseDeforestation
+          .filter(f => {      
+            const p = f.properties;      
+            return (
+              p.AP === ap &&
+              String(p.Source)
+                .trim()
+                .toLowerCase() === "commune"
+            );      
+          })
+          .reduce(
+            (total, f) =>
+              total +
+              Number(f.properties.Couverture2000 || 0),
+            0
+          );      
+      }, [
+        baseDeforestation,
+        ap
+      ]);
 
-    const perteAnnee = useMemo(()=>{
-          return dataAP
-          .filter(f =>
-           f.properties.Source==="Interrieur"
+      const getPerteCumulee = (
+        properties: any,
+        annee: number
+      ) => {
+        return Object.keys(properties)
+          .filter(key =>
+            Number(key) >= 2001 &&
+            Number(key) <= annee
           )
           .reduce(
-          (total,f)=>
-           total+
-           Number(
-             f.properties[String(year)] || 0
-           )
-          ,0);
-          
-          
-          },[
-          dataAP,
-          year
-          ]);
+            (total, key) =>
+              total + Number(properties[key] || 0),
+            0
+          );
+      };
 
-  const moyenneAnnuelle = useMemo(()=>{
-            const perteTotale =
-            dataAP.reduce(
-            (total,f)=>
-             total+
-             getPerteCumulee(
-               f.properties,
-               year
-             )
-            ,0);            
-            const nombreAnnees =
-            year - 2000;            
-            return nombreAnnees>0
-            ?
-            perteTotale/nombreAnnees
-            :
-            0;           
-            
-            },[
-            dataAP,
-            year
-            ]);
-
-            const tauxPerte = useMemo(()=>{
-              const perte =
-              couverture2000 -
-              superficieRestante;              
-              return couverture2000>0
-              ?
-              (perte/couverture2000)*100
-              :
-              0;             
-              
-              },[
-              couverture2000,
-              superficieRestante
-              ]);
-
-              const communeImpactee = useMemo(()=>{
-                const communes = dataAP.map(f=>{
-                const p = f.properties;
-                // perte de l'année choisie
-                const perteAnnee =
-                Number(
-                  p[String(year)] || 0
-                );
-                // couverture restante avant cette année
-                const perteAvant =
-                Object.keys(p)
-                .filter(key =>
-                  Number(key)>=2001 &&
-                  Number(key)<year
-                )
-                .reduce(
-                (total,key)=>
-                 total + Number(p[key] || 0)
-                ,0);
-                const couvertureAvant =
+      const superficieRestante = useMemo(()=>{
+        const superficieCommuneRestante =
+          dataAP
+          .filter(f =>
+            String(f.properties.Source)
+            .trim()
+            .toLowerCase() === "commune"
+          )
+          .reduce((total,f)=>{
+            const p = f.properties;
+            const perte =
+              getPerteCumulee(
+                p,
+                year
+              );
+            return total +
+              (
                 Number(p.Couverture2000 || 0)
                 -
-                perteAvant;
-                // taux de perte de l'année
-                const taux =
-                couvertureAvant > 0
-                ?
-                (perteAnnee / couvertureAvant)*100
-                :
-                0;
-                return {
-                 commune:p.Commune,
-                 perte:perteAnnee,
-                 taux:taux
-                };
-                });
-                // commune avec le plus grand taux de perte cette année
-                return communes.sort(
-                (a,b)=>b.taux-a.taux
-                )[0] || {
-                 commune:"-",
-                 taux:0,
-                 perte:0
-                };
-                },[
-                dataAP,
+                perte
+              );
+          },0);
+        const superficieInterieurRestante =
+          dataAP
+          .filter(f =>
+            String(f.properties.Source)
+            .trim()
+            .toLowerCase() === "interrieur"
+          )
+          .reduce((total,f)=>{
+            const p = f.properties;
+            const perte =
+              getPerteCumulee(
+                p,
                 year
-                ]);
+              );
+            return total +
+              (
+                Number(p.Couverture2000 || 0)
+                -
+                perte
+              );
+          },0);
+        return superficieCommuneRestante -
+               superficieInterieurRestante;
+      },[
+       dataAP,
+       year
+      ]);
+
+      const perteAnnee = useMemo(()=>{
+        return dataAP
+          .filter(f =>
+            String(f.properties.Source)
+            .trim()
+            .toLowerCase() === "interrieur"
+          )
+          .reduce(
+            (total,f)=>
+              total +
+              Number(
+                f.properties[String(year)] || 0
+              ),
+            0
+          );
+      },[
+        dataAP,
+        year
+      ]);
+
+      const moyenneAnnuelle = useMemo(()=>{
+        const pertes = dataAP
+          .filter(f =>
+            String(f.properties.Source)
+              .trim()
+              .toLowerCase() === "commune"
+          )
+          .flatMap(f=>{
+      
+            return Object.keys(f.properties)
+              .filter(key =>
+                Number(key)>=2001 &&
+                Number(key)<=year
+              )
+              .map(key =>
+                Number(f.properties[key] || 0)
+              );
+          });
+        if(pertes.length===0)
+          return 0;
+        return (
+          pertes.reduce(
+            (a,b)=>a+b,
+            0
+          )
+          /
+          pertes.length
+        );
+      },[
+       dataAP,
+       year
+      ]);
+
+      const tauxPerte = useMemo(()=>{
+        const couvertureInitiale = dataAP
+          .filter(f =>
+            String(f.properties.Source)
+              .trim()
+              .toLowerCase() === "commune"
+          )
+          .reduce(
+            (total,f)=>
+              total +
+              Number(f.properties.Couverture2000 || 0),
+            0
+          );
+        const perteCumulee = dataAP
+          .filter(f =>
+            String(f.properties.Source)
+              .trim()
+              .toLowerCase() === "commune"
+          )
+          .reduce(
+            (total,f)=>
+              total +
+              getPerteCumulee(
+                f.properties,
+                year
+              ),
+            0
+          );
+        return couvertureInitiale > 0
+          ?
+          (perteCumulee / couvertureInitiale) * 100
+          :
+          0;
+      },[
+        dataAP,
+        year
+      ]);
+
+      const communeImpactee = useMemo(() => {
+        // 1. Trouver la commune qui a perdu le plus de superficie l'année choisie
+        const communeMax = dataCommunes.reduce(
+          (max, f) => {
+            const perteAnnee =
+              Number(
+                f.properties[String(year)] || 0
+              );
+            if(perteAnnee > max.perte){
+              return {
+                commune: f.properties.Commune,
+                perte: perteAnnee
+              };
+            }
+            return max;
+          },
+          {
+            commune:"",
+            perte:0
+          }
+        );
+        // aucune donnée
+        if(!communeMax.commune){
+          return {
+            commune:"-",
+            perte:0,
+            taux:0
+          };
+        }
+        // 2. Retrouver la ligne de cette commune
+        const ligne = dataCommunes.find(
+          f =>
+            f.properties.Commune === communeMax.commune
+        );
+        if(!ligne){
+          return {
+            commune:"-",
+            perte:0,
+            taux:0
+          };
+        }
+        const p = ligne.properties;
+        // 3. Calcul de la perte cumulée depuis 2001 jusqu'à l'année choisie
+        const perteCumulee =
+          Object.keys(p)
+            .filter(key =>
+              Number(key)>=2001 &&
+              Number(key)<=year
+            )
+            .reduce(
+              (total,key)=>
+                total +
+                Number(p[key] || 0),
+              0
+            );
+        // 4. Taux cumulé par rapport à la couverture 2000
+        const taux =
+          Number(p.Couverture2000)>0
+            ?
+            (perteCumulee /
+            Number(p.Couverture2000))*100
+            :
+            0;
+        return {
+          commune: communeMax.commune,
+          perte: communeMax.perte,
+          taux
+        };
+      },[
+        dataCommunes,
+        year
+      ]);
     
   const maxChart6 =chart6 && chart6.length>0
                 ?
@@ -1029,40 +1135,56 @@ export default function Deforestation() {
 
 
   const communesMoinsDeforestees = useMemo(()=>{
-    const communes = dataAP.map(f=>{  
-      const p = f.properties;
-      // perte cumulée depuis 2001 jusqu'à l'année choisie
-      const perteCumulee =
-        Object.keys(p)
-        .filter(key =>
-          Number(key)>=2001 &&
-          Number(key)<=year
-        )
-        .reduce(
-          (total,key)=>
-            total + Number(p[key] || 0)
-        ,0);
-      // taux de perte par rapport à la couverture initiale 2000
-      const taux =
-        Number(p.Couverture2000)>0
-        ?
-        (perteCumulee /
-         Number(p.Couverture2000))
-         *100
-        :
-        0;
-      return {
-        commune:p.Commune,
-        taux:taux,
-        perte:perteCumulee
-      };
-    });
+    const communes = dataAP
+      .filter(f =>
+        String(f.properties.Source)
+          .trim()
+          .toLowerCase() === "commune"
+      )
+      .map(f=>{
+        const p = f.properties;
+        // perte uniquement de l'année choisie
+        const perteAnnee =
+          Number(
+            p[String(year)] || 0
+          );
+        // pertes avant l'année choisie
+        const perteAvant =
+          Object.keys(p)
+            .filter(key =>
+              Number(key)>=2001 &&
+              Number(key)<year
+            )
+            .reduce(
+              (total,key)=>
+                total +
+                Number(p[key] || 0),
+              0
+            );
+        // couverture restante avant cette année
+        const couvertureRestante =
+          Number(p.Couverture2000 || 0)
+          -
+          perteAvant;
+        // taux de perte de l'année choisie
+        const taux =
+          couvertureRestante > 0
+          ?
+          (perteAnnee / couvertureRestante)*100
+          :
+          0;
+        return {
+          commune:p.Commune,
+          taux:taux,
+          perte:perteAnnee
+        };
+      });
     return communes
       .sort((a,b)=>a.taux-b.taux)
       .slice(0,3);
   },[
-  dataAP,
-  year
+    dataAP,
+    year
   ]);
 
   const kpis = useMemo(() => [
