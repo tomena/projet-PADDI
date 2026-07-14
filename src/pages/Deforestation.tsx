@@ -41,36 +41,6 @@ const data = [
     ap: "Ankarafantsika",
   },
 ];
-
-//========================
-// GRAPHIQUE 5
-//========================
-
-const chart5 = [
-{annee:2002,taux:0},
-{annee:2003,taux:0.2},
-{annee:2004,taux:0.1},
-{annee:2005,taux:3},
-{annee:2006,taux:0},
-{annee:2007,taux:0},
-{annee:2008,taux:0},
-{annee:2009,taux:0},
-{annee:2010,taux:0.2},
-{annee:2011,taux:0},
-{annee:2012,taux:1.4},
-{annee:2013,taux:1.7},
-{annee:2014,taux:0.7},
-{annee:2015,taux:5},
-{annee:2016,taux:3.2},
-{annee:2017,taux:2.8},
-{annee:2018,taux:1},
-{annee:2019,taux:1.3},
-{annee:2020,taux:2.8},
-{annee:2021,taux:3.1},
-{annee:2022,taux:2.8},
-{annee:2023,taux:0.7},
-];
-
 //========================
 // GRAPHIQUE 6
 //========================
@@ -863,7 +833,6 @@ return communes;
   yearCompareG3
  ]);
 
-
 const chart4 = useMemo(()=>{
   // toutes les communes riveraines de l'AP choisi
   const toutesCommunes = dataAP
@@ -931,6 +900,62 @@ const chart4 = useMemo(()=>{
  year
 ]);
 
+
+const chart5Pro = useMemo(() => {
+  const lignes = dataAP.filter(
+    f => f.properties.Source === "Interrieur"
+  );
+  return Array.from(
+    { length: 24 },
+    (_, i) => 2001 + i
+  ).map(annee => {
+    // perte de l'année
+    const perteAnnee = lignes.reduce((total, f) => {
+      return total +
+        Number(
+          f.properties[String(annee)] || 0
+        );
+    }, 0);
+    // couverture restante avant cette année
+    const couvertureRestante = lignes.reduce((total, f) => {
+      const p = f.properties;
+      const perteAvant = Object.keys(p)
+        .filter(key =>
+          Number(key) >= 2001 &&
+          Number(key) < annee
+        )
+        .reduce(
+          (s, key) =>
+            s + Number(p[key] || 0),
+          0
+        );
+      return total +
+        (
+          Number(p.Couverture2000 || 0)
+          - perteAvant
+        );
+    }, 0);
+    const taux =
+      couvertureRestante > 0
+        ? (perteAnnee / couvertureRestante) * 100
+        : 0;
+    return {
+      annee,
+      taux: Number(taux.toFixed(2))
+    };
+  });
+}, [dataAP, year]);
+
+
+const picTaux = useMemo(() => {
+  return chart5Pro.reduce((max, item) =>
+    item.taux > max.taux
+      ? item
+      : max
+  );
+}, [chart5Pro]);
+
+
 const Graphique1 = () => {
   return (
     <div
@@ -982,13 +1007,11 @@ const Graphique1 = () => {
                 : value
             }
           />
-
           <YAxis
             yAxisId="left"
             domain={[0, "dataMax"]}
             tick={{ fontSize: 11 }}
           />
-
           <Bar
             yAxisId="left"
             name="Superficie"
@@ -1005,7 +1028,6 @@ const Graphique1 = () => {
               fontWeight={600}
             />
           </Bar>
-
           <Line
             name="Cumul (%)"
             yAxisId="right"
@@ -1024,7 +1046,6 @@ const Graphique1 = () => {
               style={{ fontWeight: "bold", fontSize: 11 }}
             />
           </Line>
-
           <Legend
             verticalAlign="top"
             align="center"
@@ -1034,7 +1055,6 @@ const Graphique1 = () => {
               color: "#1565c0",
             }}
           />
-
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -1151,8 +1171,7 @@ const Graphique2Pro = () => {
       </div>
 
       <ResponsiveContainer width="100%" height="100%" >
-        <BarChart data={chart2Pro} barGap={1} barCategoryGap="20%"> 
-
+        <BarChart data={chart2Pro} barGap={1} barCategoryGap="20%">
           <XAxis
             dataKey="communeCourt"
             angle={-20}
@@ -1162,7 +1181,6 @@ const Graphique2Pro = () => {
             tick={{ fontSize: 10 }}
             padding={{ left: 10, right: 10 }}
           />
-
           <YAxis
             domain={[0, (dataMax: number) => Math.ceil(dataMax / 100) * 100]}
             tick={{ fontSize: 11 }}
@@ -1177,21 +1195,18 @@ const Graphique2Pro = () => {
               color: "#1565c0",
             }}
           />
-
           <YAxis
               domain={[0, 'dataMax']}
               tick={{ fontSize: 11 }}
               allowDecimals={false}
             />
-
           <Bar
             dataKey="y1"
             name={String(yearCompareG2)}
             fill="#fdba74"
             barSize={13}
             radius={[2,2,0,0]}
-          />
-            
+          />            
             <Bar
                 dataKey="y2"
                 name={String(year)}
@@ -1234,7 +1249,6 @@ const Graphique3 = () => {
         />
       );
     }  
-  
     return (
       <g>  
         {/* point */}
@@ -1244,7 +1258,6 @@ const Graphique3 = () => {
           r={2}
           fill="#2563eb"
         />  
-  
         {/* flèche */}
         <text
           x={cx}
@@ -1263,9 +1276,7 @@ const Graphique3 = () => {
             ? "▲"
             : "▼"
           }
-        </text>
-  
-  
+        </text>  
         {/* différence ha */}
         <text
           x={cx}
@@ -1355,13 +1366,11 @@ const Graphique3 = () => {
           )}
           </select>
         </div>
-
       <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={chart3Pro}
           >
           <CartesianGrid stroke="#e5e7eb" />
-
           <XAxis
             dataKey="communeCourt"
             angle={-20}
@@ -1371,12 +1380,10 @@ const Graphique3 = () => {
             tick={{fontSize:10}}
             padding={{left:10,right:10}}
           />
-
           <YAxis
             domain={[0, (dataMax) => Math.ceil(dataMax * 1.1)]}
             tick={{ fontSize: 12 }}
           />
-
         <Legend
           verticalAlign="top"
           align="center"
@@ -1387,8 +1394,6 @@ const Graphique3 = () => {
           color:"#1565c0",
           }}
         />
-
-          {/* 2018 */}
           <Line
             type="monotone"
             dataKey="y1"
@@ -1397,8 +1402,6 @@ const Graphique3 = () => {
             strokeWidth={2}
             dot={{r:1}}
           />
-
-          {/* 2019 */}
           <Line
             type="monotone"
             dataKey="y2"
@@ -1422,15 +1425,12 @@ const Graphique4 = () => {
     (sum, x) => sum + x.superficie,
     0
   );
-
   const cumulated = arr
     .slice(0, index + 1)
     .reduce(
       (sum, x) => sum + x.superficie,
       0
     );
-
-
   return {
     ...d,
     pctCum:
@@ -1439,9 +1439,7 @@ const Graphique4 = () => {
         .toFixed(1)
       )
   };
-
 });
-
   return (
     <div
       style={{
@@ -1466,31 +1464,27 @@ const Graphique4 = () => {
       >
         Communes les plus touchées depuis 2001 jusqu'en {year}
       </div>
-
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={chart4} margin={{ top: 15, bottom: 15 }} barCategoryGap="25%">
           <CartesianGrid stroke="#f3f4f6" />
-
-          <XAxis
-            dataKey="commune"
-            angle={-20}
-            textAnchor="end"
-            interval={0}
-            tick={{ fontSize: 11 }}
-            height={50}
-            tickFormatter={(value)=> 
-              value.length > 8
-                ? `${value.substring(0,8)}...`
-                : value
-            }
+            <XAxis
+              dataKey="commune"
+              angle={-20}
+              textAnchor="end"
+              interval={0}
+              tick={{ fontSize: 11 }}
+              height={50}
+              tickFormatter={(value)=> 
+                value.length > 8
+                  ? `${value.substring(0,8)}...`
+                  : value
+              }
           />
-
           <YAxis
             yAxisId="left"
             domain={[0, "dataMax"]}
             tick={{ fontSize: 11 }}
           />
-
           <Legend
             verticalAlign="bottom"
             align="center"
@@ -1500,7 +1494,6 @@ const Graphique4 = () => {
               marginBottom: 5,
             }}
           />
-
           {/* BAR ROUGE */}
           <Bar
             yAxisId="left"
@@ -1510,7 +1503,6 @@ const Graphique4 = () => {
             barSize={40}
             radius={[3, 3, 0, 0]}
           >
-
           <LabelList
             dataKey="superficie"
             position="insideTop"
@@ -1518,9 +1510,7 @@ const Graphique4 = () => {
             fontSize={9}
             fontWeight={600}
           />
-
           </Bar>
-
           {/* LINE CUMUL */}
           <Line
             name="Cumul (%)"
@@ -1557,9 +1547,7 @@ const Graphique4 = () => {
 };
 
 
-
-
-  return (
+return (
     <div
         style={{
           padding: 12,
@@ -1810,114 +1798,159 @@ const Graphique4 = () => {
         </div>
       </div>
 
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr 0.9fr 1.2fr",
-    gap: 2,
-    marginBottom: 5,
-  }}
->
-{kpis.map((k, i) => (
-  <KPICard
-    key={i}
-    index={i}
-    title={k.title}
-    value={k.value}
-    color={k.color}
-    icon={k.icon}
-    commune={k.commune}
-    taux={k.taux}
-  />
-))}
-</div>
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 5,
-    marginTop: 5,
-    alignItems: "stretch",
-  }}
->
-<div style={{ width: "100%" }}>
-      <Graphique1 />
-    </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr 1fr 0.9fr 1.2fr",
+          gap: 2,
+          marginBottom: 5,
+        }}
+      >
+      {kpis.map((k, i) => (
+        <KPICard
+          key={i}
+          index={i}
+          title={k.title}
+          value={k.value}
+          color={k.color}
+          icon={k.icon}
+          commune={k.commune}
+          taux={k.taux}
+        />
+      ))}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 5,
+          marginTop: 5,
+          alignItems: "stretch",
+        }}
+      >
+      <div style={{ width: "100%" }}>
+            <Graphique1 />
+          </div>
 
-    <div style={{ width: "100%" }}>
-      <Graphique2Pro />
-    </div>
+          <div style={{ width: "100%" }}>
+            <Graphique2Pro />
+          </div>
 
-    <div style={{ width: "100%" }}>
-      <Graphique3 />
-    </div>
+          <div style={{ width: "100%" }}>
+            <Graphique3 />
+          </div>
 
-    <div style={{ width: "100%" }}>
-      <Graphique4 />
-    </div>
+          <div style={{ width: "100%" }}>
+            <Graphique4 />
+          </div>
 
-{/* =====================EVOLUTION DU TAUX ===================== */}
-<div
-  style={{
-    background: "#fff",
-    border: "1px solid #d9d9d9",
-    borderRadius: 8,
-    padding: 10,
-    height: 280,
-    boxSizing: "border-box",
-    overflow: "hidden"
-  }}
->
+        {/* =====================EVOLUTION DU TAUX ===================== */}
         <div
           style={{
-            textAlign: "center",
-            color: "#d32f2f",
-            fontSize:12,
-            fontWeight: 700,
-            fontStyle: "italic",
-            marginBottom: 10,
+            background: "#fff",
+            border: "1px solid #d9d9d9",
+            borderRadius: 8,
+            padding: 10,
+            height: 280,
+            boxSizing: "border-box",
+            overflow: "hidden"
           }}
         >
-    Tendance de taux de déforestation à l'intérieur de l'Aire Protégée
-  </div>
+                <div
+                  style={{
+                    textAlign: "center",
+                    color: "#d32f2f",
+                    fontSize:12,
+                    fontWeight: 700,
+                    fontStyle: "italic",
+                    marginBottom: 10,
+                  }}
+                >
+            Tendance de taux de déforestation à l'intérieur de l'Aire Protégée
+          </div>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+                data={chart5Pro}
+                margin={{ left: 0, right: 10, top: 10, bottom: 10 }}
+              >
+                <CartesianGrid stroke="#e5e7eb" />
 
-  <ResponsiveContainer width="100%" height="100%">
-    <LineChart
-        data={chart5}
-        margin={{ left: 0, right: 10, top: 10, bottom: 10 }}
-      >
-        <CartesianGrid stroke="#e5e7eb" />
-
-        <XAxis
-          dataKey="annee"
-          tick={{ fontSize: 11 }}
-          height={40}
-        />
-
-        <YAxis
-          domain={[0, (dataMax: number) => Math.ceil(dataMax)]}
-          width={30}
-        />
-
-        <Line
-          type="linear"
-          dataKey="taux"
-          stroke="#dc2626"
-          strokeWidth={2}
-          dot={(props: any) => {
-            const { cx, cy } = props;
-
-            return (
-              <g>
-                <line x1={cx - 5} y1={cy} x2={cx + 5} y2={cy} stroke="#2563eb" strokeWidth={2} />
-                <line x1={cx} y1={cy - 5} x2={cx} y2={cy + 5} stroke="#2563eb" strokeWidth={2} />
-              </g>
-            );
-          }}
-        />
-      </LineChart>
-  </ResponsiveContainer>
-</div>
+                <Tooltip
+                  formatter={(value:any)=>[
+                    `${value}%`,
+                    "Taux"
+                  ]}
+                  />
+                  <XAxis
+                    dataKey="annee"
+                    interval={0}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                    tick={{ fontSize: 10 }}
+                    padding={{ left: 10, right: 10 }}
+                  />
+                <YAxis
+                  width={45}
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) => `${v}%`}
+                  domain={[0, (dataMax: number) => Math.ceil(dataMax)]}
+                />
+                <Line
+                  type="linear"
+                  dataKey="taux"
+                  stroke="#dc2626"
+                  strokeWidth={2}
+                  dot={(props:any)=>{
+                    const {
+                      cx,
+                      cy,
+                      payload
+                    } = props;                  
+                    const isPeak =
+                      payload.annee === picTaux.annee;                  
+                    return (                  
+                      <g>                  
+                        <circle
+                          cx={cx}
+                          cy={cy}
+                          r={isPeak ? 5 : 3}
+                          fill={
+                            isPeak
+                            ? "#f59e0b"
+                            : "#2563eb"
+                          }
+                          stroke="#fff"
+                          strokeWidth={1.5}
+                        />                  
+                        {
+                          isPeak &&
+                          (
+                            <text
+                              x={cx}
+                              y={cy-12}
+                              textAnchor="middle"
+                              fontSize={11}
+                              fontWeight={700}
+                              fill="#f59e0b"
+                            >
+                              {payload.taux.toFixed(2)}%
+                            </text>
+                          )
+                        }                  
+                      </g>                  
+                    );                  
+                  }}
+                />
+              <LabelList
+                dataKey="taux"
+                position="top"
+                formatter={(v:number)=>`${v}%`}
+                fontSize={10}
+              />
+              </LineChart>
+          </ResponsiveContainer>
+        </div>
 
 {/* ===================== HISTOGRAMME ANNUEL ===================== */}
 <div
