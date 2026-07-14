@@ -1333,8 +1333,8 @@ const Graphique3 = () => {
           <select
             value={yearCompareG3}
             onChange={(e)=>
-            setYearCompare(Number(e.target.value))
-          }
+            setYearCompareG3(Number(e.target.value))
+            }
           style={{
             padding:"3px 8px",
             borderRadius:6,
