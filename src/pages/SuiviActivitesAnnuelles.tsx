@@ -1,11 +1,129 @@
-import React from 'react';
-import { CalendarDays, RotateCcw, CheckCircle, ListChecks, Clock, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
+import React, { useEffect, useState } from 'react';
+import { CalendarDays, RotateCcw, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
 } from 'lucide-react';
 
 import { ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 
+interface CoutActivite {
+  Année:number;
+  Mois:string;
+  UC:string;      
+  [key:string]: any;
+      }
+
+  
+
+const composantesConfig = [
+  { code: "C1", icon: Leaf, title: "Gestion des services écosystémiques" },
+  { code: "C2", icon: Building, title: "Gouvernance environnementale" },
+  { code: "C3", icon: Map, title: "Développement des paysages" },
+  { code: "C4", icon: Briefcase, title: "Création d'emplois verts" },
+];
+
+const ordreMois = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre"
+];
+
 export default function SuiviActivitesAnnuelles() {
+
+  const [data,setData] = useState<CoutActivite[]>([]);
+  const [annee,setAnnee] = useState<number>(2026);
+  const [mois,setMois] = useState<string>("Tous");
+  const [uc,setUc] = useState<string>("Tous");
+
+  const getProgressColor = (value: number) => {
+    if (value <= 25) return '#ef4444';
+    if (value <= 50) return '#facc15';
+    if (value <= 75) return '#22c55e';
+    return '#2563eb';
+};
+
+  useEffect(() => {
+    fetch("/data/Base_Cout_Activite.geojson")
+      .then(res => {
+        if (!res.ok) {
+          throw new Error("Base_Cout_Activite.geojson introuvable");
+        }  
+        return res.json();
+      })
+      .then(json => {  
+        const table = json.features.map((f:any)=>f.properties);  
+        setData(table);  
+      })
+      .catch(err => {
+        console.error("Erreur chargement Base Cout :", err);
+      });  
+  }, []);
+
+  const annees = Array.from(
+    new Set(
+    data.map(d=>d.Année)
+    )
+    ).sort();
+
+  const moisListe = ordreMois.filter(m =>
+      data.some(d => d.Mois === m)
+    );
+
+  const ucListe = Array.from(
+    new Set(
+    data.map(d=>d.UC)
+     )
+    );
+
+ 
+  const dataFiltre = data.filter((d)=>{
+      const filtreAnnee = d.Année === annee;    
+      const filtreMois = mois === "Tous" || d.Mois === mois;    
+      const filtreUC = uc === "Tous" || d.UC === uc;   
+    
+      return filtreAnnee && filtreMois && filtreUC;    
+  });
+
+  const coutActuel = dataFiltre[0] ?? {};
+
+  const totalActivites = Number(coutActuel["NAP"] || 0);
+  const activitesAchevees = Number(coutActuel["NAA"] || 0);
+  const activitesEnCours = Number(coutActuel["NAC"] || 0);
+  const activitesNonDemarrees = Number(coutActuel["NAD"] || 0);
+
+  const tauxGlobalActivites =
+  totalActivites > 0
+    ? (activitesAchevees / totalActivites) * 100
+    : 0;
+
+
+  const globalPie = [
+      { value: tauxGlobalActivites },
+      { value: 100 - tauxGlobalActivites },
+    ];
+
+
+  const results = [
+      {
+        label: "R1. SYSTÈME DE GESTION",
+        percent: Number(coutActuel["TAR 1"] || 0) * 100,
+      },
+      {
+        label: "R2. AMÉNAGEMENT DU TERRITOIRE",
+        percent: Number(coutActuel["TAR 2"] || 0) * 100,
+      },
+    ].map(item => ({
+      ...item,
+      color: getProgressColor(item.percent),
+    }));
 
   const clamp = (minPx, vw, maxPx) =>
   `clamp(${minPx}px, ${vw}vw, ${maxPx}px)`;
@@ -13,61 +131,36 @@ export default function SuiviActivitesAnnuelles() {
   const isMobile =
   typeof window !== 'undefined' && window.innerWidth < 900;
 
-  const globalPie = [
-    { value: 62 },
-    { value: 38 },
-  ];
-
-  const results = [
-    { label: 'R1. SYSTEME DE GESTION', percent: 68,done: 72,total: 106,color: '#2563eb', },
-    { label: 'R2. AMENAGEMENT DU TERRITOIRE', percent: 47, done: 37,total: 70,color: '#f59e0b', },
-  ];
-
   const composantes = [
     {
-      label: 'C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES',
-      percent: 81,
-      done: 46,
-      total: 57,
-      color: '#2563eb',
+      label: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+      percent: Number(coutActuel["TAA 1.1.1"] || 0) * 100,
       icon: Leaf,
-      trend: '+12%',
-      up: true,
     },
   
     {
-      label: 'C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE',
-      percent: 63,
-      done: 38,
-      total: 60,
-      color: '#16a34a',
+      label: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
+      percent: Number(coutActuel["TAA 1.1.2"] || 0) * 100,
       icon: ShieldCheck,
-      trend: '+6%',
-      up: true,
     },
   
     {
-      label: 'C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS',
-      percent: 48,
-      done: 28,
-      total: 58,
-      color: '#f59e0b',
+      label: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+      percent: Number(coutActuel["TAA 1.1.3"] || 0) * 100,
       icon: Mountain,
-      trend: '-4%',
-      up: false,
     },
   
     {
-      label: 'C4. CRÉATION D’EMPLOIS VERTS',
-      percent: 23,
-      done: 16,
-      total: 70,
-      color: '#f97316',
+      label: "C4. CRÉATION D’EMPLOIS VERTS",
+      percent: Number(coutActuel["TAA 1.1.4"] || 0) * 100,
       icon: BriefcaseBusiness,
-      trend: '-7%',
-      up: false,
     },
-  ];
+  
+  ].map(item => ({
+    ...item,
+    percent: Number(item.percent.toFixed(1)),
+    color: getProgressColor(item.percent)
+  }));
 
   const axes1 = {
     title: 'AXES PRIORITAIRES DE LA REALISATION 1 : SYSTÈME DE GESTION',
@@ -102,12 +195,14 @@ export default function SuiviActivitesAnnuelles() {
     const Axis1Icon = axes1.icon;
     const Axis2Icon = axes2.icon;
 
-    const getProgressColor = (value) => {
-        if (value <= 25) return '#ef4444'; // rouge
-        if (value <= 50) return '#facc15'; // jaune
-        if (value <= 75) return '#22c55e'; // vert
-        return '#2563eb'; // bleu
-      };
+   
+  
+  const couleurActivites = getProgressColor(tauxGlobalActivites);
+
+    console.log(data);
+    console.log(annees);
+    console.log(moisListe);
+    console.log(ucListe);
 
   return (
     <div style={styles.page}>
@@ -143,18 +238,21 @@ export default function SuiviActivitesAnnuelles() {
           <div style={{ flex: 1 }}>
             <div style={styles.filterLabel}>ANNÉE</div>
 
-            <select style={styles.bigSelect}>
-              <option>Tous</option>
-              <option>2024</option>
-              <option>2025</option>
-              <option>2026</option>
-              <option>2027</option>
-              <option>2028</option>
-              <option>2029</option>
-              <option>2030</option>
+            <select
+              style={styles.bigSelect}
+              value={annee}
+              onChange={(e)=>setAnnee(Number(e.target.value))}
+            >
+              {
+              annees.map(a=>
+              <option key={a} value={a}>
+              {a}
+              </option>
+              )
+              }
             </select>
 
-            <div style={styles.filterSub}>2024 - 2030</div>
+            <div style={styles.filterSub}>2025 - 2030</div>
           </div>
         </div>
 
@@ -167,20 +265,21 @@ export default function SuiviActivitesAnnuelles() {
           <div style={{ flex: 1 }}>
             <div style={styles.filterLabel}>MOIS</div>
 
-            <select style={styles.bigSelect}>
-              <option>Tous</option>
-              <option>Janvier</option>
-              <option>Février</option>
-              <option>Mars</option>
-              <option>Avril</option>
-              <option>Mai</option>
-              <option>Juin</option>
-              <option>Juillet</option>
-              <option>Août</option>
-              <option>Septembre</option>
-              <option>Octobre</option>
-              <option>Novembre</option>
-              <option>Decembre</option>
+            <select
+              style={styles.bigSelect}
+              value={mois}
+              onChange={(e)=>setMois(e.target.value)}
+            >
+              <option value="Tous">
+                Tous
+              </option>
+                {
+                moisListe.map(m=>
+                <option key={m}>
+                {m}
+              </option>
+              )
+              }
             </select>
 
             <div style={styles.filterSub}>Janvier - Décembre</div>
@@ -196,18 +295,22 @@ export default function SuiviActivitesAnnuelles() {
           <div style={{ flex: 1 }}>
             <div style={styles.filterLabel}>UNITÉ DE COORDINATION</div>
 
-            <select style={styles.bigSelect}>
-              <option>Tous</option>
-              <option>Antananarivo</option>
-              <option>Ambositra</option>
-              <option>Mahajanga</option>
-              <option>Diego</option>
-              <option>Fort-Dauphin</option>
-              <option>Farafangana</option>
+            <select
+                style={styles.bigSelect}
+                value={uc}
+                onChange={(e)=>setUc(e.target.value)}
+              >
+              {
+              ucListe.map(u=>
+              <option key={u}>
+              {u}
+              </option>
+              )
+              }
             </select>
 
             <div style={styles.filterSub}>
-              Ambositra, Mahajanga, Antananarivo, Fort-Dauphin...
+              DIANA, BOENY, ANTANANARIVO, FORT-DAUPHIN...
             </div>
           </div>
         </div>
@@ -245,7 +348,7 @@ export default function SuiviActivitesAnnuelles() {
                     outerRadius={75}
                     dataKey="value"
                     >
-                    <Cell fill="#16a34a" />
+                    <Cell fill={couleurActivites}/>
                     <Cell fill="#e5e7eb" />
                 </Pie>
                 </PieChart>
@@ -253,7 +356,14 @@ export default function SuiviActivitesAnnuelles() {
 
               </div>
 
-              <div style={styles.donutCenter}>62%</div>
+              <div
+                style={{
+                  ...styles.donutCenter,
+                  color: couleurActivites,
+                }}
+              >
+                {tauxGlobalActivites.toFixed(1)}%
+              </div>
             </div>
 
             {/* KPIs */}
@@ -266,7 +376,7 @@ export default function SuiviActivitesAnnuelles() {
                     </span>
 
                     <span style={styles.kpiValue}>
-                        176
+                      {totalActivites}
                     </span>
                 </div>
 
@@ -277,7 +387,7 @@ export default function SuiviActivitesAnnuelles() {
                             </span>
 
                             <span style={styles.kpiValue}>
-                                109
+                              {activitesAchevees}
                             </span>
                     </div>
 
@@ -288,7 +398,7 @@ export default function SuiviActivitesAnnuelles() {
                         </span>
 
                         <span style={styles.kpiValue}>
-                            51
+                          {activitesEnCours}
                         </span>
                     </div>
 
@@ -299,7 +409,7 @@ export default function SuiviActivitesAnnuelles() {
                         </span>
 
                         <span style={styles.kpiValue}>
-                            16
+                            {activitesNonDemarrees}
                         </span>
                     </div>
                 </div>
@@ -353,7 +463,7 @@ export default function SuiviActivitesAnnuelles() {
                           fontSize: 18, // 🔥 plus visible
                         }}
                       >
-                        {r.percent}%
+                        {r.percent.toFixed(1)}%
                       </div>
                     </div>          
                   </div>
@@ -373,11 +483,9 @@ export default function SuiviActivitesAnnuelles() {
 
             return (
               <div key={i} style={styles.smallCard}>
-
                 <div style={styles.compHeader}>
-
                     <div style={styles.compIcon}>
-                    <Icon size={18} color="#16a34a" />
+                      <Icon size={18} color="#16a34a" />
                     </div>
 
                     <span style={{ color: '#111827' }}>
@@ -415,7 +523,6 @@ export default function SuiviActivitesAnnuelles() {
                         {c.percent}%
                     </div>
                     </div>
-
                     </div>           
               </div>
             );
@@ -775,13 +882,15 @@ donutSmall:{
   margin:'8px auto',
 },
 
-  centerSmall: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%,-50%)',
-    fontWeight: 900,
-  },
+centerSmall: {
+  position: 'absolute',
+  top: '50%',
+  left: '50%',
+  transform: 'translate(-50%, -50%)',
+  fontWeight: 900,
+  fontSize: 10,
+  lineHeight: 1,
+},
 
   doneText: {
     fontSize: 10,
