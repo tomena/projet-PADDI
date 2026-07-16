@@ -1,5 +1,5 @@
-import React from 'react';
-import {CalendarDays,RotateCcw,Building2,Building,Plane,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,
+import React, { useEffect, useState }  from 'react';
+import {CalendarDays,RotateCcw,Building2,Building,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
       } from 'lucide-react';
 import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
 import { MdPayments, MdAccountBalanceWallet } from 'react-icons/md';
@@ -7,98 +7,12 @@ import { GiPayMoney } from 'react-icons/gi';
 import {ResponsiveContainer,PieChart,Pie,Cell,BarChart,Bar,XAxis,YAxis,LabelList,Label,CartesianGrid,Tooltip,
       } from 'recharts';
 
-const yearlyData = [
-  { year: '2024', value: 3.2, percent: 10 },
-  { year: '2025', value: 12.87, percent: 40 },
-  { year: '2026', value: 7.45, percent: 25 },
-  { year: '2027', value: 0, percent: 0 },
-  { year: '2028', value: 0, percent: 0 },
-  { year: '2029', value: 0, percent: 0 },
-  { year: '2030', value: 0, percent: 0 },
-  { year: '2031', value: 0, percent: 0 },
-];
-
-const composantes = [
-  {
-    icon: Leaf,
-    title: 'C1. Gestion des services écosystémiques',
-    amount: '4.985.230 €',
-    percent: '16,1%',
-    color: '#2563eb',
-  },
-  {
-    icon: Building,
-    title: 'C2. Gouvernance environnementale',
-    amount: '3.845.110 €',
-    percent: '12,4%',
-    color: '#2563eb',
-  },
-  {
-    icon: Map,
-    title: 'C3. Développement des paysages',
-    amount: '2.765.780 €',
-    percent: '8,9%',
-    color: '#16a34a',
-  },
-  {
-    icon: Briefcase,
-    title: 'C4. Création d’emplois verts',
-    amount: '1.269.300 €',
-    percent: '4,1%',
-    color: '#16a34a',
-  },
-];
-
-const instruments = [
-  {
-    icon: Coins,
-    title: 'Financements',
-    amount: '6.102.450 €',
-    percent: '19,7%',
-    color: '#2563eb',
-  },
-  {
-    icon: FaShoppingCart,
-    title: 'Achats',
-    amount: '2.814.560 €',
-    percent: '9,1%',
-    color: '#16a34a',
-  },
-  {
-    icon: FaFileContract,
-    title: 'Contrats',
-    amount: '2.145.230 €',
-    percent: '6,9%',
-    color: '#f59e0b',
-  },
-  {
-    icon: Plane,
-    title: 'Missions interne',
-    amount: '1.065.800 €',
-    percent: '3,4%',
-    color: '#f97316',
-  },
-  {
-    icon: Users,
-    title: 'Missions partenaires',
-    amount: '488.720 €',
-    percent: '1,6%',
-    color: '#f97316',
-  },
-
-  {
-    icon: MdAccountBalanceWallet,
-    title: 'Salaires',
-    amount: '248.660 €',
-    percent: '0,8%',
-    color: '#64748b',
-  },
-];
-
-const pieData = [
-  { name: 'Done', value: 41.5 },
-  { name: 'Rest', value: 58.5 },
-];
+interface CoutActivite {
+  Année:number;
+  Mois:string;
+  UC:string;      
+  [key:string]: any;
+      }
 
 const getProgressColor = (percent) => {
   if (percent < 25) return '#ef4444'; // rouge
@@ -107,23 +21,268 @@ const getProgressColor = (percent) => {
   return '#2563eb'; // bleu
 };
 
+const composantesConfig = [
+  { code: "C1", icon: Leaf, title: "Gestion des services écosystémiques" },
+  { code: "C2", icon: Building, title: "Gouvernance environnementale" },
+  { code: "C3", icon: Map, title: "Développement des paysages" },
+  { code: "C4", icon: Briefcase, title: "Création d'emplois verts" },
+];
+
+const ordreMois = [
+  "Janvier",
+  "Février",
+  "Mars",
+  "Avril",
+  "Mai",
+  "Juin",
+  "Juillet",
+  "Août",
+  "Septembre",
+  "Octobre",
+  "Novembre",
+  "Décembre"
+];
+
 export default function SuiviCouts() {
+
+  const [data,setData] = useState<CoutActivite[]>([]);
+  const [annee,setAnnee] = useState<number>(2026);
+  const [mois,setMois] = useState<string>("Tous");
+  const [uc,setUc] = useState<string>("Tous");
+
+  useEffect(() => {
+    fetch("/data/Base_Cout_Activite.geojson")
+      .then(res => {
+        if (!res.ok) {
+          throw new Error("Base_Cout_Activite.geojson introuvable");
+        }  
+        return res.json();
+      })
+      .then(json => {  
+        const table = json.features.map((f:any)=>f.properties);  
+        setData(table);  
+      })
+      .catch(err => {
+        console.error("Erreur chargement Base Cout :", err);
+      });  
+  }, []);
+
+  const annees = Array.from(
+    new Set(
+    data.map(d=>d.Année)
+    )
+    ).sort();
+
+  const moisListe = ordreMois.filter(m =>
+      data.some(d => d.Mois === m)
+    );
+
+  const ucListe = Array.from(
+    new Set(
+    data.map(d=>d.UC)
+     )
+    );
+
+  const dataFiltre = data.filter((d)=>{
+      const filtreAnnee = d.Année === annee;    
+      const filtreMois = mois === "Tous" || d.Mois === mois;    
+      const filtreUC = uc === "Tous" || d.UC === uc;   
+    
+      return filtreAnnee && filtreMois && filtreUC;    
+  });
+
+  const coutActuel = dataFiltre.find(
+    d => d["BD C1 (EUR)"] !== null
+  ) || dataFiltre[0] || {};
+
+  const tauxDecaissement =
+        (coutActuel["TD"] || 0) * 100;
+
+  const decaisse = coutActuel["D (EUR)"] || 0;
+  const planification = coutActuel["PA (EUR)"] || 0;      
+        
+  const tauxAvancement =
+          planification > 0
+            ? (decaisse / planification) * 100
+            : 0;
+
+  const couleurDonut =
+  tauxDecaissement < 25
+    ? "#ef4444"   // Rouge
+    : tauxDecaissement < 50
+    ? "#f59e0b"   // Orange
+    : tauxDecaissement < 75
+    ? "#22c55e"   // Vert
+    : "#2563eb";  // Bleu
+
+    const couleurAvancement =
+    tauxAvancement < 25
+      ? "#ef4444"
+      : tauxAvancement < 50
+      ? "#f59e0b"
+      : tauxAvancement < 75
+      ? "#22c55e"
+      : "#2563eb";
+
+        const composantes = [
+          {
+            icon: Leaf,
+            title: "C1. Gestion des services écosystémiques",
+            amount: coutActuel["BD C1 (EUR)"] || 0,
+            percent: (coutActuel["BD C1 (%)"] || 0) * 100,
+            color: "#2563eb",
+          },
+          {
+            icon: Building,
+            title: "C2. Gouvernance environnementale",
+            amount: coutActuel["BD C2 (EUR)"] || 0,
+            percent: (coutActuel["BD C2 (%)"] || 0) * 100,
+            color: "#2563eb",
+          },
+          {
+            icon: Map,
+            title: "C3. Développement des paysages",
+            amount: coutActuel["BD C3 (EUR)"] || 0,
+            percent: (coutActuel["BD C3 (%)"] || 0) * 100,
+            color: "#16a34a",
+          },
+          {
+            icon: Briefcase,
+            title: "C4. Création d’emplois verts",
+            amount: coutActuel["BD C4 (EUR)"] || 0,
+            percent: (coutActuel["BD C4 (%)"] || 0) * 100,
+            color: "#16a34a",
+          },
+        ];
+
+        const instruments = [
+          {
+            icon: Wallet,
+            title: "Financements",
+            amount: coutActuel["BDF (EUR)"] || 0,
+            percent: (coutActuel["BDF (%)"] || 0) * 100,
+            color: "#2563eb",
+          },
+        
+          {
+            icon: ShoppingCart,
+            title: "Achats",
+            amount: coutActuel["BDA (EUR)"] || 0,
+            percent: (coutActuel["BDA (%)"] || 0) * 100,
+            color: "#2563eb",
+          },
+        
+          {
+            icon: FileText,
+            title: "Contrats",
+            amount: coutActuel["BDC (EUR)"] || 0,
+            percent: (coutActuel["BDC (%)"] || 0) * 100,
+            color: "#22c55e",
+          },
+        
+          {
+            icon: Users,
+            title: "Mission interne",
+            amount: coutActuel["BDMI (EUR)"] || 0,
+            percent: (coutActuel["BDMI (%)"] || 0) * 100,
+            color: "#22c55e",
+          },
+        
+          {
+            icon: Handshake,
+            title: "Missions partenaires",
+            amount: coutActuel["BDMP (EUR)"] || 0,
+            percent: (coutActuel["BDMP (%)"] || 0) * 100,
+            color: "#f59e0b",
+          },
+        
+          {
+            icon: Briefcase,
+            title: "Salaires",
+            amount: coutActuel["BDS (EUR)"] || 0,
+            percent: (coutActuel["BDS (%)"] || 0) * 100,
+            color: "#f59e0b",
+          },
+        ];
+
+  const dataGraph = data.filter((d) => {
+          return uc === "Tous" || d.UC === uc;
+        });
+
+  const ligneGraph = dataGraph[0] || {};
+
+  const yearlyData = [2024, 2025, 2026, 2027, 2028, 2029, 2030].map((annee) => ({
+      year: String(annee),
+      value: (ligneGraph[`BD ${annee} (EUR)`] || 0) / 1_000_000,
+      percent: ((ligneGraph[`BD ${annee} (%)`] || 0) * 100).toFixed(1),
+  }));
+
+  const tauxComposantes = [
+    {
+      title: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+      percent: (coutActuel["TAC C1"] || 0) * 100,
+      dec: coutActuel["D C1 (EUR)"] || 0,
+      plan: coutActuel["PA C1 (EUR)"] || 0,
+      color: "#2563eb",
+    },
+  
+    {
+      title: "C2. GOUVERNANCE ENVIRONNEMENTALE DECENTRALISEE",
+      percent: (coutActuel["TAC C2"] || 0) * 100,
+      dec: coutActuel["D C2 (EUR)"] || 0,
+      plan: coutActuel["PA C2 (EUR)"] || 0,
+      color: "#2563eb",
+    },
+  
+    {
+      title: "C3. DEVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+      percent: (coutActuel["TAC C3"] || 0) * 100,
+      dec: coutActuel["D C3 (EUR)"] || 0,
+      plan: coutActuel["PA C3 (EUR)"] || 0,
+      color: "#16a34a",
+    },
+  
+    {
+      title: "C4. CREATION EMPLOIS VERTS",
+      percent: (coutActuel["TAC C4"] || 0) * 100,
+      dec: coutActuel["D C4 (EUR)"] || 0,
+      plan: coutActuel["PA C4 (EUR)"] || 0,
+      color: "#16a34a",
+    },
+  ];
+
+
+    console.log(data);
+    console.log(annees);
+    console.log(moisListe);
+    console.log(ucListe);
+    console.log("coutActuel :", coutActuel);
+    console.log("Clés disponibles :", Object.keys(coutActuel));
+    console.log("coutActuel complet :", JSON.stringify(coutActuel, null, 2));
+    console.log("D :", coutActuel["D"]);
+    console.log("PA :", coutActuel["PA"]);
+    console.log("Taux :", tauxAvancement);
+
   const getPercent = (p: string) =>
     Math.min(parseFloat(p.replace(',', '.')) || 0, 100);
 
-  const formatCompactEuro = (value: string) => {
-    const num = Number(value.replace(/[^\d]/g, ''));
+    const formatCompactEuro = (value: number | string) => {
+      const num = Number(value) || 0;
+    
+      if (num >= 1000000) {
+        return `${(num / 1000000)
+          .toFixed(1)
+          .replace('.', ',')} M€`;
+      }
+    
+      if (num >= 1000) {
+        return `${Math.round(num / 1000)} k€`;
+      }
+    
+      return `${Math.round(num)} €`;
+    };
 
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1).replace('.', ',')} M€`;
-    }
 
-    if (num >= 1000) {
-      return `${Math.round(num / 1000)} k€`;
-    }
-
-    return `${num} €`;
-  };
 
   return (
     <div style={styles.page}>
@@ -145,7 +304,7 @@ export default function SuiviCouts() {
           <div>
             <div style={styles.dateLabel}>Données mises à jour le :</div>
 
-            <div style={styles.dateValue}>25 mai 2024</div>
+            <div style={styles.dateValue}>16 juillet 2026</div>
           </div>
         </div>
       </div>
@@ -160,18 +319,21 @@ export default function SuiviCouts() {
           <div style={{ flex: 1 }}>
             <div style={styles.filterLabel}>ANNÉE</div>
 
-            <select style={styles.bigSelect}>
-              <option>2024</option>
-              <option>2025</option>
-              <option>2026</option>
-              <option>2027</option>
-              <option>2028</option>
-              <option>2029</option>
-              <option>2030</option>
-              <option>2031</option>
+            <select
+              style={styles.bigSelect}
+              value={annee}
+              onChange={(e)=>setAnnee(Number(e.target.value))}
+            >
+              {
+              annees.map(a=>
+              <option key={a} value={a}>
+              {a}
+              </option>
+              )
+              }
             </select>
 
-            <div style={styles.filterSub}>2024 - 2030</div>
+            <div style={styles.filterSub}>2025 - 2030</div>
           </div>
         </div>
 
@@ -184,25 +346,27 @@ export default function SuiviCouts() {
           <div style={{ flex: 1 }}>
             <div style={styles.filterLabel}>MOIS</div>
 
-            <select style={styles.bigSelect}>
-              <option>Tous</option>
-              <option>Janvier</option>
-              <option>Février</option>
-              <option>Mars</option>
-              <option>Avril</option>
-              <option>Mai</option>
-              <option>Juin</option>
-              <option>Juillet</option>
-              <option>Août</option>
-              <option>Septembre</option>
-              <option>Octobre</option>
-              <option>Novembre</option>
-              <option>Decembre</option>
+            <select
+              style={styles.bigSelect}
+              value={mois}
+              onChange={(e)=>setMois(e.target.value)}
+            >
+              <option value="Tous">
+                Tous
+              </option>
+                {
+                moisListe.map(m=>
+                <option key={m}>
+                {m}
+              </option>
+              )
+              }
             </select>
 
             <div style={styles.filterSub}>Janvier - Décembre</div>
           </div>
         </div>
+        
 
         {/* UNITÉ */}
         <div style={styles.bigFilter}>
@@ -213,17 +377,22 @@ export default function SuiviCouts() {
           <div style={{ flex: 1 }}>
             <div style={styles.filterLabel}>UNITÉ DE COORDINATION</div>
 
-            <select style={styles.bigSelect}>
-              <option>UCR_Ambositra</option>
-              <option>UCR_Boeny</option>
-              <option>UCR_Diana</option>
-              <option>UCR_Farafangana</option>
-              <option>UCR_Fort-Dauphin</option>
-              <option>UCT_Tanà</option>
+            <select
+                style={styles.bigSelect}
+                value={uc}
+                onChange={(e)=>setUc(e.target.value)}
+              >
+              {
+              ucListe.map(u=>
+              <option key={u}>
+              {u}
+              </option>
+              )
+              }
             </select>
 
             <div style={styles.filterSub}>
-              DIANA, BOENY, ANTANANARIVO, ANÔSY...
+              DIANA, BOENY, ANTANANARIVO, FORT-DAUPHIN...
             </div>
           </div>
         </div>
@@ -262,7 +431,17 @@ export default function SuiviCouts() {
                 <div style={styles.kpiContent}>
                   <div style={styles.kpiTopLabel}>DÉCAISSÉ CUMULÉ</div>
 
-                  <div style={styles.kpiMainValue}>12.865.420 €</div>
+                  <div style={styles.kpiMainValue}>
+                    {
+                    coutActuel["DC"]
+                    ?
+                    new Intl.NumberFormat("fr-FR").format(
+                    coutActuel["DC"]
+                    )
+                    :
+                    "0"
+                    } €
+                    </div>
 
                   <div style={styles.kpiDivider} />
 
@@ -270,7 +449,19 @@ export default function SuiviCouts() {
                     <span style={styles.kpiSubLabel}>
                       SUR UN BUDGET TOTAL DE
                     </span>
-                    <span style={styles.kpiSubValue}>31.000.000 €</span>
+                    <span style={styles.kpiSubValue}>
+                      <div style={styles.kpiSubValue}>
+                        {
+                        coutActuel["BT"]
+                        ?
+                        new Intl.NumberFormat("fr-FR").format(
+                        coutActuel["BT"]
+                        )
+                        :
+                        "0"
+                        } €
+                      </div>
+                    </span>
                   </div>
                 </div>
               </div>
@@ -283,21 +474,35 @@ export default function SuiviCouts() {
               <div style={styles.pieWrapper}>
               <ResponsiveContainer width="100%" height={100}>
                     <PieChart>
-                      <Pie
-                        data={[{ value: 41.5 }, { value: 58.5 }]}
+                    <Pie
+                      data={[
+                      {
+                      value:tauxDecaissement
+                      },
+                      {
+                      value:100-tauxDecaissement
+                      }
+                      ]}
                         dataKey="value"
                         innerRadius={27}
                         outerRadius={50}
                         startAngle={90}
                         endAngle={-270}
                       >
-                        <Cell fill="#2563eb" />
+                        <Cell fill={couleurDonut} />
                         <Cell fill="#e5e7eb" />
                       </Pie>
                     </PieChart>
               </ResponsiveContainer>
 
-                <div style={styles.pieCenter}>41,5%</div>
+              <div
+                style={{
+                  ...styles.pieCenter,
+                  color: couleurDonut,
+                }}
+              >
+                {tauxDecaissement.toFixed(1)}%
+              </div>
               </div>
             </div>
           </div>
@@ -383,8 +588,6 @@ export default function SuiviCouts() {
                 />
               </YAxis>
 
-              <Tooltip />
-
               {/* BARRES */}
               <Bar dataKey="value" radius={[3, 3, 0, 0]} barSize={22}>
                 {yearlyData.map((entry, index) => {
@@ -443,7 +646,8 @@ export default function SuiviCouts() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-        {/* COMPOSANTES SAAS PRO */}
+
+        {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
         <div style={styles.card}>
           <div style={styles.cardHeader}>
             <div
@@ -478,9 +682,9 @@ export default function SuiviCouts() {
             const Icon = item.icon;
 
             const percent = Math.min(
-              parseFloat(item.percent.replace(',', '.')) || 0,
-              100
-            );
+                Number(item.percent) || 0,
+                100
+              );
 
             return (
               <div
@@ -506,11 +710,11 @@ export default function SuiviCouts() {
                 </div>
 
                 {/* AMOUNT */}
-                <div style={styles.amount}>{item.amount}</div>
+                <div style={styles.amount}>{new Intl.NumberFormat("fr-FR").format(item.amount)} €</div>
 
                 {/* PROGRESS + % INLINE */}
                 <div style={styles.progressCell}>
-                  <span style={styles.percentLeft}>{item.percent}</span>
+                  <span style={styles.percentLeft}>{percent.toFixed(1)}%</span>
 
                   <div style={styles.progress}>
                     <div
@@ -538,7 +742,7 @@ export default function SuiviCouts() {
                 color: '#1d4ed8',
               }}
             >
-              12.865.420 €
+              {new Intl.NumberFormat("fr-FR").format(coutActuel["DC"] || 0)} €
             </div>
 
             <div
@@ -549,10 +753,12 @@ export default function SuiviCouts() {
                 fontWeight: 800,
               }}
             >
-              41,5%
+              {((coutActuel["TD"] || 0) * 100).toFixed(1)}%
             </div>
           </div>
         </div>
+
+      {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
         <div style={styles.card}>
           <div style={styles.cardHeader}>
             ÉVOLUTION ANNUELLE DU DECAISSEMENT PAR INSTRUMENT
@@ -569,7 +775,7 @@ export default function SuiviCouts() {
             const Icon = item.icon;
 
             const percent = Math.min(
-              parseFloat(item.percent.replace(',', '.')) || 0,
+              Number(item.percent) || 0,
               100
             );
 
@@ -595,10 +801,17 @@ export default function SuiviCouts() {
                   <div style={styles.rowTitle}>{item.title}</div>
                 </div>
 
-                <div style={styles.amount}>{item.amount}</div>
+                <div style={styles.amount}>
+                  {
+                  new Intl.NumberFormat("fr-FR")
+                  .format(item.amount)
+                  } €
+                </div>
 
                 <div style={styles.progressCell}>
-                  <span style={styles.percentLeft}>{item.percent}</span>
+                <span style={styles.percentLeft}>
+                  {percent.toFixed(1)}%
+                </span>
 
                   <div style={styles.progress}>
                     <div
@@ -626,7 +839,10 @@ export default function SuiviCouts() {
                 color: '#1d4ed8',
               }}
             >
-              12.865.420 €
+              {
+              new Intl.NumberFormat("fr-FR")
+              .format(coutActuel["DC"] || 0)
+              } €
             </div>
 
             <div
@@ -637,11 +853,16 @@ export default function SuiviCouts() {
                 fontWeight: 800,
               }}
             >
-              41,5%
+              {
+              ((coutActuel["TD"] || 0) * 100)
+              .toFixed(1)
+              }%
             </div>
           </div>
         </div>{' '}
       </div>{' '}
+
+
       {/* ===================== NEW BOTTOM GRIDS ===================== */}
       <div style={styles.bottomGrid}>
         <div style={styles.card}>
@@ -658,43 +879,124 @@ export default function SuiviCouts() {
               alignItems: 'center',
               justifyContent: 'center',
               borderBottom: 'none',
-              marginBottom: 20,
+              marginBottom: 5,
             }}
           >
             TAUX D’AVANCEMENT GLOBAL DES COÛTS (PAR RAPPORT A LA PLANIFICATION
             ANNUELLE)
           </div>
 
-          <div style={styles.globalGrid}>
-            {/* DONUT */}
-            <div style={styles.donutBox}>
-              <PieChart width={90} height={90}>
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            {/* DONUT EN HAUT */}
+            <div
+              style={{
+                position:"relative",
+                width:100,
+                height:100,
+              }}
+            >
+              <PieChart width={100} height={100}>
                 <Pie
-                  data={[{ value: 43 }, { value: 57 }]}
-                  innerRadius={20}
-                  outerRadius={40}
+                  data={[
+                    {value:tauxAvancement},
+                    {value:100-tauxAvancement}
+                  ]}
+                  innerRadius={25}
+                  outerRadius={42}
                   startAngle={90}
                   endAngle={-270}
                   dataKey="value"
                 >
-                  <Cell fill="#16a34a" />
-                  <Cell fill="#e5e7eb" />
+                  <Cell fill={couleurAvancement}/>
+                  <Cell fill="#e5e7eb"/>
                 </Pie>
               </PieChart>
-
-              <div style={styles.donutCenterGreen}>43%</div>
-            </div>
-
-            {/* INDICATEURS */}
-            <div style={styles.globalIndicators}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={styles.label}>DÉCAISSÉ</div>
-                <div style={styles.blueValue}>12.865.420 €</div>
+              <div
+                style={{
+                  position:"absolute",
+                  top:"50%",
+                  left:"50%",
+                  transform:"translate(-50%,-50%)",
+                  fontSize:16,
+                  fontWeight:900,
+                  color:couleurAvancement,
+                }}
+              >
+                {tauxAvancement.toFixed(1)}%
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <div style={styles.label}>PLANIFICATION ANNUELLE</div>
-                <div style={styles.blueValue}>29.800.000 €</div>
+            </div>
+            {/* TABLEAU EN DESSOUS */}
+            <div
+              style={{
+                width:"100%",
+                marginTop:1,
+              }}
+            >
+              {/* DECAISSE */}
+              <div
+                style={{
+                  display:"grid",
+                  gridTemplateColumns:"1fr auto",
+                  padding:"8px 10px",
+                  borderBottom:"1px solid #e5e7eb",
+                  fontSize:8,
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight:700,
+                    color:"#475569",
+                  }}
+                >
+                  DÉCAISSÉ
+                </span>
+                <span
+                  style={{
+                    fontWeight:900,
+                    color:"#2563eb",
+                  }}
+                >
+                  {
+                    new Intl.NumberFormat("fr-FR")
+                    .format(decaisse)
+                  } €
+                </span>
+              </div>
+              {/* PLANIFICATION */}
+              <div
+                style={{
+                  display:"grid",
+                  gridTemplateColumns:"1fr auto",
+                  padding:"8px 10px",
+                  fontSize:8,
+                }}
+              >
+                <span
+                  style={{
+                    fontWeight:700,
+                    color:"#475569",
+                  }}
+                >
+                  PLANIFICATION ANNUELLE
+                </span>
+                <span
+                  style={{
+                    fontWeight:800,
+                    color:"#2563eb",
+                  }}
+                >
+                  {
+                    new Intl.NumberFormat("fr-FR")
+                    .format(planification)
+                  } €
+                </span>
               </div>
             </div>
           </div>
@@ -720,36 +1022,10 @@ export default function SuiviCouts() {
           </div>
 
           <div style={styles.donutGrid4}>
-            {[
-              {
-                title: 'C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES',
-                percent: 58,
-                dec: '4.985.230 €',
-                plan: '8.600.000 €',
-                color: '#2563eb',
-              },
-              {
-                title: 'C2. GOUVERNANCE ENVIRONNEMENTALE DECENTRALISEE',
-                percent: 41,
-                dec: '3.845.110 €',
-                plan: '9.300.000 €',
-                color: '#2563eb',
-              },
-              {
-                title: 'C3. DEVELOPPEMENT DES PAYSAGES PRODUCTIFS',
-                percent: 37,
-                dec: '2.765.780 €',
-                plan: '7.500.000 €',
-                color: '#16a34a',
-              },
-              {
-                title: 'C4. CREATION EMPLOIS VERTS',
-                percent: 31,
-                dec: '1.269.300 €',
-                plan: '4.400.000 €',
-                color: '#16a34a',
-              },
-            ].map((item, i) => (
+          {tauxComposantes.map((item,i)=>{
+            const couleur = getProgressColor(item.percent);
+            return (
+              
               <div
                 key={i}
                 style={{
@@ -800,7 +1076,7 @@ export default function SuiviCouts() {
                       endAngle={-270}
                       dataKey="value"
                     >
-                      <Cell fill={item.color} />
+                      <Cell fill={couleur} />
                       <Cell fill="#e5e7eb" />
                     </Pie>
                   </PieChart>
@@ -813,13 +1089,13 @@ export default function SuiviCouts() {
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
                       fontWeight: 900,
-                      fontSize: 14,
-                      color: item.color,
+                      fontSize: 11,
+                      color: couleur,
                       pointerEvents: 'none',
                       lineHeight: 1,
                     }}
                   >
-                    {item.percent}%
+                    {item.percent.toFixed(1)}%
                   </div>
                 </div>
 
@@ -841,7 +1117,8 @@ export default function SuiviCouts() {
                   </div>
                 </div>
               </div>
-            ))}
+            )
+          })}
           </div>
         </div>
 
@@ -1193,7 +1470,6 @@ const styles: any = {
     transform: 'translate(-50%, -50%)',
     fontWeight: 900,
     fontSize: 18,
-    color: '#2563eb',
     textAlign: 'center',
     pointerEvents: 'none',
   },
