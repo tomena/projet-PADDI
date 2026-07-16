@@ -251,6 +251,53 @@ export default function SuiviCouts() {
     },
   ];
 
+  const tauxInstruments = [
+    {
+      title: "FINANCEMENTS",
+      icon: Handshake,
+      percent: Number(coutActuel["TAC F"] || 0) * 100,
+      dec: coutActuel["DF (EUR)"] || 0,
+      plan: coutActuel["PAF (EUR)"] || 0,
+      color:"#2563eb",
+    },
+  
+    {
+      title:"ACHATS",
+      icon: FaShoppingCart,
+      percent:Number(coutActuel["TAC A"] || 0) * 100,
+      dec:coutActuel["DA (EUR)"] || 0,
+      plan:coutActuel["PAA (EUR)"] || 0,
+      color:"#16a34a",
+    },
+  
+    {
+      title:"CONTRATS",
+      icon:FaFileContract,
+      percent:Number(coutActuel["TAC C"] || 0) * 100,
+      dec:coutActuel["DC (EUR)"] || 0,
+      plan:coutActuel["PAC (EUR)"] || 0,
+      color:"#f59e0b",
+    },
+  
+    {
+      title:"MISSIONS INTERNE",
+      icon:Plane,
+      percent:Number(coutActuel["TAC MI"] || 0) * 100,
+      dec:coutActuel["DMI (EUR)"] || 0,
+      plan:coutActuel["PAMI (EUR)"] || 0,
+      color:"#f97316",
+    },
+  
+    {
+      title:"MISSIONS PARTENAIRES",
+      icon:Users,
+      percent:Number(coutActuel["TAC MP"] || 0) * 100,
+      dec:coutActuel["DMP (EUR)"] || 0,
+      plan:coutActuel["PAMP (EUR)"] || 0,
+      color:"#f97316",
+    },
+  ];
+
 
     console.log(data);
     console.log(annees);
@@ -1142,52 +1189,11 @@ export default function SuiviCouts() {
           </div>
 
           <div style={styles.donutGrid6}>
-            {[
-              {
-                title: 'FINANCEMENTS',
-                icon: Handshake,
-                percent: 61,
-                dec: '6.102.450 €',
-                plan: '10.000.000 €',
-                color: '#2563eb',
-              },
-              {
-                title: 'ACHATS',
-                icon: FaShoppingCart,
-                percent: 48,
-                dec: '2.814.560 €',
-                plan: '5.900.000 €',
-                color: '#16a34a',
-              },
-              {
-                title: 'CONTRATS',
-                icon: FaFileContract,
-                percent: 35,
-                dec: '2.145.230 €',
-                plan: '6.100.000 €',
-                color: '#f59e0b',
-              },
-              {
-                title: 'MISSIONS INTERNE',
-                icon: Plane,
-                percent: 28,
-                dec: '1.065.800 €',
-                plan: '3.800.000 €',
-                color: '#f97316',
-              },
-              {
-                title: 'MISSIONS PARTENAIRES',
-                icon: Users,
-                percent: 24,
-                dec: '488.720 €',
-                plan: '2.000.000 €',
-                color: '#f97316',
-              },
-              
-            ].map((item, i) => {
-              const Icon = item.icon;
+          {tauxInstruments.map((item,i)=>{
+            const couleur = getProgressColor(item.percent);
+            const Icon = item.icon;
 
-              return (
+          return (
                 <div
                   key={i}
                   style={{
@@ -1233,7 +1239,7 @@ export default function SuiviCouts() {
                         endAngle={-270}
                         dataKey="value"
                       >
-                        <Cell fill={item.color} />
+                        <Cell fill={couleur}/>
                         <Cell fill="#e5e7eb" />
                       </Pie>
                     </PieChart>
@@ -1246,13 +1252,13 @@ export default function SuiviCouts() {
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
                         fontWeight: 900,
-                        fontSize: 14,
-                        color: item.color,
+                        fontSize: 11,
+                        color:couleur,
                         pointerEvents: 'none',
                         lineHeight: 1,
                       }}
                     >
-                      {item.percent}%
+                      {item.percent.toFixed(1)}%
                     </div>
                   </div>
 
