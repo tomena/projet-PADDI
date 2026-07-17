@@ -160,34 +160,99 @@ export default function SuiviActivitesAnnuelles() {
   }));
 
   const axes1 = {
-    title: 'AXES PRIORITAIRES DE LA REALISATION 1 : SYSTÈME DE GESTION',
+    title: "AXES PRIORITAIRES DE LA RÉALISATION 1 : SYSTÈME DE GESTION",
     icon: Users,
-    data:[
-        { name: 'Analyses diagnostiques', value: 82, color: '#2563eb' },
-        { name: 'Planification territoriale', value: 65, color: '#16a34a' },
-        { name: 'Suivi écosystémique', value: 42, color: '#f59e0b' },
-        { name: 'Financement durable', value: 55, color: '#16a34a' },
-        { name: 'Participation des populations', value: 76, color: '#2563eb' },
-        { name: 'Coopération avec MNP', value: 60, color: '#16a34a' },
-        { name: 'Coordination intersectorielle', value: 40, color: '#f59e0b' },
-        { name: 'Lutte contre la corruption', value: 20, color: '#f97316' },
-    ]
-    
-};
+  
+    data: [
+      {
+        code: "1.1.1",
+        name: "Analyses diagnostiques",
+        value: Number(coutActuel["TAA 1.1.1"] || 0) * 100,
+      },
+      {
+        code: "1.1.2",
+        name: "Planification territoriale",
+        value: Number(coutActuel["TAA 1.1.2"] || 0) * 100,
+      },
+      {
+        code: "1.1.3",
+        name: "Suivi écosystémique",
+        value: Number(coutActuel["TAA 1.1.3"] || 0) * 100,
+      },
+      {
+        code: "1.1.4",
+        name: "Financement durable",
+        value: Number(coutActuel["TAA 1.1.4"] || 0) * 100,
+      },
+      {
+        code: "1.2.1",
+        name: "Participation des populations",
+        value: Number(coutActuel["TAA 1.2.1"] || 0) * 100,
+      },
+      {
+        code: "1.2.2",
+        name: "Coopération avec MNP",
+        value: Number(coutActuel["TAA 1.2.2"] || 0) * 100,
+      },
+      {
+        code: "1.2.3",
+        name: "Coordination intersectorielle",
+        value: Number(coutActuel["TAA 1.2.3"] || 0) * 100,
+      },
+      {
+        code: "1.2.4",
+        name: "Lutte contre la corruption",
+        value: Number(coutActuel["TAA 1.2.4"] || 0) * 100,
+      },
+    ],
+  };
   const axes2 = {
-    title: 'AXES PRIORITAIRES DE LA REALISATION 2 : AMÉNAGEMENT DU TERRITOIRE',
+    title: "AXES PRIORITAIRES DE LA RÉALISATION 2 : AMÉNAGEMENT DU TERRITOIRE",
     icon: Trees,
-    data:[
-        { name: 'Restauration paysages', value: 78, color: '#16a34a' },
-        { name: 'Production durable', value: 58, color: '#2563eb' },
-        { name: 'Sécurisation foncière', value: 45, color: '#f59e0b' },
-        { name: 'Gestion des feux', value: 22, color: '#f97316' },
-        { name: 'Système de marché', value: 60, color: '#16a34a' },
-        { name: 'Valorisation des productions', value: 48, color: '#f59e0b' },
-        { name: 'Diversification des activités', value: 66, color: '#16a34a' },
-        { name: 'Mobilisation communautaire', value: 25, color: '#f97316' },
-    ]
-    };
+  
+    data: [
+      {
+        code: "2.1.1",
+        name: "Restauration paysages",
+        value: Number(coutActuel["TAA 2.1.1"] || 0) * 100,
+      },
+      {
+        code: "2.1.2",
+        name: "Production durable",
+        value: Number(coutActuel["TAA 2.1.2"] || 0) * 100,
+      },
+      {
+        code: "2.1.3",
+        name: "Sécurisation foncière",
+        value: Number(coutActuel["TAA 2.1.3"] || 0) * 100,
+      },
+      {
+        code: "2.1.4",
+        name: "Gestion des feux",
+        value: Number(coutActuel["TAA 2.1.4"] || 0) * 100,
+      },
+      {
+        code: "2.2.1",
+        name: "Système de marché",
+        value: Number(coutActuel["TAA 2.2.1"] || 0) * 100,
+      },
+      {
+        code: "2.2.2",
+        name: "Valorisation des productions",
+        value: Number(coutActuel["TAA 2.2.2"] || 0) * 100,
+      },
+      {
+        code: "2.2.3",
+        name: "Diversification des activités",
+        value: Number(coutActuel["TAA 2.2.3"] || 0) * 100,
+      },
+      {
+        code: "2.2.4",
+        name: "Mobilisation communautaire",
+        value: Number(coutActuel["TAA 2.2.4"] || 0) * 100,
+      },
+    ],
+  };
 
     const Axis1Icon = axes1.icon;
     const Axis2Icon = axes2.icon;
@@ -528,7 +593,7 @@ export default function SuiviActivitesAnnuelles() {
         </div>
         </div>
 
-      {/* ================= AXES ================= */}
+      {/* ================= TABLEAU AXES ================= */}
       <div style={styles.grid2}>
 
             {/* AXE 1 */}
@@ -554,13 +619,9 @@ export default function SuiviActivitesAnnuelles() {
 
                 {/* COLONNE 1 */}
                 <div style={styles.axisLeftCol}>
-                  <span style={styles.axisCode}>
-                  {
-                    i < 4
-                      ? `1.1.${i + 1}`
-                      : `1.2.${i - 3}`
-                  }
-                  </span>
+                <span style={styles.axisCode}>
+                  {a.code}
+                </span>
 
                   <span style={styles.axisName}>
                     {a.name}
@@ -583,7 +644,7 @@ export default function SuiviActivitesAnnuelles() {
 
                   {/* % */}
                   <div style={styles.axisPercent}>
-                    {a.value}%
+                  {a.value.toFixed(1).replace(".", ",")}%
                   </div>
 
                 </div>
@@ -613,11 +674,7 @@ export default function SuiviActivitesAnnuelles() {
 
         <div style={styles.axisLeftCol}>
           <span style={styles.axisCode}>
-          {
-            i < 4
-              ? `2.1.${i + 1}`
-              : `2.2.${i - 3}`
-          }
+            {a.code}
           </span>
 
           <span style={styles.axisName}>
@@ -638,7 +695,7 @@ export default function SuiviActivitesAnnuelles() {
           </div>
 
           <div style={styles.axisPercent}>
-            {a.value}%
+          {a.value.toFixed(1).replace(".", ",")}%
           </div>
 
         </div>
