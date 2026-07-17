@@ -804,7 +804,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
       <div style={styles.header}>
             {/* LEFT */}
             <h2 style={styles.title}>
-                Système de suivi de feux
+                Système de suivi de feux au périphérie de 5km de l'Aire protégée
             </h2>
             {/* RIGHT */}
             <div style={styles.filterRow}>
