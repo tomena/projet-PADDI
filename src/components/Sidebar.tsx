@@ -1,43 +1,13 @@
 import React, { useState } from 'react';
-import {
-  LayoutDashboard,
-  BarChart3,
-  Flame,
-  Trees,
-  Leaf,
-  BrainCircuit,
-  Users,
-  Globe2,
-  Landmark,
-  Map,
-  MapPinned,
-  Settings,
-  Bot,
-  Languages,
-  Download,
-  ChevronDown,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Home,
-  FolderKanban,
-  Database,
-  Briefcase,
-  DollarSign,
-  Gavel,
-  Wheat,
-  Activity,
-  ReceiptText,
-  Store,
-} from 'lucide-react';
+import {LayoutDashboard,BarChart3,Flame,Trees,Leaf,BrainCircuit,Users,Globe2,Landmark,Map,MapPinned,Settings,Bot,Languages,Download,ChevronDown,ChevronRight,PanelLeftClose,PanelLeftOpen,Home,FolderKanban,Database,
+  Briefcase,DollarSign,Gavel,Wheat,Activity,ReceiptText,Store,
+  } from 'lucide-react';
 
 export default function Sidebar({ setPage }: any) {
   const [open, setOpen] = useState<string | null>('dashboard');
 
   const [collapsed, setCollapsed] = useState(false);
   const [active, setActive] = useState<string>('dashboard-general');
-
-  // ✅ FIX IMPORTANT : openSub devient un objet (multi accordéon propre)
   const [openSub, setOpenSub] = useState<Record<string, boolean>>({});
 
   const toggleSub = (menu: string) => {
@@ -81,16 +51,6 @@ export default function Sidebar({ setPage }: any) {
     >
       {/* ================= LOGO ================= */}
       <div style={styles.logoBox}>
-        {!collapsed && (
-          <div style={styles.searchWrap}>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Module de recherche..."
-              style={styles.searchInput}
-            />
-          </div>
-        )}
         <div
           style={styles.collapseBtn}
           onClick={() => setCollapsed(!collapsed)}
