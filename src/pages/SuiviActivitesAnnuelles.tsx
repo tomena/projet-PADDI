@@ -284,7 +284,7 @@ export default function SuiviActivitesAnnuelles() {
           <CalendarDays size={18} />
           <div>
             <div style={styles.dateLabel}>Données mises à jour</div>
-            <div style={styles.dateValue}>25 mai 2024</div>
+            <div style={styles.dateValue}>17 juillet 2026</div>
           </div>
         </div>
       </div>
