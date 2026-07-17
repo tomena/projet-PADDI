@@ -99,10 +99,7 @@ export default function SuiviActivitesAnnuelles() {
   const activitesEnCours = Number(coutActuel["NAC"] || 0);
   const activitesNonDemarrees = Number(coutActuel["NAD"] || 0);
 
-  const tauxGlobalActivites =
-  totalActivites > 0
-    ? (activitesAchevees / totalActivites) * 100
-    : 0;
+  const tauxGlobalActivites = Number(coutActuel["TAG"] || 0) * 100;
 
 
   const globalPie = [
