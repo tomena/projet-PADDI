@@ -669,18 +669,9 @@ return (
             </MapContainer>
           </div>
         </div>
-      </div>
-
-      <div style={styles.footer}>
-        <div>© PADDI+ - Tableau de bord</div>
-        <div>Dernière mise à jour : 2026</div>
-      </div>
-      
-    </div>
-
-    
-  );
-  
+      </div>      
+    </div>    
+  );  
 }
 /* ================= KPI ================= */
 
