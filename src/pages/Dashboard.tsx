@@ -263,7 +263,7 @@ export default function Dashboard({ data }: any) {
         .catch(err => console.error("Erreur chargement GeoJSON:", err));
     }, []);
 
-  const VALID_ANTENNES = ["Tanà","Ambositra", "Boeny", "Diana", "Farafangana", "Fort-Dauphin"];
+  const VALID_ANTENNES = ["Tanà","Amoron'i Mania", "Boeny", "Diana", "Atsimo-Atsinanana", "Anosy"];
 
   const antennes = useMemo(() => {
     if (!regionsData?.features) return [];
@@ -337,11 +337,11 @@ useEffect(() => {
         return "#16a34a";
       case "Boeny":
         return "#2563eb";
-      case "Farafangana":
+      case "Atsimo-Atsinanana":
         return "#f59e0b";
       case "Diana":
         return "#ef4444";
-      case "Fort-Dauphin":
+      case "Anosy":
         return "#8b5cf6";
       default:
         return "#64748b";
