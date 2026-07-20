@@ -10,17 +10,13 @@ interface CoutActivite {
   Mois:string;
   UC:string;      
   [key:string]: any;
-      }
-
-  
-
+      } 
 const composantesConfig = [
   { code: "C1", icon: Leaf, title: "Gestion des services écosystémiques" },
   { code: "C2", icon: Building, title: "Gouvernance environnementale" },
   { code: "C3", icon: Map, title: "Développement des paysages" },
   { code: "C4", icon: Briefcase, title: "Création d'emplois verts" },
 ];
-
 const ordreMois = [
   "Janvier",
   "Février",
@@ -35,7 +31,6 @@ const ordreMois = [
   "Novembre",
   "Décembre"
 ];
-
 export default function SuiviActivitesAnnuelles() {
 
   const [data,setData] = useState<CoutActivite[]>([]);
@@ -49,7 +44,6 @@ export default function SuiviActivitesAnnuelles() {
     if (value <= 75) return '#22c55e';
     return '#2563eb';
 };
-
   useEffect(() => {
     fetch("/data/Base_Cout_Activite.geojson")
       .then(res => {
@@ -98,16 +92,11 @@ export default function SuiviActivitesAnnuelles() {
   const activitesAchevees = Number(coutActuel["NAA"] || 0);
   const activitesEnCours = Number(coutActuel["NAC"] || 0);
   const activitesNonDemarrees = Number(coutActuel["NAD"] || 0);
-
   const tauxGlobalActivites = Number(coutActuel["TAG"] || 0) * 100;
-
-
   const globalPie = [
       { value: tauxGlobalActivites },
       { value: 100 - tauxGlobalActivites },
     ];
-
-
   const results = [
       {
         label: "R1. SYSTÈME DE GESTION",
@@ -253,14 +242,9 @@ export default function SuiviActivitesAnnuelles() {
       },
     ],
   };
-
     const Axis1Icon = axes1.icon;
-    const Axis2Icon = axes2.icon;
-
-   
-  
+    const Axis2Icon = axes2.icon;  
   const couleurActivites = getProgressColor(tauxGlobalActivites);
-
     console.log(data);
     console.log(annees);
     console.log(moisListe);
