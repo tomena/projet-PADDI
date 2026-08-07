@@ -926,9 +926,9 @@ const chartInterieurDecennie = useMemo(()=>{
   ])
   },  
   {
-  periode:"2021 - 2024",
+  periode:"2021 - 2025",
   valeur:calculInterieur([
-  2021,2022,2023,2024
+  2021,2022,2023,2024,2025
   ])
   }  
   ];  
@@ -993,9 +993,9 @@ const chartInterieurDecennie = useMemo(()=>{
     ])
     },    
     {
-    periode:"2021 - 2024",
+    periode:"2021 - 2025",
     valeur:calculExterieur([
-    2021,2022,2023,2024
+    2021,2022,2023,2024,2025
     ])
     }    
     ];    
