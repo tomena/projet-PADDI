@@ -1,83 +1,116 @@
-import React, { useState } from 'react';
-import Sidebar from './components/Sidebar';
+import { Routes, Route } from "react-router-dom";
 
-import Dashboard from './pages/Dashboard';
-import Analyse from './pages/Analyse';
-import AnalyseFeux from './pages/AnalyseFeux';
-import Deforestation from './pages/Deforestation';
-import AnalyseEnvironnement from './pages/AnalyseEnvironnement';
-import InsertionDonnees from './pages/InsertionDonnees';
-import Pression from './pages/Pression';
-import BudgetCommunaux from './pages/BudgetCommunaux';
-import RevenusProducteurs from './pages/RevenusProducteurs';
-import SuiviCouts from './pages/SuiviCouts';
-import SuiviActivitesAnnuelles from './pages/SuiviActivitesAnnuelles';
-import SuperficiesBrulees from './pages/SuperficiesBrulees';
-import SystemeSuivi from './pages/SystemeSuivi';
-import MesuresCommunales from './pages/MesuresCommunales';
-import SurfacesAgropastorales from './pages/SurfacesAgropastorales';
-import SurfacesForestieres from './pages/SurfacesForestieres';
-import SuperficiesAD from './pages/SuperficiesAD';
-import MicroEntreprise from './pages/MicroEntreprise';
-import Beneficiaires from './pages/Beneficiaires';
-import DecisionCOSAP from './pages/DecisionCOSAP';
-import MesureRegionale from './pages/MesureRegionale';
+import Home from "./pages/Home";
+import DashboardLayout from "./pages/DashboardLayout";
 
+import Dashboard from "./pages/Dashboard";
+import Analyse from "./pages/Analyse";
+import AnalyseFeux from "./pages/AnalyseFeux";
+import Deforestation from "./pages/Deforestation";
+import AnalyseEnvironnement from "./pages/AnalyseEnvironnement";
+import InsertionDonnees from "./pages/InsertionDonnees";
+import Pression from "./pages/Pression";
+import BudgetCommunaux from "./pages/BudgetCommunaux";
+import RevenusProducteurs from "./pages/RevenusProducteurs";
+import SuiviCouts from "./pages/SuiviCouts";
+import SuiviActivitesAnnuelles from "./pages/SuiviActivitesAnnuelles";
+import SuperficiesBrulees from "./pages/SuperficiesBrulees";
+import SystemeSuivi from "./pages/SystemeSuivi";
+import MesuresCommunales from "./pages/MesuresCommunales";
+import SurfacesAgropastorales from "./pages/SurfacesAgropastorales";
+import SurfacesForestieres from "./pages/SurfacesForestieres";
+import SuperficiesAD from "./pages/SuperficiesAD";
+import MicroEntreprise from "./pages/MicroEntreprise";
+import Beneficiaires from "./pages/Beneficiaires";
+import DecisionCOSAP from "./pages/DecisionCOSAP";
+import MesureRegionale from "./pages/MesureRegionale";
 
 export default function App() {
-  const [page, setPage] = useState('dashboard-general');
-
-  const [data] = useState({
+  const data = {
     hommes: 4000,
     femmes: 6000,
     enfants: 10000,
     superficie: 5000,
-  });
+  };
 
   return (
-    <div style={styles.layout}>
-      <Sidebar setPage={setPage} />
+    <Routes>
+      {/* ===================== ACCUEIL ===================== */}
+      <Route path="/" element={<Home />} />
 
-      <div style={styles.content}>
-        {page === 'dashboard-general' && <Dashboard data={data} />}
-        {page === 'dashboard-feux' && <AnalyseFeux />}
-        {page === 'dashboard-deforestation' && <Deforestation />}
-        {page === 'analyse' && <Analyse />}
-        {page === 'analyse-environnement' && <AnalyseEnvironnement />}
-        {page === 'insertion-donnees' && <InsertionDonnees />}
-        {page === 'pression' && <Pression />}
-        {page === 'budget-communal' && <BudgetCommunaux />}
-        {page === 'revenus-producteurs' && <RevenusProducteurs />}
-        {page === 'suivi-couts' && <SuiviCouts />}
-        {page === 'suivi-activites-annuelles' && <SuiviActivitesAnnuelles />}
-        {page === 'superficie-brulee' && <SuperficiesBrulees />}
-        {page === 'systeme-suivi' && <SystemeSuivi />}
-        {page === 'mesures-communales' && <MesuresCommunales />}
-        {page === 'surface-agro' && <SurfacesAgropastorales />}
-        {page === 'surface-forestiere' && <SurfacesForestieres />}
-        {page === 'sad' && <SuperficiesAD />}
-        {page === 'micro-entreprises' && <MicroEntreprise />}
-        {page === 'beneficiaire' && <Beneficiaires />}
-        {page === 'cosap-decision' && <DecisionCOSAP />}
-        {page === 'mesures-regionales' && <MesureRegionale />}
-        
-      </div>
-    </div>
+      {/* ===================== ESPACE PADDI ===================== */}
+      <Route path="/dashboard" element={<DashboardLayout />}>
+        {/* Tableau de bord principal */}
+        <Route index element={<Dashboard data={data} />} />
+
+        {/* Tableau de bord */}
+        <Route path="analyse-feux" element={<AnalyseFeux />} />
+        <Route path="deforestation" element={<Deforestation />} />
+
+        {/* Analyses */}
+        <Route path="analyse" element={<Analyse />} />
+        <Route
+          path="analyse-environnement"
+          element={<AnalyseEnvironnement />}
+        />
+
+        {/* Données */}
+        <Route
+          path="insertion-donnees"
+          element={<InsertionDonnees />}
+        />
+        <Route path="pression" element={<Pression />} />
+
+        {/* Économie */}
+        <Route
+          path="budget-communal"
+          element={<BudgetCommunaux />}
+        />
+        <Route
+          path="revenus-producteurs"
+          element={<RevenusProducteurs />}
+        />
+        <Route path="suivi-couts" element={<SuiviCouts />} />
+        <Route
+          path="suivi-activites-annuelles"
+          element={<SuiviActivitesAnnuelles />}
+        />
+
+        {/* Environnement */}
+        <Route
+          path="superficie-brulee"
+          element={<SuperficiesBrulees />}
+        />
+        <Route path="systeme-suivi" element={<SystemeSuivi />} />
+        <Route
+          path="mesures-communales"
+          element={<MesuresCommunales />}
+        />
+        <Route
+          path="surface-agro"
+          element={<SurfacesAgropastorales />}
+        />
+        <Route
+          path="surface-forestiere"
+          element={<SurfacesForestieres />}
+        />
+
+        {/* Autres */}
+        <Route path="sad" element={<SuperficiesAD />} />
+        <Route
+          path="micro-entreprises"
+          element={<MicroEntreprise />}
+        />
+        <Route path="beneficiaire" element={<Beneficiaires />} />
+        <Route
+          path="cosap-decision"
+          element={<DecisionCOSAP />}
+        />
+        <Route
+          path="mesures-regionales"
+          element={<MesureRegionale />}
+        />
+      </Route>
+    </Routes>
   );
 }
-
-const styles: any = {
-  layout: {
-    display: 'flex',
-    height: '100vh',
-    overflow: 'hidden',
-    background: '#f3f4f6',
-  },
-
-  content: {
-    flex: 1,
-    padding: 24,
-    overflowY: 'auto',
-    overflowX: 'hidden',
-  },
-};

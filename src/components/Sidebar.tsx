@@ -1,13 +1,21 @@
 import React, { useState } from 'react';
-import {LayoutDashboard,BarChart3,Flame,Trees,Leaf,BrainCircuit,Users,Globe2,Landmark,Map,MapPinned,Settings,Bot,Languages,Download,ChevronDown,ChevronRight,PanelLeftClose,PanelLeftOpen,Home,FolderKanban,Database,
-  Briefcase,DollarSign,Gavel,Wheat,Activity,ReceiptText,Store,
-  } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import {
+  LayoutDashboard, BarChart3, Flame, Trees, Leaf, BrainCircuit,
+  Users, Globe2, Landmark, Map, MapPinned, Settings, Bot,
+  Languages, Download, ChevronDown, ChevronRight,
+  PanelLeftClose, PanelLeftOpen, Home, FolderKanban,
+  Database, Briefcase, DollarSign, Gavel, Wheat,
+  Activity, ReceiptText, Store,
+} from 'lucide-react';
 
-export default function Sidebar({ setPage }: any) {
+export default function Sidebar() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState<string | null>('dashboard');
 
   const [collapsed, setCollapsed] = useState(false);
-  const [active, setActive] = useState<string>('dashboard-general');
+  
   const [openSub, setOpenSub] = useState<Record<string, boolean>>({});
 
   const toggleSub = (menu: string) => {
@@ -21,12 +29,13 @@ export default function Sidebar({ setPage }: any) {
     setOpen(open === menu ? null : menu);
   };
 
-  const go = (page: string) => {
-    setPage(page);
-    setActive(page);
+  const go = (path: string) => {
+    navigate(`/dashboard/${path}`);
   };
 
-  const isActive = (page: string) => active === page;
+  const isActive = (path: string) => {
+    return location.pathname === `/dashboard/${path}`;
+  };
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
@@ -75,9 +84,9 @@ export default function Sidebar({ setPage }: any) {
         <div
   style={{
     ...styles.menuItem,
-    ...(isActive('home') ? styles.activeMenu : {}),
+    ...(location.pathname === '/' ? styles.activeMenu : {}),
   }}
-  onClick={() => go('home')}
+  onClick={() => navigate('/')}
   onMouseEnter={(e) =>
     (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
   }
@@ -415,7 +424,7 @@ export default function Sidebar({ setPage }: any) {
                 ...styles.subItem,
                 ...(isActive('dashboard-general') ? styles.activeSubItem : {}),
               }}
-              onClick={() => go('dashboard-general')}
+              onClick={() => navigate('/dashboard')}
               onMouseEnter={(e) =>
                 (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
               }
