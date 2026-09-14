@@ -41,10 +41,9 @@ export default function Sidebar() {
 
   const toggleAuth = () => {
     setIsLoggedIn(!isLoggedIn);
-
+  
     if (isLoggedIn) {
-      setPage('dashboard-general');
-      setActive('dashboard-general');
+      navigate('/dashboard');
     }
   };
 
@@ -437,40 +436,40 @@ export default function Sidebar() {
             </div>
 
             <div
-              style={{
-                ...styles.subItem,
-                ...(isActive('dashboard-feux') ? styles.activeSubItem : {}),
-              }}
-              onClick={() => go('dashboard-feux')}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = 'transparent')
-              }
-            >
-              <Flame size={16} />
-              Analyse des Feux
-            </div>
+  style={{
+    ...styles.subItem,
+    ...(isActive('analyse-feux') ? styles.activeSubItem : {}),
+  }}
+  onClick={() => go('analyse-feux')}
+  onMouseEnter={(e) =>
+    (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
+  }
+  onMouseLeave={(e) =>
+    (e.currentTarget.style.background = 'transparent')
+  }
+>
+  <Flame size={16} />
+  Analyse des Feux
+</div>
 
-            <div
-              style={{
-                ...styles.subItem,
-                ...(isActive('dashboard-deforestation')
-                  ? styles.activeSubItem
-                  : {}),
-              }}
-              onClick={() => go('dashboard-deforestation')}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = 'transparent')
-              }
-            >
-              <Trees size={16} />
-              Déforestation
-            </div>
+<div
+  style={{
+    ...styles.subItem,
+    ...(isActive('deforestation')
+      ? styles.activeSubItem
+      : {}),
+  }}
+  onClick={() => go('deforestation')}
+  onMouseEnter={(e) =>
+    (e.currentTarget.style.background = 'rgba(0,0,0,0.03)')
+  }
+  onMouseLeave={(e) =>
+    (e.currentTarget.style.background = 'transparent')
+  }
+>
+  <Trees size={16} />
+  Déforestation
+</div>
 
             {/*<div
               style={{
