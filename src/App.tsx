@@ -35,15 +35,13 @@ export default function App() {
 
   return (
     <Routes>
-      {/* ===================== ACCUEIL ===================== */}
+      {/* ================= ACCUEIL ================= */}
       <Route path="/" element={<Home />} />
 
-      {/* ===================== ESPACE PADDI ===================== */}
+      {/* ================= ESPACE PADDI ================= */}
       <Route path="/dashboard" element={<DashboardLayout />}>
-        {/* Tableau de bord principal */}
-        <Route index element={<Dashboard data={data} />} />
-
         {/* Tableau de bord */}
+        <Route index element={<Dashboard data={data} />} />
         <Route path="analyse-feux" element={<AnalyseFeux />} />
         <Route path="deforestation" element={<Deforestation />} />
 
@@ -110,7 +108,23 @@ export default function App() {
           path="mesures-regionales"
           element={<MesureRegionale />}
         />
+
+        {/* Route de secours */}
+        <Route
+          path="*"
+          element={
+            <h1 style={{ color: "red" }}>
+              Page introuvable
+            </h1>
+          }
+        />
       </Route>
+
+      {/* Route inconnue */}
+      <Route
+        path="*"
+        element={<h1>404 - Page introuvable</h1>}
+      />
     </Routes>
   );
 }
