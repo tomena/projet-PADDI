@@ -8,7 +8,50 @@ import "./Home.css";
 export default function Home() {
   const navigate = useNavigate();
 
-  const open = (module: string) => navigate(`/${module}`);
+  const open = (module: string) => {
+    switch (module) {
+      case "paddi":
+        navigate("/dashboard", {
+          state: { module: "paddi" },
+        });
+        break;
+  
+      case "environnement":
+        navigate("/dashboard/analyse-feux", {
+          state: { module: "environnement" },
+        });
+        break;
+  
+      case "cadre":
+        navigate("/dashboard/analyse", {
+          state: { module: "cadre" },
+        });
+        break;
+  
+      case "societe":
+        navigate("/dashboard/analyse-social", {
+          state: { module: "societe" },
+        });
+        break;
+  
+      case "economie":
+        navigate("/dashboard/analyse-economie", {
+          state: { module: "economie" },
+        });
+        break;
+  
+      case "projets":
+        navigate("/dashboard/projets", {
+          state: { module: "projets" },
+        });
+        break;
+  
+      default:
+        navigate("/dashboard", {
+          state: { module: "paddi" },
+        });
+    }
+  };
 
   return (
     <div className="home-page">
@@ -67,55 +110,55 @@ export default function Home() {
       </div>
 
       {/* PLAQUE PADDI */}
-      <button className="paddi-btn" onClick={() => open("dashboard")}>
+      <button className="paddi-btn" onClick={() => open("paddi")}>
         PADDI
       </button>
 
       {/* ===== FEUILLES CLIQUABLES ===== */}
 
         <button
-        className="leaf env"
-        onClick={() => open("environnement")}
-        title="Ouvrir Environnement"
+          className="leaf env"
+          onClick={() => open("environnement")}
+          title="Ouvrir Environnement"
         >
-        <Leaf size={30} strokeWidth={2.2} />
-        <span>Environnement</span>
+          <Leaf size={30} strokeWidth={2.2} />
+          <span>Environnement</span>
         </button>
 
         <button
-        className="leaf eco"
-        onClick={() => open("economie")}
-        title="Ouvrir Économie"
+          className="leaf eco"
+          onClick={() => open("economie")}
+          title="Ouvrir Économie"
         >
-        <BarChart3 size={30} strokeWidth={2.2} />
-        <span>Économie</span>
+          <BarChart3 size={30} strokeWidth={2.2} />
+          <span>Économie</span>
         </button>
 
         <button
-        className="leaf soc"
-        onClick={() => open("societe")}
-        title="Ouvrir Société"
+          className="leaf soc"
+          onClick={() => open("societe")}
+          title="Ouvrir Société"
         >
-        <Users size={30} strokeWidth={2.2} />
-        <span>Société</span>
+          <Users size={30} strokeWidth={2.2} />
+          <span>Société</span>
         </button>
 
         <button
-        className="leaf cadre"
-        onClick={() => open("cadre")}
-        title="Ouvrir Cadre stratégique"
+          className="leaf cadre"
+          onClick={() => open("cadre")}
+          title="Ouvrir Cadre stratégique"
         >
-        <Target size={30} strokeWidth={2.2} />
-        <span>Cadre stratégique</span>
+          <Target size={30} strokeWidth={2.2} />
+          <span>Cadre stratégique</span>
         </button>
 
         <button
-        className="leaf proj"
-        onClick={() => open("projets")}
-        title="Ouvrir Projets de développement"
+          className="leaf proj"
+          onClick={() => open("projets")}
+          title="Ouvrir Projets de développement"
         >
-        <Cog size={30} strokeWidth={2.2} />
-        <span>Projets de développement</span>
+          <Cog size={30} strokeWidth={2.2} />
+          <span>Projets de développement</span>
         </button>
 
       {/* BOUTONS BAS */}
