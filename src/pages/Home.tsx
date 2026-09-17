@@ -63,10 +63,28 @@ const text = {
     guide: "User Guide",
     contact: "Contact",
   },
+  de: {
+    title1: "Informationssystem für eine",
+    title2: "nachhaltige und integrierte Entwicklung",
+    presentation: "Vorstellung des Informationssystems",
+    p1: "Dieses Informationssystem dient als Instrument zur Unterstützung von Entscheidungsprozessen und zur Orientierung der Maßnahmen für eine nachhaltige und integrierte Entwicklung eines klar abgegrenzten Gebiets in Madagaskar. Es betrifft insbesondere die Regionen, in denen sich sieben ausgewählte Schutzgebiete befinden: Montagne d'Ambre, Ankarana und Analamerana in der Region DIANA, Ankarafantsika in der Region Boeny, Andohahela in der Region Anôsy, Befotaka-Midongy in der Region Atsimo Atsinanana und Marolambo in der Region Amoron'i Mania. Das betrachtete Gebiet kann von der Region bis hin zur Gemeinde reichen.",
+    p2: "Dieses System richtet sich an alle Akteure, die im Bereich der nachhaltigen Entwicklung tätig sind oder sich dafür interessieren, insbesondere an Entscheidungsträger.",
+    p3: "Einerseits stellt das Informationssystem je nach ausgewähltem Gebiet zentralisierte Informationen in den Bereichen Umwelt, Wirtschaft und Gesellschaft bereit. Darüber hinaus umfasst es bestehende strategische Dokumente sowie eine räumliche Darstellung der verschiedenen Maßnahmen und Aktivitäten der unterschiedlichen Akteure. Die Ergebnisse der Unterstützungsmaßnahmen von PADDI im ausgewählten Gebiet werden ebenfalls detaillierter dargestellt.",
+    p4: "Andererseits kann das System über die reine Bereitstellung von Informationen hinaus spezifische Analysen auf Grundlage der von den Nutzern eingegebenen Daten erstellen. Es können Prognosen, Analysen und Orientierungshilfen zur Unterstützung von Entscheidungsprozessen bereitgestellt werden.",
+    p5: "Das Informationssystem besteht aus den Elementen, die durch den nebenstehenden Baum dargestellt werden.",
+
+    env: "Umwelt",
+    eco: "Wirtschaft",
+    soc: "Gesellschaft",
+    cadre: "Strategischer Rahmen",
+    projet: "Entwicklungsprojekte",
+    guide: "Benutzerhandbuch",
+    contact: "Kontakt",
+  },
 };
 
 export default function Home() {
-  const [lang, setLang] = useState<"fr" | "mg" | "en">("fr");
+  const [lang, setLang] = useState<"fr" | "mg" | "en" | "de">("fr");
   const t = text[lang];
   const navigate = useNavigate();
 
@@ -149,6 +167,13 @@ export default function Home() {
           onClick={() => setLang("en")}
         >
           EN
+        </button>
+
+        <button
+          className={lang === "de" ? "active" : ""}
+          onClick={() => setLang("de")}
+        >
+          DE
         </button>
       </div>
 
