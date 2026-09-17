@@ -1,40 +1,223 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { useLanguage } from "../context/LanguageContext";
 
 import {
-  LayoutDashboard,
-  BarChart3,
-  Flame,
-  Trees,
-  Users,
-  Globe2,
-  Landmark,
-  Map,
-  MapPinned,
-  Settings,
-  Bot,
-  Languages,
-  Download,
-  ChevronDown,
-  ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Home,
-  FolderKanban,
-  Database,
-  Briefcase,
-  DollarSign,
-  Gavel,
-  Wheat,
-  Activity,
-  ReceiptText,
-  Store,
-  BrainCircuit,
+  LayoutDashboard, BarChart3, Flame,Trees, Users, Globe2, Landmark, Map, MapPinned, Settings,Bot,Languages,Download, ChevronDown, ChevronRight,PanelLeftClose, PanelLeftOpen, Home, FolderKanban,
+  Database, Briefcase, DollarSign, Gavel, Wheat,Activity, ReceiptText, Store, BrainCircuit,
 } from "lucide-react";
+
+const sidebarTxt = {
+  fr: {
+    home: "Accueil",
+    subtitle: "Programme d'Appui au Développement Durable et Intégré",
+    generalView: "Vue générale",
+    paddiIndicator: "Indicateur du PADDI+",
+
+    managementSystem: "Système de gestion",
+    burnedAreas: "Superficies brûlées",
+    municipalBudgets: "Budgets Communaux",
+    monitoringSystem: "Système de suivi",
+    communityMeasures: "Mesures Communautaires",
+    cosapDecision: "Décision des COSAP",
+    regionalMeasures: "Mesures régionales",
+
+    landUsePlanning: "Aménagement du territoire",
+    developedArea: "Superficie aménagée",
+    beneficiary: "Bénéficiaire",
+    agroPastoralAreas: "Surfaces Agropastorales",
+    forestAreas: "Surfaces Forestières",
+    producersWithIncome: "Producteurs avec revenus",
+    microEnterprises: "Micro-entreprises",
+
+    costMonitoring: "Suivi des coûts",
+    annualActivityMonitoring: "Suivi des activités annuelles",
+
+    fireAnalysis: "Analyse de feux",
+    deforestation: "Déforestation",
+    environment: "Environnement",
+
+    territorialSynthesis: "Synthèse territoriale",
+
+    socialIndicators: "Indicateurs sociaux",
+    socioeconomic: "Sociaux-économique",
+
+    localEconomy: "Économie locale",
+
+    mapping: "Cartographie",
+    paddiIntervention: "Intervention de PADDI+",
+    pressureZones: "Zones de Pression",
+
+    configuration: "Configuration",
+    artificialIntelligence: "Intelligence Artificielle",
+    languages: "Langues",
+    export: "Exportation",
+
+    login: "Se connecter",
+    logout: "Se déconnecter",
+    loginBadge: "Login",
+    logoutBadge: "Logout",
+  },
+
+  mg: {
+    home: "Tongasoa",
+    subtitle: "Fandaharanasa fanohanana ny fampandrosoana maharitra sy mitambatra",
+    generalView: "Fijery ankapobeny",
+    paddiIndicator: "Tondro PADDI+",
+
+    managementSystem: "Rafitra fitantanana",
+    burnedAreas: "Velaran-tany may",
+    municipalBudgets: "Tetibolan'ny Kaominina",
+    monitoringSystem: "Rafitra fanaraha-maso",
+    communityMeasures: "Fepetra raisin'ny vondrom-piarahamonina",
+    cosapDecision: "Fanapahan-kevitry ny COSAP",
+    regionalMeasures: "Fepetra isam-paritra",
+
+    landUsePlanning: "Fanajariana ny faritany",
+    developedArea: "Velaran-tany voalamina",
+    beneficiary: "Mpahazo tombontsoa",
+    agroPastoralAreas: "Velaran-tany fambolena sy fiompiana",
+    forestAreas: "Velaran-tany misy ala",
+    producersWithIncome: "Mpamokatra manana fidiram-bola",
+    microEnterprises: "Orinasa madinika",
+
+    costMonitoring: "Fanaraha-maso ny fandaniana",
+    annualActivityMonitoring: "Fanaraha-maso ny asa isan-taona",
+
+    fireAnalysis: "Fandinihana ny doro tanety",
+    deforestation: "Fandripahana ala",
+    environment: "Tontolo iainana",
+
+    territorialSynthesis: "Famintinana ny faritany",
+
+    socialIndicators: "Tondro ara-tsosialy",
+    socioeconomic: "Ara-tsosialy sy ara-toekarena",
+
+    localEconomy: "Toekarena eo an-toerana",
+
+    mapping: "Sarintany",
+    paddiIntervention: "Fandraisan'anjaran'ny PADDI+",
+    pressureZones: "Faritra misy tsindry",
+
+    configuration: "Fikirakirana",
+    artificialIntelligence: "Faharanitan-tsaina artifisialy",
+    languages: "Fiteny",
+    export: "Famoahana angona",
+
+    login: "Hiditra",
+    logout: "Hivoaka",
+    loginBadge: "Hiditra",
+    logoutBadge: "Hivoaka",
+  },
+
+  en: {
+    home: "Home",
+    subtitle: "Support Programme for Sustainable and Integrated Development",
+    generalView: "Overview",
+    paddiIndicator: "PADDI+ Indicators",
+
+    managementSystem: "Management System",
+    burnedAreas: "Burned Areas",
+    municipalBudgets: "Municipal Budgets",
+    monitoringSystem: "Monitoring System",
+    communityMeasures: "Community Measures",
+    cosapDecision: "COSAP Decisions",
+    regionalMeasures: "Regional Measures",
+
+    landUsePlanning: "Land Use Planning",
+    developedArea: "Developed Area",
+    beneficiary: "Beneficiary",
+    agroPastoralAreas: "Agropastoral Areas",
+    forestAreas: "Forest Areas",
+    producersWithIncome: "Producers with Income",
+    microEnterprises: "Micro-enterprises",
+
+    costMonitoring: "Cost Monitoring",
+    annualActivityMonitoring: "Annual Activity Monitoring",
+
+    fireAnalysis: "Fire Analysis",
+    deforestation: "Deforestation",
+    environment: "Environment",
+
+    territorialSynthesis: "Territorial Overview",
+
+    socialIndicators: "Social Indicators",
+    socioeconomic: "Socio-economic",
+
+    localEconomy: "Local Economy",
+
+    mapping: "Mapping",
+    paddiIntervention: "PADDI+ Intervention",
+    pressureZones: "Pressure Zones",
+
+    configuration: "Settings",
+    artificialIntelligence: "Artificial Intelligence",
+    languages: "Languages",
+    export: "Export",
+
+    login: "Log in",
+    logout: "Log out",
+    loginBadge: "Login",
+    logoutBadge: "Logout",
+  },
+
+  de: {
+    home: "Startseite",
+    subtitle: "Programm zur Unterstützung einer nachhaltigen und integrierten Entwicklung",
+    generalView: "Übersicht",
+    paddiIndicator: "PADDI+ Indikatoren",
+
+    managementSystem: "Verwaltungssystem",
+    burnedAreas: "Verbrannte Flächen",
+    municipalBudgets: "Gemeindehaushalte",
+    monitoringSystem: "Überwachungssystem",
+    communityMeasures: "Maßnahmen der Gemeinschaft",
+    cosapDecision: "COSAP-Entscheidung",
+    regionalMeasures: "Regionale Maßnahmen",
+
+    landUsePlanning: "Raumplanung",
+    developedArea: "Erschlossene Fläche",
+    beneficiary: "Begünstigte",
+    agroPastoralAreas: "Agropastorale Flächen",
+    forestAreas: "Waldflächen",
+    producersWithIncome: "Produzenten mit Einkommen",
+    microEnterprises: "Kleinstunternehmen",
+
+    costMonitoring: "Kostenüberwachung",
+    annualActivityMonitoring: "Jährliche Aktivitätsüberwachung",
+
+    fireAnalysis: "Brandanalyse",
+    deforestation: "Entwaldung",
+    environment: "Umwelt",
+
+    territorialSynthesis: "Territoriale Übersicht",
+
+    socialIndicators: "Soziale Indikatoren",
+    socioeconomic: "Sozioökonomisch",
+
+    localEconomy: "Lokale Wirtschaft",
+
+    mapping: "Kartierung",
+    paddiIntervention: "PADDI+-Intervention",
+    pressureZones: "Druckzonen",
+
+    configuration: "Konfiguration",
+    artificialIntelligence: "Künstliche Intelligenz",
+    languages: "Sprachen",
+    export: "Export",
+
+    login: "Anmelden",
+    logout: "Abmelden",
+    loginBadge: "Login",
+    logoutBadge: "Logout",
+  },
+};
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { lang } = useLanguage();
+  const t = sidebarTxt[lang];
 
   /*
    * Le module est envoyé depuis Home.tsx avec :
@@ -176,7 +359,7 @@ export default function Sidebar() {
         >
           <div style={styles.menuLeft}>
             <Home size={18} />
-            {!collapsed && "Accueil"}
+            {!collapsed && t.home}
           </div>
         </div>
 
@@ -209,7 +392,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <LayoutDashboard size={18} />
-                {!collapsed && "Vue générale"}
+                {!collapsed && t.generalView}
               </div>
             </div>
 
@@ -223,7 +406,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <FolderKanban size={18} />
-                {!collapsed && "Indicateur du PADDI+"}
+                {!collapsed && t.paddiIndicator}
               </div>
 
               {!collapsed && (
@@ -249,7 +432,7 @@ export default function Sidebar() {
                 >
                   <div style={styles.menuLeft}>
                     <Database size={16} />
-                    Système de gestion
+                    {t.managementSystem}
                   </div>
 
                   {openSub["systeme"] ? (
@@ -280,7 +463,7 @@ export default function Sidebar() {
                       }
                     >
                       <Flame size={16} />
-                      Superficies brûlées
+                      {t.burnedAreas}
                     </div>
 
                     {/* Budgets Communaux */}
@@ -302,7 +485,7 @@ export default function Sidebar() {
                       }
                     >
                       <Landmark size={16} />
-                      Budgets Communaux
+                      {t.municipalBudgets}
                     </div>
 
                     {/* Système de suivi */}
@@ -324,7 +507,7 @@ export default function Sidebar() {
                       }
                     >
                       <Activity size={16} />
-                      Système de suivi
+                      {t.monitoringSystem}
                     </div>
 
                     {/* Mesures Communautaires */}
@@ -346,7 +529,7 @@ export default function Sidebar() {
                       }
                     >
                       <Users size={16} />
-                      Mesures Communautaires
+                      {t.communityMeasures}
                     </div>
 
                     {/* Décision des COSAP */}
@@ -368,7 +551,7 @@ export default function Sidebar() {
                       }
                     >
                       <Gavel size={16} />
-                      Décision des COSAP
+                      {t.cosapDecision}
                     </div>
 
                     {/* Mesures régionales */}
@@ -390,7 +573,7 @@ export default function Sidebar() {
                       }
                     >
                       <Globe2 size={16} />
-                      Mesures régionales
+                      {t.regionalMeasures}
                     </div>
                   </div>
                 )}
@@ -405,7 +588,7 @@ export default function Sidebar() {
                 >
                   <div style={styles.menuLeft}>
                     <Briefcase size={16} />
-                    Aménagement du territoire
+                    {t.landUsePlanning}
                   </div>
 
                   {openSub["amenagement"] ? (
@@ -436,7 +619,7 @@ export default function Sidebar() {
                       }
                     >
                       <MapPinned size={16} />
-                      Superficie aménagée
+                      {t.developedArea}
                     </div>
 
                     {/* Bénéficiaire */}
@@ -458,7 +641,7 @@ export default function Sidebar() {
                       }
                     >
                       <Users size={16} />
-                      Bénéficiaire
+                      {t.beneficiary}
                     </div>
 
                     {/* Surfaces Agropastorales */}
@@ -480,7 +663,7 @@ export default function Sidebar() {
                       }
                     >
                       <Wheat size={16} />
-                      Surfaces Agropastorales
+                      {t.agroPastoralAreas}
                     </div>
 
                     {/* Surfaces Forestières */}
@@ -502,7 +685,7 @@ export default function Sidebar() {
                       }
                     >
                       <Trees size={16} />
-                      Surfaces Forestières
+                      {t.forestAreas}
                     </div>
 
                     {/* Producteurs avec revenus */}
@@ -524,7 +707,7 @@ export default function Sidebar() {
                       }
                     >
                       <DollarSign size={16} />
-                      Producteurs avec revenus
+                      {t.producersWithIncome}
                     </div>
 
                     {/* Micro-entreprises */}
@@ -546,7 +729,7 @@ export default function Sidebar() {
                       }
                     >
                       <Store size={16} />
-                      Micro-entreprises
+                      {t.microEnterprises}
                     </div>
                   </div>
                 )}
@@ -574,7 +757,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <ReceiptText size={18} />
-                {!collapsed && "Suivi des coûts"}
+                {!collapsed && t.costMonitoring}
               </div>
             </div>
 
@@ -599,7 +782,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Activity size={18} />
-                {!collapsed && "Suivi des activités annuelles"}
+                {!collapsed && t.annualActivityMonitoring}
               </div>
             </div>
           </>
@@ -630,7 +813,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Flame size={18} />
-                {!collapsed && "Analyse de feux"}
+                {!collapsed && t.fireAnalysis}
               </div>
             </div>
 
@@ -653,7 +836,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Trees size={18} />
-                {!collapsed && "Déforestation"}
+                {!collapsed && t.deforestation}
               </div>
             </div>
 
@@ -676,7 +859,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Globe2 size={18} />
-                {!collapsed && "Environnement"}
+                {!collapsed && t.environment}
               </div>
             </div>
           </>
@@ -705,7 +888,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <BarChart3 size={18} />
-                {!collapsed && "Synthèse territoriale"}
+                {!collapsed && t.territorialSynthesis}
               </div>
             </div>
           </>
@@ -736,7 +919,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Users size={18} />
-                {!collapsed && "Indicateurs sociaux"}
+                {!collapsed && t.socialIndicators}
               </div>
             </div>
 
@@ -759,7 +942,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <MapPinned size={18} />
-                {!collapsed && "Sociaux-économique"}
+                {!collapsed && t.socioeconomic}
               </div>
             </div>
           </>
@@ -788,7 +971,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Landmark size={18} />
-                {!collapsed && "Économie locale"}
+                {!collapsed && t.localEconomy}
               </div>
             </div>
           </>
@@ -806,7 +989,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Map size={18} />
-                {!collapsed && "Cartographie"}
+                {!collapsed && t.mapping}
               </div>
 
               {!collapsed &&
@@ -838,7 +1021,7 @@ export default function Sidebar() {
                   }
                 >
                   <MapPinned size={16} />
-                  Intervention de PADDI+
+                  {t.paddiIntervention}
                 </div>
 
                 {/* Zones de pression */}
@@ -860,7 +1043,7 @@ export default function Sidebar() {
                   }
                 >
                   <Flame size={16} />
-                  Zones de Pression
+                  {t.pressureZones}
                 </div>
               </div>
             )}
@@ -879,7 +1062,7 @@ export default function Sidebar() {
             >
               <div style={styles.menuLeft}>
                 <Settings size={18} />
-                {!collapsed && "Configuration"}
+                {!collapsed && t.configuration}
               </div>
 
               {!collapsed &&
@@ -911,7 +1094,7 @@ export default function Sidebar() {
                   }
                 >
                   <Bot size={16} />
-                  Intelligence Artificielle
+                  {t.artificialIntelligence}
                 </div>
 
                 {/* Langues */}
@@ -933,7 +1116,7 @@ export default function Sidebar() {
                   }
                 >
                   <Languages size={16} />
-                  Langues
+                  {t.languages}
                 </div>
 
                 {/* Exportation */}
@@ -955,7 +1138,7 @@ export default function Sidebar() {
                   }
                 >
                   <Download size={16} />
-                  Exportation
+                  {t.export}
                 </div>
               </div>
             )}
@@ -970,7 +1153,7 @@ export default function Sidebar() {
           <div style={styles.menuLeft}>
             <Users size={18} />
             {!collapsed &&
-              (isLoggedIn ? "Se déconnecter" : "Se connecter")}
+                (isLoggedIn ? t.logout : t.login)}
           </div>
 
           <div
@@ -979,7 +1162,7 @@ export default function Sidebar() {
               background: isLoggedIn ? "#dc2626" : "#059669",
             }}
           >
-            {!collapsed && (isLoggedIn ? "Logout" : "Login")}
+            {!collapsed && (isLoggedIn ? t.logoutBadge : t.loginBadge)}
           </div>
         </div>
       </div>
