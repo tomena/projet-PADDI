@@ -4,6 +4,373 @@ import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
 import {PieChart,Pie,Cell,LineChart,Line,XAxis,YAxis,Tooltip,Legend,ResponsiveContainer } from 'recharts';
 import {Flame,Monitor,Home,MapPinned,TrendingUp,FileText,Leaf,Tractor,Trees,Users,Cog } from 'lucide-react';
+import { useLanguage } from "../context/LanguageContext";
+
+const dashboardTxt = {
+  fr: {
+    title: "TABLEAU DE BORD PADDI+",
+    antenna: "Antenne",
+    allAntennas: "Toutes les antennes",
+    year: "Année",
+
+    keyAchievements: "RÉALISATIONS CLÉS",
+    keyResults: "RÉSULTATS CLÉS",
+    interventionZone: "ZONE D’INTERVENTION",
+
+    municipalBudgets:
+      "Budgets communaux ≥5% pour le SECO (dont 25% femmes/jeunes)",
+    communes: "Communes",
+    target: "Cible",
+    reduction: "de réduction",
+    reductionBurnedAreas:
+      "Réduction de 25% des superficies brûlées en périphérie des 7 AP d'ici 2030",
+    ecosystems:
+      "Ecosystèmes agropastoraux sous pratique durable (UE)",
+    beneficiaries: "bénéficiaires",
+    smallholders:
+      "Petits exploitants bénéficiaires (production, marchés, sécurité foncière)",
+    ha: "ha",
+
+    adoptedMeasures:
+      "Mesures SECO adoptées par les Communes",
+    measures: "mesures",
+
+    cosapDecisions:
+      "Décisions COSAP intégrées aux plans communaux",
+    decisions: "décisions",
+
+    regionalPackages:
+      "Paquets de mesures régionales SE",
+    packages: "paquets",
+
+    regionsMonitoring:
+      "Région disposent d'un système de suivi-évaluation des SE",
+    regions: "régions",
+
+    sustainableAgropastoral:
+      "Pratiques agropastorales durables",
+    sustainableForest:
+      "Pratiques forestières durables",
+    improvedProducers:
+      "Producteurs améliorés",
+    agrMicroBusinesses:
+      "AGR / micro-entreprises",
+    producers: "producteurs",
+    companies: "entreprises",
+
+    beneficiariesByGender:
+      "Répartition des bénéficiaires par genre",
+    men: "Hommes",
+    women: "Femmes",
+
+    youngBeneficiaries:
+      "Répartition des jeunes bénéficiaires",
+    youngPeople: "Jeunes (JH/JF)",
+    adults: "Adultes",
+
+    indicatorStatus: "Statut des indicateurs",
+    reached: "Atteint",
+    inProgress: "En cours",
+    notReached: "Non atteint",
+
+    globalProjectProgress:
+      "Avancement global du projet",
+    globalProgress: "Progression globale",
+
+    legend: "Légende",
+    office: "Bureau",
+    protectedArea: "Aire protégée",
+
+    targetLabel: "Cible",
+    targetCommunes: "Cible : 40 Communes",
+    targetReduction: "Cible : -25% d'ici 2030",
+    targetEcosystems: "Cible : 110 000 ha",
+    targetBeneficiaries: "Cible : 25 000",
+    targetCommunes80: "Cible : 80% des communes",
+    targetDecisions: "Cible : 21 décisions",
+    targetPackages: "Cible : 5 paquets",
+    targetRegions: "Cible : 5 régions",
+    targetAgro: "Cible : 60 000 ha",
+    targetForest: "Cible : 100 000 ha",
+    targetProducers: "Cible : 10 000",
+    targetCompanies: "Cible : 70",
+
+    km: "km",
+  },
+
+  mg: {
+    title: "TABILAO FANARAHANA PADDI+",
+    antenna: "Antenina",
+    allAntennas: "Antenina rehetra",
+    year: "Taona",
+
+    keyAchievements: "ZAVA-BITA LEHIBE",
+    keyResults: "VOKATRA LEHIBE",
+    interventionZone: "FARITRA IASA",
+
+    municipalBudgets:
+      "Tetibolan'ny kaominina ≥5% ho an'ny SECO (anisan'izany ny 25% ho an'ny vehivavy/tanora)",
+    communes: "Kaominina",
+    target: "Tanjona",
+    reduction: "fihenana",
+    reductionBurnedAreas:
+      "Fampihenana 25% ny velaran-tany may manodidina ireo faritra arovana 7 hatramin'ny 2030",
+    ecosystems:
+      "Ekôzisteman'ny fambolena sy fiompiana mampihatra fomba maharitra (UE)",
+    beneficiaries: "mpahazo tombontsoa",
+    smallholders:
+      "Mpamboly madinika mahazo tombontsoa (famokarana, tsena, fiarovana ny fananan-tany)",
+    ha: "ha",
+
+    adoptedMeasures:
+      "Fepetra SECO noraisin'ny Kaominina",
+    measures: "fepetra",
+
+    cosapDecisions:
+      "Fanapahan-kevitry ny COSAP nampidirina tao amin'ny drafitrasa kaominina",
+    decisions: "fanapahan-kevitra",
+
+    regionalPackages:
+      "Fonosana fepetra isam-paritra SE",
+    packages: "fonosana",
+
+    regionsMonitoring:
+      "Faritra manana rafitra fanaraha-maso sy fanombanana ny SE",
+    regions: "faritra",
+
+    sustainableAgropastoral:
+      "Fomba fambolena sy fiompiana maharitra",
+    sustainableForest:
+      "Fomba fitantanana ala maharitra",
+    improvedProducers:
+      "Mpamokatra nohatsaraina",
+    agrMicroBusinesses:
+      "AGR / orinasa madinika",
+    producers: "mpamokatra",
+    companies: "orinasa",
+
+    beneficiariesByGender:
+      "Fizarana ny mpahazo tombontsoa araka ny lahy sy vavy",
+    men: "Lehilahy",
+    women: "Vehivavy",
+
+    youngBeneficiaries:
+      "Fizarana ny tanora mpahazo tombontsoa",
+    youngPeople: "Tanora (lahy/vavy)",
+    adults: "Olon-dehibe",
+
+    indicatorStatus: "Toetry ny tondro",
+    reached: "Tratra",
+    inProgress: "Eo am-panatanterahana",
+    notReached: "Tsy tratra",
+
+    globalProjectProgress:
+      "Fandrosoan'ny tetikasa amin'ny ankapobeny",
+    globalProgress: "Fandrosoana ankapobeny",
+
+    legend: "Fanazavana",
+    office: "Birao",
+    protectedArea: "Faritra arovana",
+
+    targetLabel: "Tanjona",
+    targetCommunes: "Tanjona : Kaominina 40",
+    targetReduction: "Tanjona : -25% hatramin'ny 2030",
+    targetEcosystems: "Tanjona : 110 000 ha",
+    targetBeneficiaries: "Tanjona : 25 000",
+    targetCommunes80: "Tanjona : 80% amin'ny kaominina",
+    targetDecisions: "Tanjona : fanapahan-kevitra 21",
+    targetPackages: "Tanjona : fonosana 5",
+    targetRegions: "Tanjona : faritra 5",
+    targetAgro: "Tanjona : 60 000 ha",
+    targetForest: "Tanjona : 100 000 ha",
+    targetProducers: "Tanjona : 10 000",
+    targetCompanies: "Tanjona : 70",
+
+    km: "km",
+  },
+
+  en: {
+    title: "PADDI+ DASHBOARD",
+    antenna: "Office",
+    allAntennas: "All offices",
+    year: "Year",
+
+    keyAchievements: "KEY ACHIEVEMENTS",
+    keyResults: "KEY RESULTS",
+    interventionZone: "INTERVENTION AREA",
+
+    municipalBudgets:
+      "Municipal budgets ≥5% for SECO (including 25% for women/youth)",
+    communes: "Communes",
+    target: "Target",
+    reduction: "reduction",
+    reductionBurnedAreas:
+      "25% reduction of burned areas around the 7 protected areas by 2030",
+    ecosystems:
+      "Agropastoral ecosystems under sustainable practices (EU)",
+    beneficiaries: "beneficiaries",
+    smallholders:
+      "Smallholder beneficiaries (production, markets, land security)",
+    ha: "ha",
+
+    adoptedMeasures:
+      "SECO measures adopted by communes",
+    measures: "measures",
+
+    cosapDecisions:
+      "COSAP decisions integrated into municipal plans",
+    decisions: "decisions",
+
+    regionalPackages:
+      "Regional SE measure packages",
+    packages: "packages",
+
+    regionsMonitoring:
+      "Regions with an SE monitoring and evaluation system",
+    regions: "regions",
+
+    sustainableAgropastoral:
+      "Sustainable agropastoral practices",
+    sustainableForest:
+      "Sustainable forestry practices",
+    improvedProducers:
+      "Improved producers",
+    agrMicroBusinesses:
+      "IGA / micro-enterprises",
+    producers: "producers",
+    companies: "companies",
+
+    beneficiariesByGender:
+      "Beneficiaries by gender",
+    men: "Men",
+    women: "Women",
+
+    youngBeneficiaries:
+      "Young beneficiaries",
+    youngPeople: "Young people (male/female)",
+    adults: "Adults",
+
+    indicatorStatus: "Indicator status",
+    reached: "Achieved",
+    inProgress: "In progress",
+    notReached: "Not achieved",
+
+    globalProjectProgress:
+      "Overall project progress",
+    globalProgress: "Overall progress",
+
+    legend: "Legend",
+    office: "Office",
+    protectedArea: "Protected Area",
+
+    targetLabel: "Target",
+    targetCommunes: "Target: 40 communes",
+    targetReduction: "Target: -25% by 2030",
+    targetEcosystems: "Target: 110,000 ha",
+    targetBeneficiaries: "Target: 25,000",
+    targetCommunes80: "Target: 80% of communes",
+    targetDecisions: "Target: 21 decisions",
+    targetPackages: "Target: 5 packages",
+    targetRegions: "Target: 5 regions",
+    targetAgro: "Target: 60,000 ha",
+    targetForest: "Target: 100,000 ha",
+    targetProducers: "Target: 10,000",
+    targetCompanies: "Target: 70",
+
+    km: "km",
+  },
+
+  de: {
+    title: "PADDI+ DASHBOARD",
+    antenna: "Büro",
+    allAntennas: "Alle Büros",
+    year: "Jahr",
+
+    keyAchievements: "WICHTIGE ERFOLGE",
+    keyResults: "WICHTIGE ERGEBNISSE",
+    interventionZone: "INTERVENTIONSGEBIET",
+
+    municipalBudgets:
+      "Gemeindehaushalte ≥5% für SECO (davon 25% für Frauen/Jugendliche)",
+    communes: "Gemeinden",
+    target: "Ziel",
+    reduction: "Reduzierung",
+    reductionBurnedAreas:
+      "Reduzierung der verbrannten Flächen rund um die 7 Schutzgebiete um 25% bis 2030",
+    ecosystems:
+      "Agropastorale Ökosysteme mit nachhaltigen Praktiken (EU)",
+    beneficiaries: "Begünstigte",
+    smallholders:
+      "Begünstigte Kleinproduzenten (Produktion, Märkte, Landrechte)",
+    ha: "ha",
+
+    adoptedMeasures:
+      "Von den Gemeinden angenommene SECO-Maßnahmen",
+    measures: "Maßnahmen",
+
+    cosapDecisions:
+      "In Gemeindepläne integrierte COSAP-Entscheidungen",
+    decisions: "Entscheidungen",
+
+    regionalPackages:
+      "Regionale SE-Maßnahmenpakete",
+    packages: "Pakete",
+
+    regionsMonitoring:
+      "Regionen mit einem Monitoring- und Evaluierungssystem für SE",
+    regions: "Regionen",
+
+    sustainableAgropastoral:
+      "Nachhaltige agropastorale Praktiken",
+    sustainableForest:
+      "Nachhaltige forstwirtschaftliche Praktiken",
+    improvedProducers:
+      "Verbesserte Produzenten",
+    agrMicroBusinesses:
+      "Einkommensschaffende Maßnahmen / Kleinstunternehmen",
+    producers: "Produzenten",
+    companies: "Unternehmen",
+
+    beneficiariesByGender:
+      "Begünstigte nach Geschlecht",
+    men: "Männer",
+    women: "Frauen",
+
+    youngBeneficiaries:
+      "Junge Begünstigte",
+    youngPeople: "Jugendliche (männlich/weiblich)",
+    adults: "Erwachsene",
+
+    indicatorStatus: "Status der Indikatoren",
+    reached: "Erreicht",
+    inProgress: "In Bearbeitung",
+    notReached: "Nicht erreicht",
+
+    globalProjectProgress:
+      "Gesamtfortschritt des Projekts",
+    globalProgress: "Gesamtfortschritt",
+
+    legend: "Legende",
+    office: "Büro",
+    protectedArea: "Schutzgebiet",
+
+    targetLabel: "Ziel",
+    targetCommunes: "Ziel: 40 Gemeinden",
+    targetReduction: "Ziel: -25% bis 2030",
+    targetEcosystems: "Ziel: 110.000 ha",
+    targetBeneficiaries: "Ziel: 25.000",
+    targetCommunes80: "Ziel: 80% der Gemeinden",
+    targetDecisions: "Ziel: 21 Entscheidungen",
+    targetPackages: "Ziel: 5 Pakete",
+    targetRegions: "Ziel: 5 Regionen",
+    targetAgro: "Ziel: 60.000 ha",
+    targetForest: "Ziel: 100.000 ha",
+    targetProducers: "Ziel: 10.000",
+    targetCompanies: "Ziel: 70",
+
+    km: "km",
+  },
+};
 
 const getVille = (nom) => {
   if (!nom) return "";
@@ -99,7 +466,13 @@ function onEachRegion(feature, layer, mapRef) {
   });
 }
 
-function LegendControl({ getColorByAntenne, antennes }) {
+function LegendControl({
+  getColorByAntenne,
+  antennes,
+  legendText,
+  officeText,
+  protectedAreaText,
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -114,12 +487,12 @@ function LegendControl({ getColorByAntenne, antennes }) {
       div.style.boxShadow = "0 1px 5px rgba(0,0,0,0.2)";
       div.style.fontSize = "12px";
 
-      div.innerHTML = `<strong>Légende:</strong><br/>`;
+      div.innerHTML = `<strong>${legendText}:</strong><br/>`;
 
       div.innerHTML += `
       <div style="display:flex;align-items:center;gap:6px;">
         ${pinSVG}
-        Bureau
+        ${officeText}
       </div>
     `;
 
@@ -149,7 +522,7 @@ function LegendControl({ getColorByAntenne, antennes }) {
         stroke-width="1"
         />
         </svg>
-        Aire protégée
+        ${protectedAreaText}
         </div>
         `;
       
@@ -249,6 +622,8 @@ function AireProtegeeLayer({ data, selectedAntenne }) {
 }
 
 export default function Dashboard({ data }: any) {
+  const { lang } = useLanguage();
+  const t = dashboardTxt[lang];
 
   const [selectedAntenne, setSelectedAntenne] = useState("");
   const [regionsData, setRegionsData] = useState(null);
@@ -380,18 +755,18 @@ return (
     <div style={styles.page}>
       {/* HEADER */}
       <div style={styles.header}>
-        <h1 style={styles.title}>TABLEAU DE BORD PADDI+</h1>
+      <h1 style={styles.title}>{t.title}</h1>
 
         <div style={styles.headerFilters}>
           <div style={styles.filterGroup}>
-            <label style={styles.filterLabel}>Antenne</label>
+          <label style={styles.filterLabel}>{t.antenna}</label>
 
             <select
               style={styles.select}
               value={selectedAntenne}
               onChange={(e) => setSelectedAntenne(e.target.value)}
             >
-              <option value="">Toutes les antennes</option>
+              <option value="">{t.allAntennas}</option>
 
               {antennes?.length > 0 &&
                 antennes.map((antenne) => (
@@ -404,7 +779,7 @@ return (
 
           {/* ANNEE */}
           <div style={styles.filterGroup}>
-            <label style={styles.filterLabel}>Année</label>
+          <label style={styles.filterLabel}>{t.year}</label>
 
             <select style={styles.select}>
               <option>2024</option>
@@ -426,46 +801,46 @@ return (
           <div style={styles.leftBlock}>
             <div style={styles.sectionTitle}>
               <TrendingUp size={30} />
-              <span>RÉALISATIONS CLÉS</span>
+              <span>{t.keyAchievements}</span>
             </div>
 
             <div style={styles.kpiGrid}>
-              <KpiCard
-                title="Budgets communaux ≥5% pour le SECO (dont 25% femmes/jeunes)"
+            <KpiCard
+                title={t.municipalBudgets}
                 value="40"
-                unit="Communes"
+                unit={t.communes}
                 percent={100}
-                target="Cible : 40 Communes"
+                target={t.targetCommunes}
                 color="#16a34a"
                 type="circle"
               />
 
               <KpiCard
-                title="Réduction de 25% des superficies brûlées en périphérie des 7 AP d'ici 2030"
+                title={t.reductionBurnedAreas}
                 value="-18%"
-                unit="de réduction"
+                unit={t.reduction}
                 percent={72}
-                target="Cible : -25% d'ici 2030"
+                target={t.targetReduction}
                 color="#ea580c"
                 icon={<Flame size={42} />}
               />
 
               <KpiCard
-                title="Ecosystèmes agropastoraux sous pratique durable (UE)"
+                title={t.ecosystems}
                 value="60 500"
-                unit="ha"
+                unit={t.ha}
                 percent={55}
-                target="Cible : 110 000 ha"
+                target={t.targetEcosystems}
                 color="#16a34a"
                 icon={<Trees size={42} />}
               />
 
               <KpiCard
-                title="Petits exploitants bénéficiaires (production, marchés, sécurité foncière)"
+                title={t.smallholders}
                 value="13 750"
-                unit="bénéficiaires"
+                unit={t.beneficiaries}
                 percent={55}
-                target="Cible : 25 000"
+                target={t.targetBeneficiaries}
                 color="#f59e0b"
                 icon={<Users size={42} />}
               />
@@ -476,45 +851,45 @@ return (
           <div style={styles.resultSection}>
             <div style={styles.sectionTitle}>
               <TrendingUp size={28} />
-              <span>RÉSULTATS CLÉS</span>
+              <span>{t.keyResults}</span>
             </div>
 
             <div style={styles.resultGrid}>
-              <ResultCard
-                icon={<Home size={20} />}
-                title="Mesures SECO adoptées par les Communes"
-                value="36"
-                unit="mesures"
-                percent={80}
-                target="Cible : 80% des communes"
-              />
+            <ResultCard
+              icon={<Home size={20} />}
+              title={t.adoptedMeasures}
+              value="36"
+              unit={t.measures}
+              percent={80}
+              target={t.targetCommunes80}
+            />
 
-              <ResultCard
-                icon={<FileText size={20} />}
-                title="Décisions COSAP intégrées aux plans communaux"
-                value="21"
-                unit="décisions"
-                percent={100}
-                target="Cible : 21 décisions"
-              />
+            <ResultCard
+              icon={<FileText size={20} />}
+              title={t.cosapDecisions}
+              value="21"
+              unit={t.decisions}
+              percent={100}
+              target={t.targetDecisions}
+            />
 
-              <ResultCard
-                icon={<Leaf size={20} />}
-                title="Paquets de mesures régionales SE"
-                value="5"
-                unit="paquets"
-                percent={100}
-                target="Cible : 5 paquets"
-              />
+            <ResultCard
+              icon={<Leaf size={20} />}
+              title={t.regionalPackages}
+              value="5"
+              unit={t.packages}
+              percent={100}
+              target={t.targetPackages}
+            />
 
-              <ResultCard
-                icon={<Monitor size={20} />}
-                title="Région disposent d'un système de suivi-évaluation des SE"
-                value="3"
-                unit="régions"
-                percent={60}
-                target="Cible : 5 régions"
-              />
+            <ResultCard
+              icon={<Monitor size={20} />}
+              title={t.regionsMonitoring}
+              value="3"
+              unit={t.regions}
+              percent={60}
+              target={t.targetRegions}
+            />
             </div>
           </div>
 
@@ -522,45 +897,45 @@ return (
             {/* LIGNE KPI + GAUGE */}
             <div style={styles.kpiGroup}>
             <div style={styles.realisationGrid}>
-              <RealKpi
-                title="Pratiques agropastorales durables"
-                value="40 000"
-                unit="ha"
-                target="Cible : 60 000 ha"
-                percent={67}
-                color="#16a34a"
-                icon={<Tractor size={30} />}
-              />
+            <RealKpi
+              title={t.sustainableAgropastoral}
+              value="40 000"
+              unit={t.ha}
+              target={t.targetAgro}
+              percent={67}
+              color="#16a34a"
+              icon={<Tractor size={30} />}
+            />
+
+            <RealKpi
+              title={t.sustainableForest}
+              value="70 000"
+              unit={t.ha}
+              target={t.targetForest}
+              percent={70}
+              color="#16a34a"
+              icon={<Trees size={30} />}
+            />
+
+            <RealKpi
+              title={t.improvedProducers}
+              value="7 000"
+              unit={t.producers}
+              target={t.targetProducers}
+              percent={70}
+              color="#f59e0b"
+              icon={<Users size={30} />}
+            />
 
               <RealKpi
-                title="Pratiques forestières durables"
-                value="70 000"
-                unit="ha"
-                target="Cible : 100 000 ha"
-                percent={70}
-                color="#16a34a"
-                icon={<Trees size={30} />}
-              />
-
-              <RealKpi
-                title="Producteurs améliorés"
-                value="7 000"
-                unit="producteurs"
-                target="Cible : 10 000"
-                percent={70}
-                color="#f59e0b"
-                icon={<Users size={30} />}
-              />
-
-              <RealKpi
-                title="AGR / micro-entreprises"
+                title={t.agrMicroBusinesses}
                 value="50"
-                unit="entreprises"
-                target="Cible : 70"
+                unit={t.companies}
+                target={t.targetCompanies}
                 percent={71}
                 color="#0284c7"
                 icon={<Cog size={30} />}
-              />              
+              />             
             </div>
             </div>
 
@@ -569,44 +944,48 @@ return (
 
           <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
           
-            <DonutChart
-              title="Répartition des bénéficiaires par genre"
-              data={[
-                { name: 'Hommes', value: 55, color: '#16a34a' },
-                { name: 'Femmes', value: 45, color: '#eab308' },
-              ]}
-              centerText="7 000"
-              centerLabel="producteurs"
-            />
+              <DonutChart
+                  title={t.beneficiariesByGender}
+                  data={[
+                    { name: t.men, value: 55, color: '#16a34a' },
+                    { name: t.women, value: 45, color: '#eab308' },
+                  ]}
+                  centerText="7 000"
+                  centerLabel={t.producers}
+                />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
-            <DonutChart
-              title="Répartition des jeunes bénéficiaires"
-              data={[
-                { name: 'Jeunes (JH/JF)', value: 60, color: '#2563eb' },
-                { name: 'Adultes', value: 40, color: '#f97316' },
-              ]}
-              centerText="7 000"
-              centerLabel="producteurs"
-            />
+                <DonutChart
+                  title={t.youngBeneficiaries}
+                  data={[
+                    { name: t.youngPeople, value: 60, color: '#2563eb' },
+                    { name: t.adults, value: 40, color: '#f97316' },
+                  ]}
+                  centerText="7 000"
+                  centerLabel={t.producers}
+                />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
 
-            <DonutChart
-              title="Statut des indicateurs"
-              data={[
-                { name: 'Atteint', value: 70, color: '#16a34a' },
-                { name: 'En cours', value: 20, color: '#f59e0b' },
-                { name: 'Non atteint', value: 10, color: '#ef4444' },
-              ]}
-            />
+              <DonutChart
+                  title={t.indicatorStatus}
+                  data={[
+                    { name: t.reached, value: 70, color: '#16a34a' },
+                    { name: t.inProgress, value: 20, color: '#f59e0b' },
+                    { name: t.notReached, value: 10, color: '#ef4444' },
+                  ]}
+                />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
               
-              <GaugeKpi value={dashboard.progression} />
+                <GaugeKpi
+                  value={dashboard.progression}
+                  title={t.globalProjectProgress}
+                  label={t.globalProgress}
+                />
             </div>
 
           </div>
@@ -620,7 +999,7 @@ return (
         <div style={styles.rightBlock}>
           <div style={styles.sectionTitle}>
             <MapPinned size={28} />
-            <span>ZONE D’INTERVENTION</span>
+            <span>{t.interventionZone}</span>
           </div>
 
           <div style={styles.mapCard}>
@@ -665,6 +1044,9 @@ return (
               <LegendControl
                 antennes={antennes}
                 getColorByAntenne={getColorByAntenne}
+                legendText={t.legend}
+                officeText={t.office}
+                protectedAreaText={t.protectedArea}
               />
             </MapContainer>
           </div>
@@ -837,7 +1219,7 @@ function RealKpi({ title, value, unit, target, percent, color, icon }: any) {
   );
 }
 
-function GaugeKpi({ value }: any) {
+function GaugeKpi({ value, title, label }: any) {
   const clamp = Math.min(Math.max(value, 0), 100);
 
   const color =
@@ -868,7 +1250,7 @@ function GaugeKpi({ value }: any) {
           textAlign: 'center',
         }}
       >
-        Avancement global du projet
+        {title}
       </div>
 
       {/* JAUGE */}
@@ -917,7 +1299,7 @@ function GaugeKpi({ value }: any) {
               marginTop: 2,
             }}
           >
-            Progression globale
+            {label}
           </div>
         </div>
       </div>
