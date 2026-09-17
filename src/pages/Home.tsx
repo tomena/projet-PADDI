@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useLanguage } from "../context/LanguageContext";
+
 import {
   BookOpen, Phone, BarChart3, Leaf, Users, Target, Cog,} from "lucide-react";
 
@@ -173,7 +175,7 @@ const text = {
 
 
 export default function Home() {
-  const [lang, setLang] = useState<"fr" | "mg" | "en" | "de">("fr");
+  const { lang, setLang } = useLanguage();
   const t = text[lang];
   const navigate = useNavigate();
 
