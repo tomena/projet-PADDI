@@ -101,6 +101,10 @@
 
 /* =========================
    EN-TÊTE
+
+
+/* =========================
+   EN-TÊTE
 ========================= */
 
 .info-header {
@@ -379,6 +383,12 @@
   .info-list {
     margin: 2px 0 6px 18px;
   }
+
+  .info-list li {
+    margin-bottom: 2px;
+  }
+}
+
 
   .info-list li {
     margin-bottom: 2px;
