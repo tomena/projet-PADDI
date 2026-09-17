@@ -4,173 +4,479 @@ import {Trees,MapPinned,Flame,TrendingDown,BadgePercent, Medal,Calendar, MapPin,
 import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxis,CartesianGrid,Tooltip,Legend,LabelList,ReferenceLine,Cell,
 } from "recharts";
 
+import { useLanguage } from "../context/LanguageContext";
+
 interface CardProps {
-    title: string;
-    value: string;
-    color: string;
-    icon: React.ReactNode;
-    index?: number;
-  }
+  title: string;
+  value: string;
+  color: string;
+  icon: React.ReactNode;
+  index?: number;
+  commune?: string;
+  taux?: number;
+}
 
-  const KPICard = ({
-    title,
-    value,
-    color,
-    icon,
-    index,
-    commune,
-    taux
-   }: CardProps) => {
-    const isSixth = index === 5; // 👈 6e carte
-  
-    return (
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 10,
-          padding: 5,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          height: 100,
-          transition: "all 0.2s ease",
-          cursor: "pointer",
-        }}
-      >
-        {/* ================== 6e CARTE SPÉCIALE ================== */}
-        {isSixth ? (
-          <>
-            {/* TITRE inchangé */}
+const TEXT = {
+  fr: {
+    title: "Suivi de la déforestation",
+    year: "Année",
+    protectedArea: "Aire protégée",
+
+    leastDeforested:
+      "Communes les moins déforestées par rapport à leur couverture forestière en",
+
+    loss: "avec une perte",
+    forestCover: "de sa couverture forestière",
+
+    kpiForestCover:
+      "Couverture forestière des Communes riveraines (2000)",
+
+    kpiRemainingArea:
+      "Superficie restante autour de l'Aire Protégée en",
+
+    kpiLossInside:
+      "Superficie perdue à l'intérieur de l'Aire Protégée en",
+
+    kpiAverage:
+      "Superficie moyenne annuelle de déforestation",
+
+    kpiCumulativeRate:
+      "Taux cumulé de perte forestière",
+
+    kpiMostAffected:
+      "Commune la plus touchée",
+
+    g1:
+      "Les 05 Communes les plus affectées en",
+
+    g2:
+      "Déforestation par Commune à l'intérieur de l'Aire Protégée",
+
+    g3:
+      "Déforestation dans les Communes riveraines",
+
+    g4:
+      "Communes les plus touchées depuis 2001 jusqu'en",
+
+    g5:
+      "Évolution annuelle des pertes forestières et du taux de déforestation des Communes riveraines",
+
+    g6:
+      "Évolution décennale de la déforestation autour de l'Aire Protégée",
+
+    compare:
+      "Comparer avec :",
+
+    inside:
+      "À l'intérieur du parc",
+
+    outside:
+      "À l'extérieur du parc",
+
+    surface:
+      "Superficie",
+
+    surfaceHa:
+      "Superficie (ha)",
+
+    cumulative:
+      "Cumul (%)",
+
+    lossRate:
+      "Taux de perte (%)",
+
+    annualUnit:
+      "ha/an",
+  },
+
+  mg: {
+    title: "Fanaraha-maso ny fahapotehan'ny ala",
+    year: "Taona",
+    protectedArea: "Faritra arovana",
+
+    leastDeforested:
+      "Kaominina vitsy fahapotehan'ala indrindra raha oharina amin'ny rakotra ala tamin'ny",
+
+    loss:
+      "nahitana fatiantoka",
+
+    forestCover:
+      "amin'ny rakotra alany",
+
+    kpiForestCover:
+      "Rakotra ala tany amin'ny Kaominina manodidina (2000)",
+
+    kpiRemainingArea:
+      "Velaran'ala sisa tavela manodidina ny Faritra Arovana tamin'ny",
+
+    kpiLossInside:
+      "Velaran'ala very tao anatin'ny Faritra Arovana tamin'ny",
+
+    kpiAverage:
+      "Salan'isa isan-taona amin'ny fahapotehan'ala",
+
+    kpiCumulativeRate:
+      "Tahan'ny fahaverezan'ala mitambatra",
+
+    kpiMostAffected:
+      "Kaominina voakasika indrindra",
+
+    g1:
+      "Kaominina 05 tena voakasika indrindra tamin'ny",
+
+    g2:
+      "Fahapotehan'ala isaky ny Kaominina ao anatin'ny Faritra Arovana",
+
+    g3:
+      "Fahapotehan'ala amin'ireo Kaominina manodidina",
+
+    g4:
+      "Kaominina tena voakasika indrindra nanomboka 2001 ka hatramin'ny",
+
+    g5:
+      "Fivoaran'ny fahaverezan'ala sy ny tahan'ny fahapotehan'ala isan-taona amin'ireo Kaominina manodidina",
+
+    g6:
+      "Fivoaran'ny fahapotehan'ala isaky ny folo taona manodidina ny Faritra Arovana",
+
+    compare:
+      "Ampitahao amin'ny :",
+
+    inside:
+      "Ao anatin'ny valan-javaboary",
+
+    outside:
+      "Eo ivelan'ny valan-javaboary",
+
+    surface:
+      "Velarana",
+
+    surfaceHa:
+      "Velarana (ha)",
+
+    cumulative:
+      "Fitambatra (%)",
+
+    lossRate:
+      "Tahan'ny fahaverezana (%)",
+
+    annualUnit:
+      "ha/taona",
+  },
+
+  en: {
+    title: "Deforestation Monitoring",
+    year: "Year",
+    protectedArea: "Protected Area",
+
+    leastDeforested:
+      "Least deforested municipalities relative to their forest cover in",
+
+    loss:
+      "with a loss of",
+
+    forestCover:
+      "of its forest cover",
+
+    kpiForestCover:
+      "Forest cover of surrounding municipalities (2000)",
+
+    kpiRemainingArea:
+      "Remaining forest area around the Protected Area in",
+
+    kpiLossInside:
+      "Forest area lost inside the Protected Area in",
+
+    kpiAverage:
+      "Average annual deforestation area",
+
+    kpiCumulativeRate:
+      "Cumulative forest loss rate",
+
+    kpiMostAffected:
+      "Most affected municipality",
+
+    g1:
+      "Top 5 most affected municipalities in",
+
+    g2:
+      "Deforestation by municipality inside the Protected Area",
+
+    g3:
+      "Deforestation in surrounding municipalities",
+
+    g4:
+      "Most affected municipalities since 2001 until",
+
+    g5:
+      "Annual evolution of forest loss and deforestation rate in surrounding municipalities",
+
+    g6:
+      "Decadal evolution of deforestation around the Protected Area",
+
+    compare:
+      "Compare with:",
+
+    inside:
+      "Inside the park",
+
+    outside:
+      "Outside the park",
+
+    surface:
+      "Area",
+
+    surfaceHa:
+      "Area (ha)",
+
+    cumulative:
+      "Cumulative (%)",
+
+    lossRate:
+      "Loss rate (%)",
+
+    annualUnit:
+      "ha/year",
+  },
+
+  de: {
+    title: "Überwachung der Entwaldung",
+    year: "Jahr",
+    protectedArea: "Schutzgebiet",
+
+    leastDeforested:
+      "Gemeinden mit der geringsten Entwaldung im Verhältnis zu ihrer Waldfläche im",
+
+    loss:
+      "mit einem Verlust von",
+
+    forestCover:
+      "ihrer Waldfläche",
+
+    kpiForestCover:
+      "Waldfläche der angrenzenden Gemeinden (2000)",
+
+    kpiRemainingArea:
+      "Verbleibende Waldfläche rund um das Schutzgebiet im",
+
+    kpiLossInside:
+      "Verlorene Waldfläche innerhalb des Schutzgebiets im",
+
+    kpiAverage:
+      "Durchschnittliche jährliche Entwaldungsfläche",
+
+    kpiCumulativeRate:
+      "Kumulative Waldverlustrate",
+
+    kpiMostAffected:
+      "Am stärksten betroffene Gemeinde",
+
+    g1:
+      "Die 5 am stärksten betroffenen Gemeinden im",
+
+    g2:
+      "Entwaldung nach Gemeinden innerhalb des Schutzgebiets",
+
+    g3:
+      "Entwaldung in den umliegenden Gemeinden",
+
+    g4:
+      "Am stärksten betroffene Gemeinden seit 2001 bis",
+
+    g5:
+      "Jährliche Entwicklung der Waldverluste und Entwaldungsrate der umliegenden Gemeinden",
+
+    g6:
+      "Zehnjährige Entwicklung der Entwaldung rund um das Schutzgebiet",
+
+    compare:
+      "Vergleichen mit:",
+
+    inside:
+      "Innerhalb des Parks",
+
+    outside:
+      "Außerhalb des Parks",
+
+    surface:
+      "Fläche",
+
+    surfaceHa:
+      "Fläche (ha)",
+
+    cumulative:
+      "Kumuliert (%)",
+
+    lossRate:
+      "Verlustrate (%)",
+
+    annualUnit:
+      "ha/Jahr",
+  },
+};
+
+const KPICard = ({
+  title,
+  value,
+  color,
+  icon,
+  index,
+  commune,
+  taux,
+}: CardProps) => {
+  const { lang } = useLanguage();
+const t = TEXT[lang] || TEXT.fr;
+
+  const isSixth = index === 5;
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 10,
+        padding: 5,
+        boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        height: 100,
+        transition: "all 0.2s ease",
+        cursor: "pointer",
+      }}
+    >
+      {isSixth ? (
+        <>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              textAlign: "center",
+              marginBottom: 8,
+              color,
+            }}
+          >
+            {title}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+              width: "100%",
+            }}
+          >
             <div
               style={{
-                fontSize: 13,
-                fontWeight: 600,
-                textAlign: "center",
-                marginBottom: 8,
                 color,
+                display: "flex",
+                alignItems: "center",
               }}
             >
-              {title}
+              {icon}
             </div>
-  
-            {/* CONTENU SPÉCIAL */}
-            <div
-              style={{
-                display:"flex",
-                alignItems:"center",
-                justifyContent:"center",
-                gap:8,
-                width:"100%",
-              }}
-            >
-              <div
-                style={{
-                  color,
-                  display:"flex",
-                  alignItems:"center"
-                }}
-              >
-                {icon}
-              </div>
-              <div
-                style={{
-                  display:"flex",
-                  flexDirection:"column",
-                  alignItems:"center",
-                  textAlign:"center",
-                }}
-              >
 
-                <div
-                  style={{
-                    fontSize:16,
-                    fontWeight:700,
-                    color:"#dc2626"
-                  }}
-                >
-                  {commune || "-"}
-                </div>
-                <div
-                  style={{
-                    fontSize:13,
-                    fontWeight:600
-                  }}
-                >
-                  <span style={{color:"#2563eb"}}>
-                    avec une perte
-                  </span>{" "}
-
-                  <span
-                    style={{
-                      color:"#dc2626",
-                      fontWeight:800
-                    }}
-                  >
-                    {taux !== undefined
-                      ? taux.toFixed(1)
-                      : "0.0"
-                    }%
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontSize:11,
-                    color:"#2563eb",
-                    fontWeight:600,
-                    marginTop:8,
-                  }}
-                >
-                  de sa couverture forestière
-                </div>
-              </div>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* TITRE */}
-            <div
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                textAlign: "center",
-                marginBottom: 10,
-                color,
-              }}
-            >
-              {title}
-            </div>
-  
-            {/* ICON + VALUE */}
             <div
               style={{
                 display: "flex",
+                flexDirection: "column",
                 alignItems: "center",
-                justifyContent: "center",
-                gap: 10,
+                textAlign: "center",
               }}
             >
-              <div style={{ color }}>{icon}</div>
-  
               <div
                 style={{
-                  fontSize: 18,
+                  fontSize: 16,
                   fontWeight: 700,
-                  color,
+                  color: "#dc2626",
                 }}
               >
-                {value}
+                {commune || "-"}
+              </div>
+
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                <span style={{ color: "#2563eb" }}>
+                  {t.loss}
+                </span>{" "}
+
+                <span
+                  style={{
+                    color: "#dc2626",
+                    fontWeight: 800,
+                  }}
+                >
+                  {taux !== undefined
+                    ? taux.toFixed(1)
+                    : "0.0"}
+                  %
+                </span>
+              </div>
+
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#2563eb",
+                  fontWeight: 600,
+                  marginTop: 8,
+                }}
+              >
+                {t.forestCover}
               </div>
             </div>
-          </>
-        )}
-      </div>
-    );
-  };
+          </div>
+        </>
+      ) : (
+        <>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              textAlign: "center",
+              marginBottom: 10,
+              color,
+            }}
+          >
+            {title}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+            }}
+          >
+            <div style={{ color }}>{icon}</div>
+
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color,
+              }}
+            >
+              {value}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
   
 export default function Deforestation() {
+  const { lang } = useLanguage();
+  const t = TEXT[lang] || TEXT.fr;
+  
   const [year, setYear] = useState<number>(2019);
   const [ap, setAp] = useState<string>("Ankarafantsika");
   const [baseDeforestation,setBaseDeforestation]=useState<any[]>([]);
@@ -533,66 +839,93 @@ export default function Deforestation() {
       year
     ]);
 
-  const kpis = useMemo(() => [
-    {
-      title: "Couverture forestière des Communes riveraines (2000)",
-      value:`${couverture2000.toLocaleString()} ha`,
-      color: "#2e7d32",
-      icon: <Trees size={40} />,
-    },
-    {
-      title: `Superficie restante autour de l'Aire Protégée en ${year}`,
-      value:`${superficieRestante.toLocaleString(undefined,{maximumFractionDigits:2})} ha`,
-      color: "#2e7d32",
-      icon: <Trees size={40} />,
-    },
-    {
-      title: `Superficie perdue à l'intérieur de l'Aire Protégée en ${year}`,
-      value:`${perteAnnee.toLocaleString(undefined,{maximumFractionDigits:2})} ha`,
-      color: "#c40000",
-      icon: (
-        <div style={{ position: "relative", width: 40, height: 40 }}>
-          <TreePine size={40} color="#c40000" />
-        </div>
-      ),
-    },
-    {
-      title: "Superficie moyenne annuelle de déforestation",
-      value:`${moyenneAnnuelle.toLocaleString(undefined,{maximumFractionDigits:2})} ha/an`,
-      color: "#c40000",
-      icon: <TrendingDown size={40} />,
-    },
-    {
-      title: "Taux cumulé de perte forestière",
-      value:`${tauxPerte.toFixed(2)}%`,
-      color: "#ff6600",
-      icon: (
-        <div style={{ position: "relative" }}>
-          <BarChart3 size={40} color="#ff6600" />
-          <TrendingUp
-            size={30}
-            color="#00c853"
-            style={{ position: "absolute", top: 0, right: 0 }}
-          />
-        </div>
-      ),
-    },
-    {
-      title: "Commune la plus touchée",
-      value:"",commune: communeImpactee?.commune,taux: communeImpactee?.taux,
-      color: "#003399",
-      icon: <MapPinned size={40} />,
-    },
-  ], [
-    year,
-    ap,
-    couverture2000,
-    superficieRestante,
-    perteAnnee,
-    moyenneAnnuelle,
-    tauxPerte,
-    communeImpactee
-  ]);
+    const kpis = useMemo(
+      () => [
+        {
+          title: t.kpiForestCover,
+          value: `${couverture2000.toLocaleString()} ha`,
+          color: "#2e7d32",
+          icon: <Trees size={40} />,
+        },
+    
+        {
+          title: `${t.kpiRemainingArea} ${year}`,
+          value: `${superficieRestante.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })} ha`,
+          color: "#2e7d32",
+          icon: <Trees size={40} />,
+        },
+    
+        {
+          title: `${t.kpiLossInside} ${year}`,
+          value: `${perteAnnee.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })} ha`,
+          color: "#c40000",
+          icon: (
+            <div
+              style={{
+                position: "relative",
+                width: 40,
+                height: 40,
+              }}
+            >
+              <TreePine size={40} color="#c40000" />
+            </div>
+          ),
+        },
+    
+        {
+          title: t.kpiAverage,
+          value: `${moyenneAnnuelle.toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+          })} ${t.annualUnit}`,
+          color: "#c40000",
+          icon: <TrendingDown size={40} />,
+        },
+    
+        {
+          title: t.kpiCumulativeRate,
+          value: `${tauxPerte.toFixed(2)}%`,
+          color: "#ff6600",
+          icon: (
+            <div style={{ position: "relative" }}>
+              <BarChart3 size={40} color="#ff6600" />
+              <TrendingUp
+                size={30}
+                color="#00c853"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  right: 0,
+                }}
+              />
+            </div>
+          ),
+        },
+    
+        {
+          title: t.kpiMostAffected,
+          value: "",
+          commune: communeImpactee?.commune,
+          taux: communeImpactee?.taux,
+          color: "#003399",
+          icon: <MapPinned size={40} />,
+        },
+      ],
+      [
+        t,
+        year,
+        ap,
+        couverture2000,
+        superficieRestante,
+        perteAnnee,
+        moyenneAnnuelle,
+        tauxPerte,
+        communeImpactee,
+      ]
+    );
 
 const chart1 = useMemo(()=>{
   // Toutes les communes de l'AP choisie
@@ -1028,7 +1361,7 @@ const Graphique1 = () => {
           marginBottom: 2,
         }}
       >
-        Les 05 Communes les plus affectées en {year}
+        {t.g1} {year}
       </div>  
       <ResponsiveContainer width="100%" height={280}>
         <ComposedChart data={chart1}>
@@ -1063,7 +1396,7 @@ const Graphique1 = () => {
           />
           <Bar
             yAxisId="left"
-            name="Superficie"
+            name={t.surface}
             dataKey="superficie"
             fill="url(#blueGradient)"
             barSize={45}
@@ -1078,7 +1411,7 @@ const Graphique1 = () => {
             />
           </Bar>
           <Line
-            name="Cumul (%)"
+            name={t.cumulative}
             yAxisId="right"
             type="monotone"
             dataKey="pct"
@@ -1173,7 +1506,7 @@ const Graphique2Pro = () => {
         marginBottom:5,
         }}
         >
-        Déforestation par Commune à l'intérieur de l'Aire Protégée 
+        {t.g2}
         </div>
         <div
           style={{
@@ -1191,7 +1524,7 @@ const Graphique2Pro = () => {
           fontWeight:600
           }}
         >
-        Comparer avec :
+        {t.compare}
         </span>
         <select
           value={yearCompareG2}
@@ -1369,7 +1702,7 @@ const Graphique3 = () => {
           marginBottom:5,
           }}
           >
-          Déforestation dans les Communes riveraines
+          {t.g3}
           </div>
           <div
             style={{
@@ -1387,7 +1720,7 @@ const Graphique3 = () => {
             color:"#333"
           }}
           >
-          Comparer avec :
+          {t.compare}
           </span>
           <select
             value={yearCompareG3}
@@ -1510,7 +1843,7 @@ const Graphique4 = () => {
           marginBottom: 5,
         }}
       >
-        Communes les plus touchées depuis 2001 jusqu'en {year}
+        {t.g4} {year}
       </div>
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={chart4} margin={{ top: 15, bottom: 15 }} barCategoryGap="25%">
@@ -1546,7 +1879,7 @@ const Graphique4 = () => {
           <Bar
             yAxisId="left"
             dataKey="superficie"
-            name="Superficie (ha)"
+            name={t.surfaceHa}
             fill="url(#redGradient)"
             barSize={40}
             radius={[3, 3, 0, 0]}
@@ -1561,7 +1894,7 @@ const Graphique4 = () => {
           </Bar>
           {/* LINE CUMUL */}
           <Line
-            name="Cumul (%)"
+            name={t.cumulative}
             yAxisId="right"
             type="monotone"
             dataKey="pct"
@@ -1618,15 +1951,15 @@ return (
         >
         {/* TITRE */}
         <h2
-          style={{
-            margin: 0,
-            color: "#0b4ea2",
-            fontSize: 24,
-            fontWeight: 700,
-          }}
-        >
-          Suivi de la déforestation
-        </h2>
+            style={{
+              margin: 0,
+              color: "#0b4ea2",
+              fontSize: 24,
+              fontWeight: 700,
+            }}
+          >
+            {t.title}
+          </h2>
 
         {/* FILTRES */}
         <div
@@ -1657,7 +1990,7 @@ return (
               }}
             >
               <Calendar size={14} />
-              Année
+                {t.year}
             </div>
 
             <select
@@ -1730,7 +2063,7 @@ return (
               }}
             >
               <MapPin size={14} />
-              Aire protégée
+                {t.protectedArea}
             </div>
 
             <select
@@ -1792,11 +2125,9 @@ return (
               whiteSpace:"nowrap",
             }}
           >
-          <ShieldCheck
-            size={18}
-            color="#16a34a"
-          />
-          Communes les moins déforestées par rapport à leur couverture forestière en {year}
+          <ShieldCheck size={18} color="#16a34a" />
+
+          {t.leastDeforested} {year}
           </div>
 
           {/* CLASSEMENT */}
@@ -1915,7 +2246,7 @@ return (
                     marginBottom: 5,
                   }}
                 >
-            Évolution annuelle des pertes forestières et du taux de déforestation des Communes riveraines
+            {t.g5}
           </div>
           <ResponsiveContainer width="100%" height="100%">
             <ComposedChart data={chartEvolution}>
@@ -1945,7 +2276,7 @@ return (
                 <Bar
                     yAxisId="left"
                     dataKey="superficie"
-                    name="Superficie"
+                    name={t.surface}
                     fill="#93c5fd"
                     barSize={10}
                 />
@@ -1953,7 +2284,7 @@ return (
                   yAxisId="right"
                   type="monotone"
                   dataKey="taux"
-                  name="Taux de perte (%)"
+                  name={t.lossRate}
                   stroke="#dc2626"
                   strokeWidth={1.5}
                   dot={(props:any)=>{
@@ -2033,7 +2364,7 @@ return (
               marginBottom:5
             }}
           >
-          Evolution décennale de la déforestation autour de l'Aire Protégée {ap}
+          {t.g6} {ap}
           </div>
           {/* ================= INTERIEUR ================= */}
           <div
@@ -2044,7 +2375,7 @@ return (
               marginBottom:3
             }}
           >
-          A l'intérieur du parc
+          {t.inside}
           </div>
           <ResponsiveContainer width="100%" height={90}>
             <BarChart
@@ -2154,7 +2485,7 @@ return (
                 marginBottom:3
               }}
           >
-            A l'extérieur du parc
+            {t.outside}
           </div>
           <ResponsiveContainer width="100%" height={90}>
               <BarChart
