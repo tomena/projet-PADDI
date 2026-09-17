@@ -8,14 +8,35 @@ import "./Home.css";
 
 const text = {
   fr: {
-    title1: "Système d’Information pour un",
+    title1: "Système d'Information pour un",
     title2: "Développement Durable et Intégré",
-    presentation: "Présentation du système d’information",
-    p1: "Ce système d'information sert d'outil d'aide à la prise de décision, à l'orientation des actions à mettre en œuvre pour le développement durable et intégré d'un territoire bien défini à Madagascar, notamment dans les régions d'ancrage de 7 aires protégées sélectionnées, telles que Montagne d'Ambre, Ankarana et Analamerana dans la région DIANA, Ankarafantsika dans la région Boeny, Andohahela dans la région Anôsy, Befotaka-Midongy dans la région Atsimo Atsinanana et Marolambo dans la région Amoron'i Mania. Le territoire peut aller de la Région jusqu'au niveau des communes.",
-    p2: "Ce système est destiné à tout acteur qui œuvre ou qui s'intéresse dans le développement durable et surtout aux preneurs de décisions.",
-    p3: "D'un côté, selon le territoire sélectionné, le système d'information présente les informations centralisées, disponibles sur le plan environnement, le plan économie et le plan social ; à cela s'ajoutent les documents cadres existants ainsi que la présentation spatialisée des différentes interventions des différents acteurs ; de plus, les résultats des appuis du PADDI dans le territoire sélectionné seront présentés beaucoup plus en détails.",
-    p4: "De l'autre côté, à part le partage des informations, des analyses plus spécifiques pourront être produites par le système sur la base des données renseignées par les utilisateurs. Des prévisions, des analyses et des orientations peuvent être produites.",
-    p5: "Le système d’information est constitué des éléments de l’arbre ci-contre.",
+
+    presentation:
+      "Un système d’information au service d’un développement durable et intégré",
+    p1: "Ce système d’information constitue un outil d’aide à la décision et d’orientation des actions en faveur du développement durable et intégré des territoires à Madagascar. Il met à disposition des acteurs une information centralisée, structurée et territorialisée, permettant de mieux comprendre les dynamiques environnementales, économiques et sociales et d’appuyer les décisions.",
+    p2: "Le système couvre les territoires d’ancrage du programme autour de 7 aires protégées :",
+
+    territories: [
+      "Région DIANA : Montagne d’Ambre, Ankarana et Analamerana ;",
+      "Région Boeny : Ankarafantsika ;",
+      "Région Anôsy : Andohahela ;",
+      "Région Atsimo Atsinanana : Befotaka-Midongy;",
+      "Région Amoron’i Mania et Vakinakaratra: Marolambo.",
+    ],
+
+    p3: "L’information peut être consultée à différentes échelles, pour mieux comprendre les territoires, de la Région jusqu’à la Commune, afin de répondre au plus près aux besoins des utilisateurs.",
+    p4: "Le système rassemble en un même espace :",
+
+    features: [
+      "des données environnementales, économiques et sociales ;",
+      "les documents et cadres de planification existants ;",
+      "une visualisation spatialisée des interventions menées par les différents acteurs ;",
+      "les résultats et réalisations des appuis du PADDI, présentés de manière détaillée sur les territoires concernés.",
+    ],
+
+    p5: "Il offre ainsi une vision globale et actualisée du territoire, facilite le partage d’informations et favorise une meilleure coordination entre les acteurs.",
+    p6: "Au-delà du simple partage d’informations, le système permet également de valoriser les données disponibles pour produire des analyses spécifiques.",
+    p7: "À partir des informations renseignées par les utilisateurs, il pourra notamment contribuer à générer des analyses, des projections et des éléments d’orientation, afin d’aider les décideurs et les acteurs du territoire à mieux anticiper les évolutions, à orienter leurs interventions et à agir durablement.",
 
     env: "Environnement",
     eco: "Économie",
@@ -27,14 +48,36 @@ const text = {
   },
 
   mg: {
-    title1: "Rafitra Fampahalalana ho an'ny",
-    title2: "Fampandrosoana Maharitra sy Mitambatra",
-    presentation: "Fampahafantarana ny Rafitra Fampahalalana",
-    p1: "Ity rafitra fampahalalana ity dia fitaovana manampy amin'ny fandraisana fanapahan-kevitra sy fitarihana ireo hetsika hotanterahina ho an'ny fampandrosoana maharitra sy mitambatra ao amin'ny faritra voafaritra eto Madagasikara, indrindra ao amin'ireo faritra iasan'ny faritra arovana fito voafantina, dia ny Montagne d'Ambre, Ankarana ary Analamerana ao amin'ny faritra DIANA, Ankarafantsika ao amin'ny faritra Boeny, Andohahela ao amin'ny faritra Anôsy, Befotaka-Midongy ao amin'ny faritra Atsimo Atsinanana ary Marolambo ao amin'ny faritra Amoron'i Mania. Ny sehatra iasana dia afaka manomboka amin'ny Faritra ka hatrany amin'ny Kaominina.",
-    p2: "Ity rafitra ity dia natao ho an'ny mpisehatra rehetra miasa na liana amin'ny fampandrosoana maharitra, indrindra ho an'ireo tompon'andraikitra mandray fanapahan-kevitra.",
-    p3: "Etsy ankilany, arakaraka ny faritra voafidy, ny rafitra fampahalalana dia mampiseho ireo vaovao sy angon-drakitra voaangona momba ny tontolo iainana, ny toekarena ary ny fiarahamonina. Ampiana ihany koa ireo antontan-taratasy stratejika efa misy sy ny fanehoana ara-jeografika ny fandraisan'anjaran'ireo mpisehatra samihafa. Ankoatra izany, ny vokatry ny fanohanana nataon'ny PADDI ao amin'ilay faritra voafidy dia haseho amin'ny antsipiriany kokoa.",
-    p4: "Etsy an-daniny, ankoatra ny fizarana vaovao, ny rafitra dia afaka mamokatra fanadihadiana manokana mifototra amin'ireo angona ampidirin'ny mpampiasa. Afaka mamorona vinavina, fanadihadiana ary torolalana ho fanohanana ny fandraisana fanapahan-kevitra ihany koa izy.",
-    p5: "Ny Rafitra Fampahalalana dia ahitana ireo singa asehon'ilay hazo etsy ankavanana.",
+    title1: "Rafitra fampahalalana ho an’ny",
+    title2: "fampandrosoana maharitra sy mitambatra",
+
+    presentation:
+      "Rafitra fampahalalana ho an’ny fampandrosoana maharitra sy mitambatra",
+
+    p1: "Ity rafitra fampahalalana ity dia fitaovana manampy amin’ny fandraisana fanapahan-kevitra sy amin’ny fandrindrana ireo hetsika ho an’ny fampandrosoana maharitra sy mitambatra ny faritra eto Madagasikara. Manolotra vaovao voaangona, voalamina ary mifanaraka amin’ny toerana ho an’ireo mpisehatra izy, ka manampy amin’ny fahatakarana tsara kokoa ny fivoaran’ny tontolo iainana, ny toekarena ary ny fiarahamonina, ary manohana ny fandraisana fanapahan-kevitra.",
+    p2: "Mandrakotra ireo faritra iasan’ny fandaharanasa manodidina ireo faritra arovana 7 voafantina ity rafitra ity:",
+
+    territories: [
+      "Faritra DIANA : Montagne d’Ambre, Ankarana ary Analamerana ;",
+      "Faritra Boeny : Ankarafantsika ;",
+      "Faritra Anôsy : Andohahela ;",
+      "Faritra Atsimo Atsinanana : Befotaka-Midongy;",
+      "Faritra Amoron’i Mania sy Vakinakaratra : Marolambo.",
+    ],
+
+    p3: "Azo jerena amin’ny ambaratonga samihafa ny vaovao, manomboka amin’ny Faritra ka hatrany amin’ny Kaominina, mba hahafahana mahatakatra tsara kokoa ny faritra sy hamaliana akaiky kokoa ny filàn’ireo mpampiasa.",
+    p4: "Atambatr’ity rafitra ity ao anatin’ny sehatra iray ihany:",
+
+    features: [
+      "ireo angon-drakitra momba ny tontolo iainana, ny toekarena ary ny fiarahamonina ;",
+      "ireo antontan-taratasy sy rafitra fandrindrana efa misy ;",
+      "fanehoana ara-jeografika ireo hetsika sy fandraisana anjara ataon’ireo mpisehatra samihafa ;",
+      "ireo vokatra sy zava-bita vokatry ny fanohanana nataon’ny PADDI, izay aseho amin’ny antsipiriany amin’ireo faritra voakasika.",
+    ],
+
+    p5: "Noho izany, manome topimaso ankapobeny sy havaozina momba ny faritra ity rafitra ity, manamora ny fifampizarana vaovao ary manampy amin’ny fanatsarana ny fandrindrana eo amin’ireo mpisehatra.",
+    p6: "Ankoatra ny fifampizarana vaovao fotsiny, dia ahafahan’ny rafitra manome lanja ireo angon-drakitra misy ihany koa mba hamokarana fanadihadiana manokana.",
+    p7: "Miorina amin’ireo vaovao ampidirin’ny mpampiasa, dia afaka manampy amin’ny famokarana fanadihadiana, vinavina ary torolalana ity rafitra ity, mba hanampiana ireo mpandray fanapahan-kevitra sy ireo mpisehatra ao amin’ny faritra hahita mialoha kokoa ny fiovana, handrindra ny fandraisany andraikitra ary hiasa ho an’ny fampandrosoana maharitra.",
 
     env: "Tontolo iainana",
     eco: "Toekarena",
@@ -46,14 +89,36 @@ const text = {
   },
 
   en: {
-    title1: "Information System for",
-    title2: "Sustainable and Integrated Development",
-    presentation: "Information System Overview",
-    p1: "This information system is a decision-support tool designed to guide actions for sustainable and integrated development within a clearly defined territory in Madagascar, particularly in the areas surrounding seven selected protected areas: Montagne d'Ambre, Ankarana and Analamerana in the DIANA Region, Ankarafantsika in the Boeny Region, Andohahela in the Anôsy Region, Befotaka-Midongy in the Atsimo Atsinanana Region, and Marolambo in the Amoron'i Mania Region. The geographical scope can range from the Regional level down to the Commune level.",
-    p2: "This system is intended for all stakeholders working in or interested in sustainable development, especially decision-makers.",
-    p3: "On the one hand, depending on the selected territory, the information system provides centralized environmental, economic and social information. It also includes existing strategic documents and a spatial representation of interventions carried out by the various stakeholders. Furthermore, the results of PADDI support activities within the selected territory are presented in much greater detail.",
-    p4: "On the other hand, beyond information sharing, the system can generate more specific analyses based on data entered by users. Forecasts, analytical results and decision-support guidance can also be produced.",
-    p5: "The information system is composed of the elements illustrated in the tree opposite.",
+    title1: "Information system serving",
+    title2: "sustainable and integrated development",
+
+    presentation:
+      "An information system serving sustainable and integrated development",
+
+    p1: "This information system is a decision-support and action-orientation tool designed to promote sustainable and integrated development across territories in Madagascar. It provides stakeholders with centralized, structured and territorially referenced information, helping them better understand environmental, economic and social dynamics and supporting decision-making.",
+    p2: "The system covers the programme’s intervention territories around 7 protected areas:",
+
+    territories: [
+      "DIANA Region: Montagne d’Ambre, Ankarana and Analamerana;",
+      "Boeny Region: Ankarafantsika;",
+      "Anôsy Region: Andohahela;",
+      "Atsimo Atsinanana Region: Befotaka-Midongy;",
+      "Amoron’i Mania and Vakinakaratra Region: Marolambo.",
+    ],
+
+    p3: "Information can be consulted at different geographical scales, from the Region down to the Commune level, in order to better understand the territories and respond as closely as possible to users’ needs.",
+    p4: "The system brings together in a single space:",
+
+    features: [
+      "environmental, economic and social data;",
+      "existing planning documents and frameworks;",
+      "a spatialized visualization of interventions carried out by the different stakeholders;",
+      "the results and achievements of PADDI support activities, presented in detail for the territories concerned.",
+    ],
+
+    p5: "It therefore provides a comprehensive and up-to-date view of the territory, facilitates information sharing and promotes better coordination among stakeholders.",
+    p6: "Beyond simply sharing information, the system also enables available data to be used to produce specific analyses.",
+    p7: "Based on information entered by users, the system can contribute to generating analyses, projections and guidance to help decision-makers and territorial stakeholders better anticipate changes, guide their interventions and act sustainably.",
 
     env: "Environment",
     eco: "Economy",
@@ -63,15 +128,38 @@ const text = {
     guide: "User Guide",
     contact: "Contact",
   },
+
   de: {
-    title1: "Informationssystem für eine",
-    title2: "nachhaltige und integrierte Entwicklung",
-    presentation: "Vorstellung des Informationssystems",
-    p1: "Dieses Informationssystem dient als Instrument zur Unterstützung von Entscheidungsprozessen und zur Orientierung der Maßnahmen für eine nachhaltige und integrierte Entwicklung eines klar abgegrenzten Gebiets in Madagaskar. Es betrifft insbesondere die Regionen, in denen sich sieben ausgewählte Schutzgebiete befinden: Montagne d'Ambre, Ankarana und Analamerana in der Region DIANA, Ankarafantsika in der Region Boeny, Andohahela in der Region Anôsy, Befotaka-Midongy in der Region Atsimo Atsinanana und Marolambo in der Region Amoron'i Mania. Das betrachtete Gebiet kann von der Region bis hin zur Gemeinde reichen.",
-    p2: "Dieses System richtet sich an alle Akteure, die im Bereich der nachhaltigen Entwicklung tätig sind oder sich dafür interessieren, insbesondere an Entscheidungsträger.",
-    p3: "Einerseits stellt das Informationssystem je nach ausgewähltem Gebiet zentralisierte Informationen in den Bereichen Umwelt, Wirtschaft und Gesellschaft bereit. Darüber hinaus umfasst es bestehende strategische Dokumente sowie eine räumliche Darstellung der verschiedenen Maßnahmen und Aktivitäten der unterschiedlichen Akteure. Die Ergebnisse der Unterstützungsmaßnahmen von PADDI im ausgewählten Gebiet werden ebenfalls detaillierter dargestellt.",
-    p4: "Andererseits kann das System über die reine Bereitstellung von Informationen hinaus spezifische Analysen auf Grundlage der von den Nutzern eingegebenen Daten erstellen. Es können Prognosen, Analysen und Orientierungshilfen zur Unterstützung von Entscheidungsprozessen bereitgestellt werden.",
-    p5: "Das Informationssystem besteht aus den Elementen, die durch den nebenstehenden Baum dargestellt werden.",
+    title1: "Informationssystem im Dienste einer",
+    title2: "nachhaltigen und integrierten Entwicklung",
+
+    presentation:
+      "Ein Informationssystem im Dienste einer nachhaltigen und integrierten Entwicklung",
+
+    p1: "Dieses Informationssystem dient als Instrument zur Unterstützung von Entscheidungen und zur Orientierung von Maßnahmen für eine nachhaltige und integrierte Entwicklung der Gebiete in Madagaskar. Es stellt den Akteuren zentralisierte, strukturierte und territorial zugeordnete Informationen zur Verfügung, um ein besseres Verständnis der ökologischen, wirtschaftlichen und sozialen Dynamiken zu ermöglichen und Entscheidungsprozesse zu unterstützen.",
+    p2: "Das System deckt die Gebiete ab, in denen das Programm rund um 7 Schutzgebiete tätig ist:",
+
+    territories: [
+      "Region DIANA: Montagne d’Ambre, Ankarana und Analamerana;",
+      "Region Boeny: Ankarafantsika;",
+      "Region Anôsy: Andohahela;",
+      "Region Atsimo Atsinanana: Befotaka-Midongy;",
+      "Region Amoron’i Mania und Vakinakaratra: Marolambo.",
+    ],
+
+    p3: "Die Informationen können auf verschiedenen räumlichen Ebenen abgerufen werden, von der Region bis hin zur Gemeinde. Dadurch können die Gebiete besser verstanden und die Bedürfnisse der Nutzer möglichst genau berücksichtigt werden.",
+    p4: "Das System führt an einem einzigen Ort zusammen:",
+
+    features: [
+      "Umwelt-, Wirtschafts- und Sozialdaten;",
+      "bestehende Planungsdokumente und Planungsrahmen;",
+      "eine räumliche Darstellung der von den verschiedenen Akteuren durchgeführten Maßnahmen;",
+      "die Ergebnisse und Leistungen der Unterstützungsmaßnahmen von PADDI, die für die betroffenen Gebiete detailliert dargestellt werden.",
+    ],
+
+    p5: "Damit bietet das System einen umfassenden und aktuellen Überblick über das Gebiet, erleichtert den Informationsaustausch und fördert eine bessere Koordination zwischen den Akteuren.",
+    p6: "Über den reinen Informationsaustausch hinaus ermöglicht das System auch, die verfügbaren Daten zu nutzen, um spezifische Analysen zu erstellen.",
+    p7: "Auf Grundlage der von den Nutzern eingegebenen Informationen kann das System insbesondere dazu beitragen, Analysen, Projektionen und Orientierungshilfen zu erstellen. Dadurch sollen Entscheidungsträger und Akteure vor Ort dabei unterstützt werden, Entwicklungen besser vorauszusehen, ihre Maßnahmen gezielter auszurichten und nachhaltig zu handeln.",
 
     env: "Umwelt",
     eco: "Wirtschaft",
@@ -82,6 +170,7 @@ const text = {
     contact: "Kontakt",
   },
 };
+
 
 export default function Home() {
   const [lang, setLang] = useState<"fr" | "mg" | "en" | "de">("fr");
@@ -184,12 +273,29 @@ export default function Home() {
           <h2>{t.presentation}</h2>
         </div>
 
-        <p>{t.p1}</p>
-        <p>{t.p2}</p>
-        <p>{t.p3}</p>
-        <p>{t.p4}</p>
+          <p>{t.p1}</p>
+            <p>{t.p2}</p>
 
-        <p className="bold">{t.p5}</p>
+            <ul className="info-list">
+              {t.territories.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+
+            <p>{t.p3}</p>
+            <p>{t.p4}</p>
+
+            <ul className="info-list">
+              {t.features.map((item, index) => (
+                <li key={index}>{item}</li>
+              ))}
+            </ul>
+
+            <p>{t.p5}</p>
+
+            <p>{t.p6}</p>
+
+            <p className="bold">{t.p7}</p>
       </div>
 
       {/* PLAQUE PADDI */}
