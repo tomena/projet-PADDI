@@ -5,6 +5,423 @@ import {ResponsiveContainer,ComposedChart,BarChart,LineChart,Bar,Line,XAxis,YAxi
 } from "recharts";
 import { createRoot } from "react-dom/client";
 
+import { useLanguage } from "../context/LanguageContext";
+
+const txt = {
+  fr: {
+    title: "Suivi et analyse des feux",
+    year: "Année",
+    ap: "Aire protégée",
+
+    // Classement
+    leastBurnedCommunes:
+      "Communes les moins brûlées par rapport à leur superficie",
+
+    // KPI
+    totalBurnedCommunes:
+      "Total des superficies brûlées dans les Communes riveraines",
+
+    burnedPeripheral:
+      "Superficies brûlées en périphérie de l'AP (sur un rayon de 5 km)",
+
+    burnedInside:
+      "Superficies brûlées à l'intérieur de l'Aire Protégée",
+
+    burnedLastMonth:
+      "Superficies brûlées aux Communes riveraines du mois dernier",
+
+    annualEvolution:
+      "Évolution annuelle par rapport à l'année précédente",
+
+    mostAffected:
+      "Commune la plus touchée",
+
+    with: "avec",
+
+    totalBurnedSurface:
+      "de surface totale brûlée",
+
+    // Graphique 1
+    monthlyEvolution:
+      "Évolution mensuelle des superficies brûlées par rapport à l'année précédente",
+
+    // Graphique 2
+    insideProtectedArea:
+      "À l'intérieur de l'Aire Protégée",
+
+    // Graphique 3
+    historicalDifference:
+      "Écart des superficies brûlées par rapport à la moyenne historique 2020-2024",
+
+    peripheral5km:
+      "Périphérie 5 km",
+
+    insidePark:
+      "Intérieur du parc",
+
+    historicalAverage:
+      "Moyenne 2020 - 2024",
+
+    highPressureYears:
+      "Années à forte pression",
+
+    // Graphique 4
+    mostAffectedCommunes:
+      "Communes les plus affectées par les feux en",
+
+    surfaceHa:
+      "Superficie (ha)",
+
+    cumulative:
+      "Cumul (%)",
+
+    // Impact
+    fireImpact:
+      "Impact des feux aux 11 Communes les plus touchées autour de",
+
+    insideAP:
+      "Intérieur AP",
+
+    total:
+      "Total",
+
+    // Jauge
+    peripheralVariation:
+      "Variation de la superficie brûlée en périphérie de 5 km",
+
+    reference:
+      "réf. 2020–2024",
+
+    decreased:
+      "La superficie brûlée a diminué de",
+
+    increased:
+      "La superficie brûlée a augmenté de",
+
+    unchanged:
+      "La superficie brûlée est identique à la moyenne de référence.",
+
+    // Mois
+    months: {
+      Jan: "Jan",
+      Feb: "Fév",
+      Mar: "Mar",
+      Apr: "Avr",
+      May: "Mai",
+      Jun: "Juin",
+      Jul: "Juil",
+      Aug: "Août",
+      Sep: "Sep",
+      Oct: "Oct",
+      Nov: "Nov",
+      Dec: "Déc",
+    },
+  },
+
+  mg: {
+    title: "Fanaraha-maso sy fanadihadiana ny doro tanety",
+    year: "Taona",
+    ap: "Faritra arovana",
+
+    leastBurnedCommunes:
+      "Kaominina vitsy indrindra tratran'ny doro raha oharina amin'ny velarantaniny",
+
+    totalBurnedCommunes:
+      "Fitambaran'ny velaran-tany may ao amin'ireo Kaominina manodidina",
+
+    burnedPeripheral:
+      "Velaran-tany may manodidina ny faritra arovana (5 km)",
+
+    burnedInside:
+      "Velaran-tany may ao anatin'ny Faritra Arovana",
+
+    burnedLastMonth:
+      "Velaran-tany may tao amin'ireo Kaominina manodidina tamin'ny volana lasa",
+
+    annualEvolution:
+      "Fiovan'ny velaran-tany isan-taona raha oharina amin'ny taona lasa",
+
+    mostAffected:
+      "Kaominina tena voakasiky ny doro",
+
+    with: "miaraka amin'ny",
+
+    totalBurnedSurface:
+      "amin'ny fitambaran'ny velaran-tany may",
+
+    monthlyEvolution:
+      "Fiovan'ny velaran-tany may isam-bolana raha oharina amin'ny taona lasa",
+
+    insideProtectedArea:
+      "Ao anatin'ny Faritra Arovana",
+
+    historicalDifference:
+      "Elanelan'ny velaran-tany may raha oharina amin'ny salan'isa ara-tantara 2020-2024",
+
+    peripheral5km:
+      "Manodidina 5 km",
+
+    insidePark:
+      "Ao anatin'ny valan-javaboary",
+
+    historicalAverage:
+      "Salan'isa 2020 - 2024",
+
+    highPressureYears:
+      "Taona nahitana tsindry avo",
+
+    mostAffectedCommunes:
+      "Kaominina tena voakasiky ny doro tamin'ny",
+
+    surfaceHa:
+      "Velarantany (ha)",
+
+    cumulative:
+      "Fitambaran'ny (%)",
+
+    fireImpact:
+      "Fiantraikan'ny doro amin'ireo Kaominina 11 tena voakasika manodidina an'i",
+
+    insideAP:
+      "Ao anatin'ny Faritra Arovana",
+
+    total:
+      "Fitambarany",
+
+    peripheralVariation:
+      "Fiovan'ny velaran-tany may manodidina 5 km",
+
+    reference:
+      "fanondroana 2020–2024",
+
+    decreased:
+      "Nihena",
+
+    increased:
+      "Nitombo",
+
+    unchanged:
+      "Mitovy amin'ny salan'isa fanondroana ny velaran-tany may.",
+
+    months: {
+      Jan: "Jan",
+      Feb: "Feb",
+      Mar: "Mar",
+      Apr: "Apr",
+      May: "Mey",
+      Jun: "Jon",
+      Jul: "Jol",
+      Aug: "Aog",
+      Sep: "Sep",
+      Oct: "Okt",
+      Nov: "Nov",
+      Dec: "Des",
+    },
+  },
+
+  en: {
+    title: "Fire Monitoring and Analysis",
+    year: "Year",
+    ap: "Protected Area",
+
+    leastBurnedCommunes:
+      "Communes with the lowest burned area relative to their size",
+
+    totalBurnedCommunes:
+      "Total burned area in surrounding communes",
+
+    burnedPeripheral:
+      "Burned area around the protected area (within 5 km)",
+
+    burnedInside:
+      "Burned area inside the Protected Area",
+
+    burnedLastMonth:
+      "Burned area in surrounding communes during the previous month",
+
+    annualEvolution:
+      "Annual change compared with the previous year",
+
+    mostAffected:
+      "Most affected commune",
+
+    with: "with",
+
+    totalBurnedSurface:
+      "of the total burned area",
+
+    monthlyEvolution:
+      "Monthly evolution of burned areas compared with the previous year",
+
+    insideProtectedArea:
+      "Inside the Protected Area",
+
+    historicalDifference:
+      "Difference in burned area compared with the historical average 2020-2024",
+
+    peripheral5km:
+      "5 km peripheral area",
+
+    insidePark:
+      "Inside the park",
+
+    historicalAverage:
+      "Average 2020 - 2024",
+
+    highPressureYears:
+      "High-pressure years",
+
+    mostAffectedCommunes:
+      "Communes most affected by fires in",
+
+    surfaceHa:
+      "Area (ha)",
+
+    cumulative:
+      "Cumulative (%)",
+
+    fireImpact:
+      "Fire impact on the 11 most affected communes around",
+
+    insideAP:
+      "Inside PA",
+
+    total:
+      "Total",
+
+    peripheralVariation:
+      "Variation in burned area within the 5 km peripheral area",
+
+    reference:
+      "ref. 2020–2024",
+
+    decreased:
+      "The burned area decreased by",
+
+    increased:
+      "The burned area increased by",
+
+    unchanged:
+      "The burned area is identical to the reference average.",
+
+    months: {
+      Jan: "Jan",
+      Feb: "Feb",
+      Mar: "Mar",
+      Apr: "Apr",
+      May: "May",
+      Jun: "Jun",
+      Jul: "Jul",
+      Aug: "Aug",
+      Sep: "Sep",
+      Oct: "Oct",
+      Nov: "Nov",
+      Dec: "Dec",
+    },
+  },
+
+  de: {
+    title: "Überwachung und Analyse von Bränden",
+    year: "Jahr",
+    ap: "Schutzgebiet",
+
+    leastBurnedCommunes:
+      "Gemeinden mit der geringsten verbrannten Fläche im Verhältnis zu ihrer Fläche",
+
+    totalBurnedCommunes:
+      "Gesamte verbrannte Fläche in den angrenzenden Gemeinden",
+
+    burnedPeripheral:
+      "Verbrannte Fläche im Umfeld des Schutzgebiets (innerhalb von 5 km)",
+
+    burnedInside:
+      "Verbrannte Fläche innerhalb des Schutzgebiets",
+
+    burnedLastMonth:
+      "Verbrannte Fläche in den angrenzenden Gemeinden im letzten Monat",
+
+    annualEvolution:
+      "Jährliche Entwicklung gegenüber dem Vorjahr",
+
+    mostAffected:
+      "Am stärksten betroffene Gemeinde",
+
+    with: "mit",
+
+    totalBurnedSurface:
+      "der gesamten verbrannten Fläche",
+
+    monthlyEvolution:
+      "Monatliche Entwicklung der verbrannten Flächen gegenüber dem Vorjahr",
+
+    insideProtectedArea:
+      "Innerhalb des Schutzgebiets",
+
+    historicalDifference:
+      "Abweichung der verbrannten Flächen vom historischen Durchschnitt 2020-2024",
+
+    peripheral5km:
+      "5-km-Randgebiet",
+
+    insidePark:
+      "Innerhalb des Parks",
+
+    historicalAverage:
+      "Durchschnitt 2020 - 2024",
+
+    highPressureYears:
+      "Jahre mit hohem Druck",
+
+    mostAffectedCommunes:
+      "Am stärksten von Bränden betroffene Gemeinden im Jahr",
+
+    surfaceHa:
+      "Fläche (ha)",
+
+    cumulative:
+      "Kumuliert (%)",
+
+    fireImpact:
+      "Auswirkungen der Brände auf die 11 am stärksten betroffenen Gemeinden rund um",
+
+    insideAP:
+      "Innerhalb des Schutzgebiets",
+
+    total:
+      "Gesamt",
+
+    peripheralVariation:
+      "Veränderung der verbrannten Fläche im 5-km-Randgebiet",
+
+    reference:
+      "Bez. 2020–2024",
+
+    decreased:
+      "Die verbrannte Fläche ist um",
+
+    increased:
+      "Die verbrannte Fläche ist um",
+
+    unchanged:
+      "Die verbrannte Fläche entspricht dem Referenzdurchschnitt.",
+
+    months: {
+      Jan: "Jan",
+      Feb: "Feb",
+      Mar: "Mär",
+      Apr: "Apr",
+      May: "Mai",
+      Jun: "Jun",
+      Jul: "Jul",
+      Aug: "Aug",
+      Sep: "Sep",
+      Oct: "Okt",
+      Nov: "Nov",
+      Dec: "Dez",
+    },
+  },
+};
+
 const ArrowLabel = ({ payload, year, viewBox, index }: any) => {
   const actuel = payload[`y${year}`] ?? 0;
   const precedent = payload[`y${year - 1}`] ?? 0;
@@ -154,6 +571,8 @@ interface CardProps {
     ap,
     year
   }: any) => {  
+    const { lang } = useLanguage();
+  const t = txt[lang];
     const classement = useMemo(() => {  
       const result = communesSuperficie  
         // garder uniquement les communes de l'AP choisie
@@ -284,6 +703,8 @@ interface CardProps {
   };
 
 const Graphique3 = ({baseFeux,year, ap}:any) => {
+  const { lang } = useLanguage();
+  const t = txt[lang];
     const chart3Pro = useMemo(() => {
       if(!ap) return [];
       const AP_LIST = [
@@ -525,7 +946,7 @@ const Graphique3 = ({baseFeux,year, ap}:any) => {
 
 return [
   {
-    zone: "Périphérie 5 km",
+    zone: t.peripheral5km,
     annee: getSuperficie(
       year,
       "5km",
@@ -542,7 +963,7 @@ return [
     )
   },
   {
-    zone: "Intérieur du parc",
+    zone: t.insidePark,
     annee: getSuperficie(
       year,
       "interieur",
@@ -583,7 +1004,7 @@ return [
           marginBottom:10
         }}
       >
-      Écart des superficies brûlées par rapport à la moyenne historique 2020-2024
+      {t.historicalDifference}
       </div>      
       {chart3Pro.map((item,index)=>(      
           <div key={item.zone} style={{marginBottom:5}}>
@@ -610,12 +1031,12 @@ return [
               type:"annee"
             },
             {
-              nom:"Moyenne 2020 - 2024",
+              nom: t.historicalAverage,
               val:item.moyenne,
               type:"moyenne"
             },
             {
-              nom:"Années à forte pression",
+              nom: t.highPressureYears,
               val:item.difficile,
               type:"difficile"
             }
@@ -678,12 +1099,12 @@ return [
                   type:"annee"
                 },
                 {
-                  nom:"Moyenne 2020 - 2024",
+                  nom: t.historicalAverage,
                   val:item.moyenne,
                   type:"moyenne"
                 },
                 {
-                  nom:"Années à forte pression",
+                  nom: t.highPressureYears,
                   val:item.difficile,
                   type:"difficile"
                 }
@@ -788,6 +1209,8 @@ return [
 
   
   const Graphique6 = ({baseFeux, ap, year}:any) => {
+    const { lang } = useLanguage();
+  const t = txt[lang];
     const valeur = useMemo(() => {
       const getSuperficieByYear = (annee:number) => {    
         return baseFeux
@@ -933,7 +1356,7 @@ useEffect(() => {
             color:"#d32f2f"
           }}
         >
-          Variation de la superficie brûlée en périphérie de 5 km <br/>(réf. 2020–2024)
+          {t.peripheralVariation} <br/>({t.reference})
         </div>
         <svg
           width="100%"
@@ -1102,10 +1525,10 @@ useEffect(() => {
           >
             {
               valeur < 0
-                ? `La superficie brûlée a diminué de ${Math.abs(valeur)} %.`
-                : valeur > 0
-                  ? `La superficie brûlée a augmenté de ${valeur} %.`
-                  : `La superficie brûlée est identique à la moyenne de référence.`
+              ? `${t.decreased} ${Math.abs(valeur)} %.`
+              : valeur > 0
+                ? `${t.increased} ${valeur} %.`
+                : t.unchanged
             }
           </div>
       </div>
@@ -1113,7 +1536,9 @@ useEffect(() => {
   };
 
 
-  const Graphique1 = ({chart1, year}) => {    
+  const Graphique1 = ({chart1, year}) => {  
+    const { lang } = useLanguage();
+  const t = txt[lang];  
     return (
       <div
         style={{
@@ -1135,7 +1560,7 @@ useEffect(() => {
             marginBottom: 5,
           }}
         >
-          Evolution mensuelle des superficies brûlées par rapport à l'année précédente
+          {t.monthlyEvolution}
         </div>
   
         <ResponsiveContainer width="100%" height="90%">
@@ -1272,7 +1697,9 @@ useEffect(() => {
     );
   };
   
-  const Graphique2Pro = ({ ap, chart2Pro, year }) => {   
+  const Graphique2Pro = ({ ap, chart2Pro, year }) => {  
+    const { lang } = useLanguage();
+  const t = txt[lang]; 
     return (
       <div
         style={{
@@ -1296,7 +1723,7 @@ useEffect(() => {
             marginBottom: 10,
           }}
         >
-        A l'intérieur de l'Aire Protégée {ap}
+        {t.insideProtectedArea} {ap}
       </div>
   
         <ResponsiveContainer width="100%" height="100%">
@@ -1363,6 +1790,8 @@ useEffect(() => {
 
   
 export default function Feux() {
+  const { lang } = useLanguage();
+  const t = txt[lang];
   const [year, setYear] = useState<number>(2019);
   const [ap, setAp] = useState<string>("Ankarafantsika");
   const [source, setSource] = useState<string>("Interieur");
@@ -1516,18 +1945,18 @@ export default function Feux() {
     }, []);
 
     const moisCourt = [
-      { nom: "Jan", champ: "Janvier" },
-      { nom: "Fév", champ: "Février" },
-      { nom: "Mar", champ: "Mars" },
-      { nom: "Avr", champ: "Avril" },
-      { nom: "Mai", champ: "Mai" },
-      { nom: "Juin", champ: "Juin" },
-      { nom: "Juil", champ: "Juillet" },
-      { nom: "Août", champ: "Août" },
-      { nom: "Sep", champ: "Septembre" },
-      { nom: "Oct", champ: "Octobre" },
-      { nom: "Nov", champ: "Novembre" },
-      { nom: "Déc", champ: "Décembre" },
+      { nom: t.months.Jan, champ: "Janvier" },
+      { nom: t.months.Feb, champ: "Février" },
+      { nom: t.months.Mar, champ: "Mars" },
+      { nom: t.months.Apr, champ: "Avril" },
+      { nom: t.months.May, champ: "Mai" },
+      { nom: t.months.Jun, champ: "Juin" },
+      { nom: t.months.Jul, champ: "Juillet" },
+      { nom: t.months.Aug, champ: "Août" },
+      { nom: t.months.Sep, champ: "Septembre" },
+      { nom: t.months.Oct, champ: "Octobre" },
+      { nom: t.months.Nov, champ: "Novembre" },
+      { nom: t.months.Dec, champ: "Décembre" },
     ];
 
     const totalMoisDernier = useMemo(() => {
@@ -1846,6 +2275,8 @@ export default function Feux() {
   };
 
   const Graphique4 = ({chart4, year}) => {
+    const { lang } = useLanguage();
+  const t = txt[lang];
     const maxValue = Math.max(...chart4.map(d => d.superficie));
     const roundedMax = Math.ceil(
       Math.max(
@@ -1882,6 +2313,8 @@ export default function Feux() {
 
 
     const Graphique6 = ({baseFeux, ap, year}:any) => {
+      const { lang } = useLanguage();
+  const t = txt[lang];
       const valeur = useMemo(() => {    
         // Fonction pour calculer la superficie brûlée 5km d'une année
         const getSuperficieByYear = (annee:number) => {    
@@ -1964,7 +2397,7 @@ return (
             marginBottom: 15,
           }}
         >
-          Communes les plus affectées par les feux en {year}
+          {t.mostAffectedCommunes} {year}
         </div>
   
         <ResponsiveContainer width="100%" height="100%">
@@ -2011,7 +2444,7 @@ return (
             <Bar
               yAxisId="left"
               dataKey="superficie"
-              name="Superficie (ha)"
+              name={t.surfaceHa}
               fill="url(#redGradient)"
               barSize={40}
               radius={[3, 3, 0, 0]}
@@ -2029,7 +2462,7 @@ return (
   
             {/* LINE CUMUL */}
             <Line
-              name="Cumul (%)"
+              name={t.cumulative}
               yAxisId="right"
               type="monotone"
               dataKey="pct"
@@ -2192,7 +2625,7 @@ return (
                       lineHeight: 1.1,
                     }}
                   >
-                    avec
+                    {t.with}
                   </div>          
           
                   {/* Superficie */}
@@ -2222,7 +2655,7 @@ return (
                   textAlign: "right",
                 }}
               >
-                de surface totale brûlée
+                {t.totalBurnedSurface}
               </div>          
             </div>
           )}
@@ -2233,7 +2666,7 @@ return (
   const kpis = useMemo(
     () => [
       {
-        title:"Total des superficies brûlées dans les Communes riveraines",
+        title: t.totalBurnedCommunes,
         value:formatHa(totalCommune),
         color:"#c00000",
        
@@ -2245,7 +2678,7 @@ return (
        },
   
       {
-        title: "Superficies brûlées en périphérie de l'AP (sur un rayon de 5km)",
+        title: t.burnedPeripheral,
         value:formatHa(total5km),
         color: "#707070",
   
@@ -2265,7 +2698,7 @@ return (
       },
   
       {
-        title: "Superficies brûlées à l'intérieur de l'Aire Protégées",
+        title: t.burnedInside,
         value:formatHa(totalInterieur),
         color: "#f0a500",
   
@@ -2285,7 +2718,7 @@ return (
       },
   
       {
-        title: "Superficies brûlées aux Communes riveraines du mois dernier",
+        title: t.burnedLastMonth,
         value: formatHa(totalMoisDernier),
         color: "#c00000",
   
@@ -2305,7 +2738,7 @@ return (
       },
   
       {
-        title: "Evolution annuelle par rapport à l'année précédente",      
+        title: t.annualEvolution,      
         value:
           evolutionAnnuelle === null ? (
             "--"
@@ -2346,7 +2779,7 @@ return (
         ),
       },  
       {
-        title: "Commune la plus touchée",
+        title: t.mostAffected,
         value: "",
         color: "#003399",
   
@@ -2390,7 +2823,7 @@ return (
             fontWeight: 700,
           }}
         >
-          Suivi et analyse des feux
+          {t.title}
         </h2>
 
         {/* FILTRES */}
@@ -2422,7 +2855,7 @@ return (
               }}
             >
               <Calendar size={14} />
-              Année
+                {t.year}
             </div>
 
             <select
@@ -2478,7 +2911,7 @@ return (
               }}
             >
               <MapPin size={14} />
-              Aire protégée
+                {t.ap}
             </div>
 
             <select
@@ -2543,7 +2976,7 @@ return (
     color="#d4af37"
   />
 
-  Communes les moins brûlées par rapport à leur superficie
+{t.leastBurnedCommunes}
 </div>
 
   <div
@@ -2639,7 +3072,7 @@ return (
             marginBottom: 10,
           }}
         >
-          Impact des feux aux 11 Communes les plus touchés autour de {ap}
+          {t.fireImpact} {ap}
         </div>
 
       <ResponsiveContainer width="100%" height="100%">
@@ -2707,7 +3140,7 @@ return (
                         marginRight: 6,
                       }}
                     />
-                    Intérieur AP
+                    {t.insideAP}
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center" }}>
@@ -2721,7 +3154,7 @@ return (
                         marginRight: 6,
                       }}
                     />
-                    Périphérie 5 km
+                    {t.peripheral5km}
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center" }}>
@@ -2734,7 +3167,7 @@ return (
                         marginRight: 6,
                       }}
                     />
-                    Total
+                    {t.total}
                   </div>
                 </div>
               )}
