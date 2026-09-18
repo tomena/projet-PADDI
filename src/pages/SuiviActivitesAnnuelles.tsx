@@ -1,9 +1,341 @@
 import React, { useEffect, useState } from 'react';
+import { useLanguage } from "../context/LanguageContext";
 import { CalendarDays, RotateCcw, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
 } from 'lucide-react';
 
 import { ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
+
+
+const TEXT = {
+  fr: {
+    title: "SUIVI DES ACTIVITÉS ANNUELLES",
+    subtitle: "Plan Stratégique 2024 – 2030",
+    updated: "Données mises à jour",
+    
+    year: "ANNÉE",
+    month: "MOIS",
+    unit: "UNITÉ DE COORDINATION",
+    all: "Tous",
+    reset: "Réinitialiser les filtres",
+
+    monthRange: "Janvier - Décembre",
+    yearRange: "2025 - 2030",
+
+    globalProgress: "TAUX D’AVANCEMENT GLOBAL DES ACTIVITÉS",
+    totalPlanned: "Total activités planifiées",
+    completed: "Activités achevées",
+    ongoing: "Activités en cours",
+    notStarted: "Activités non démarrées",
+
+    byAchievement: "TAUX D’AVANCEMENT PAR RÉALISATION",
+    byComponent: "TAUX D’AVANCEMENT PAR COMPOSANTE",
+
+    result1: "R1. SYSTÈME DE GESTION",
+    result2: "R2. AMÉNAGEMENT DU TERRITOIRE",
+
+    componentC1: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+    componentC2: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
+    componentC3: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+    componentC4: "C4. CRÉATION D’EMPLOIS VERTS",
+
+    axisPriority: "AXE PRIORITAIRE",
+    progressRate: "TAUX D'AVANCEMENT",
+
+    axis1Title: "AXES PRIORITAIRES DE LA RÉALISATION 1 : SYSTÈME DE GESTION",
+    axis2Title: "AXES PRIORITAIRES DE LA RÉALISATION 2 : AMÉNAGEMENT DU TERRITOIRE",
+
+    diagnostic: "Analyses diagnostiques",
+    territorialPlanning: "Planification territoriale",
+    ecosystemMonitoring: "Suivi écosystémique",
+    sustainableFinancing: "Financement durable",
+    populationParticipation: "Participation des populations",
+    mnpCooperation: "Coopération avec MNP",
+    intersectoralCoordination: "Coordination intersectorielle",
+    antiCorruption: "Lutte contre la corruption",
+
+    landscapeRestoration: "Restauration paysages",
+    sustainableProduction: "Production durable",
+    landSecurity: "Sécurisation foncière",
+    fireManagement: "Gestion des feux",
+    marketSystem: "Système de marché",
+    productionValorization: "Valorisation des productions",
+    activityDiversification: "Diversification des activités",
+    communityMobilization: "Mobilisation communautaire",
+
+    legend: "LÉGENDE (TAUX D'AVANCEMENT)",
+
+    accessTitle: "ACCÉDER AU SUIVI DES ACTIVITÉS ANNUELLES DE L’ANNÉE CHOISIE",
+    accessDesc: "Consultez le détail des activités",
+    accessBtn: "Accéder au suivi des activités",
+
+    months: {
+      Janvier: "Janvier",
+      Février: "Février",
+      Mars: "Mars",
+      Avril: "Avril",
+      Mai: "Mai",
+      Juin: "Juin",
+      Juillet: "Juillet",
+      Août: "Août",
+      Septembre: "Septembre",
+      Octobre: "Octobre",
+      Novembre: "Novembre",
+      Décembre: "Décembre",
+    },
+
+    range0_25: "0 à 25%",
+    range25_50: "25% à 50%",
+    range50_75: "50% à 75%",
+    range75_100: "75% à 100%",
+  },
+
+  mg: {
+    title: "FANARAHANA NY ASA ISAN-TAONA",
+    subtitle: "Drafitra stratejika 2024 – 2030",
+    updated: "Angon-drakitra nohavaozina",
+
+    year: "TAONA",
+    month: "VOLANA",
+    unit: "SAMPANA MPANDRINDRA",
+    all: "Rehetra",
+    reset: "Avereno ny sivana",
+
+    monthRange: "Janoary - Desambra",
+    yearRange: "2025 - 2030",
+
+    globalProgress: "TAHA-PANDROSOANA ANKAPOBENY NY ASA",
+    totalPlanned: "Fitambaran'ny asa voalamina",
+    completed: "Asa vita",
+    ongoing: "Asa mbola mandeha",
+    notStarted: "Asa mbola tsy natomboka",
+
+    byAchievement: "TAHA-PANDROSOANA ISAKY NY ZAVA-BITA",
+    byComponent: "TAHA-PANDROSOANA ISAKY NY SINGA",
+
+    result1: "R1. RAFITRA FITANTANANA",
+    result2: "R2. FANDAMINANA NY TONTOLON-TANY",
+
+    componentC1: "C1. FITANTANANA NY SERIVISY ARA-TONTOLO IAINANA",
+    componentC2: "C2. FITANTANANA NY TONTOLON'AINA IFOTONY",
+    componentC3: "C3. FAMPANDROSOANA NY TONTOLON-TANY MPAMOKATRA",
+    componentC4: "C4. FAMORONANA ASA MAITSO",
+
+    axisPriority: "LAHARANA LAHARANA",
+    progressRate: "TAHA-PANDROSOANA",
+
+    axis1Title: "LAHARAM-PAHAMEHANA AMIN'NY ZAVA-BITA 1 : RAFITRA FITANTANANA",
+    axis2Title: "LAHARAM-PAHAMEHANA AMIN'NY ZAVA-BITA 2 : FANDAMINANA NY TONTOLON-TANY",
+
+    diagnostic: "Fanadihadiana diagnostika",
+    territorialPlanning: "Fandaminana ny faritra",
+    ecosystemMonitoring: "Fanaraha-maso ny tontolo iainana",
+    sustainableFinancing: "Famatsiam-bola maharitra",
+    populationParticipation: "Fandraisan'anjaran'ny mponina",
+    mnpCooperation: "Fiaraha-miasa amin'ny MNP",
+    intersectoralCoordination: "Fandrindrana eo amin'ny sehatra",
+    antiCorruption: "Ady amin'ny kolikoly",
+
+    landscapeRestoration: "Famerenana amin'ny laoniny ny tontolo-tany",
+    sustainableProduction: "Famokarana maharitra",
+    landSecurity: "Fiarovana ny fananan-tany",
+    fireManagement: "Fitantanana ny doro-tanety",
+    marketSystem: "Rafitra ara-barotra",
+    productionValorization: "Fanomezana lanja ny vokatra",
+    activityDiversification: "Fanamaroana ny asa",
+    communityMobilization: "Fanentanana ny vondrom-piarahamonina",
+
+    legend: "FANAZAVANA (TAHA-PANDROSOANA)",
+
+    accessTitle: "HIDITRA AMIN'NY FANARAHANA NY ASA ISAN-TAONA VOAFIDY",
+    accessDesc: "Jereo amin'ny antsipiriany ny asa",
+    accessBtn: "Hiditra amin'ny fanaraha-maso ny asa",
+
+    months: {
+      Janvier: "Janoary",
+      Février: "Febroary",
+      Mars: "Martsa",
+      Avril: "Aprily",
+      Mai: "Mey",
+      Juin: "Jona",
+      Juillet: "Jolay",
+      Août: "Aogositra",
+      Septembre: "Septambra",
+      Octobre: "Oktobra",
+      Novembre: "Novambra",
+      Décembre: "Desambra",
+    },
+
+    range0_25: "0 hatramin'ny 25%",
+    range25_50: "25% hatramin'ny 50%",
+    range50_75: "50% hatramin'ny 75%",
+    range75_100: "75% hatramin'ny 100%",
+  },
+
+  en: {
+    title: "ANNUAL ACTIVITY MONITORING",
+    subtitle: "Strategic Plan 2024 – 2030",
+    updated: "Data updated",
+
+    year: "YEAR",
+    month: "MONTH",
+    unit: "COORDINATION UNIT",
+    all: "All",
+    reset: "Reset filters",
+
+    monthRange: "January - December",
+    yearRange: "2025 - 2030",
+
+    globalProgress: "OVERALL ACTIVITY PROGRESS RATE",
+    totalPlanned: "Total planned activities",
+    completed: "Completed activities",
+    ongoing: "Ongoing activities",
+    notStarted: "Activities not started",
+
+    byAchievement: "PROGRESS RATE BY RESULT",
+    byComponent: "PROGRESS RATE BY COMPONENT",
+
+    result1: "R1. MANAGEMENT SYSTEM",
+    result2: "R2. LAND-USE PLANNING",
+
+    componentC1: "C1. ECOSYSTEM SERVICES MANAGEMENT",
+    componentC2: "C2. DECENTRALIZED ENVIRONMENTAL GOVERNANCE",
+    componentC3: "C3. DEVELOPMENT OF PRODUCTIVE LANDSCAPES",
+    componentC4: "C4. CREATION OF GREEN JOBS",
+
+    axisPriority: "PRIORITY AXIS",
+    progressRate: "PROGRESS RATE",
+
+    axis1Title: "PRIORITY AXES OF RESULT 1: MANAGEMENT SYSTEM",
+    axis2Title: "PRIORITY AXES OF RESULT 2: LAND-USE PLANNING",
+
+    diagnostic: "Diagnostic analyses",
+    territorialPlanning: "Territorial planning",
+    ecosystemMonitoring: "Ecosystem monitoring",
+    sustainableFinancing: "Sustainable financing",
+    populationParticipation: "Population participation",
+    mnpCooperation: "Cooperation with MNP",
+    intersectoralCoordination: "Intersectoral coordination",
+    antiCorruption: "Fight against corruption",
+
+    landscapeRestoration: "Landscape restoration",
+    sustainableProduction: "Sustainable production",
+    landSecurity: "Land tenure security",
+    fireManagement: "Fire management",
+    marketSystem: "Market system",
+    productionValorization: "Production valorization",
+    activityDiversification: "Activity diversification",
+    communityMobilization: "Community mobilization",
+
+    legend: "LEGEND (PROGRESS RATE)",
+
+    accessTitle: "ACCESS ANNUAL ACTIVITY MONITORING FOR THE SELECTED YEAR",
+    accessDesc: "View activity details",
+    accessBtn: "Access activity monitoring",
+
+    months: {
+      Janvier: "January",
+      Février: "February",
+      Mars: "March",
+      Avril: "April",
+      Mai: "May",
+      Juin: "June",
+      Juillet: "July",
+      Août: "August",
+      Septembre: "September",
+      Octobre: "October",
+      Novembre: "November",
+      Décembre: "December",
+    },
+
+    range0_25: "0 to 25%",
+    range25_50: "25% to 50%",
+    range50_75: "50% to 75%",
+    range75_100: "75% to 100%",
+  },
+
+  de: {
+    title: "JÄHRLICHE AKTIVITÄTSÜBERWACHUNG",
+    subtitle: "Strategischer Plan 2024 – 2030",
+    updated: "Daten aktualisiert",
+
+    year: "JAHR",
+    month: "MONAT",
+    unit: "KOORDINATIONSEINHEIT",
+    all: "Alle",
+    reset: "Filter zurücksetzen",
+
+    monthRange: "Januar - Dezember",
+    yearRange: "2025 - 2030",
+
+    globalProgress: "GESAMTFORTSCHRITTSRATE DER AKTIVITÄTEN",
+    totalPlanned: "Insgesamt geplante Aktivitäten",
+    completed: "Abgeschlossene Aktivitäten",
+    ongoing: "Laufende Aktivitäten",
+    notStarted: "Noch nicht gestartete Aktivitäten",
+
+    byAchievement: "FORTSCHRITTSRATE NACH ERGEBNIS",
+    byComponent: "FORTSCHRITTSRATE NACH KOMPONENTE",
+
+    result1: "R1. MANAGEMENTSYSTEM",
+    result2: "R2. RAUMORDNUNG",
+
+    componentC1: "C1. MANAGEMENT VON ÖKOSYSTEMDIENSTLEISTUNGEN",
+    componentC2: "C2. DEZENTRALISIERTE UMWELTGOVERNANCE",
+    componentC3: "C3. ENTWICKLUNG PRODUKTIVER LANDSCHAFTEN",
+    componentC4: "C4. SCHAFFUNG GRÜNER ARBEITSPLÄTZE",
+
+    axisPriority: "PRIORITÄTSACHSE",
+    progressRate: "FORTSCHRITTSRATE",
+
+    axis1Title: "PRIORITÄTSACHSEN DES ERGEBNISSES 1: MANAGEMENTSYSTEM",
+    axis2Title: "PRIORITÄTSACHSEN DES ERGEBNISSES 2: RAUMORDNUNG",
+
+    diagnostic: "Diagnostische Analysen",
+    territorialPlanning: "Raumplanung",
+    ecosystemMonitoring: "Ökosystemüberwachung",
+    sustainableFinancing: "Nachhaltige Finanzierung",
+    populationParticipation: "Beteiligung der Bevölkerung",
+    mnpCooperation: "Zusammenarbeit mit MNP",
+    intersectoralCoordination: "Sektorübergreifende Koordination",
+    antiCorruption: "Korruptionsbekämpfung",
+
+    landscapeRestoration: "Landschaftswiederherstellung",
+    sustainableProduction: "Nachhaltige Produktion",
+    landSecurity: "Sicherung von Landrechten",
+    fireManagement: "Feuermanagement",
+    marketSystem: "Marktsystem",
+    productionValorization: "Aufwertung der Produktion",
+    activityDiversification: "Diversifizierung der Aktivitäten",
+    communityMobilization: "Mobilisierung der Gemeinschaft",
+
+    legend: "LEGENDE (FORTSCHRITTSRATE)",
+
+    accessTitle: "ZUGRIFF AUF DIE JÄHRLICHE AKTIVITÄTSÜBERWACHUNG DES AUSGEWÄHLTEN JAHRES",
+    accessDesc: "Details zu den Aktivitäten anzeigen",
+    accessBtn: "Zur Aktivitätsüberwachung",
+
+    months: {
+      Janvier: "Januar",
+      Février: "Februar",
+      Mars: "März",
+      Avril: "April",
+      Mai: "Mai",
+      Juin: "Juni",
+      Juillet: "Juli",
+      Août: "August",
+      Septembre: "September",
+      Octobre: "Oktober",
+      Novembre: "November",
+      Décembre: "Dezember",
+    },
+
+    range0_25: "0 bis 25%",
+    range25_50: "25% bis 50%",
+    range50_75: "50% bis 75%",
+    range75_100: "75% bis 100%",
+  },
+};
 
 interface CoutActivite {
   Année:number;
@@ -11,12 +343,7 @@ interface CoutActivite {
   UC:string;      
   [key:string]: any;
       } 
-const composantesConfig = [
-  { code: "C1", icon: Leaf, title: "Gestion des services écosystémiques" },
-  { code: "C2", icon: Building, title: "Gouvernance environnementale" },
-  { code: "C3", icon: Map, title: "Développement des paysages" },
-  { code: "C4", icon: Briefcase, title: "Création d'emplois verts" },
-];
+
 const ordreMois = [
   "Janvier",
   "Février",
@@ -33,10 +360,21 @@ const ordreMois = [
 ];
 export default function SuiviActivitesAnnuelles() {
 
+  const { lang } = useLanguage();
+  const t = TEXT[lang] || TEXT.fr;
+
   const [data,setData] = useState<CoutActivite[]>([]);
   const [annee,setAnnee] = useState<number>(2026);
   const [mois,setMois] = useState<string>("Tous");
   const [uc,setUc] = useState<string>("Tous");
+
+
+  const composantesConfig = [
+    { code: "C1", icon: Leaf, title: t.componentC1Short },
+    { code: "C2", icon: Building, title: t.componentC2Short },
+    { code: "C3", icon: Map, title: t.componentC3Short },
+    { code: "C4", icon: Briefcase, title: t.componentC4Short },
+  ];
 
   const getProgressColor = (value: number) => {
     if (value <= 25) return '#ef4444';
@@ -97,13 +435,13 @@ export default function SuiviActivitesAnnuelles() {
       { value: tauxGlobalActivites },
       { value: 100 - tauxGlobalActivites },
     ];
-  const results = [
+    const results = [
       {
-        label: "R1. SYSTÈME DE GESTION",
+        label: t.result1,
         percent: Number(coutActuel["TAR 1"] || 0) * 100,
       },
       {
-        label: "R2. AMÉNAGEMENT DU TERRITOIRE",
+        label: t.result2,
         percent: Number(coutActuel["TAR 2"] || 0) * 100,
       },
     ].map(item => ({
@@ -119,25 +457,25 @@ export default function SuiviActivitesAnnuelles() {
 
   const composantes = [
     {
-      label: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+      label: t.componentC1,
       percent: Number(coutActuel["TAA 1.1.1"] || 0) * 100,
       icon: Leaf,
     },
   
     {
-      label: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
+      label: t.componentC2,
       percent: Number(coutActuel["TAA 1.1.2"] || 0) * 100,
       icon: ShieldCheck,
     },
   
     {
-      label: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+      label: t.componentC3,
       percent: Number(coutActuel["TAA 1.1.3"] || 0) * 100,
       icon: Mountain,
     },
   
     {
-      label: "C4. CRÉATION D’EMPLOIS VERTS",
+      label: t.componentC4,
       percent: Number(coutActuel["TAA 1.1.4"] || 0) * 100,
       icon: BriefcaseBusiness,
     },
@@ -149,95 +487,95 @@ export default function SuiviActivitesAnnuelles() {
   }));
 
   const axes1 = {
-    title: "AXES PRIORITAIRES DE LA RÉALISATION 1 : SYSTÈME DE GESTION",
+    title: t.axis1Title,
     icon: Users,
   
     data: [
       {
         code: "1.1.1",
-        name: "Analyses diagnostiques",
+        name: t.diagnostic,
         value: Number(coutActuel["TAA 1.1.1"] || 0) * 100,
       },
       {
         code: "1.1.2",
-        name: "Planification territoriale",
+        name: t.territorialPlanning,
         value: Number(coutActuel["TAA 1.1.2"] || 0) * 100,
       },
       {
         code: "1.1.3",
-        name: "Suivi écosystémique",
+        name: t.ecosystemMonitoring,
         value: Number(coutActuel["TAA 1.1.3"] || 0) * 100,
       },
       {
         code: "1.1.4",
-        name: "Financement durable",
+        name: t.sustainableFinancing,
         value: Number(coutActuel["TAA 1.1.4"] || 0) * 100,
       },
       {
         code: "1.2.1",
-        name: "Participation des populations",
+        name: t.populationParticipation,
         value: Number(coutActuel["TAA 1.2.1"] || 0) * 100,
       },
       {
         code: "1.2.2",
-        name: "Coopération avec MNP",
+        name: t.mnpCooperation,
         value: Number(coutActuel["TAA 1.2.2"] || 0) * 100,
       },
       {
         code: "1.2.3",
-        name: "Coordination intersectorielle",
+        name: t.intersectoralCoordination,
         value: Number(coutActuel["TAA 1.2.3"] || 0) * 100,
       },
       {
         code: "1.2.4",
-        name: "Lutte contre la corruption",
+        name: t.antiCorruption,
         value: Number(coutActuel["TAA 1.2.4"] || 0) * 100,
       },
     ],
   };
   const axes2 = {
-    title: "AXES PRIORITAIRES DE LA RÉALISATION 2 : AMÉNAGEMENT DU TERRITOIRE",
+    title: t.axis2Title,
     icon: Trees,
   
     data: [
       {
         code: "2.1.1",
-        name: "Restauration paysages",
+        name: t.landscapeRestoration,
         value: Number(coutActuel["TAA 2.1.1"] || 0) * 100,
       },
       {
         code: "2.1.2",
-        name: "Production durable",
+        name: t.sustainableProduction,
         value: Number(coutActuel["TAA 2.1.2"] || 0) * 100,
       },
       {
         code: "2.1.3",
-        name: "Sécurisation foncière",
+        name: t.landSecurity,
         value: Number(coutActuel["TAA 2.1.3"] || 0) * 100,
       },
       {
         code: "2.1.4",
-        name: "Gestion des feux",
+        name: t.fireManagement,
         value: Number(coutActuel["TAA 2.1.4"] || 0) * 100,
       },
       {
         code: "2.2.1",
-        name: "Système de marché",
+        name: t.marketSystem,
         value: Number(coutActuel["TAA 2.2.1"] || 0) * 100,
       },
       {
         code: "2.2.2",
-        name: "Valorisation des productions",
+        name: t.productionValorization,
         value: Number(coutActuel["TAA 2.2.2"] || 0) * 100,
       },
       {
         code: "2.2.3",
-        name: "Diversification des activités",
+        name: t.activityDiversification,
         value: Number(coutActuel["TAA 2.2.3"] || 0) * 100,
       },
       {
         code: "2.2.4",
-        name: "Mobilisation communautaire",
+        name: t.communityMobilization,
         value: Number(coutActuel["TAA 2.2.4"] || 0) * 100,
       },
     ],
@@ -257,17 +595,17 @@ export default function SuiviActivitesAnnuelles() {
       <div style={styles.header}>
         <div>
           <div style={styles.title}>
-            SUIVI DES ACTIVITÉS ANNUELLES
+            {t.title}
           </div>
           <div style={styles.subtitle}>
-            Plan Stratégique 2024 – 2030
+            {t.subtitle}
           </div>
         </div>
 
         <div style={styles.dateBox}>
           <CalendarDays size={18} />
           <div>
-            <div style={styles.dateLabel}>Données mises à jour</div>
+            <div style={styles.dateLabel}>{t.updated}</div>
             <div style={styles.dateValue}>17 juillet 2026</div>
           </div>
         </div>
@@ -282,7 +620,7 @@ export default function SuiviActivitesAnnuelles() {
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>ANNÉE</div>
+          <div style={styles.filterLabel}>{t.year}</div>
 
             <select
               style={styles.bigSelect}
@@ -298,7 +636,7 @@ export default function SuiviActivitesAnnuelles() {
               }
             </select>
 
-            <div style={styles.filterSub}>2025 - 2030</div>
+            <div style={styles.filterSub}>{t.yearRange}</div>
           </div>
         </div>
 
@@ -309,7 +647,7 @@ export default function SuiviActivitesAnnuelles() {
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>MOIS</div>
+          <div style={styles.filterLabel}>{t.month}</div>
 
             <select
               style={styles.bigSelect}
@@ -317,18 +655,19 @@ export default function SuiviActivitesAnnuelles() {
               onChange={(e)=>setMois(e.target.value)}
             >
               <option value="Tous">
-                Tous
-              </option>
-                {
-                moisListe.map(m=>
-                <option key={m}>
-                {m}
-              </option>
-              )
-              }
+                    {t.all}
+                  </option>
+
+                  {
+                    moisListe.map(m =>
+                      <option key={m} value={m}>
+                        {t.months?.[m] || m}
+                      </option>
+                    )
+                  }
             </select>
 
-            <div style={styles.filterSub}>Janvier - Décembre</div>
+            <div style={styles.filterSub}>{t.monthRange}</div>
           </div>
         </div>
 
@@ -339,7 +678,7 @@ export default function SuiviActivitesAnnuelles() {
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>UNITÉ DE COORDINATION</div>
+          <div style={styles.filterLabel}>{t.unit}</div>
 
             <select
                 style={styles.bigSelect}
@@ -366,7 +705,7 @@ export default function SuiviActivitesAnnuelles() {
           <button style={styles.resetBigBtn}>
             <RotateCcw size={20} />
             <span style={{ textAlign: 'center' }}>
-              Réinitialiser les filtres
+              {t.reset}
             </span>
           </button>
         </div>
@@ -378,7 +717,7 @@ export default function SuiviActivitesAnnuelles() {
         {/* GLOBAL */}
         <div style={styles.card}>
           <div style={styles.cardHeader}>
-            TAUX D’AVANCEMENT GLOBAL DES ACTIVITÉS
+             {t.globalProgress}
           </div>
 
           <div style={styles.globalWrap}>
@@ -418,7 +757,7 @@ export default function SuiviActivitesAnnuelles() {
                     <ListChecks size={20} color="#16a34a" />
 
                     <span style={styles.kpiLabel}>
-                        Total activités planifiées
+                        {t.totalPlanned}
                     </span>
 
                     <span style={styles.kpiValue}>
@@ -429,7 +768,7 @@ export default function SuiviActivitesAnnuelles() {
                     <div style={styles.kpiItem}>
                         <CheckCircle size={20} color="#16a34a" />
                             <span style={styles.kpiLabel}>
-                                Activités achevées
+                                {t.completed}
                             </span>
 
                             <span style={styles.kpiValue}>
@@ -440,7 +779,7 @@ export default function SuiviActivitesAnnuelles() {
                     <div style={styles.kpiItem}>
                         <Clock size={20} color="#16a34a" />
                         <span style={styles.kpiLabel}>
-                            Activités en cours
+                            {t.ongoing}
                         </span>
 
                         <span style={styles.kpiValue}>
@@ -451,7 +790,7 @@ export default function SuiviActivitesAnnuelles() {
                     <div style={styles.kpiItem}>
                       <XCircle size={20} color="#16a34a" />
                         <span style={styles.kpiLabel}>
-                            Activités non démarrées
+                           {t.notStarted}
                         </span>
 
                         <span style={styles.kpiValue}>
@@ -465,7 +804,7 @@ export default function SuiviActivitesAnnuelles() {
             {/* RESULTS */}
             <div style={styles.card}>
                 <div style={styles.cardHeader}>
-                    TAUX D’AVANCEMENT PAR REALISATION
+                    {t.byAchievement}
                 </div>
                 <div style={styles.resultsColumn}>
 
@@ -520,7 +859,7 @@ export default function SuiviActivitesAnnuelles() {
         <div style={styles.card}>
 
     <div style={styles.cardHeader}>
-        TAUX D’AVANCEMENT PAR COMPOSANTE
+       {t.byComponent}
     </div>
 
     <div style={styles.gridComposantes}>
@@ -593,8 +932,8 @@ export default function SuiviActivitesAnnuelles() {
 
           {/* HEADER TABLE */}
           <div style={styles.axisTableHeader}>
-            <div>AXE PRIORITAIRE</div>
-            <div>TAUX D'AVANCEMENT</div>
+            <div>{t.axisPriority}</div>
+            <div>{t.progressRate}</div>
           </div>
 
           <div style={styles.axisBox}>
@@ -648,8 +987,8 @@ export default function SuiviActivitesAnnuelles() {
               </div>
 
           <div style={styles.axisTableHeader}>
-            <div>AXE PRIORITAIRE</div>
-            <div>TAUX D'AVANCEMENT</div>
+            <div>{t.axisPriority}</div>
+            <div>{t.progressRate}</div>
           </div>
 
           <div style={styles.axisBox}>
@@ -695,29 +1034,31 @@ export default function SuiviActivitesAnnuelles() {
       <div style={styles.footer}>
 
       <div style={styles.footerHeader}>
-        LEGENDE (TAUX D'AVANCEMENT)
+      <div style={styles.footerHeader}>
+        {t.legend}
+      </div>
       </div>
   
       {/* LEFT : LEGEND */}
         <div style={styles.footerLegend}>
           <div style={styles.legendItem}>
             <span style={{ ...styles.dot, background: '#ef4444' }} />
-            0 à 25%
+            {t.range0_25}
           </div>
 
           <div style={styles.legendItem}>
             <span style={{ ...styles.dot, background: '#f59e0b' }} />
-            25% à 50%
+            {t.range25_50}
           </div>
 
           <div style={styles.legendItem}>
             <span style={{ ...styles.dot, background: '#22c55e' }} />
-            50% à 75%
+            {t.range50_75}
           </div>
 
           <div style={styles.legendItem}>
             <span style={{ ...styles.dot, background: '#2563eb' }} />
-            75% à 100%
+            {t.range75_100}
           </div>
         </div>
 
@@ -729,15 +1070,15 @@ export default function SuiviActivitesAnnuelles() {
 
         <div>
           <div style={{ fontWeight: 900, fontSize: 10 }}>
-            ACCÉDER AU SUIVI DES ACTIVITES ANNUELLES DE L’ANNÉE CHOISI
+          {t.accessTitle}
           </div>
           <div style={{ fontSize: 9, opacity: 0.8 }}>
-            Consultez le détail des activités
+          {t.accessDesc}
           </div>
         </div>
 
         <button style={styles.ctaButton}>
-          Accéder au suivi des activités 2025 ↗
+        {t.accessBtn} ↗
         </button>
       </div>
     </div>
