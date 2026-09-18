@@ -1,4 +1,5 @@
 import React,{ useRef, useEffect, useMemo, useState } from 'react';
+import { useLanguage } from "../context/LanguageContext";
 import { MapContainer, TileLayer, ScaleControl, useMap, GeoJSON } from "react-leaflet";
 import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
@@ -9,6 +10,188 @@ import { Flame, Target, Map, TrendingDown, Calendar, MapPin, Landmark, FileSprea
 const getVille = (nom) => {
   if (!nom) return "";
   return nom.replace("Bureau à", "").trim();
+};
+
+const TEXT = {
+  fr: {
+    pageTitle: "Système de suivi de feux au périphérie de 5km de l'Aire protégée",
+    year: "Année",
+    region: "Région",
+    protectedArea: "Aire protégée",
+    allRegions: "Toutes les régions",
+    allProtectedAreas: "Toutes",
+    reset: "Réinitialiser",
+    
+
+    indicator:
+      "Indicateur : Les superficies brûlées ont diminué de 25% d’ici 2030 dans les zones en périphérie des aires protégées sélectionées.",
+
+    targetRate: "TAUX D’ATTEINTE DE LA CIBLE",
+    targetReached: "de la cible atteinte",
+    reference: "Référence (2020-2024)",
+    burnedArea: "Superficie",
+    variation: "Variation",
+    objective2030: "Objectif 2030 (-25%)",
+
+    annualEvolution: "ÉVOLUTION MULTI-ANNUELLE DE L'INDICATEUR",
+    annualSubtitle:
+      "Variation (%) des superficies brûlées par rapport à l'année de référence (2020 - 2024)",
+    targetLine: "Objectif : -25%",
+    burnedVariation: "Variation des superficies brûlées (%)",
+
+    mapTitle:
+      "CARTE DES SUPERFICIES BRÛLÉES EN PÉRIPHÉRIE DES AIRES PROTÉGÉES",
+
+    comparison: "COMPARAISON MULTI-ANNUELLE DES 7 AIRES PROTÉGÉES",
+
+    legends: "LÉGENDES",
+    burnedLegend: "Superficie brûlée (ha)",
+    protectedLegend: "Aire protégée",
+    legend: "Légende",
+
+    footer:
+      "Analyse détaillée par aire protégée, commune et micro-bassin versant",
+    dashboard: "Tableaux de bord PADDI.xlsx",
+
+    ahead: "au-delà",
+    delay: "de retard",
+  },
+
+  mg: {
+    pageTitle:
+      "Rafitra fanaraha-maso ny doro tanety ao anatin’ny faritra 5 km manodidina ny Faritra Arovana",
+    year: "Taona",
+    region: "Faritra",
+    protectedArea: "Faritra arovana",
+    allRegions: "Faritra rehetra",
+    allProtectedAreas: "Rehetra",
+    reset: "Avereno",
+
+    indicator:
+      "Mari-pamantarana: Hihena 25% ny velaran-tany may hatramin'ny taona 2030 eny amin'ny faritra 5 km manodidina ireo Faritra Arovana voafantina.",
+
+    targetRate: "TAHAN'NY FAHATRATRARANA NY TANJONA",
+    targetReached: "amin'ny tanjona tratra",
+    reference: "Taona fototra (2020-2024)",
+    burnedArea: "Velarana",
+    variation: "Fiovana",
+    objective2030: "Tanjona 2030 (-25%)",
+
+    annualEvolution: "FIVOARANA ISAN-TAONA NY MARI-PAMANTARANA",
+    annualSubtitle:
+      "Fiovan'ny (%) velaran-tany may raha oharina amin'ny taona fototra (2020-2024)",
+    targetLine: "Tanjona: -25%",
+    burnedVariation: "Fiovan'ny velaran-tany may (%)",
+
+    mapTitle:
+      "SARINTANIN'NY VELARAN-TANY MAY MANODIDINA NY FARITRA AROVANA",
+
+    comparison:
+      "FAMPITAHANA ISAN-TAONA NY FARITRA AROVANA 7",
+
+    legends: "MARIBOLANA",
+    burnedLegend: "Velaran-tany may (ha)",
+    protectedLegend: "Faritra arovana",
+    legend: "Maribolana",
+
+    footer:
+      "Famakafakana amin'ny antsipiriany isaky ny Faritra Arovana, Kaominina ary mikro-basinina",
+    dashboard: "Takelaka PADDI.xlsx",
+
+    ahead: "mihoatra ny tanjona",
+    delay: "tara",
+  },
+
+  en: {
+    pageTitle:
+      "Fire Monitoring System within the 5 km Buffer around Protected Areas",
+    year: "Year",
+    region: "Region",
+    protectedArea: "Protected Area",
+    allRegions: "All regions",
+    allProtectedAreas: "All",
+    reset: "Reset",
+
+    indicator:
+      "Indicator: Burned areas are reduced by 25% by 2030 within the 5 km buffer surrounding the selected protected areas.",
+
+    targetRate: "TARGET ACHIEVEMENT RATE",
+    targetReached: "of the target achieved",
+    reference: "Baseline (2020-2024)",
+    burnedArea: "Burned area",
+    variation: "Variation",
+    objective2030: "2030 Target (-25%)",
+
+    annualEvolution: "MULTI-YEAR EVOLUTION OF THE INDICATOR",
+    annualSubtitle:
+      "Variation (%) of burned areas compared with the baseline period (2020-2024)",
+    targetLine: "Target: -25%",
+    burnedVariation: "Burned area variation (%)",
+
+    mapTitle:
+      "MAP OF BURNED AREAS AROUND PROTECTED AREAS",
+
+    comparison:
+      "MULTI-YEAR COMPARISON OF THE 7 PROTECTED AREAS",
+
+    legends: "LEGENDS",
+    burnedLegend: "Burned area (ha)",
+    protectedLegend: "Protected area",
+    legend: "Legend",
+
+    footer:
+      "Detailed analysis by protected area, municipality and micro-watershed",
+    dashboard: "PADDI Dashboard.xlsx",
+
+    ahead: "ahead",
+    delay: "behind schedule",
+  },
+
+  de: {
+    pageTitle:
+      "System zur Überwachung von Bränden im 5-km-Puffer um Schutzgebiete",
+    year: "Jahr",
+    region: "Region",
+    protectedArea: "Schutzgebiet",
+    allRegions: "Alle Regionen",
+    allProtectedAreas: "Alle",
+    reset: "Zurücksetzen",
+
+    indicator:
+      "Indikator: Die verbrannte Fläche soll bis 2030 im 5-km-Puffer der ausgewählten Schutzgebiete um 25 % reduziert werden.",
+
+    targetRate: "ERREICHUNG DER ZIELVORGABE",
+    targetReached: "des Ziels erreicht",
+    reference: "Referenz (2020-2024)",
+    burnedArea: "Verbrannte Fläche",
+    variation: "Veränderung",
+    objective2030: "Ziel 2030 (-25%)",
+
+    annualEvolution:
+      "MEHRJÄHRIGE ENTWICKLUNG DES INDIKATORS",
+    annualSubtitle:
+      "Veränderung (%) der verbrannten Flächen gegenüber der Referenzperiode (2020-2024)",
+    targetLine: "Ziel: -25%",
+    burnedVariation: "Veränderung der verbrannten Fläche (%)",
+
+    mapTitle:
+      "KARTE DER VERBRANNTEN FLÄCHEN UM SCHUTZGEBIETE",
+
+    comparison:
+      "MEHRJÄHRIGER VERGLEICH DER 7 SCHUTZGEBIETE",
+
+    legends: "LEGENDE",
+    burnedLegend: "Verbrannte Fläche (ha)",
+    protectedLegend: "Schutzgebiet",
+    legend: "Legende",
+
+    footer:
+      "Detaillierte Analyse nach Schutzgebiet, Gemeinde und Mikroeinzugsgebiet",
+    dashboard: "PADDI-Dashboard.xlsx",
+
+    ahead: "über dem Ziel",
+    delay: "Rückstand",
+  },
 };
 
 const pinSVG = `
@@ -133,7 +316,7 @@ function onEachRegion(feature, layer, mapRef) {
   });
 }
 
-function LegendControl({ getColorByAntenne, antennes }) {
+function LegendControl({ getColorByAntenne, antennes, t }) {
   const map = useMap();
 
   useEffect(() => {
@@ -148,29 +331,28 @@ function LegendControl({ getColorByAntenne, antennes }) {
       div.style.boxShadow = "0 1px 5px rgba(0,0,0,0.2)";
       div.style.fontSize = "12px";
 
-      div.innerHTML = `<strong>Légende:</strong><br/>`;
+      div.innerHTML = `<strong>${t.legend} :</strong><br/>`;
 
       div.innerHTML += `
         <div style="display:flex;align-items:center;gap:6px;">
-        <svg width="18" height="18" viewBox="0 0 24 24">
-          <path
-            d="M3 18 L6 5 L14 3 L21 8 L18 20 L8 21 Z"
-            fill="rgba(34,197,94,0.30)"
-            stroke="white"
-            stroke-width="1"
-          />
-        </svg>
-        Aire protégée
+          <svg width="18" height="18" viewBox="0 0 24 24">
+            <path
+              d="M3 18 L6 5 L14 3 L21 8 L18 20 L8 21 Z"
+              fill="rgba(34,197,94,0.30)"
+              stroke="white"
+              stroke-width="1"
+            />
+          </svg>
+          ${t.protectedArea}
         </div>
-        `;
-      
+      `;
+
       return div;
     };
 
     legend.addTo(map);
-
     return () => legend.remove();
-  }, [map, antennes, getColorByAntenne]);
+  }, [map, antennes, getColorByAntenne, t]);
 
   return null;
 }
@@ -247,6 +429,9 @@ function AireProtegeeLayer({ data, selectedAntenne }) {
 }
 
 export default function SuperficiesBrulees({ data }: any) {
+
+  const { lang } = useLanguage();
+  const t = TEXT[lang] || TEXT.fr;
 
   const [selectedAntenne, setSelectedAntenne] = useState("");
   const [selectedYear, setSelectedYear] = useState(2026);
@@ -804,13 +989,13 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
       <div style={styles.header}>
             {/* LEFT */}
             <h2 style={styles.title}>
-                Système de suivi de feux au périphérie de 5km de l'Aire protégée
+              {t.pageTitle}
             </h2>
             {/* RIGHT */}
             <div style={styles.filterRow}>
                 <div style={styles.filterBlock}>
                   <div style={styles.filterLabel}>
-                      <Calendar size={14} /> Année
+                      <Calendar size={14} /> {t.year}
                   </div>
                   <select
                     style={styles.select}
@@ -832,14 +1017,14 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
                 </div>
             <div style={styles.filterBlock}>
                 <div style={styles.filterLabel}>
-                    <MapPin size={14} /> Région
+                    <MapPin size={14} /> {t.region}
                 </div>
                   <select
                     style={styles.select}
                     value={selectedAntenne}
                     onChange={(e) => setSelectedAntenne(e.target.value)}
                   >
-                    <option value="">Toutes les régions</option>
+                    <option value="">{t.allRegions}</option>
 
                     {antennes?.length > 0 &&
                       antennes.map((antenne) => (
@@ -851,7 +1036,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
             </div>
             <div style={styles.filterBlock}>
                 <div style={styles.filterLabel}>
-                    <Landmark size={14} /> Aire protégée
+                    <Landmark size={14} /> {t.protectedArea}
                 </div>
                 <select
                   style={styles.select}
@@ -869,7 +1054,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
                     }
                   }}
                 >
-                  <option value="">Toutes</option>
+                  <option value="">{t.allProtectedAreas}</option>
 
                   {apList.map((ap, idx) => (
                     <option key={idx} value={ap}>
@@ -880,13 +1065,14 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
             </div>
 
             <button style={styles.button} onClick={resetFilters}>
-              Réinitialiser
+            {t.reset}
             </button>
       </div>
       </div>
 
       <div style={styles.banner}>
-        <Target size={28} color="#16a34a" /> Indicateur : Les superficies brûlées ont diminué de 25% d’ici 2030 dans les zones en périphérie des aires protégées sélectionées.
+        <Target size={28} color="#16a34a" />
+        {t.indicator}
       </div>
 
       {/* ================= KPI + LINE + MAP ================= */}
@@ -895,7 +1081,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 {/* KPI DONUT */}
 <div style={styles.cardLarge}>
   <div style={styles.cardTitle}>
-    TAUX D’ATTEINTE DE LA CIBLE
+    {t.targetRate}
   </div>
 
   <ResponsiveContainer width="100%" height={200}>
@@ -934,7 +1120,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
         fontSize:"12px"
       }}
       >
-        de la cible atteinte
+        {t.targetReached}
       </div>
       {
         ecartCible !== 0 &&
@@ -952,8 +1138,8 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
           >
           {
             ecartCible > 0
-            ? `+${ecartCible.toFixed(1).replace(".",",")}% au-delà`
-            : `${Math.abs(ecartCible).toFixed(1).replace(".",",")}% de retard`
+              ? `+${ecartCible.toFixed(1).replace(".", ",")}% ${t.ahead}`
+              : `${Math.abs(ecartCible).toFixed(1).replace(".", ",")}% ${t.delay}`
           }
           </div>
         )
@@ -975,7 +1161,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 
   <div style={styles.tableRow}>
     <span>
-      Référence (2020-2024)
+      {t.reference}
     </span>
 
     <strong>
@@ -986,7 +1172,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 
   <div style={styles.tableRow}>
     <span>
-      Superficie {selectedYear}
+      {t.burnedArea} {selectedYear}
     </span>
 
     <strong>
@@ -997,7 +1183,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 
   <div style={styles.tableRow}>
     <span>
-      Variation
+    {t.variation}
     </span>
 
     <strong
@@ -1017,7 +1203,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 
   <div style={styles.tableRow}>
     <span>
-      Objectif 2030 (-25%)
+    {t.objective2030}
     </span>
 
     <strong>
@@ -1031,11 +1217,11 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 {/* LINE CHART */}
 <div style={styles.cardLarge}>
   <div style={styles.cardTitle}>
-     ÉVOLUTION MULTI-ANNUELLE DE L'INDICATEUR 
+  {t.annualEvolution}
   </div>
 
   <div style={{ fontSize: 12, color: '#6b7280', textAlign: "center", marginBottom: 8 }}>
-      Variation (%) des superficies brûlées par rapport à l'année de référence (2020 - 2024)
+    {t.annualSubtitle}
   </div>
 
   <ResponsiveContainer width="100%" height={300}>
@@ -1082,7 +1268,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
         stroke="#16a34a"
         strokeDasharray="5 5"
         label={{
-          value: "Objectif: -25%",
+          value: t.targetLine,
           position: "insideLeft",
           fill: "red",
           fontSize: 11
@@ -1093,7 +1279,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
       <Line
   type="monotone"
   dataKey="valeur"
-  name="Variation des superficies brûlées (%)"
+  name={t.burnedVariation}
   stroke="#16a34a"
   strokeWidth={2}
   dot={{ r: 3 }}
@@ -1139,7 +1325,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 {/* MAP */}
 <div style={styles.cardLarge}>
   <div style={styles.cardTitle}>
-    CARTE DES SUPERFICIES BRÛLÉES EN PÉRIPHÉRIE DES AIRES PROTÉGÉES ({selectedYear})
+      {t.mapTitle} ({selectedYear})
   </div>
 
   <div style={styles.mapBox}>
@@ -1177,6 +1363,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
               <LegendControl
                 antennes={antennes}
                 getColorByAntenne={getColorByAntenne}
+                t={t}
               />
             </MapContainer>
       </div>
@@ -1190,7 +1377,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
   {/* GRAPHIQUE */}
   <div style={styles.cardLarge}>
     <div style={styles.cardTitle}>
-      COMPARAISON MULTI-ANNUELLE DES 7 AIRES PROTÉGÉES
+       {t.comparison}
     </div>
 
     <ResponsiveContainer width="100%" height={360}>
@@ -1264,12 +1451,12 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 
   {/* LÉGENDES À DROITE */}
   <div style={styles.card}>
-    <div style={styles.cardTitle}>LÉGENDES</div>
+    <div style={styles.cardTitle}>{t.legends}</div>
 
     <div style={styles.mapLegend}>
 
         <div style={styles.mapLegendTitle}>
-          Superficie brûlée (ha)
+            {t.burnedLegend}
         </div>
 
         <div style={styles.mapLegendItem}>
@@ -1331,7 +1518,7 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
               background: '#16a34a',
             }}
           />
-          Aire protégée
+          {t.protectedLegend}
         </div>
       </div>
 
@@ -1417,9 +1604,9 @@ console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
 {/* ================= FOOTER EXCEL ================= */}
 <div style={styles.footer}>
 <FileSpreadsheet size={18} color="#16a34a" />
-<span>Analyse détaillée par aire protégée, commune et micro-bassin versant</span>
+<span>{t.footer}</span>
 <a href="https://gizonline.sharepoint.com/:x:/r/sites/PADDIwithguests-01SEetSIG/Freigegebene%20Dokumente/Equipe%20Technique/03.%20Op%C3%A9rations/R%C3%A9alisation%20PO%20(par%20unit%C3%A9)/UCT%20Tan%C3%A0/Composante%200/SIG/2025-10-06_Tableau_de_Bord_Feux/TB_et_BDD/Tableau_de_Bord_PADDI.xlsx?d=w35ed3c1299264334a65aa1d2729d3042&csf=1&web=1&e=pze1XJ" style={styles.link}>
-  Tableaux de bord PADDI.xlsx
+{t.dashboard}
 </a>
 </div>
 
