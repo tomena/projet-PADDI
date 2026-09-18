@@ -1,4 +1,5 @@
-import React, { useEffect, useState }  from 'react';
+import React, { useEffect, useState } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import {CalendarDays,RotateCcw,Building2,Building,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
       } from 'lucide-react';
 import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
@@ -14,6 +15,337 @@ interface CoutActivite {
   [key:string]: any;
       }
 
+      const TEXT = {
+        fr: {
+          title: "SUIVI DES COÛTS",
+          subtitle: "Plan Stratégique 2024 - 2030",
+      
+          updated: "Données mises à jour le :",
+      
+          year: "ANNÉE",
+          month: "MOIS",
+          unit: "UNITÉ DE COORDINATION",
+      
+          all: "Tous",
+          reset: "Réinitialiser les filtres",
+      
+          annual: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT (PROGRAMME)",
+          cumulative: "DÉCAISSÉ CUMULÉ",
+          totalBudget: "SUR UN BUDGET TOTAL DE",
+          disbursementRate: "TAUX DE DÉCAISSEMENT",
+          annualEvolution: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT",
+      
+          byComponent: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE",
+          byInstrument: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT",
+      
+          component: "COMPOSANTE",
+          instrument: "INSTRUMENT",
+          disbursed: "DÉCAISSÉ",
+          budgetShare: "% DU BUDGET TOTAL",
+          total: "TOTAL",
+      
+          globalProgress:
+            "TAUX D’AVANCEMENT GLOBAL DES COÛTS (PAR RAPPORT À LA PLANIFICATION ANNUELLE)",
+          annualPlanning: "PLANIFICATION ANNUELLE",
+      
+          progressComponent: "TAUX D’AVANCEMENT PAR COMPOSANTE",
+          progressInstrument: "TAUX D’AVANCEMENT PAR INSTRUMENT",
+      
+          planned: "PLANIFIÉ",
+      
+          legend: "LÉGENDE (TAUX D'AVANCEMENT)",
+          info:
+            "Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.",
+      
+          access: "ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE",
+          accessDesc:
+            "Consultez le détail des coûts, engagements et décaissements",
+          accessBtn: "Accéder au suivi des coûts ↗",
+      
+          millionEuro: "Million €",
+          millionsEuro: "Millions €",
+
+          componentC1: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+          componentC2: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
+          componentC3: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+          componentC4: "C4. CRÉATION D’EMPLOIS VERTS",
+
+          financements: "FINANCEMENTS",
+          achats: "ACHATS",
+          contrats: "CONTRATS",
+          missionsInterne: "MISSIONS INTERNES",
+          missionsPartenaires: "MISSIONS PARTENAIRES",
+          salaires: "SALAIRES",
+
+          componentC1Short: "Gestion des services écosystémiques",
+          componentC2Short: "Gouvernance environnementale",
+          componentC3Short: "Développement des paysages",
+          componentC4Short: "Création d’emplois verts",
+
+          months: {
+            Janvier: "Janvier",
+            Février: "Février",
+            Mars: "Mars",
+            Avril: "Avril",
+            Mai: "Mai",
+            Juin: "Juin",
+            Juillet: "Juillet",
+            Août: "Août",
+            Septembre: "Septembre",
+            Octobre: "Octobre",
+            Novembre: "Novembre",
+            Décembre: "Décembre",
+          },
+        },
+      
+        mg: {
+          title: "FANARAHA-MASO NY VIDIM-PANATANTERAHANA",
+          subtitle: "Drafitra Stratejika 2024 - 2030",
+      
+          updated: "Nohavaozina farany :",
+      
+      
+          year: "TAONA",
+          month: "VOLANA",
+          unit: "VONDROM-PANDRINDRANA",
+      
+          all: "Rehetra",
+          reset: "Avereno ny sivana",
+      
+          annual: "FIVOARAN'NY FAMOAHAM-BOLA ISAN-TAONA",
+          cumulative: "FITAMBARAN'NY VOLA VOAVOAKA",
+          totalBudget: "AMIN'NY TETIBOLA MANONTOLO",
+          disbursementRate: "TAHAN'NY FAMOAHAM-BOLA",
+          annualEvolution: "FIVOARAN'NY FAMOAHAM-BOLA ISAN-TAONA",
+      
+          byComponent: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY SINGA",
+          byInstrument: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY FITAOVANA",
+      
+          component: "SINGA",
+          instrument: "FITAOVANA",
+          disbursed: "VOAVOAKA",
+          budgetShare: "%-N'NY TETIBOLA",
+          total: "FITAMBARANY",
+      
+          globalProgress:
+            "TAHAN'NY FIVOARAN'NY VIDIM-PANATANTERAHANA (RAHA OHARINA AMIN'NY DRAFITRA ISAN-TAONA)",
+          annualPlanning: "DRAFITRA ISAN-TAONA",
+      
+          progressComponent: "TAHAN'NY FIVOARANA ISAKY NY SINGA",
+          progressInstrument: "TAHAN'NY FIVOARANA ISAKY NY FITAOVANA",
+      
+          planned: "VOALAMINA",
+      
+          legend: "FANAZAVANA (TAHAN'NY FIVOARANA)",
+          info:
+            "Ny tahan'ny fivoaran'ny vidim-panatanterahana dia kajiana raha oharina amin'ny drafitra isan-taona voafantina.",
+      
+          access: "HIDITRA AMIN'NY FANARAHA-MASO NY VIDIM-PANATANTERAHANA",
+          accessDesc:
+            "Jereo ny antsipirian'ny vola, fifanekena ary famoaham-bola",
+          accessBtn: "Hiditra ↗",
+      
+          millionEuro: "Tapitrisa €",
+          millionsEuro: "Tapitrisa €",
+
+          componentC1: "C1. FITANTANANA NY SERIVISY ARA-TONTOLON'AINA",
+          componentC2: "C2. FITANTANANA NY TONTOLON'AINA IFOTONY",
+          componentC3: "C3. FAMPANDROSOANA NY TONTOLON-TANY MPAMOKATRA",
+          componentC4: "C4. FAMORONANA ASA MAITSO",
+
+          financements: "FAMATSIAM-BOLA",
+          achats: "FIVIDIANA",
+          contrats: "FIFANEKENA",
+          missionsInterne: "IRAKA ANATINY",
+          missionsPartenaires: "IRAKA MIARAKA AMIN'NY MPIARA-MIASA",
+          salaires: "KARAMA",
+
+          componentC1Short: "Fitantanana ny serivisy ara-tontolo iainana",
+          componentC2Short: "Fitantanana ny tontolo iainana",
+          componentC3Short: "Fampandrosoana ny tontolo-tany",
+          componentC4Short: "Famoronana asa maitso",
+
+          months: {
+            Janvier: "Janoary",
+            Février: "Febroary",
+            Mars: "Martsa",
+            Avril: "Aprily",
+            Mai: "Mey",
+            Juin: "Jona",
+            Juillet: "Jolay",
+            Août: "Aogositra",
+            Septembre: "Septambra",
+            Octobre: "Oktobra",
+            Novembre: "Novambra",
+            Décembre: "Desambra",
+          },
+        },
+      
+        en: {
+          title: "COST MONITORING",
+          subtitle: "Strategic Plan 2024 - 2030",
+      
+          updated: "Data updated on:",
+      
+          year: "YEAR",
+          month: "MONTH",
+          unit: "COORDINATION UNIT",
+      
+          all: "All",
+          reset: "Reset filters",
+      
+          annual: "ANNUAL DISBURSEMENT EVOLUTION (PROGRAMME)",
+          cumulative: "CUMULATIVE DISBURSEMENT",
+          totalBudget: "OUT OF A TOTAL BUDGET OF",
+          disbursementRate: "DISBURSEMENT RATE",
+          annualEvolution: "ANNUAL DISBURSEMENT EVOLUTION",
+      
+          byComponent: "ANNUAL DISBURSEMENT BY COMPONENT",
+          byInstrument: "ANNUAL DISBURSEMENT BY INSTRUMENT",
+      
+          component: "COMPONENT",
+          instrument: "INSTRUMENT",
+          disbursed: "DISBURSED",
+          budgetShare: "% OF TOTAL BUDGET",
+          total: "TOTAL",
+      
+          globalProgress:
+            "OVERALL COST PROGRESS (COMPARED TO ANNUAL PLANNING)",
+          annualPlanning: "ANNUAL PLANNING",
+      
+          progressComponent: "PROGRESS BY COMPONENT",
+          progressInstrument: "PROGRESS BY INSTRUMENT",
+      
+          planned: "PLANNED",
+      
+          legend: "LEGEND (PROGRESS RATE)",
+          info:
+            "The cost progress rate is calculated against the annual plan for the selected year.",
+      
+          access: "OPEN ANNUAL COST MONITORING",
+          accessDesc:
+            "View detailed costs, commitments and disbursements",
+          accessBtn: "Open cost monitoring ↗",
+      
+          millionEuro: "Million €",
+          millionsEuro: "Million €",
+
+          componentC1: "C1. ECOSYSTEM SERVICES MANAGEMENT",
+          componentC2: "C2. DECENTRALIZED ENVIRONMENTAL GOVERNANCE",
+          componentC3: "C3. DEVELOPMENT OF PRODUCTIVE LANDSCAPES",
+          componentC4: "C4. CREATION OF GREEN JOBS",
+
+          financements: "FINANCING",
+          achats: "PURCHASES",
+          contrats: "CONTRACTS",
+          missionsInterne: "INTERNAL MISSIONS",
+          missionsPartenaires: "PARTNER MISSIONS",
+          salaires: "SALARIES",
+
+          componentC1Short: "Ecosystem services management",
+          componentC2Short: "Environmental governance",
+          componentC3Short: "Landscape development",
+          componentC4Short: "Green job creation",
+
+          months: {
+            Janvier: "January",
+            Février: "February",
+            Mars: "March",
+            Avril: "April",
+            Mai: "May",
+            Juin: "June",
+            Juillet: "July",
+            Août: "August",
+            Septembre: "September",
+            Octobre: "October",
+            Novembre: "November",
+            Décembre: "December",
+          },
+        },
+      
+        de: {
+          title: "KOSTENMONITORING",
+          subtitle: "Strategischer Plan 2024 - 2030",
+      
+          updated: "Daten aktualisiert am:",
+      
+          year: "JAHR",
+          month: "MONAT",
+          unit: "KOORDINATIONSEINHEIT",
+      
+          all: "Alle",
+          reset: "Filter zurücksetzen",
+      
+          annual: "JÄHRLICHE ENTWICKLUNG DER AUSZAHLUNGEN",
+          cumulative: "KUMULIERTE AUSZAHLUNG",
+          totalBudget: "VON EINEM GESAMTBUDGET VON",
+          disbursementRate: "AUSZAHLUNGSRATE",
+          annualEvolution: "JÄHRLICHE ENTWICKLUNG DER AUSZAHLUNGEN",
+      
+          byComponent: "JÄHRLICHE AUSZAHLUNG NACH KOMPONENTE",
+          byInstrument: "JÄHRLICHE AUSZAHLUNG NACH INSTRUMENT",
+      
+          component: "KOMPONENTE",
+          instrument: "INSTRUMENT",
+          disbursed: "AUSGEZAHLT",
+          budgetShare: "% DES GESAMTBUDGETS",
+          total: "GESAMT",
+      
+          globalProgress:
+            "GESAMTFORTSCHRITT DER KOSTEN (IM VERGLEICH ZUR JAHRESPLANUNG)",
+          annualPlanning: "JAHRESPLANUNG",
+      
+          progressComponent: "FORTSCHRITT NACH KOMPONENTE",
+          progressInstrument: "FORTSCHRITT NACH INSTRUMENT",
+      
+          planned: "GEPLANT",
+      
+          legend: "LEGENDE (FORTSCHRITTSRATE)",
+          info:
+            "Die Kostenfortschrittsrate wird anhand der Jahresplanung des ausgewählten Jahres berechnet.",
+      
+          access: "JÄHRLICHES KOSTENMONITORING ÖFFNEN",
+          accessDesc:
+            "Details zu Kosten, Verpflichtungen und Auszahlungen anzeigen",
+          accessBtn: "Kostenmonitoring öffnen ↗",
+      
+          millionEuro: "Mio. €",
+          millionsEuro: "Mio. €",
+
+          componentC1: "C1. MANAGEMENT VON ÖKOSYSTEMDIENSTLEISTUNGEN",
+          componentC2: "C2. DEZENTRALISIERTE UMWELTGOVERNANCE",
+          componentC3: "C3. ENTWICKLUNG PRODUKTIVER LANDSCHAFTEN",
+          componentC4: "C4. SCHAFFUNG GRÜNER ARBEITSPLÄTZE",
+
+          financements: "FINANZIERUNGEN",
+          achats: "EINKÄUFE",
+          contrats: "VERTRÄGE",
+          missionsInterne: "INTERNE DIENSTREISEN",
+          missionsPartenaires: "PARTNERREISEN",
+          salaires: "GEHÄLTER",
+
+          componentC1Short: "Management von Ökosystemdienstleistungen",
+          componentC2Short: "Umweltgovernance",
+          componentC3Short: "Landschaftsentwicklung",
+          componentC4Short: "Schaffung grüner Arbeitsplätze",
+
+          months: {
+            Janvier: "Januar",
+            Février: "Februar",
+            Mars: "März",
+            Avril: "April",
+            Mai: "Mai",
+            Juin: "Juni",
+            Juillet: "Juli",
+            Août: "August",
+            Septembre: "September",
+            Octobre: "Oktober",
+            Novembre: "November",
+            Décembre: "Dezember",
+          },
+        },
+      };
+
 const getProgressColor = (percent) => {
   if (percent < 25) return '#ef4444'; // rouge
   if (percent < 50) return '#f59e0b'; // jaune
@@ -21,12 +353,7 @@ const getProgressColor = (percent) => {
   return '#2563eb'; // bleu
 };
 
-const composantesConfig = [
-  { code: "C1", icon: Leaf, title: "Gestion des services écosystémiques" },
-  { code: "C2", icon: Building, title: "Gouvernance environnementale" },
-  { code: "C3", icon: Map, title: "Développement des paysages" },
-  { code: "C4", icon: Briefcase, title: "Création d'emplois verts" },
-];
+
 
 const ordreMois = [
   "Janvier",
@@ -44,6 +371,9 @@ const ordreMois = [
 ];
 
 export default function SuiviCouts() {
+
+  const { lang } = useLanguage();
+  const t = TEXT[lang] || TEXT.fr;
 
   const [data,setData] = useState<CoutActivite[]>([]);
   const [annee,setAnnee] = useState<number>(2026);
@@ -66,6 +396,14 @@ export default function SuiviCouts() {
         console.error("Erreur chargement Base Cout :", err);
       });  
   }, []);
+
+
+  const composantesConfig = [
+    { code: "C1", icon: Leaf, title: t.componentC1Short },
+    { code: "C2", icon: Building, title: t.componentC2Short },
+    { code: "C3", icon: Map, title: t.componentC3Short },
+    { code: "C4", icon: Briefcase, title: t.componentC4Short },
+  ];
 
   const annees = Array.from(
     new Set(
@@ -124,86 +462,86 @@ export default function SuiviCouts() {
       ? "#22c55e"
       : "#2563eb";
 
-        const composantes = [
-          {
-            icon: Leaf,
-            title: "C1. Gestion des services écosystémiques",
-            amount: coutActuel["BD C1 (EUR)"] || 0,
-            percent: (coutActuel["BD C1 (%)"] || 0) * 100,
-            color: "#2563eb",
-          },
-          {
-            icon: Building,
-            title: "C2. Gouvernance environnementale",
-            amount: coutActuel["BD C2 (EUR)"] || 0,
-            percent: (coutActuel["BD C2 (%)"] || 0) * 100,
-            color: "#2563eb",
-          },
-          {
-            icon: Map,
-            title: "C3. Développement des paysages",
-            amount: coutActuel["BD C3 (EUR)"] || 0,
-            percent: (coutActuel["BD C3 (%)"] || 0) * 100,
-            color: "#16a34a",
-          },
-          {
-            icon: Briefcase,
-            title: "C4. Création d’emplois verts",
-            amount: coutActuel["BD C4 (EUR)"] || 0,
-            percent: (coutActuel["BD C4 (%)"] || 0) * 100,
-            color: "#16a34a",
-          },
-        ];
+      const composantes = [
+        {
+          icon: Leaf,
+          title: `C1. ${t.componentC1Short}`,
+          amount: coutActuel["BD C1 (EUR)"] || 0,
+          percent: (coutActuel["BD C1 (%)"] || 0) * 100,
+          color: "#2563eb",
+        },
+        {
+          icon: Building,
+          title: `C2. ${t.componentC2Short}`,
+          amount: coutActuel["BD C2 (EUR)"] || 0,
+          percent: (coutActuel["BD C2 (%)"] || 0) * 100,
+          color: "#2563eb",
+        },
+        {
+          icon: Map,
+          title: `C3. ${t.componentC3Short}`,
+          amount: coutActuel["BD C3 (EUR)"] || 0,
+          percent: (coutActuel["BD C3 (%)"] || 0) * 100,
+          color: "#16a34a",
+        },
+        {
+          icon: Briefcase,
+          title: `C4. ${t.componentC4Short}`,
+          amount: coutActuel["BD C4 (EUR)"] || 0,
+          percent: (coutActuel["BD C4 (%)"] || 0) * 100,
+          color: "#16a34a",
+        },
+      ];
 
-        const instruments = [
-          {
-            icon: Wallet,
-            title: "Financements",
-            amount: coutActuel["BDF (EUR)"] || 0,
-            percent: (coutActuel["BDF (%)"] || 0) * 100,
-            color: "#2563eb",
-          },
-        
-          {
-            icon: ShoppingCart,
-            title: "Achats",
-            amount: coutActuel["BDA (EUR)"] || 0,
-            percent: (coutActuel["BDA (%)"] || 0) * 100,
-            color: "#2563eb",
-          },
-        
-          {
-            icon: FileText,
-            title: "Contrats",
-            amount: coutActuel["BDC (EUR)"] || 0,
-            percent: (coutActuel["BDC (%)"] || 0) * 100,
-            color: "#22c55e",
-          },
-        
-          {
-            icon: Users,
-            title: "Mission interne",
-            amount: coutActuel["BDMI (EUR)"] || 0,
-            percent: (coutActuel["BDMI (%)"] || 0) * 100,
-            color: "#22c55e",
-          },
-        
-          {
-            icon: Handshake,
-            title: "Missions partenaires",
-            amount: coutActuel["BDMP (EUR)"] || 0,
-            percent: (coutActuel["BDMP (%)"] || 0) * 100,
-            color: "#f59e0b",
-          },
-        
-          {
-            icon: Briefcase,
-            title: "Salaires",
-            amount: coutActuel["BDS (EUR)"] || 0,
-            percent: (coutActuel["BDS (%)"] || 0) * 100,
-            color: "#f59e0b",
-          },
-        ];
+      const instruments = [
+        {
+          icon: Wallet,
+          title: t.financements,
+          amount: coutActuel["BDF (EUR)"] || 0,
+          percent: (coutActuel["BDF (%)"] || 0) * 100,
+          color: "#2563eb",
+        },
+      
+        {
+          icon: ShoppingCart,
+          title: t.achats,
+          amount: coutActuel["BDA (EUR)"] || 0,
+          percent: (coutActuel["BDA (%)"] || 0) * 100,
+          color: "#2563eb",
+        },
+      
+        {
+          icon: FileText,
+          title: t.contrats,
+          amount: coutActuel["BDC (EUR)"] || 0,
+          percent: (coutActuel["BDC (%)"] || 0) * 100,
+          color: "#22c55e",
+        },
+      
+        {
+          icon: Users,
+          title: t.missionsInterne,
+          amount: coutActuel["BDMI (EUR)"] || 0,
+          percent: (coutActuel["BDMI (%)"] || 0) * 100,
+          color: "#22c55e",
+        },
+      
+        {
+          icon: Handshake,
+          title: t.missionsPartenaires,
+          amount: coutActuel["BDMP (EUR)"] || 0,
+          percent: (coutActuel["BDMP (%)"] || 0) * 100,
+          color: "#f59e0b",
+        },
+      
+        {
+          icon: Briefcase,
+          title: t.salaires,
+          amount: coutActuel["BDS (EUR)"] || 0,
+          percent: (coutActuel["BDS (%)"] || 0) * 100,
+          color: "#f59e0b",
+        },
+      ];
 
   const dataGraph = data.filter((d) => {
           return uc === "Tous" || d.UC === uc;
@@ -219,7 +557,7 @@ export default function SuiviCouts() {
 
   const tauxComposantes = [
     {
-      title: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+      title: t.componentC1,
       percent: (coutActuel["TAC C1"] || 0) * 100,
       dec: coutActuel["D C1 (EUR)"] || 0,
       plan: coutActuel["PA C1 (EUR)"] || 0,
@@ -227,7 +565,7 @@ export default function SuiviCouts() {
     },
   
     {
-      title: "C2. GOUVERNANCE ENVIRONNEMENTALE DECENTRALISEE",
+      title: t.componentC2,
       percent: (coutActuel["TAC C2"] || 0) * 100,
       dec: coutActuel["D C2 (EUR)"] || 0,
       plan: coutActuel["PA C2 (EUR)"] || 0,
@@ -235,7 +573,7 @@ export default function SuiviCouts() {
     },
   
     {
-      title: "C3. DEVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+      title: t.componentC3,
       percent: (coutActuel["TAC C3"] || 0) * 100,
       dec: coutActuel["D C3 (EUR)"] || 0,
       plan: coutActuel["PA C3 (EUR)"] || 0,
@@ -243,7 +581,7 @@ export default function SuiviCouts() {
     },
   
     {
-      title: "C4. CREATION EMPLOIS VERTS",
+      title: t.componentC4,
       percent: (coutActuel["TAC C4"] || 0) * 100,
       dec: coutActuel["D C4 (EUR)"] || 0,
       plan: coutActuel["PA C4 (EUR)"] || 0,
@@ -253,7 +591,7 @@ export default function SuiviCouts() {
 
   const tauxInstruments = [
     {
-      title: "FINANCEMENTS",
+      title: t.financements,
       icon: Handshake,
       percent: Number(coutActuel["TAC F"] || 0) * 100,
       dec: coutActuel["DF (EUR)"] || 0,
@@ -262,7 +600,7 @@ export default function SuiviCouts() {
     },
   
     {
-      title:"ACHATS",
+      title: t.achats,
       icon: FaShoppingCart,
       percent:Number(coutActuel["TAC A"] || 0) * 100,
       dec:coutActuel["DA (EUR)"] || 0,
@@ -271,7 +609,7 @@ export default function SuiviCouts() {
     },
   
     {
-      title:"CONTRATS",
+      title: t.contrats,
       icon:FaFileContract,
       percent:Number(coutActuel["TAC C"] || 0) * 100,
       dec:coutActuel["DC (EUR)"] || 0,
@@ -280,7 +618,7 @@ export default function SuiviCouts() {
     },
   
     {
-      title:"MISSIONS INTERNE",
+      title: t.missionsInterne,
       icon:Plane,
       percent:Number(coutActuel["TAC MI"] || 0) * 100,
       dec:coutActuel["DMI (EUR)"] || 0,
@@ -289,7 +627,7 @@ export default function SuiviCouts() {
     },
   
     {
-      title:"MISSIONS PARTENAIRES",
+      title: t.missionsPartenaires,
       icon:Users,
       percent:Number(coutActuel["TAC MP"] || 0) * 100,
       dec:coutActuel["DMP (EUR)"] || 0,
@@ -339,9 +677,9 @@ export default function SuiviCouts() {
           <div style={styles.logoWrap}></div>
 
           <div>
-            <div style={styles.title}>SUIVI DES COÛTS</div>
+            <div style={styles.title}>{t.title}</div>
 
-            <div style={styles.subtitle}>Plan Stratégique 2024 - 2030</div>
+            <div style={styles.subtitle}>{t.subtitle}</div>
           </div>
         </div>
 
@@ -349,7 +687,7 @@ export default function SuiviCouts() {
           <CalendarDays size={18} />
 
           <div>
-            <div style={styles.dateLabel}>Données mises à jour le :</div>
+            <div style={styles.dateLabel}>{t.updated}</div>
 
             <div style={styles.dateValue}>16 juillet 2026</div>
           </div>
@@ -364,7 +702,7 @@ export default function SuiviCouts() {
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>ANNÉE</div>
+            <div style={styles.filterLabel}>{t.year}</div>
 
             <select
               style={styles.bigSelect}
@@ -391,23 +729,20 @@ export default function SuiviCouts() {
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>MOIS</div>
+            <div style={styles.filterLabel}>{t.month}</div>
 
             <select
               style={styles.bigSelect}
               value={mois}
-              onChange={(e)=>setMois(e.target.value)}
+              onChange={(e) => setMois(e.target.value)}
             >
-              <option value="Tous">
-                Tous
-              </option>
-                {
-                moisListe.map(m=>
-                <option key={m}>
-                {m}
-              </option>
-              )
-              }
+              <option value="Tous">{t.all}</option>
+
+              {moisListe.map((m) => (
+                <option key={m} value={m}>
+                  {t.months[m] || m}
+                </option>
+              ))}
             </select>
 
             <div style={styles.filterSub}>Janvier - Décembre</div>
@@ -422,7 +757,7 @@ export default function SuiviCouts() {
           </div>
 
           <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>UNITÉ DE COORDINATION</div>
+            <div style={styles.filterLabel}>{t.unit}</div>
 
             <select
                 style={styles.bigSelect}
@@ -448,9 +783,7 @@ export default function SuiviCouts() {
         <div style={styles.resetContainer}>
           <button style={styles.resetBigBtn}>
             <RotateCcw size={20} />
-            Réinitialiser
-            <br />
-            les filtres
+            {t.reset}
           </button>
         </div>
       </div>
@@ -460,7 +793,7 @@ export default function SuiviCouts() {
         <div style={styles.card}>
           <div style={styles.cardHeader}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              ÉVOLUTION ANNUELLE DU DÉCAISSEMENT (PROGRAMME)
+                {t.annual}
               <Info size={18} />
             </div>
           </div>
@@ -476,7 +809,7 @@ export default function SuiviCouts() {
 
                 {/* CONTENT */}
                 <div style={styles.kpiContent}>
-                  <div style={styles.kpiTopLabel}>DÉCAISSÉ CUMULÉ</div>
+                <div style={styles.kpiTopLabel}>{t.cumulative}</div>
 
                   <div style={styles.kpiMainValue}>
                     {
@@ -493,9 +826,9 @@ export default function SuiviCouts() {
                   <div style={styles.kpiDivider} />
 
                   <div style={styles.kpiSubOverlay}>
-                    <span style={styles.kpiSubLabel}>
-                      SUR UN BUDGET TOTAL DE
-                    </span>
+                  <span style={styles.kpiSubLabel}>
+                    {t.totalBudget}
+                  </span>
                     <span style={styles.kpiSubValue}>
                       <div style={styles.kpiSubValue}>
                         {
@@ -516,7 +849,7 @@ export default function SuiviCouts() {
 
             {/* RIGHT PIE */}
             <div style={{ textAlign: 'center' }}>
-              <div style={styles.kpiLabel}>TAUX DE DÉCAISSEMENT</div>
+            <div style={styles.kpiLabel}>{t.disbursementRate}</div>
 
               <div style={styles.pieWrapper}>
               <ResponsiveContainer width="100%" height={100}>
@@ -564,7 +897,7 @@ export default function SuiviCouts() {
               letterSpacing: 0.5,
             }}
           >
-            EVOLUTION ANNUELLE DU DÉCAISSEMENT
+            {t.annualEvolution}
           </div>
           <div
             style={{
@@ -622,7 +955,7 @@ export default function SuiviCouts() {
               >
                 {/* TEXTE Millions € */}
                 <Label
-                  value="Millions €"
+                  value={t.millionsEuro}
                   angle={0}
                   position="top"
                   offset={10}
@@ -712,18 +1045,18 @@ export default function SuiviCouts() {
                   textOverflow: 'ellipsis',
                 }}
               >
-                ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE
+                {t.byComponent}
               </span>
               <Info size={18} />
             </div>
           </div>
 
           {/* HEADER STICKY */}
-          <div style={styles.stickyHeader}>
-            <span>COMPOSANTE</span>
-            <span>DÉCAISSÉ</span>
-            <span>% DU BUDGET TOTAL</span>
-          </div>
+            <div style={styles.stickyHeader}>
+              <span>{t.component}</span>
+              <span>{t.disbursed}</span>
+              <span>{t.budgetShare}</span>
+            </div>
 
           {composantes.map((item, i) => {
             const Icon = item.icon;
@@ -778,7 +1111,7 @@ export default function SuiviCouts() {
           })}
           <div style={styles.totalRow}>
             <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
-              TOTAL
+            {t.total}
             </div>
 
             <div
@@ -808,14 +1141,14 @@ export default function SuiviCouts() {
       {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
         <div style={styles.card}>
           <div style={styles.cardHeader}>
-            ÉVOLUTION ANNUELLE DU DECAISSEMENT PAR INSTRUMENT
+             {t.byInstrument}
             <Info size={18} />
           </div>
 
           <div style={styles.tableHeaderRow}>
-            <span>INSTRUMENT</span>
-            <span>DÉCAISSÉ</span>
-            <span>% DU BUDGET TOTAL</span>
+            <span>{t.instrument}</span>
+            <span>{t.disbursed}</span>
+            <span>{t.budgetShare}</span>
           </div>
 
           {instruments.map((item, i) => {
@@ -874,9 +1207,9 @@ export default function SuiviCouts() {
             );
           })}
           <div style={styles.totalRow}>
-            <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
-              TOTAL
-            </div>
+          <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
+            {t.total}
+          </div>
 
             <div
               style={{
@@ -929,8 +1262,7 @@ export default function SuiviCouts() {
               marginBottom: 5,
             }}
           >
-            TAUX D’AVANCEMENT GLOBAL DES COÛTS (PAR RAPPORT A LA PLANIFICATION
-            ANNUELLE)
+            {t.globalProgress}
           </div>
 
           <div
@@ -1002,7 +1334,7 @@ export default function SuiviCouts() {
                     color:"#475569",
                   }}
                 >
-                  DÉCAISSÉ
+                  {t.disbursed}
                 </span>
                 <span
                   style={{
@@ -1031,7 +1363,7 @@ export default function SuiviCouts() {
                     color:"#475569",
                   }}
                 >
-                  PLANIFICATION ANNUELLE
+                  {t.annualPlanning}
                 </span>
                 <span
                   style={{
@@ -1065,7 +1397,7 @@ export default function SuiviCouts() {
               borderBottom: 'none',
             }}
           >
-            TAUX D’AVANCEMENT PAR COMPOSANTE
+            {t.progressComponent}
           </div>
 
           <div style={styles.donutGrid4}>
@@ -1148,7 +1480,7 @@ export default function SuiviCouts() {
 
                 <div style={styles.twoCols}>
                   <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div style={styles.smallLabel}>DÉCAISSÉ</div>
+                    <div style={styles.smallLabel}>{t.disbursed}</div>
                     <div style={styles.money}>
                       {formatCompactEuro(item.dec)}
                     </div>
@@ -1157,7 +1489,7 @@ export default function SuiviCouts() {
                   <div style={styles.verticalSeparator} />
 
                   <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div style={styles.smallLabel}>PLANIFIÉ</div>
+                    <div style={styles.smallLabel}>{t.planned}</div>
                     <div style={styles.money}>
                       {formatCompactEuro(item.plan)}
                     </div>
@@ -1185,7 +1517,7 @@ export default function SuiviCouts() {
               borderBottom: 'none',
             }}
           >
-            TAUX D’AVANCEMENT PAR INSTRUMENT
+            {t.progressInstrument}
           </div>
 
           <div style={styles.donutGrid6}>
@@ -1264,7 +1596,7 @@ export default function SuiviCouts() {
 
                   <div style={styles.twoCols}>
                     <div style={styles.colBox}>
-                      <div style={styles.smallLabel}>DÉCAISSÉ</div>
+                      <div style={styles.smallLabel}>{t.disbursed}</div>
                       <div style={{ ...styles.money, color: item.color }}>
                         {formatCompactEuro(item.dec)}
                       </div>
@@ -1273,7 +1605,7 @@ export default function SuiviCouts() {
                     <div style={styles.verticalSeparator} />
 
                     <div style={styles.colBox}>
-                      <div style={styles.smallLabel}>PLANIFIÉ</div>
+                      <div style={styles.smallLabel}>{t.planned}</div>
                       <div style={styles.money}>
                         {formatCompactEuro(item.plan)}
                       </div>
@@ -1292,7 +1624,7 @@ export default function SuiviCouts() {
       <div style={styles.footer}>
 
       <div style={styles.footerHeader}>
-        LEGENDE (TAUX D'AVANCEMENT)
+         {t.legend}
       </div>
   
       {/* LEFT : LEGEND */}
@@ -1322,7 +1654,7 @@ export default function SuiviCouts() {
         <div style={styles.footerInfo}>
           <Info size={16} color="#16a34a" />
           <span>
-            Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.
+          {t.info}
           </span>
         </div>
 
@@ -1334,15 +1666,15 @@ export default function SuiviCouts() {
 
         <div>
           <div style={{ fontWeight: 900, fontSize: 10 }}>
-            ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE
+          {t.access}
           </div>
           <div style={{ fontSize: 9, opacity: 0.8 }}>
-            Consultez le détail des coûts, engagements et décaissements
+          {t.accessDesc}
           </div>
         </div>
 
         <button style={styles.ctaButton}>
-          Accéder au suivi des coûts ↗
+        {t.accessBtn} ↗
         </button>
       </div>
     </div>
