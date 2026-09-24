@@ -96,6 +96,13 @@ const dashboardTxt = {
     targetCompanies: "Cible : 70",
 
     km: "km",
+    monitoringSystem: "Système de suivi",
+    systems: "systèmes",
+    ageDistribution: "Répartition des bénéficiaires par tranche d'âge",
+    under18: "Moins de 18 ans",
+    age18to35: "18 à 35 ans",
+    age36to59: "36 à 59 ans",
+    age60plus: "60 ans et plus",
   },
 
   mg: {
@@ -187,6 +194,13 @@ const dashboardTxt = {
     targetCompanies: "Tanjona : 70",
 
     km: "km",
+    monitoringSystem: "Rafitra fanaraha-maso",
+    systems: "rafitra",
+    ageDistribution: "Fizarana ny mpahazo tombontsoa araka ny sokajin-taona",
+    under18: "Latsaky ny 18 taona",
+    age18to35: "18 hatramin'ny 35 taona",
+    age36to59: "36 hatramin'ny 59 taona",
+    age60plus: "60 taona no ho miakatra",
   },
 
   en: {
@@ -278,6 +292,13 @@ const dashboardTxt = {
     targetCompanies: "Target: 70",
 
     km: "km",
+    monitoringSystem: "Monitoring system",
+    systems: "systems",
+    ageDistribution: "Beneficiaries by age group",
+    under18: "Under 18",
+    age18to35: "18 to 35 years",
+    age36to59: "36 to 59 years",
+    age60plus: "60 years and over",
   },
 
   de: {
@@ -369,6 +390,13 @@ const dashboardTxt = {
     targetCompanies: "Ziel: 70",
 
     km: "km",
+    monitoringSystem: "Monitoring-System",
+    systems: "Systeme",
+    ageDistribution: "Begünstigte nach Altersgruppe",
+    under18: "Unter 18 Jahre",
+    age18to35: "18 bis 35 Jahre",
+    age36to59: "36 bis 59 Jahre",
+    age60plus: "60 Jahre und älter",
   },
 };
 
@@ -669,12 +697,12 @@ useEffect(() => {
 }, []);
 
 
-  const dashboard = useMemo(
-    () => ({
-      progression: 68,
-    }),
-    [data]
-  );
+const dashboard = useMemo(
+  () => ({
+    progression: 22,
+  }),
+  [data]
+);
 
   const regionsFiltrees = useMemo(() => {
     if (!regionsData?.features) return [];
@@ -805,46 +833,48 @@ return (
             </div>
 
             <div style={styles.kpiGrid}>
+
             <KpiCard
-                title={t.municipalBudgets}
-                value="40"
-                unit={t.communes}
-                percent={100}
-                target={t.targetCommunes}
-                color="#16a34a"
-                type="circle"
-              />
+              title={t.municipalBudgets}
+              value="0"
+              unit={t.communes}
+              percent={0}
+              target={t.targetCommunes}
+              color="#16a34a"
+              type="circle"
+            />
 
-              <KpiCard
-                title={t.reductionBurnedAreas}
-                value="-18%"
-                unit={t.reduction}
-                percent={72}
-                target={t.targetReduction}
-                color="#ea580c"
-                icon={<Flame size={42} />}
-              />
+            <KpiCard
+              title={t.reductionBurnedAreas}
+              value="-22,5%"
+              unit={t.reduction}
+              percent={90}
+              target={t.targetReduction}
+              color="#ea580c"
+              icon={<Flame size={42} />}
+            />
 
-              <KpiCard
-                title={t.ecosystems}
-                value="60 500"
-                unit={t.ha}
-                percent={55}
-                target={t.targetEcosystems}
-                color="#16a34a"
-                icon={<Trees size={42} />}
-              />
+            <KpiCard
+              title={t.ecosystems}
+              value="15 100"
+              unit={t.ha}
+              percent={14}
+              target={t.targetEcosystems}
+              color="#16a34a"
+              icon={<Trees size={42} />}
+            />
 
-              <KpiCard
-                title={t.smallholders}
-                value="13 750"
-                unit={t.beneficiaries}
-                percent={55}
-                target={t.targetBeneficiaries}
-                color="#f59e0b"
-                icon={<Users size={42} />}
-              />
-            </div>
+            <KpiCard
+              title={t.smallholders}
+              value="5 242"
+              unit={t.beneficiaries}
+              percent={21}
+              target={t.targetBeneficiaries}
+              color="#f59e0b"
+              icon={<Users size={42} />}
+            />
+
+          </div>
           </div>
 
           {/* ================= RESULTATS CLES ================= */}
@@ -855,41 +885,43 @@ return (
             </div>
 
             <div style={styles.resultGrid}>
-            <ResultCard
-              icon={<Home size={20} />}
-              title={t.adoptedMeasures}
-              value="36"
-              unit={t.measures}
-              percent={80}
-              target={t.targetCommunes80}
-            />
 
-            <ResultCard
-              icon={<FileText size={20} />}
-              title={t.cosapDecisions}
-              value="21"
-              unit={t.decisions}
-              percent={100}
-              target={t.targetDecisions}
-            />
+              <ResultCard
+                icon={<Monitor size={20} />}
+                title={t.monitoringSystem}
+                value="1"
+                unit={t.systems}
+                percent={20}
+                target={t.targetRegions}
+              />
 
-            <ResultCard
-              icon={<Leaf size={20} />}
-              title={t.regionalPackages}
-              value="5"
-              unit={t.packages}
-              percent={100}
-              target={t.targetPackages}
-            />
+              <ResultCard
+                icon={<Home size={20} />}
+                title={t.adoptedMeasures}
+                value="15"
+                unit={t.measures}
+                percent={63}
+                target={t.targetCommunes80}
+              />
 
-            <ResultCard
-              icon={<Monitor size={20} />}
-              title={t.regionsMonitoring}
-              value="3"
-              unit={t.regions}
-              percent={60}
-              target={t.targetRegions}
-            />
+              <ResultCard
+                icon={<FileText size={20} />}
+                title={t.cosapDecisions}
+                value="0"
+                unit={t.decisions}
+                percent={0}
+                target={t.targetDecisions}
+              />
+
+              <ResultCard
+                icon={<Leaf size={20} />}
+                title={t.regionalPackages}
+                value="1"
+                unit={t.packages}
+                percent={20}
+                target={t.targetPackages}
+              />
+
             </div>
           </div>
 
@@ -897,45 +929,46 @@ return (
             {/* LIGNE KPI + GAUGE */}
             <div style={styles.kpiGroup}>
             <div style={styles.realisationGrid}>
+
             <RealKpi
               title={t.sustainableAgropastoral}
-              value="40 000"
+              value="4 734"
               unit={t.ha}
               target={t.targetAgro}
-              percent={67}
+              percent={12}
               color="#16a34a"
               icon={<Tractor size={30} />}
             />
 
             <RealKpi
               title={t.sustainableForest}
-              value="70 000"
+              value="10 346"
               unit={t.ha}
               target={t.targetForest}
-              percent={70}
+              percent={15}
               color="#16a34a"
               icon={<Trees size={30} />}
             />
 
             <RealKpi
               title={t.improvedProducers}
-              value="7 000"
+              value="2 580"
               unit={t.producers}
               target={t.targetProducers}
-              percent={70}
+              percent={37}
               color="#f59e0b"
               icon={<Users size={30} />}
             />
 
-              <RealKpi
-                title={t.agrMicroBusinesses}
-                value="50"
-                unit={t.companies}
-                target={t.targetCompanies}
-                percent={71}
-                color="#0284c7"
-                icon={<Cog size={30} />}
-              />             
+            <RealKpi
+              title={t.agrMicroBusinesses}
+              value="0"
+              unit={t.companies}
+              target={t.targetCompanies}
+              percent={0}
+              color="#0284c7"
+              icon={<Cog size={30} />}
+            />             
             </div>
             </div>
 
@@ -944,27 +977,29 @@ return (
 
           <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
           
-              <DonutChart
-                  title={t.beneficiariesByGender}
-                  data={[
-                    { name: t.men, value: 55, color: '#16a34a' },
-                    { name: t.women, value: 45, color: '#eab308' },
-                  ]}
-                  centerText="7 000"
-                  centerLabel={t.producers}
-                />
+          <DonutChart
+              title={t.beneficiariesByGender}
+              data={[
+                { name: t.women, value: 33, color: '#eab308' },
+                { name: t.men, value: 67, color: '#16a34a' },
+              ]}
+              centerText="5 242"
+              centerLabel={t.beneficiaries}
+            />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
-                <DonutChart
-                  title={t.youngBeneficiaries}
-                  data={[
-                    { name: t.youngPeople, value: 60, color: '#2563eb' },
-                    { name: t.adults, value: 40, color: '#f97316' },
-                  ]}
-                  centerText="7 000"
-                  centerLabel={t.producers}
-                />
+            <DonutChart
+                title={t.ageDistribution}
+                data={[
+                  { name: t.under18, value: 2, color: '#2563eb' },
+                  { name: t.age18to35, value: 28, color: '#16a34a' },
+                  { name: t.age36to59, value: 50, color: '#f59e0b' },
+                  { name: t.age60plus, value: 20, color: '#ef4444' },
+                ]}
+                centerText="5 242"
+                centerLabel={t.beneficiaries}
+              />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
@@ -972,9 +1007,9 @@ return (
               <DonutChart
                   title={t.indicatorStatus}
                   data={[
-                    { name: t.reached, value: 70, color: '#16a34a' },
-                    { name: t.inProgress, value: 20, color: '#f59e0b' },
-                    { name: t.notReached, value: 10, color: '#ef4444' },
+                    { name: t.reached, value: 0, color: '#16a34a' },
+                    { name: t.inProgress, value: 75, color: '#f59e0b' },
+                    { name: t.notReached, value: 25, color: '#ef4444' },
                   ]}
                 />
             </div>
