@@ -113,13 +113,10 @@ const dashboardTxt = {
     keyResults: "VOKATRA LEHIBE",
     interventionZone: "FARITRA IASA",
 
-    municipalBudgets:
-      "Tetibolan'ny kaominina ≥5% ho an'ny SECO (anisan'izany ny 25% ho an'ny vehivavy/tanora)",
-    communes: "Kaominina",
+    municipalBudgets: "R1.1 Tetibolan'ny kaominina",
     target: "Tanjona",
     reduction: "fihenana",
-    reductionBurnedAreas:
-      "Fampihenana 25% ny velaran-tany may manodidina ireo faritra arovana 7 hatramin'ny 2030",
+    reductionBurnedAreas: "R1.2 Velaran-tany may manodidina ireo faritra arovana 7",
     ecosystems:
       "Ekôzisteman'ny fambolena sy fiompiana mampihatra fomba maharitra (UE)",
     beneficiaries: "mpahazo tombontsoa",
@@ -127,30 +124,26 @@ const dashboardTxt = {
       "Mpamboly madinika mahazo tombontsoa (famokarana, tsena, fiarovana ny fananan-tany)",
     ha: "ha",
 
-    adoptedMeasures:
-      "Fepetra SECO noraisin'ny Kaominina",
+    adoptedMeasures:"R1.1.2 Fepetra kaominina",
     measures: "fepetra",
 
-    cosapDecisions:
-      "Fanapahan-kevitry ny COSAP nampidirina tao amin'ny drafitrasa kaominina",
+    cosapDecisions:"R1.2.1 Fanapahan-kevitry ny COSAP",
     decisions: "fanapahan-kevitra",
 
-    regionalPackages:
-      "Fonosana fepetra isam-paritra SE",
+    regionalPackages:"R1.2.2 Fepetra isam-paritra",
     packages: "fonosana",
 
-    regionsMonitoring:
-      "Faritra manana rafitra fanaraha-maso sy fanombanana ny SE",
+    regionsMonitoring:"R1.1.1 Rafitra fanaraha-maso",
     regions: "faritra",
 
     sustainableAgropastoral:
-      "Fomba fambolena sy fiompiana maharitra",
-    sustainableForest:
-      "Fomba fitantanana ala maharitra",
-    improvedProducers:
-      "Mpamokatra nohatsaraina",
-    agrMicroBusinesses:
-      "AGR / orinasa madinika",
+  "R2.1.1 Velaran-tany agropastôraly",
+  sustainableForest:
+  "R2.1.2 Velaran-tany ala",
+  improvedProducers:
+  "R2.2.1 Mpamokatra manana fidiram-bola",
+  agrMicroBusinesses:
+  "R2.2.2 Orinasa madinika",
     producers: "mpamokatra",
     companies: "orinasa",
 
@@ -204,13 +197,11 @@ const dashboardTxt = {
     keyResults: "KEY RESULTS",
     interventionZone: "INTERVENTION AREA",
 
-    municipalBudgets:
-      "Municipal budgets ≥5% for SECO (including 25% for women/youth)",
+    municipalBudgets: "R1.1 Municipal budgets",
     communes: "Communes",
     target: "Target",
     reduction: "reduction",
-    reductionBurnedAreas:
-      "25% reduction of burned areas around the 7 protected areas by 2030",
+    reductionBurnedAreas:"R1.2 Burned areas around the 7 protected areas",
     ecosystems:
       "Agropastoral ecosystems under sustainable practices (EU)",
     beneficiaries: "beneficiaries",
@@ -218,30 +209,22 @@ const dashboardTxt = {
       "Smallholder beneficiaries (production, markets, land security)",
     ha: "ha",
 
-    adoptedMeasures:
-      "SECO measures adopted by communes",
+    adoptedMeasures:"R1.1.2 Municipal measures",
     measures: "measures",
 
-    cosapDecisions:
-      "COSAP decisions integrated into municipal plans",
+    cosapDecisions:"R1.2.1 COSAP decisions",
     decisions: "decisions",
 
-    regionalPackages:
-      "Regional SE measure packages",
+    regionalPackages:"R1.2.2 Regional measures",
     packages: "packages",
 
-    regionsMonitoring:
-      "Regions with an SE monitoring and evaluation system",
+    regionsMonitoring:"R1.1.1 Monitoring system",
     regions: "regions",
 
-    sustainableAgropastoral:
-      "Sustainable agropastoral practices",
-    sustainableForest:
-      "Sustainable forestry practices",
-    improvedProducers:
-      "Improved producers",
-    agrMicroBusinesses:
-      "IGA / micro-enterprises",
+    sustainableAgropastoral:"R2.1.1 Agropastoral areas",
+    sustainableForest:"R2.1.2 Forest areas",
+    improvedProducers:"R2.2.1 Producers with improved income",
+    agrMicroBusinesses:"R2.2.2 Micro-enterprises",
     producers: "producers",
     companies: "companies",
 
@@ -299,13 +282,11 @@ const dashboardTxt = {
     keyResults: "WICHTIGE ERGEBNISSE",
     interventionZone: "INTERVENTIONSGEBIET",
 
-    municipalBudgets:
-      "Gemeindehaushalte ≥5% für SECO (davon 25% für Frauen/Jugendliche)",
+    municipalBudgets: "R1.1 Gemeindehaushalte",
     communes: "Gemeinden",
     target: "Ziel",
     reduction: "Reduzierung",
-    reductionBurnedAreas:
-      "Reduzierung der verbrannten Flächen rund um die 7 Schutzgebiete um 25% bis 2030",
+    reductionBurnedAreas:"R1.2 Verbrannte Flächen rund um die 7 Schutzgebiete",
     ecosystems:
       "Agropastorale Ökosysteme mit nachhaltigen Praktiken (EU)",
     beneficiaries: "Begünstigte",
@@ -313,30 +294,22 @@ const dashboardTxt = {
       "Begünstigte Kleinproduzenten (Produktion, Märkte, Landrechte)",
     ha: "ha",
 
-    adoptedMeasures:
-      "Von den Gemeinden angenommene SECO-Maßnahmen",
+    adoptedMeasures:"R1.1.2 Kommunale Maßnahmen",
     measures: "Maßnahmen",
 
-    cosapDecisions:
-      "In Gemeindepläne integrierte COSAP-Entscheidungen",
+    cosapDecisions:"R1.2.1 COSAP-Entscheidungen",
     decisions: "Entscheidungen",
 
-    regionalPackages:
-      "Regionale SE-Maßnahmenpakete",
+    regionalPackages:"R1.2.2 Regionale Maßnahmen",
     packages: "Pakete",
 
-    regionsMonitoring:
-      "Regionen mit einem Monitoring- und Evaluierungssystem für SE",
+    regionsMonitoring: "R1.1.1 Monitoringsystem",
     regions: "Regionen",
 
-    sustainableAgropastoral:
-      "Nachhaltige agropastorale Praktiken",
-    sustainableForest:
-      "Nachhaltige forstwirtschaftliche Praktiken",
-    improvedProducers:
-      "Verbesserte Produzenten",
-    agrMicroBusinesses:
-      "Einkommensschaffende Maßnahmen / Kleinstunternehmen",
+    sustainableAgropastoral:"R2.1.1 Agropastorale Flächen",
+    sustainableForest:"R2.1.2 Waldflächen",
+    iimprovedProducers:"R2.2.1 Produzenten mit verbessertem Einkommen",
+    agrMicroBusinesses:"R2.2.2 Kleinstunternehmen",
     producers: "Produzenten",
     companies: "Unternehmen",
 
