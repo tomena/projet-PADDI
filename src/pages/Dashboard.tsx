@@ -18,44 +18,44 @@ const dashboardTxt = {
     interventionZone: "ZONE D’INTERVENTION",
 
     municipalBudgets:
-      "Budgets communaux ≥5% pour le SECO (dont 25% femmes/jeunes)",
-    communes: "Communes",
+      "R1.1 Budgets communaux",
+    communes: "Commune(s)",
     target: "Cible",
     reduction: "de réduction",
     reductionBurnedAreas:
-      "Réduction de 25% des superficies brûlées en périphérie des 7 AP d'ici 2030",
+      "R1.2 Superficies brûlées autour des 7 aires protégées",
     ecosystems:
-      "Ecosystèmes agropastoraux sous pratique durable (UE)",
+      "R2.1 Superficies aménagées durablement",
     beneficiaries: "bénéficiaires",
     smallholders:
-      "Petits exploitants bénéficiaires (production, marchés, sécurité foncière)",
+      "R2.2 Petits exploitants appuyés",
     ha: "ha",
 
     adoptedMeasures:
-      "Mesures SECO adoptées par les Communes",
-    measures: "mesures",
+      "R1.1.2 Mesures communales",
+    measures: "mesure(s)",
 
     cosapDecisions:
-      "Décisions COSAP intégrées aux plans communaux",
-    decisions: "décisions",
+      "R1.2.1 Décisions des COSAP",
+    decisions: "décision(s)",
 
     regionalPackages:
-      "Paquets de mesures régionales SE",
-    packages: "paquets",
+      "R1.2.2 Mesures régionales",
+    packages: "paquet(s)",
 
     regionsMonitoring:
-      "Région disposent d'un système de suivi-évaluation des SE",
-    regions: "régions",
+      "R1.1.1 Système de suivi",
+    regions: "région(s)",
 
     sustainableAgropastoral:
-      "Pratiques agropastorales durables",
+      "R2.1.1 Surfaces agropastorales",
     sustainableForest:
-      "Pratiques forestières durables",
+      "R2.1.2 Surfaces forestières",
     improvedProducers:
-      "Producteurs améliorés",
+      "R2.2.1 Producteurs avec revenus",
     agrMicroBusinesses:
-      "AGR / micro-entreprises",
-    producers: "producteurs",
+      "R2.2.2 Micro-entreprises",
+    // producers: "producteurs",
     companies: "entreprises",
 
     beneficiariesByGender:
@@ -64,9 +64,14 @@ const dashboardTxt = {
     women: "Femmes",
 
     youngBeneficiaries:
-      "Répartition des jeunes bénéficiaires",
-    youngPeople: "Jeunes (JH/JF)",
-    adults: "Adultes",
+      "Répartition des bénéficiaires par tranche d'âge",
+    // youngPeople: "Jeunes (JH/JF)",
+    // adults: "Adultes",
+    under_18: "<18",
+    between_18_35: "18-35",
+    between_36_59: "36-59",
+    more_60: ">60",
+
 
     indicatorStatus: "Statut des indicateurs",
     reached: "Atteint",
@@ -82,27 +87,20 @@ const dashboardTxt = {
     protectedArea: "Aire protégée",
 
     targetLabel: "Cible",
-    targetCommunes: "Cible : 40 Communes",
+    targetCommunes: "Cible : 16 / 30 communes",
     targetReduction: "Cible : -25% d'ici 2030",
     targetEcosystems: "Cible : 110 000 ha",
     targetBeneficiaries: "Cible : 25 000",
-    targetCommunes80: "Cible : 80% des communes",
+    targetCommunes80: "24 sur 30 communes",
     targetDecisions: "Cible : 21 décisions",
     targetPackages: "Cible : 5 paquets",
     targetRegions: "Cible : 5 régions",
-    targetAgro: "Cible : 60 000 ha",
-    targetForest: "Cible : 100 000 ha",
-    targetProducers: "Cible : 10 000",
-    targetCompanies: "Cible : 70",
+    targetAgro: "Cible : 40 000 ha",
+    targetForest: "Cible : 70 000 ha",
+    targetProducers: "Cible : 7 000",
+    targetCompanies: "Cible : 50",
 
     km: "km",
-    monitoringSystem: "Système de suivi",
-    systems: "systèmes",
-    ageDistribution: "Répartition des bénéficiaires par tranche d'âge",
-    under18: "Moins de 18 ans",
-    age18to35: "18 à 35 ans",
-    age36to59: "36 à 59 ans",
-    age60plus: "60 ans et plus",
   },
 
   mg: {
@@ -194,13 +192,6 @@ const dashboardTxt = {
     targetCompanies: "Tanjona : 70",
 
     km: "km",
-    monitoringSystem: "Rafitra fanaraha-maso",
-    systems: "rafitra",
-    ageDistribution: "Fizarana ny mpahazo tombontsoa araka ny sokajin-taona",
-    under18: "Latsaky ny 18 taona",
-    age18to35: "18 hatramin'ny 35 taona",
-    age36to59: "36 hatramin'ny 59 taona",
-    age60plus: "60 taona no ho miakatra",
   },
 
   en: {
@@ -261,8 +252,12 @@ const dashboardTxt = {
 
     youngBeneficiaries:
       "Young beneficiaries",
-    youngPeople: "Young people (male/female)",
-    adults: "Adults",
+    // youngPeople: "Young people (male/female)",
+    // adults: "Adults",
+    under_18: "Under 18",
+    between_18_35: "Between 18-35",
+    between_36_59: "Between 36-59",
+    more_60: "More than 60",
 
     indicatorStatus: "Indicator status",
     reached: "Achieved",
@@ -278,7 +273,7 @@ const dashboardTxt = {
     protectedArea: "Protected Area",
 
     targetLabel: "Target",
-    targetCommunes: "Target: 40 communes",
+    targetCommunes: "Target: 16 / 30 communes",
     targetReduction: "Target: -25% by 2030",
     targetEcosystems: "Target: 110,000 ha",
     targetBeneficiaries: "Target: 25,000",
@@ -292,13 +287,6 @@ const dashboardTxt = {
     targetCompanies: "Target: 70",
 
     km: "km",
-    monitoringSystem: "Monitoring system",
-    systems: "systems",
-    ageDistribution: "Beneficiaries by age group",
-    under18: "Under 18",
-    age18to35: "18 to 35 years",
-    age36to59: "36 to 59 years",
-    age60plus: "60 years and over",
   },
 
   de: {
@@ -390,13 +378,6 @@ const dashboardTxt = {
     targetCompanies: "Ziel: 70",
 
     km: "km",
-    monitoringSystem: "Monitoring-System",
-    systems: "Systeme",
-    ageDistribution: "Begünstigte nach Altersgruppe",
-    under18: "Unter 18 Jahre",
-    age18to35: "18 bis 35 Jahre",
-    age36to59: "36 bis 59 Jahre",
-    age60plus: "60 Jahre und älter",
   },
 };
 
@@ -697,12 +678,12 @@ useEffect(() => {
 }, []);
 
 
-const dashboard = useMemo(
-  () => ({
-    progression: 22,
-  }),
-  [data]
-);
+  const dashboard = useMemo(
+    () => ({
+      progression: 22,
+    }),
+    [data]
+  );
 
   const regionsFiltrees = useMemo(() => {
     if (!regionsData?.features) return [];
@@ -833,48 +814,46 @@ return (
             </div>
 
             <div style={styles.kpiGrid}>
-
             <KpiCard
-              title={t.municipalBudgets}
-              value="0"
-              unit={t.communes}
-              percent={0}
-              target={t.targetCommunes}
-              color="#16a34a"
-              type="circle"
-            />
+                title={t.municipalBudgets}
+                value="0"
+                unit={t.communes}
+                percent={0}
+                target={t.targetCommunes}
+                color="#ef4444"
+                type="circle"
+              />
 
-            <KpiCard
-              title={t.reductionBurnedAreas}
-              value="-22,5%"
-              unit={t.reduction}
-              percent={90}
-              target={t.targetReduction}
-              color="#ea580c"
-              icon={<Flame size={42} />}
-            />
+              <KpiCard
+                title={t.reductionBurnedAreas}
+                value="- 22,5 %"
+                unit={t.reduction}
+                percent={90}
+                target={t.targetReduction}
+                color="#2563eb"
+                icon={<Flame size={42} />}
+              />
 
-            <KpiCard
-              title={t.ecosystems}
-              value="15 100"
-              unit={t.ha}
-              percent={14}
-              target={t.targetEcosystems}
-              color="#16a34a"
-              icon={<Trees size={42} />}
-            />
+              <KpiCard
+                title={t.ecosystems}
+                value="15100"
+                unit={t.ha}
+                percent={14}
+                target={t.targetEcosystems}
+                color="#ef4444"
+                icon={<Trees size={42} />}
+              />
 
-            <KpiCard
-              title={t.smallholders}
-              value="5 242"
-              unit={t.beneficiaries}
-              percent={21}
-              target={t.targetBeneficiaries}
-              color="#f59e0b"
-              icon={<Users size={42} />}
-            />
-
-          </div>
+              <KpiCard
+                title={t.smallholders}
+                value="5242"
+                unit={t.beneficiaries}
+                percent={21}
+                target={t.targetBeneficiaries}
+                color="#ef4444"
+                icon={<Users size={42} />}
+              />
+            </div>
           </div>
 
           {/* ================= RESULTATS CLES ================= */}
@@ -886,73 +865,73 @@ return (
 
             <div style={styles.resultGrid}>
 
-              <ResultCard
-                icon={<Monitor size={20} />}
-                title={t.monitoringSystem}
-                value="1"
-                unit={t.systems}
-                percent={20}
-                target={t.targetRegions}
-              />
+               <ResultCard
+               
+              icon={<Monitor size={20} />}
+              title={t.regionsMonitoring}
+              value="1"
+              unit={t.regions}
+              percent={20}
+              target={t.targetRegions}
+            />
+            <ResultCard
+              icon={<Home size={20} />}
+              title={t.adoptedMeasures}
+              value="15"
+              unit={t.measures}
+              percent={63}
+              target={t.targetCommunes80}
+            />
 
-              <ResultCard
-                icon={<Home size={20} />}
-                title={t.adoptedMeasures}
-                value="15"
-                unit={t.measures}
-                percent={63}
-                target={t.targetCommunes80}
-              />
+            <ResultCard
+              icon={<FileText size={20} />}
+              title={t.cosapDecisions}
+              value="0"
+              unit={t.decisions}
+              percent={0}
+              target={t.targetDecisions}
+            />
 
-              <ResultCard
-                icon={<FileText size={20} />}
-                title={t.cosapDecisions}
-                value="0"
-                unit={t.decisions}
-                percent={0}
-                target={t.targetDecisions}
-              />
+            <ResultCard
+              icon={<Leaf size={20} />}
+              title={t.regionalPackages}
+              value="1"
+              unit={t.packages}
+              percent={20}
+              target={t.targetPackages}
+            />
 
-              <ResultCard
-                icon={<Leaf size={20} />}
-                title={t.regionalPackages}
-                value="1"
-                unit={t.packages}
-                percent={20}
-                target={t.targetPackages}
-              />
-
+           
             </div>
           </div>
-
+        
           <div style={styles.realisationSection}>
             {/* LIGNE KPI + GAUGE */}
             <div style={styles.kpiGroup}>
             <div style={styles.realisationGrid}>
-
             <RealKpi
               title={t.sustainableAgropastoral}
-              value="4 734"
+              value="4734"
               unit={t.ha}
               target={t.targetAgro}
               percent={12}
-              color="#16a34a"
+              color="#ef4444"
               icon={<Tractor size={30} />}
             />
 
             <RealKpi
               title={t.sustainableForest}
-              value="10 346"
+              value="10346"
               unit={t.ha}
               target={t.targetForest}
               percent={15}
-              color="#16a34a"
+              color="#ef4444"
               icon={<Trees size={30} />}
             />
 
             <RealKpi
               title={t.improvedProducers}
-              value="2 580"
+              value="2580"
               unit={t.producers}
               target={t.targetProducers}
               percent={37}
@@ -960,15 +939,15 @@ return (
               icon={<Users size={30} />}
             />
 
-            <RealKpi
-              title={t.agrMicroBusinesses}
-              value="0"
-              unit={t.companies}
-              target={t.targetCompanies}
-              percent={0}
-              color="#0284c7"
-              icon={<Cog size={30} />}
-            />             
+              <RealKpi
+                title={t.agrMicroBusinesses}
+                value="0"
+                unit={t.companies}
+                target={t.targetCompanies}
+                percent={0}
+                color="#ef4444"
+                icon={<Cog size={30} />}
+              />             
             </div>
             </div>
 
@@ -977,29 +956,31 @@ return (
 
           <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
           
-          <DonutChart
-              title={t.beneficiariesByGender}
-              data={[
-                { name: t.women, value: 33, color: '#eab308' },
-                { name: t.men, value: 67, color: '#16a34a' },
-              ]}
-              centerText="5 242"
-              centerLabel={t.beneficiaries}
-            />
+              <DonutChart
+                  title={t.beneficiariesByGender}
+                  data={[
+                    { name: t.men, value: 66, color: '#16a34a' },
+                    { name: t.women, value: 34, color: '#eab308' },
+                  ]}
+                  centerText="5242"
+                  centerLabel={t.producers}
+                />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
-            <DonutChart
-                title={t.ageDistribution}
-                data={[
-                  { name: t.under18, value: 2, color: '#2563eb' },
-                  { name: t.age18to35, value: 28, color: '#16a34a' },
-                  { name: t.age36to59, value: 50, color: '#f59e0b' },
-                  { name: t.age60plus, value: 20, color: '#ef4444' },
-                ]}
-                centerText="5 242"
-                centerLabel={t.beneficiaries}
-              />
+                <DonutChart
+                  title={t.youngBeneficiaries}
+                  data={[
+                    // { name: t.youngPeople, value: 65, color: '#2563eb' },
+                    // { name: t.adults, value: 35, color: '#f97316' },
+                    { name: t.under_18, value: 2, color: '#ef4444' },
+                    { name: t.between_18_35, value: 28, color: '#22c55e' },
+                    { name: t.between_36_59, value: 50, color: '#2563eb' },
+                    { name: t.more_60, value: 20, color: '#f97316' },
+                  ]}
+                  centerText="5242"
+                  centerLabel={t.producers}
+                />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
@@ -1007,7 +988,7 @@ return (
               <DonutChart
                   title={t.indicatorStatus}
                   data={[
-                    { name: t.reached, value: 0, color: '#16a34a' },
+                  // { name: t.reached, value: 75, color: '#16a34a' },
                     { name: t.inProgress, value: 75, color: '#f59e0b' },
                     { name: t.notReached, value: 25, color: '#ef4444' },
                   ]}
@@ -1153,6 +1134,7 @@ function KpiCard({
 
       <div style={styles.barRow}>
         <div style={styles.barBg}>
+          {/* ambony --- card */}
           <div
             style={{
               ...styles.barFill,
@@ -1172,6 +1154,14 @@ function KpiCard({
 
 
 function ResultCard({ icon, title, value, unit, percent, target }: any) {
+  const progressColor =
+    percent < 26
+      ? "#ef4444"
+      : percent < 51
+      ? "#f59e0b"
+      : percent < 76
+      ? "#22c55e"
+      : "#2563eb";
   return (
     <div style={styles.resultCard}>
       {/* TITRE */}
@@ -1186,17 +1176,25 @@ function ResultCard({ icon, title, value, unit, percent, target }: any) {
         </div>
 
         {/* RIGHT ICON (centré proprement) */}
-        <div style={styles.resultIcon}>{icon}</div>
+       <div
+          style={{
+            ...styles.resultIcon,
+            color: progressColor,
+            background: `${progressColor}20`,
+            border: `1px solid ${progressColor}40`,
+            }}>
+          {icon}
+        </div>
       </div>
 
       {/* BAR */}
       <div style={styles.barRow}>
         <div style={styles.barBg}>
-          <div
+         <div
             style={{
               ...styles.barFill,
               width: `${percent}%`,
-              background: '#16a34a',
+              background: progressColor,
             }}
           />
         </div>
@@ -1435,6 +1433,7 @@ const isMobile =
   typeof window !== 'undefined' && window.innerWidth < 768;
 /* ================= STYLES ================= */
 
+
 const styles: any = {
   page: {
     padding: '2px 0',
@@ -1566,6 +1565,7 @@ const styles: any = {
   },
 
   barBg: {
+     //background: '#1a5ada',
     background: '#e5e7eb',
     flex: 1,
     height: 8,
@@ -1709,8 +1709,9 @@ const styles: any = {
     height: 42,
     minWidth: 42,
     borderRadius: '50%',
-    background: '#dcfce7',
-    color: '#16a34a',
+    //background: '#dcfce7',
+    //color: '#a3168b',
+    //color: '#16a34a',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1732,6 +1733,7 @@ const styles: any = {
     display: 'flex',
     justifyContent: 'center',
     marginBottom: 6,
+    // color: '#a31676',
     color: '#16a34a',
   },
 
@@ -2110,3 +2112,4 @@ const styles: any = {
     zIndex: 1,
   },
 };
+
