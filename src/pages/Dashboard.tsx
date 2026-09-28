@@ -3,7 +3,7 @@ import { MapContainer, TileLayer, ScaleControl, useMap, GeoJSON } from "react-le
 import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
 import {PieChart,Pie,Cell,LineChart,Line,XAxis,YAxis,Tooltip,Legend,ResponsiveContainer } from 'recharts';
-import {Flame,Monitor,Home,MapPinned,TrendingUp,FileText,Leaf,Tractor,Trees,Users,Cog } from 'lucide-react';
+import {Flame,Monitor,Home,MapPinned,TrendingUp,FileText,Leaf,Tractor,Trees,Users,Cog, CalendarDays } from 'lucide-react';
 import { useLanguage } from "../context/LanguageContext";
 
 const dashboardTxt = {
@@ -12,6 +12,7 @@ const dashboardTxt = {
     antenna: "Antenne",
     allAntennas: "Toutes les antennes",
     year: "Année",
+    dateOfLastUpdate: "Données mises à jour le :                   ",
 
     keyAchievements: "RÉALISATIONS CLÉS",
     keyResults: "RÉSULTATS CLÉS",
@@ -73,13 +74,17 @@ const dashboardTxt = {
     more_60: ">60",
 
 
-    indicatorStatus: "Statut des indicateurs",
-    reached: "Atteint",
-    inProgress: "En cours",
-    notReached: "Non atteint",
+    indicatorStatus: "Statut des indicateurs (par rapport aux cibles)",
+    // reached: "Atteint",
+    // inProgress: "En cours",
+    // notReached: "Non atteint",
+    under25 : "<=25%",
+    between25_50 : ">25% à 50%",
+    between50_75 : ">50% à 75%",
+    over75 : ">75%",
 
     globalProjectProgress:
-      "Avancement global du projet",
+      "Avancement global du projet par rapport aux jalons dans le plan quinquenal",
     globalProgress: "Progression globale",
 
     legend: "Légende",
@@ -113,10 +118,13 @@ const dashboardTxt = {
     keyResults: "VOKATRA LEHIBE",
     interventionZone: "FARITRA IASA",
 
-    municipalBudgets: "R1.1 Tetibolan'ny kaominina",
+    municipalBudgets:
+      "Tetibolan'ny kaominina ≥5% ho an'ny SECO (anisan'izany ny 25% ho an'ny vehivavy/tanora)",
+    communes: "Kaominina",
     target: "Tanjona",
     reduction: "fihenana",
-    reductionBurnedAreas: "R1.2 Velaran-tany may manodidina ireo faritra arovana 7",
+    reductionBurnedAreas:
+      "Fampihenana 25% ny velaran-tany may manodidina ireo faritra arovana 7 hatramin'ny 2030",
     ecosystems:
       "Ekôzisteman'ny fambolena sy fiompiana mampihatra fomba maharitra (UE)",
     beneficiaries: "mpahazo tombontsoa",
@@ -124,26 +132,30 @@ const dashboardTxt = {
       "Mpamboly madinika mahazo tombontsoa (famokarana, tsena, fiarovana ny fananan-tany)",
     ha: "ha",
 
-    adoptedMeasures:"R1.1.2 Fepetra kaominina",
+    adoptedMeasures:
+      "Fepetra SECO noraisin'ny Kaominina",
     measures: "fepetra",
 
-    cosapDecisions:"R1.2.1 Fanapahan-kevitry ny COSAP",
+    cosapDecisions:
+      "Fanapahan-kevitry ny COSAP nampidirina tao amin'ny drafitrasa kaominina",
     decisions: "fanapahan-kevitra",
 
-    regionalPackages:"R1.2.2 Fepetra isam-paritra",
+    regionalPackages:
+      "Fonosana fepetra isam-paritra SE",
     packages: "fonosana",
 
-    regionsMonitoring:"R1.1.1 Rafitra fanaraha-maso",
+    regionsMonitoring:
+      "Faritra manana rafitra fanaraha-maso sy fanombanana ny SE",
     regions: "faritra",
 
     sustainableAgropastoral:
-  "R2.1.1 Velaran-tany agropastôraly",
-  sustainableForest:
-  "R2.1.2 Velaran-tany ala",
-  improvedProducers:
-  "R2.2.1 Mpamokatra manana fidiram-bola",
-  agrMicroBusinesses:
-  "R2.2.2 Orinasa madinika",
+      "Fomba fambolena sy fiompiana maharitra",
+    sustainableForest:
+      "Fomba fitantanana ala maharitra",
+    improvedProducers:
+      "Mpamokatra nohatsaraina",
+    agrMicroBusinesses:
+      "AGR / orinasa madinika",
     producers: "mpamokatra",
     companies: "orinasa",
 
@@ -197,11 +209,13 @@ const dashboardTxt = {
     keyResults: "KEY RESULTS",
     interventionZone: "INTERVENTION AREA",
 
-    municipalBudgets: "R1.1 Municipal budgets",
+    municipalBudgets:
+      "Municipal budgets ≥5% for SECO (including 25% for women/youth)",
     communes: "Communes",
     target: "Target",
     reduction: "reduction",
-    reductionBurnedAreas:"R1.2 Burned areas around the 7 protected areas",
+    reductionBurnedAreas:
+      "25% reduction of burned areas around the 7 protected areas by 2030",
     ecosystems:
       "Agropastoral ecosystems under sustainable practices (EU)",
     beneficiaries: "beneficiaries",
@@ -209,22 +223,30 @@ const dashboardTxt = {
       "Smallholder beneficiaries (production, markets, land security)",
     ha: "ha",
 
-    adoptedMeasures:"R1.1.2 Municipal measures",
+    adoptedMeasures:
+      "SECO measures adopted by communes",
     measures: "measures",
 
-    cosapDecisions:"R1.2.1 COSAP decisions",
+    cosapDecisions:
+      "COSAP decisions integrated into municipal plans",
     decisions: "decisions",
 
-    regionalPackages:"R1.2.2 Regional measures",
+    regionalPackages:
+      "Regional SE measure packages",
     packages: "packages",
 
-    regionsMonitoring:"R1.1.1 Monitoring system",
+    regionsMonitoring:
+      "Regions with an SE monitoring and evaluation system",
     regions: "regions",
 
-    sustainableAgropastoral:"R2.1.1 Agropastoral areas",
-    sustainableForest:"R2.1.2 Forest areas",
-    improvedProducers:"R2.2.1 Producers with improved income",
-    agrMicroBusinesses:"R2.2.2 Micro-enterprises",
+    sustainableAgropastoral:
+      "Sustainable agropastoral practices",
+    sustainableForest:
+      "Sustainable forestry practices",
+    improvedProducers:
+      "Improved producers",
+    agrMicroBusinesses:
+      "IGA / micro-enterprises",
     producers: "producers",
     companies: "companies",
 
@@ -282,11 +304,13 @@ const dashboardTxt = {
     keyResults: "WICHTIGE ERGEBNISSE",
     interventionZone: "INTERVENTIONSGEBIET",
 
-    municipalBudgets: "R1.1 Gemeindehaushalte",
+    municipalBudgets:
+      "Gemeindehaushalte ≥5% für SECO (davon 25% für Frauen/Jugendliche)",
     communes: "Gemeinden",
     target: "Ziel",
     reduction: "Reduzierung",
-    reductionBurnedAreas:"R1.2 Verbrannte Flächen rund um die 7 Schutzgebiete",
+    reductionBurnedAreas:
+      "Reduzierung der verbrannten Flächen rund um die 7 Schutzgebiete um 25% bis 2030",
     ecosystems:
       "Agropastorale Ökosysteme mit nachhaltigen Praktiken (EU)",
     beneficiaries: "Begünstigte",
@@ -294,22 +318,30 @@ const dashboardTxt = {
       "Begünstigte Kleinproduzenten (Produktion, Märkte, Landrechte)",
     ha: "ha",
 
-    adoptedMeasures:"R1.1.2 Kommunale Maßnahmen",
+    adoptedMeasures:
+      "Von den Gemeinden angenommene SECO-Maßnahmen",
     measures: "Maßnahmen",
 
-    cosapDecisions:"R1.2.1 COSAP-Entscheidungen",
+    cosapDecisions:
+      "In Gemeindepläne integrierte COSAP-Entscheidungen",
     decisions: "Entscheidungen",
 
-    regionalPackages:"R1.2.2 Regionale Maßnahmen",
+    regionalPackages:
+      "Regionale SE-Maßnahmenpakete",
     packages: "Pakete",
 
-    regionsMonitoring: "R1.1.1 Monitoringsystem",
+    regionsMonitoring:
+      "Regionen mit einem Monitoring- und Evaluierungssystem für SE",
     regions: "Regionen",
 
-    sustainableAgropastoral:"R2.1.1 Agropastorale Flächen",
-    sustainableForest:"R2.1.2 Waldflächen",
-    iimprovedProducers:"R2.2.1 Produzenten mit verbessertem Einkommen",
-    agrMicroBusinesses:"R2.2.2 Kleinstunternehmen",
+    sustainableAgropastoral:
+      "Nachhaltige agropastorale Praktiken",
+    sustainableForest:
+      "Nachhaltige forstwirtschaftliche Praktiken",
+    improvedProducers:
+      "Verbesserte Produzenten",
+    agrMicroBusinesses:
+      "Einkommensschaffende Maßnahmen / Kleinstunternehmen",
     producers: "Produzenten",
     companies: "Unternehmen",
 
@@ -773,6 +805,16 @@ return (
               <option>2030</option>
             </select>
           </div>
+
+          <div style={styles.dateBox}>
+            <CalendarDays size={18} />
+          <div>
+            <div style={styles.dateLabel}>{t.dateOfLastUpdate}</div>
+
+            <div style={styles.dateValue}>24 septembre 2026</div>
+          </div>
+        </div>
+
         </div>
       </div>
       {/* ================== GLOBAL LAYOUT ================== */}
@@ -960,10 +1002,13 @@ return (
 
               <DonutChart
                   title={t.indicatorStatus}
+                  showPercentage={false}
                   data={[
-                  // { name: t.reached, value: 75, color: '#16a34a' },
-                    { name: t.inProgress, value: 75, color: '#f59e0b' },
-                    { name: t.notReached, value: 25, color: '#ef4444' },
+                    { name: t.under25, value: 9, color: '#ef4444' },
+                    { name: t.between25_50, value: 1, color: '#f59e0b' },
+                    { name: t.between50_75, value: 1, color: '#16a34a' },
+                    { name: t.over75, value: 1, color: '#2563eb' },
+
                   ]}
                 />
             </div>
@@ -1313,7 +1358,7 @@ function GaugeKpi({ value, title, label }: any) {
   );
 }
 
-function DonutChart({ title, data, centerText, centerLabel }: any) {
+function DonutChart({ title, data, centerText, centerLabel,showPercentage = true }: any) {
   return (
     <div style={styles.donutCard}>
       {/* TITRE */}
@@ -1361,7 +1406,7 @@ function DonutChart({ title, data, centerText, centerLabel }: any) {
                       fontWeight: 800,
                     }}
                   >
-                    {value}%
+                    {showPercentage ? `${value}%` : value}
                   </text>
                 );
               }}
@@ -2084,5 +2129,24 @@ const styles: any = {
     position: 'relative',
     zIndex: 1,
   },
+  dateBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    background: 'rgba(255,255,255,0.12)',
+    padding: '14px 14px',
+    borderRadius: 10,
+  },
+  
+  dateLabel: {
+    fontSize: 11,
+    opacity: 0.8,
+  },
+
+  dateValue: {
+    fontSize: 12,
+    fontWeight: 700,
+  }
 };
+
 
