@@ -1010,6 +1010,7 @@ return (
                     { name: t.over75, value: 1, color: '#2563eb' },
 
                   ]}
+                  centerText="12"
                 />
             </div>
 
