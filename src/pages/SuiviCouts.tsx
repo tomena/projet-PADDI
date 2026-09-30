@@ -379,6 +379,11 @@ export default function SuiviCouts() {
   const [annee,setAnnee] = useState<number>(2026);
   const [mois,setMois] = useState<string>("Tous");
   const [uc,setUc] = useState<string>("Tous");
+  const handleReset = () => {
+        setAnnee(2026);
+        setMois("Tous");
+        setUc("Tous");
+      };
 
   useEffect(() => {
     fetch("/data/Base_Cout_Activite.geojson")
@@ -781,11 +786,14 @@ export default function SuiviCouts() {
 
         {/* RESET */}
         <div style={styles.resetContainer}>
-          <button style={styles.resetBigBtn}>
-            <RotateCcw size={20} />
-            {t.reset}
-          </button>
-        </div>
+        <button
+          style={styles.resetBigBtn}
+          onClick={handleReset}
+        >
+          <RotateCcw size={20} />
+          {t.reset}
+        </button>
+      </div>
       </div>
       {/* TOP GRID */}
       <div style={styles.topGrid}>
