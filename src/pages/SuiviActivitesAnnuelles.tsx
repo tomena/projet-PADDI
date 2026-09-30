@@ -367,6 +367,11 @@ export default function SuiviActivitesAnnuelles() {
   const [annee,setAnnee] = useState<number>(2026);
   const [mois,setMois] = useState<string>("Tous");
   const [uc,setUc] = useState<string>("Tous");
+  const handleReset = () => {
+    setAnnee(2026);
+    setMois("Tous");
+    setUc("Tous");
+  };
 
 
   const composantesConfig = [
@@ -702,7 +707,10 @@ export default function SuiviActivitesAnnuelles() {
 
         {/* RESET */}
         <div style={styles.resetContainer}>
-          <button style={styles.resetBigBtn}>
+          <button
+            style={styles.resetBigBtn}
+            onClick={handleReset}
+          >
             <RotateCcw size={20} />
             <span style={{ textAlign: 'center' }}>
               {t.reset}
