@@ -611,7 +611,7 @@ export default function SuiviActivitesAnnuelles() {
           <CalendarDays size={18} />
           <div>
             <div style={styles.dateLabel}>{t.updated}</div>
-            <div style={styles.dateValue}>17 juillet 2026</div>
+            <div style={styles.dateValue}>24 septembre 2026</div>
           </div>
         </div>
       </div>
