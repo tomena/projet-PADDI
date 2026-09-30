@@ -458,25 +458,25 @@ export default function SuiviActivitesAnnuelles() {
   const composantes = [
     {
       label: t.componentC1,
-      percent: Number(coutActuel["TAA 1.1.1"] || 0) * 100,
+      percent: Number(coutActuel["TAR 1.1"] || 0) * 100,
       icon: Leaf,
     },
   
     {
       label: t.componentC2,
-      percent: Number(coutActuel["TAA 1.1.2"] || 0) * 100,
+      percent: Number(coutActuel["TAR 1.2"] || 0) * 100,
       icon: ShieldCheck,
     },
   
     {
       label: t.componentC3,
-      percent: Number(coutActuel["TAA 1.1.3"] || 0) * 100,
+      percent: Number(coutActuel["TAR 2.1"] || 0) * 100,
       icon: Mountain,
     },
   
     {
       label: t.componentC4,
-      percent: Number(coutActuel["TAA 1.1.4"] || 0) * 100,
+      percent: Number(coutActuel["TAR 2.2"] || 0) * 100,
       icon: BriefcaseBusiness,
     },
   
