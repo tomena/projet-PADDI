@@ -698,17 +698,37 @@ export default function SuiviCouts() {
           },
         ];
 
-  const dataGraph = data.filter((d) => {
-          return uc === "Tous" || d.UC === uc;
+        const dataGraph = data.filter((d) => {
+          const filtreUC = uc === "Tous" || d.UC === uc;
+          const filtreMois = mois === "Tous" || d.Mois === mois;
+        
+          return filtreUC && filtreMois;
+        });
+        
+        // Additionne toutes les lignes correspondant au filtre
+        const yearlyData = [2024, 2025, 2026, 2027, 2028, 2029, 2030].map((annee) => {
+          const montant = dataGraph.reduce((total, d) => {
+            return total + (Number(d[`BD ${annee} (EUR)`]) || 0);
+          }, 0);
+        
+          const pourcentage = dataGraph.reduce((total, d) => {
+            return total + (Number(d[`BD ${annee} (%)`]) || 0);
+          }, 0);
+        
+          return {
+            year: String(annee),
+            value: montant / 1_000_000,
+            percent: (pourcentage * 100).toFixed(1),
+          };
         });
 
-  const ligneGraph = dataGraph[0] || {};
-
-  const yearlyData = [2024, 2025, 2026, 2027, 2028, 2029, 2030].map((annee) => ({
-      year: String(annee),
-      value: (ligneGraph[`BD ${annee} (EUR)`] || 0) / 1_000_000,
-      percent: ((ligneGraph[`BD ${annee} (%)`] || 0) * 100).toFixed(1),
-  }));
+        console.log("========== GRAPHE ==========");
+console.log("UC sélectionnée :", uc);
+console.log("Mois sélectionné :", mois);
+console.log("Nombre de lignes :", dataGraph.length);
+console.log("Lignes du graphe :", dataGraph);
+console.log("YearlyData :", JSON.stringify(yearlyData, null, 2));
+console.table(yearlyData);
 
   const tauxComposantes = [
     {
@@ -845,7 +865,7 @@ export default function SuiviCouts() {
           <div>
             <div style={styles.dateLabel}>{t.updated}</div>
 
-            <div style={styles.dateValue}>16 juillet 2026</div>
+            <div style={styles.dateValue}>30 septembre 2026</div>
           </div>
         </div>
       </div>
