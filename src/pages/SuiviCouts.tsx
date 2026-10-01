@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
-import {CalendarDays,RotateCcw,Building2,Building,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
+import {CalendarDays,RotateCcw,Building2,Building,Target,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
       } from 'lucide-react';
 import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
 import { MdPayments, MdAccountBalanceWallet } from 'react-icons/md';
@@ -70,12 +70,21 @@ interface CoutActivite {
           componentC3: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
           componentC4: "C4. CRÉATION D’EMPLOIS VERTS",
 
-          financements: "FINANCEMENTS",
+          sl: "SL",
+          grants: "GRANTS",
           achats: "ACHATS",
+          prestationsSiege: "PRESTATIONS - SIÈGE SOCIAL",
+          prestationsBureaux: "PRESTATIONS DES BUREAUX RÉGIONAUX",
+          servicesRessourcesHumaines: "SERVICES LIÉS AUX RESSOURCES HUMAINES",
+          fraisDeplacement: "FRAIS DE DÉPLACEMENT",
+          experts: "EXPERTS",
+          approvisionnementConstruction: "APPROVISIONNEMENT, CONSTRUCTION ET CONTRATS DE CONSTRUCTION",
+          autres: "AUTRES",
+
+          financements: "FINANCEMENTS",
           contrats: "CONTRATS",
           missionsInterne: "MISSIONS INTERNES",
           missionsPartenaires: "MISSIONS PARTENAIRES",
-          salaires: "SALAIRES",
 
           componentC1Short: "Gestion des services écosystémiques",
           componentC2Short: "Gouvernance environnementale",
@@ -153,12 +162,20 @@ interface CoutActivite {
           componentC3: "C3. FAMPANDROSOANA NY TONTOLON-TANY MPAMOKATRA",
           componentC4: "C4. FAMORONANA ASA MAITSO",
 
-          financements: "FAMATSIAM-BOLA",
+          sl: "SL",
+          grants: "GRANTS",
           achats: "FIVIDIANA",
+          prestationsSiege: "SERVISY - FOIBE",
+          prestationsBureaux: "SERVISY AMIN'NY BIRAON'NY FARITRA",
+          servicesRessourcesHumaines: "SERVISY MIFANDRAY AMIN'NY LOHARANON-KARENA OLONA",
+          fraisDeplacement: "SARAN'NY FIVEZIVEZENA",
+          experts: "MANAM-PAHAIZANA",
+          approvisionnementConstruction: "FAMATSIAHANA, FANORENANA ARY FIFANEKENA AMIN'NY FANORENANA",
+          autres: "HAFA",
+          financements: "FAMATSIAM-BOLA",
           contrats: "FIFANEKENA",
           missionsInterne: "IRAKA ANATINY",
           missionsPartenaires: "IRAKA MIARAKA AMIN'NY MPIARA-MIASA",
-          salaires: "KARAMA",
 
           componentC1Short: "Fitantanana ny serivisy ara-tontolo iainana",
           componentC2Short: "Fitantanana ny tontolo iainana",
@@ -235,12 +252,21 @@ interface CoutActivite {
           componentC3: "C3. DEVELOPMENT OF PRODUCTIVE LANDSCAPES",
           componentC4: "C4. CREATION OF GREEN JOBS",
 
-          financements: "FINANCING",
+          sl: "SL",
+          grants: "GRANTS",
           achats: "PURCHASES",
+          prestationsSiege: "SERVICES - HEAD OFFICE",
+          prestationsBureaux: "REGIONAL OFFICE SERVICES",
+          servicesRessourcesHumaines: "HUMAN RESOURCES SERVICES",
+          fraisDeplacement: "TRAVEL EXPENSES",
+          experts: "EXPERTS",
+          approvisionnementConstruction: "SUPPLIES, CONSTRUCTION AND CONSTRUCTION CONTRACTS",
+          autres: "OTHER",
+
+          financements: "FUNDING",
           contrats: "CONTRACTS",
           missionsInterne: "INTERNAL MISSIONS",
           missionsPartenaires: "PARTNER MISSIONS",
-          salaires: "SALARIES",
 
           componentC1Short: "Ecosystem services management",
           componentC2Short: "Environmental governance",
@@ -317,12 +343,21 @@ interface CoutActivite {
           componentC3: "C3. ENTWICKLUNG PRODUKTIVER LANDSCHAFTEN",
           componentC4: "C4. SCHAFFUNG GRÜNER ARBEITSPLÄTZE",
 
-          financements: "FINANZIERUNGEN",
+          sl: "SL",
+          grants: "GRANTS",
           achats: "EINKÄUFE",
+          prestationsSiege: "DIENSTLEISTUNGEN - HAUPTSITZ",
+          prestationsBureaux: "DIENSTLEISTUNGEN DER REGIONALBÜROS",
+          servicesRessourcesHumaines: "DIENSTLEISTUNGEN IM BEREICH HUMANRESSOURCEN",
+          fraisDeplacement: "REISEKOSTEN",
+          experts: "EXPERTEN",
+          approvisionnementConstruction: "BESCHAFFUNG, BAU UND BAUVERTRÄGE",
+          autres: "SONSTIGE",
+
+          financements: "FINANZIERUNGEN",
           contrats: "VERTRÄGE",
-          missionsInterne: "INTERNE DIENSTREISEN",
-          missionsPartenaires: "PARTNERREISEN",
-          salaires: "GEHÄLTER",
+          missionsInterne: "INTERNE MISSIONEN",
+          missionsPartenaires: "PARTNER-MISSIONEN",
 
           componentC1Short: "Management von Ökosystemdienstleistungen",
           componentC2Short: "Umweltgovernance",
@@ -467,86 +502,201 @@ export default function SuiviCouts() {
       ? "#22c55e"
       : "#2563eb";
 
-      const composantes = [
-        {
-          icon: Leaf,
-          title: `C1. ${t.componentC1Short}`,
-          amount: coutActuel["BD C1 (EUR)"] || 0,
-          percent: (coutActuel["BD C1 (%)"] || 0) * 100,
-          color: "#2563eb",
-        },
-        {
-          icon: Building,
-          title: `C2. ${t.componentC2Short}`,
-          amount: coutActuel["BD C2 (EUR)"] || 0,
-          percent: (coutActuel["BD C2 (%)"] || 0) * 100,
-          color: "#2563eb",
-        },
-        {
-          icon: Map,
-          title: `C3. ${t.componentC3Short}`,
-          amount: coutActuel["BD C3 (EUR)"] || 0,
-          percent: (coutActuel["BD C3 (%)"] || 0) * 100,
-          color: "#16a34a",
-        },
-        {
-          icon: Briefcase,
-          title: `C4. ${t.componentC4Short}`,
-          amount: coutActuel["BD C4 (EUR)"] || 0,
-          percent: (coutActuel["BD C4 (%)"] || 0) * 100,
-          color: "#16a34a",
-        },
-      ];
+      const budgetTotalProjet = 34_500_000;
 
-      const instruments = [
-        {
-          icon: Wallet,
-          title: t.financements,
-          amount: coutActuel["BDF (EUR)"] || 0,
-          percent: (coutActuel["BDF (%)"] || 0) * 100,
-          color: "#2563eb",
-        },
-      
-        {
-          icon: ShoppingCart,
-          title: t.achats,
-          amount: coutActuel["BDA (EUR)"] || 0,
-          percent: (coutActuel["BDA (%)"] || 0) * 100,
-          color: "#2563eb",
-        },
-      
-        {
-          icon: FileText,
-          title: t.contrats,
-          amount: coutActuel["BDC (EUR)"] || 0,
-          percent: (coutActuel["BDC (%)"] || 0) * 100,
-          color: "#22c55e",
-        },
-      
-        {
-          icon: Users,
-          title: t.missionsInterne,
-          amount: coutActuel["BDMI (EUR)"] || 0,
-          percent: (coutActuel["BDMI (%)"] || 0) * 100,
-          color: "#22c55e",
-        },
-      
-        {
-          icon: Handshake,
-          title: t.missionsPartenaires,
-          amount: coutActuel["BDMP (EUR)"] || 0,
-          percent: (coutActuel["BDMP (%)"] || 0) * 100,
-          color: "#f59e0b",
-        },
-      
-        {
-          icon: Briefcase,
-          title: t.salaires,
-          amount: coutActuel["BDS (EUR)"] || 0,
-          percent: (coutActuel["BDS (%)"] || 0) * 100,
-          color: "#f59e0b",
-        },
-      ];
+      const output0 = Number(coutActuel["BD O0 (EUR)"]) || 0;
+      const output1 = Number(coutActuel["BD O1 (EUR)"]) || 0;
+      const output2 = Number(coutActuel["BD O2 (EUR)"]) || 0;
+      const output3 = Number(coutActuel["BD O3 (EUR)"]) || 0;
+      const output4 = Number(coutActuel["BD O4 (EUR)"]) || 0;
+
+      const totalOutputs =
+        output0 +
+        output1 +
+        output2 +
+        output3 +
+        output4;
+
+        const composantes = [
+          {
+            icon: Target,
+            title: "Output 0",
+            amount: output0,
+            percent:
+              budgetTotalProjet > 0
+                ? (output0 / budgetTotalProjet) * 100
+                : 0,
+            color: "#2563eb",
+          },
+        
+          {
+            icon: Leaf,
+            title: "Output 1",
+            amount: output1,
+            percent:
+              budgetTotalProjet > 0
+                ? (output1 / budgetTotalProjet) * 100
+                : 0,
+            color: "#16a34a",
+          },
+        
+          {
+            icon: Building,
+            title: "Output 2",
+            amount: output2,
+            percent:
+              budgetTotalProjet > 0
+                ? (output2 / budgetTotalProjet) * 100
+                : 0,
+            color: "#7c3aed",
+          },
+        
+          {
+            icon: Map,
+            title: "Output 3",
+            amount: output3,
+            percent:
+              budgetTotalProjet > 0
+                ? (output3 / budgetTotalProjet) * 100
+                : 0,
+            color: "#f59e0b",
+          },
+        
+          {
+            icon: Briefcase,
+            title: "Output 4",
+            amount: output4,
+            percent:
+              budgetTotalProjet > 0
+                ? (output4 / budgetTotalProjet) * 100
+                : 0,
+            color: "#f97316",
+          },
+        ];
+
+        const totalInstruments =
+          (Number(coutActuel["1. S (EUR)"]) || 0) +
+          (Number(coutActuel["1.6 L (EUR)"]) || 0) +
+          (Number(coutActuel["1.7 S (EUR)"]) || 0) +
+          (Number(coutActuel["1.8 P (EUR)"]) || 0) +
+          (Number(coutActuel["1.9 R (EUR)"]) || 0) +
+          (Number(coutActuel["2.1 S (EUR)"]) || 0) +
+          (Number(coutActuel["2.2 S (EUR)"]) || 0) +
+          (Number(coutActuel["3.2 F (EUR)"]) || 0) +
+          (Number(coutActuel["3.4 G (EUR)"]) || 0) +
+          (Number(coutActuel["4 S (EUR)"]) || 0);
+
+        const instruments = [
+          {
+            icon: User,
+            title: t.experts,
+            amount: Number(coutActuel["1. S (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["1. S (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#f59e0b",
+          },
+        
+          {
+            icon: Building2,
+            title: t.prestationsSiege,
+            amount: Number(coutActuel["1.6 L (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["1.6 L (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#f59e0b",
+          },
+        
+          {
+            icon: Building,
+            title: t.prestationsBureaux,
+            amount: Number(coutActuel["1.7 S (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["1.7 S (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#f59e0b",
+          },
+        
+          {
+            icon: UserRound,
+            title: t.servicesRessourcesHumaines,
+            amount: Number(coutActuel["1.8 P (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["1.8 P (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#f59e0b",
+          },
+        
+          {
+            icon: Plane,
+            title: t.fraisDeplacement,
+            amount: Number(coutActuel["1.9 R (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["1.9 R (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#f97316",
+          },
+        
+          {
+            icon: ShoppingCart,
+            title: t.achats,
+            amount: Number(coutActuel["2.1 S (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["2.1 S (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#2563eb",
+          },
+        
+          {
+            icon: Briefcase,
+            title: t.approvisionnementConstruction,
+            amount: Number(coutActuel["2.2 S (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["2.2 S (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#7c3aed",
+          },
+        
+          {
+            icon: Wallet,
+            title: t.sl,
+            amount: Number(coutActuel["3.2 F (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["3.2 F (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#2563eb",
+          },
+        
+          {
+            icon: Coins,
+            title: t.grants,
+            amount: Number(coutActuel["3.4 G (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["3.4 G (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#2563eb",
+          },
+        
+          {
+            icon: Coins,
+            title: t.autres,
+            amount: Number(coutActuel["4 S (EUR)"]) || 0,
+            percent:
+              budgetTotalProjet > 0
+                ? ((Number(coutActuel["4 S (EUR)"]) || 0) / budgetTotalProjet) * 100
+                : 0,
+            color: "#64748b",
+          },
+        ];
 
   const dataGraph = data.filter((d) => {
           return uc === "Tous" || d.UC === uc;
@@ -593,6 +743,7 @@ export default function SuiviCouts() {
       color: "#16a34a",
     },
   ];
+
 
   const tauxInstruments = [
     {
@@ -1079,7 +1230,7 @@ export default function SuiviCouts() {
                 key={i}
                 style={{
                   ...styles.saasRow,
-                  gridTemplateColumns: '2fr 1fr 1fr',
+                  gridTemplateColumns: '2.2fr 1.5fr 2fr',
                   background: i % 2 === 0 ? '#ffffff' : 'transparent',
                 }}
               >
@@ -1102,17 +1253,25 @@ export default function SuiviCouts() {
 
                 {/* PROGRESS + % INLINE */}
                 <div style={styles.progressCell}>
-                  <span style={styles.percentLeft}>{percent.toFixed(1)}%</span>
+                <span
+                  style={{
+                    ...styles.percentLeft,
+                    color: getProgressColor(percent),
+                    fontWeight: 700,
+                  }}
+                >
+                  {percent.toFixed(1)}%
+                </span>
 
-                  <div style={styles.progress}>
-                    <div
-                      style={{
-                        ...styles.progressBarAnimated,
-                        width: `${percent}%`,
-                        background: getProgressColor(percent),
-                      }}
-                    />
-                  </div>
+                <div style={styles.progress}>
+                  <div
+                    style={{
+                      ...styles.progressBarAnimated,
+                      width: `${percent}%`,
+                      background: getProgressColor(percent),
+                    }}
+                  />
+                </div>
                 </div>
               </div>
             );
@@ -1130,7 +1289,7 @@ export default function SuiviCouts() {
                 color: '#1d4ed8',
               }}
             >
-              {new Intl.NumberFormat("fr-FR").format(coutActuel["DC"] || 0)} €
+              {new Intl.NumberFormat("fr-FR").format(totalOutputs)} €
             </div>
 
             <div
@@ -1141,12 +1300,15 @@ export default function SuiviCouts() {
                 fontWeight: 800,
               }}
             >
-              {((coutActuel["TD"] || 0) * 100).toFixed(1)}%
+              {budgetTotalProjet > 0
+                ? ((totalOutputs / budgetTotalProjet) * 100).toFixed(1)
+                : "0.0"
+              }%
             </div>
           </div>
         </div>
 
-      {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
+      {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT  */}
         <div style={styles.card}>
           <div style={styles.cardHeader}>
              {t.byInstrument}
@@ -1159,93 +1321,110 @@ export default function SuiviCouts() {
             <span>{t.budgetShare}</span>
           </div>
 
-          {instruments.map((item, i) => {
-            const Icon = item.icon;
+          <div
+            style={{
+              maxHeight: 324,
+              overflowY: "auto",
+              overflowX: "hidden",
+            }}
+          >
+            {instruments.map((item, i) => {
+              const Icon = item.icon;
 
-            const percent = Math.min(
-              Number(item.percent) || 0,
-              100
-            );
+              const percent = Math.min(
+                Number(item.percent) || 0,
+                100
+              );
 
-            return (
-              <div
-                key={i}
-                style={{
-                  ...styles.saasRow,
-                  background: i % 2 === 0 ? '#fff' : '#f8fafc',
-                }}
-              >
-                {/* COL 1 */}
-                <div style={styles.cellFlex}>
-                  <div
-                    style={{
-                      ...styles.badge,
-                      background: 'transparent',
-                    }}
-                  >
-                    <Icon size={18} color={item.color} />
-                  </div>
-
-                  <div style={styles.rowTitle}>{item.title}</div>
-                </div>
-
-                <div style={styles.amount}>
-                  {
-                  new Intl.NumberFormat("fr-FR")
-                  .format(item.amount)
-                  } €
-                </div>
-
-                <div style={styles.progressCell}>
-                <span style={styles.percentLeft}>
-                  {percent.toFixed(1)}%
-                </span>
-
-                  <div style={styles.progress}>
+              return (
+                <div
+                  key={i}
+                  style={{
+                    ...styles.instrumentRow,
+                    background: i % 2 === 0 ? "#fff" : "#f8fafc",
+                  }}
+                >
+                  {/* COL 1 */}
+                  <div style={styles.cellFlex}>
                     <div
                       style={{
-                        ...styles.progressBarAnimated,
-                        width: `${percent}%`,
-                        background: getProgressColor(percent),
+                        ...styles.badge,
+                        background: "transparent",
                       }}
-                    />
+                    >
+                      <Icon size={18} color={item.color} />
+                    </div>
+
+                    <div style={styles.rowTitle}>
+                      {item.title}
+                    </div>
+                  </div>
+
+                  {/* COL 2 */}
+                  <div style={styles.amount}>
+                    {new Intl.NumberFormat("fr-FR").format(item.amount)} €
+                  </div>
+
+                  {/* COL 3 */}
+                  <div style={styles.progressCell}>
+                  <span
+                    style={{
+                      ...styles.percentLeft,
+                      color: getProgressColor(percent),
+                      fontWeight: 700,
+                    }}
+                  >
+                    {percent.toFixed(1)}%
+                  </span>
+
+                    <div style={styles.progress}>
+                      <div
+                        style={{
+                          ...styles.progressBarAnimated,
+                          width: `${percent}%`,
+                          background: getProgressColor(percent),
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-          <div style={styles.totalRow}>
+              );
+            })}
+          </div>
+
+      <div style={styles.totalRow}>
           <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
             {t.total}
           </div>
 
-            <div
-              style={{
-                fontWeight: 800,
-                textAlign: 'left',
-                fontSize: 12,
-                color: '#1d4ed8',
-              }}
-            >
-              {
-              new Intl.NumberFormat("fr-FR")
-              .format(coutActuel["DC"] || 0)
-              } €
-            </div>
+          <div
+            style={{
+              fontWeight: 800,
+              textAlign: 'left',
+              fontSize: 12,
+              color: '#1d4ed8',
+            }}
+          >
+            {new Intl.NumberFormat("fr-FR").format(totalInstruments)} €
+          </div>
 
-            <div
-              style={{
-                textAlign: 'center',
-                fontSize: 12,
-                color: '#1d4ed8',
-                fontWeight: 800,
-              }}
-            >
-              {
-              ((coutActuel["TD"] || 0) * 100)
-              .toFixed(1)
-              }%
-            </div>
+          <div
+            style={{
+              textAlign: 'center',
+              fontSize: 12,
+              color: getProgressColor(
+                budgetTotalProjet > 0
+                  ? (totalInstruments / budgetTotalProjet) * 100
+                  : 0
+              ),
+              fontWeight: 800,
+            }}
+          >
+            {budgetTotalProjet > 0
+              ? ((totalInstruments / budgetTotalProjet) * 100).toFixed(1)
+              : "0.0"
+            }%
+          </div>
           </div>
         </div>{' '}
       </div>{' '}
@@ -2043,7 +2222,7 @@ const styles: any = {
 
   totalRow: {
     display: 'grid',
-    gridTemplateColumns: '2fr 1fr 1fr',
+    gridTemplateColumns: '2fr 1.5fr 1.2fr',
     alignItems: 'center',
     padding: '8px 10px',
     borderTop: '1px solid black',
@@ -2072,8 +2251,8 @@ const styles: any = {
 
   stickyHeader: {
     display: 'grid',
-    gridTemplateColumns: '2.4fr 1fr 1.2fr', // OK
-    padding: '9px 12px',
+    gridTemplateColumns: '2fr 1.2fr 2.5fr', // OK
+    padding: '9px 10px',
     fontSize: 10,
     fontWeight: 800,
     color: '#475569',
@@ -2140,10 +2319,19 @@ const styles: any = {
 
   saasRow: {
     display: 'grid',
-    gridTemplateColumns: '2.4fr 1fr 1.2fr', // EXACT MATCH
+    gridTemplateColumns: '2.4fr 1fr 1.2fr',
     alignItems: 'center',
-    height: 54, // 👈 fixe
+    height: 54,
     padding: '0 12px',
+    borderBottom: '1px solid #eef2f7',
+  },
+  
+  instrumentRow: {
+    display: 'grid',
+    gridTemplateColumns: '2.5fr 1.5fr 1.2fr',
+    alignItems: 'center',
+    height: 42,
+    padding: '0 10px',
     borderBottom: '1px solid #eef2f7',
   },
 
