@@ -469,20 +469,48 @@ export default function SuiviCouts() {
       return filtreAnnee && filtreMois && filtreUC;    
   });
 
-  const coutActuel = dataFiltre.find(
-    d => d["BD C1 (EUR)"] !== null
-  ) || dataFiltre[0] || {};
+  const coutActuel =
+  mois !== "Tous"
+    ? dataFiltre.find(
+        d => d.UC === (uc === "Tous" ? "Tous" : uc)
+      ) || {}
+    : dataFiltre.find(
+        d => d.UC === (uc === "Tous" ? "Tous" : uc) &&
+             d.Mois === "Décembre"
+      ) ||
+      dataFiltre.find(
+        d => d.UC === (uc === "Tous" ? "Tous" : uc) &&
+             d.Mois === "Novembre"
+      ) ||
+      dataFiltre.find(
+        d => d.UC === (uc === "Tous" ? "Tous" : uc) &&
+             d.Mois === "Octobre"
+      ) ||
+      dataFiltre[0] ||
+      {};
 
+
+  const budgetTotal =
+      Number(coutActuel["BT"]) || 34500000;
+
+      const decaissementCumule =
+      Number(coutActuel["DC"]) || 0;
+    
   const tauxDecaissement =
-        (coutActuel["TD"] || 0) * 100;
-
-  const decaisse = coutActuel["D (EUR)"] || 0;
-  const planification = coutActuel["PA (EUR)"] || 0;      
-        
+      budgetTotal > 0
+        ? (decaissementCumule / budgetTotal) * 100
+        : 0;
+    
+  const decaisse =
+      Number(coutActuel["D (EUR)"]) || 0;
+    
+  const planification =
+      Number(coutActuel["PA (EUR)"]) || 0;
+    
   const tauxAvancement =
-          planification > 0
-            ? (decaisse / planification) * 100
-            : 0;
+      planification > 0
+        ? (decaisse / planification) * 100
+        : 0;
 
   const couleurDonut =
   tauxDecaissement < 25
@@ -698,37 +726,89 @@ export default function SuiviCouts() {
           },
         ];
 
-        const dataGraph = data.filter((d) => {
-          const filtreUC = uc === "Tous" || d.UC === uc;
-          const filtreMois = mois === "Tous" || d.Mois === mois;
-        
-          return filtreUC && filtreMois;
-        });
-        
-        // Additionne toutes les lignes correspondant au filtre
-        const yearlyData = [2024, 2025, 2026, 2027, 2028, 2029, 2030].map((annee) => {
-          const montant = dataGraph.reduce((total, d) => {
-            return total + (Number(d[`BD ${annee} (EUR)`]) || 0);
-          }, 0);
-        
-          const pourcentage = dataGraph.reduce((total, d) => {
-            return total + (Number(d[`BD ${annee} (%)`]) || 0);
-          }, 0);
-        
-          return {
-            year: String(annee),
-            value: montant / 1_000_000,
-            percent: (pourcentage * 100).toFixed(1),
-          };
-        });
+        const anneesGraph = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 
-        console.log("========== GRAPHE ==========");
-console.log("UC sélectionnée :", uc);
+
+// =====================================================
+// LIGNE DE RÉFÉRENCE POUR LE GRAPHIQUE ANNUEL
+// =====================================================
+
+let ligneGraph: CoutActivite | undefined;
+
+
+// Si un mois est sélectionné,
+// on prend exactement ce mois.
+if (mois !== "Tous") {
+
+  ligneGraph = data.find(
+    d =>
+      d.Année === annee &&
+      d.Mois === mois &&
+      (uc === "Tous" || d.UC === uc)
+  );
+
+}
+
+
+// Si "Tous" les mois,
+// on prend la dernière ligne disponible
+// de l'année sélectionnée.
+if (!ligneGraph) {
+
+  const lignesAnnee = data
+    .filter(
+      d =>
+        d.Année === annee &&
+        (uc === "Tous" || d.UC === uc)
+    )
+    .sort(
+      (a, b) =>
+        ordreMois.indexOf(a.Mois) -
+        ordreMois.indexOf(b.Mois)
+    );
+
+  ligneGraph = lignesAnnee[lignesAnnee.length - 1];
+
+}
+
+
+// Sécurité
+if (!ligneGraph) {
+  ligneGraph = data[0];
+}
+
+
+// =====================================================
+// GRAPHIQUE ANNUEL
+// =====================================================
+
+const yearlyData = anneesGraph.map((anneeGraph) => {
+
+  const valeur = Number(
+    ligneGraph?.[`BD ${anneeGraph} (EUR)`] || 0
+  );
+
+  const pourcentage =
+    budgetTotalProjet > 0
+      ? (valeur / budgetTotalProjet) * 100
+      : 0;
+
+  return {
+    year: String(anneeGraph),
+    value: valeur / 1_000_000,
+    percent: pourcentage.toFixed(1),
+  };
+
+});
+
+
+console.log("========== GRAPHE ANNUEL ==========");
+console.log("Année sélectionnée :", annee);
 console.log("Mois sélectionné :", mois);
-console.log("Nombre de lignes :", dataGraph.length);
-console.log("Lignes du graphe :", dataGraph);
-console.log("YearlyData :", JSON.stringify(yearlyData, null, 2));
-console.table(yearlyData);
+console.log("UC sélectionnée :", uc);
+console.log("Ligne utilisée :", ligneGraph);
+console.log("YearlyData :", yearlyData);
+
 
   const tauxComposantes = [
     {
@@ -823,6 +903,23 @@ console.table(yearlyData);
     console.log("D :", coutActuel["D"]);
     console.log("PA :", coutActuel["PA"]);
     console.log("Taux :", tauxAvancement);
+
+    console.log("========== DC PAR ANNÉE ==========");
+
+console.table(
+  data
+    .filter(d => d.UC === "Tous")
+    .map(d => ({
+      Année: d.Année,
+      Mois: d.Mois,
+      D: d["D (EUR)"],
+      DC: d["DC"],
+      TD: d["TD"],
+      BT: d["BT"],
+    }))
+);
+
+    
 
   const getPercent = (p: string) =>
     Math.min(parseFloat(p.replace(',', '.')) || 0, 100);
@@ -990,17 +1087,9 @@ console.table(yearlyData);
                 <div style={styles.kpiContent}>
                 <div style={styles.kpiTopLabel}>{t.cumulative}</div>
 
-                  <div style={styles.kpiMainValue}>
-                    {
-                    coutActuel["DC"]
-                    ?
-                    new Intl.NumberFormat("fr-FR").format(
-                    coutActuel["DC"]
-                    )
-                    :
-                    "0"
-                    } €
-                    </div>
+                <div style={styles.kpiMainValue}>
+                  {new Intl.NumberFormat("fr-FR").format(decaissementCumule)} €
+                </div>
 
                   <div style={styles.kpiDivider} />
 
@@ -1009,17 +1098,9 @@ console.table(yearlyData);
                     {t.totalBudget}
                   </span>
                     <span style={styles.kpiSubValue}>
-                      <div style={styles.kpiSubValue}>
-                        {
-                        coutActuel["BT"]
-                        ?
-                        new Intl.NumberFormat("fr-FR").format(
-                        coutActuel["BT"]
-                        )
-                        :
-                        "0"
-                        } €
-                      </div>
+                    <span style={styles.kpiSubValue}>
+                      {new Intl.NumberFormat("fr-FR").format(budgetTotal)} €
+                    </span>
                     </span>
                   </div>
                 </div>
@@ -1035,12 +1116,12 @@ console.table(yearlyData);
                     <PieChart>
                     <Pie
                       data={[
-                      {
-                      value:tauxDecaissement
-                      },
-                      {
-                      value:100-tauxDecaissement
-                      }
+                        {
+                          value: Math.min(100, Math.max(0, tauxDecaissement))
+                        },
+                        {
+                          value: Math.max(0, 100 - tauxDecaissement)
+                        }
                       ]}
                         dataKey="value"
                         innerRadius={27}
@@ -1121,8 +1202,7 @@ console.table(yearlyData);
 
               {/* AXE Y */}
               <YAxis
-                domain={[0, 16]}
-                ticks={[0, 4, 8, 12, 16]}
+                domain={[0, 'auto']}
                 tickFormatter={(v) => (v === 0 ? '0' : `${v}M`)}
                 tick={{
                   fontSize: 10,
