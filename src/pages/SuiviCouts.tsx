@@ -777,7 +777,6 @@ if (!ligneGraph) {
   ligneGraph = data[0];
 }
 
-
 // =====================================================
 // GRAPHIQUE ANNUEL
 // =====================================================
@@ -844,6 +843,7 @@ console.log("YearlyData :", yearlyData);
     },
   ];
 
+  const [bailleur, setBailleur] = useState<string>("BMZ");
 
   const tauxInstruments = [
     {
@@ -1288,27 +1288,27 @@ console.table(
 
         {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
         <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                minWidth: 0,
-              }}
-            >
-              <span
-                style={{
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {t.byComponent}
-              </span>
-              <Info size={18} />
-            </div>
-          </div>
+  <div style={styles.cardHeader}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        minWidth: 0,
+      }}
+    >
+      <span
+        style={{
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {t.byComponent}
+      </span>
+      <Info size={18} />
+    </div>
+  </div>
 
           {/* HEADER STICKY */}
             <div style={styles.stickyHeader}>
@@ -1412,7 +1412,29 @@ console.table(
         <div style={styles.card}>
           <div style={styles.cardHeader}>
              {t.byInstrument}
-            <Info size={18} />
+             <select
+              value={bailleur}
+              onChange={(e) => setBailleur(e.target.value)}
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                width: 70,
+                minWidth: 70,
+                height: 25,
+                padding: '5px 15px 5px 8px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                backgroundColor: bailleur === 'BMZ' ? '#eff6ff' : '#fefce8',
+                color: bailleur === 'BMZ' ? '#1d4ed8' : '#854d0e',
+                cursor: 'pointer',
+                outline: 'none',
+                boxSizing: 'border-box',
+                flexShrink: 0,
+              }}
+            >
+              <option value="BMZ">BMZ</option>
+              <option value="UE">UE</option>
+            </select>
           </div>
 
           <div style={styles.tableHeaderRow}>
