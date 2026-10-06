@@ -23,6 +23,9 @@ export default function UpdateModal({
     "Par composante" | "Par instrument"
   >("Par composante");
 
+  const [uniteCoordination, setUniteCoordination] =
+  useState("UCT");
+
   const [fichier, setFichier] = useState<File | null>(null);
 
   const [message, setMessage] = useState<string | null>(null);
@@ -270,36 +273,65 @@ export default function UpdateModal({
               </label>
             </div>
 
-            {/* =========================
-                MENU DÉROULANT UNIQUE
+           {/* =========================
+                MENUS DE PARAMÉTRAGE
             ========================= */}
 
             {typeMiseAJour && (
-              <div style={styles.levelContainer}>
+            <div style={styles.levelContainer}>
+
+                {/* NIVEAU DE MISE À JOUR */}
+                <div style={styles.selectGroup}>
                 <div style={styles.levelLabel}>
-                  Niveau de mise à jour
+                    Niveau de mise à jour
                 </div>
 
                 <select
-                  value={niveau}
-                  onChange={(e) =>
+                    value={niveau}
+                    onChange={(e) =>
                     setNiveau(
-                      e.target.value as
+                        e.target.value as
                         | "Par composante"
                         | "Par instrument"
                     )
-                  }
-                  style={styles.select}
+                    }
+                    style={styles.select}
                 >
-                  <option value="Par composante">
+                    <option value="Par composante">
                     Par composante
-                  </option>
+                    </option>
 
-                  <option value="Par instrument">
+                    <option value="Par instrument">
                     Par instrument
-                  </option>
+                    </option>
                 </select>
-              </div>
+                </div>
+
+                {/* UNITÉ DE COORDINATION */}
+                {typeMiseAJour === "avancement" && (
+                <div style={styles.selectGroup}>
+                    <div style={styles.levelLabel}>
+                    Unité de coordination
+                    </div>
+
+                    <select
+                    value={uniteCoordination}
+                    onChange={(e) =>
+                        setUniteCoordination(e.target.value)
+                    }
+                    style={styles.select}
+                    >
+                    <option value="UCT">UCT</option>
+                    <option value="UCR-A">UCR-A</option>
+                    <option value="UCR-B">UCR-B</option>
+                    <option value="UCR-D">UCR-D</option>
+                    <option value="UCR-F">UCR-F</option>
+                    <option value="UCR-FD">UCR-FD</option>
+                    </select>
+                </div>
+                )}
+
+            </div>
             )}
 
             {/* =========================
@@ -632,10 +664,10 @@ const styles: {
   },
 
   levelLabel: {
-    fontSize: 11,
-    fontWeight: 700,
+    fontSize: 10,
+    fontWeight: 800,
     color: "#64748b",
-    flex: 1,
+    marginBottom: 1,
   },
 
   select: {
@@ -650,6 +682,14 @@ const styles: {
     fontWeight: 700,
     outline: "none",
     cursor: "pointer",
+  },
+
+  selectGroup: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 5,
   },
 
   /* =========================
