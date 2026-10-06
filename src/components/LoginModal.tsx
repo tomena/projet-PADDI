@@ -14,7 +14,7 @@ export default function LoginModal({
   const [error, setError] = useState("");
 
   // Authentification temporaire pour la démonstration
-  const DEMO_EMAIL = "admin@paddi.mg";
+  const DEMO_EMAIL = "zo.ravelonirina@giz.de";
   const DEMO_PASSWORD = "Paddi2026";
 
   const handleSubmit = (e: React.FormEvent) => {
