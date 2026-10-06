@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import LoginModal from "../components/LoginModal";
+import UpdateModal from "../components/UpdateModal";
 import {CalendarDays,RotateCcw,RefreshCw,Building2,Building,Target,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
       } from 'lucide-react';
 import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
@@ -409,6 +410,7 @@ const ordreMois = [
 export default function SuiviCouts() {
 
   const [showLogin, setShowLogin] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
 
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
@@ -2061,15 +2063,23 @@ console.table(
     </div>
 
     {/* ================= LOGIN MODAL ================= */}
-    {showLogin && (
-      <LoginModal
-        onClose={() => setShowLogin(false)}
-        onSuccess={() => {
-          setShowLogin(false);
-          console.log("Utilisateur authentifié");
-        }}
-      />
-    )}
+    {/* LOGIN */}
+      {showLogin && (
+        <LoginModal
+          onClose={() => setShowLogin(false)}
+          onSuccess={() => {
+            setShowLogin(false);
+            setShowUpdate(true);
+          }}
+        />
+      )}
+
+      {/* MISE À JOUR */}
+      {showUpdate && (
+        <UpdateModal
+          onClose={() => setShowUpdate(false)}
+        />
+      )}
 
   </div>
   );
