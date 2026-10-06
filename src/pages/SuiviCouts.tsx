@@ -20,14 +20,11 @@ interface CoutActivite {
       const TEXT = {
         fr: {
           title: "SUIVI DES COÛTS",
-          subtitle: "Plan Stratégique 2024 - 2030",
-      
-          updated: "Données mises à jour le :",
-      
+          subtitle: "Plan Stratégique 2024 - 2030",      
+          updated: "Données mises à jour le :",      
           year: "ANNÉE",
           month: "MOIS",
-          unit: "UNITÉ DE COORDINATION",
-      
+          unit: "UNITÉ DE COORDINATION",      
           all: "Tous",
           reset: "Réinitialiser les filtres",
       
@@ -53,8 +50,7 @@ interface CoutActivite {
           progressComponent: "TAUX D’AVANCEMENT PAR COMPOSANTE",
           progressInstrument: "TAUX D’AVANCEMENT PAR INSTRUMENT",
       
-          planned: "PLANIFIÉ",
-      
+          planned: "PLANIFIÉ",      
           legend: "LÉGENDE (TAUX D'AVANCEMENT)",
           info:
             "Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.",
@@ -494,14 +490,75 @@ export default function SuiviCouts() {
       dataFiltre[0] ||
       {};
 
+      const budgetTotalProjet = 34_500_000;
 
-  const budgetTotal =
-      Number(coutActuel["BT"]) || 34500000;
+      // =====================================================
+      // LIGNE DE RÉFÉRENCE POUR LE KPI ET LE GRAPHE
+      // =====================================================
 
-      const decaissementCumule =
-      Number(coutActuel["DC"]) || 0;
+      const ucCible = uc === "Tous" ? "Tous" : uc;
+
+      let ligneGraph: CoutActivite | undefined;
+
+      // -----------------------------------------------------
+      // 1. MOIS PRÉCIS
+      // -----------------------------------------------------
+      if (mois !== "Tous") {
+        ligneGraph = data.find(
+          d =>
+            d.Année === annee &&
+            d.Mois === mois &&
+            d.UC === ucCible
+        );
+      }
+
+      // -----------------------------------------------------
+      // 2. TOUS LES MOIS
+      // → prendre la dernière ligne de l'année
+      // → avec une vraie valeur de décaissement
+      // -----------------------------------------------------
+      if (mois === "Tous" || !ligneGraph) {
+
+        const lignesAnnee = data
+          .filter(
+            d =>
+              d.Année === annee &&
+              d.UC === ucCible
+          )
+          .sort(
+            (a, b) =>
+              ordreMois.indexOf(b.Mois) -
+              ordreMois.indexOf(a.Mois)
+          );
+
+        // Cherche le dernier mois ayant une valeur BD
+        ligneGraph = lignesAnnee.find(
+          d => Number(d[`BD ${annee} (EUR)`]) > 0
+        );
+
+        // Si aucune valeur BD n'est trouvée,
+        // prendre simplement la dernière ligne
+        if (!ligneGraph) {
+          ligneGraph = lignesAnnee[0];
+        }
+      }
+
+      // -----------------------------------------------------
+      // 3. SÉCURITÉ
+      // -----------------------------------------------------
+      if (!ligneGraph) {
+        ligneGraph = data[0];
+      }
+
+const budgetTotal =
+      Number(ligneGraph?.["BT"]) || 34_500_000;
     
-  const tauxDecaissement =
+    const decaissementCumule =
+      Number(
+        ligneGraph?.[`BD ${annee} (EUR)`] || 0
+      );
+    
+    const tauxDecaissement =
       budgetTotal > 0
         ? (decaissementCumule / budgetTotal) * 100
         : 0;
@@ -534,8 +591,7 @@ export default function SuiviCouts() {
       : tauxAvancement < 75
       ? "#22c55e"
       : "#2563eb";
-
-      const budgetTotalProjet = 34_500_000;
+    
 
       const output0 = Number(coutActuel["BD O0 (EUR)"]) || 0;
       const output1 = Number(coutActuel["BD O1 (EUR)"]) || 0;
@@ -733,120 +789,88 @@ export default function SuiviCouts() {
 
         const anneesGraph = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 
+      // =====================================================
+      // GRAPHIQUE ANNUEL
+      // =====================================================
 
-// =====================================================
-// LIGNE DE RÉFÉRENCE POUR LE GRAPHIQUE ANNUEL
-// =====================================================
+      const yearlyData = anneesGraph.map((anneeGraph) => {
 
-let ligneGraph: CoutActivite | undefined;
+        const valeur = Number(
+          ligneGraph?.[`BD ${anneeGraph} (EUR)`] || 0
+        );
 
+        const pourcentage =
+          budgetTotalProjet > 0
+            ? (valeur / budgetTotalProjet) * 100
+            : 0;
 
-// Si un mois est sélectionné,
-// on prend exactement ce mois.
-if (mois !== "Tous") {
+        return {
+          year: String(anneeGraph),
+          value: valeur / 1_000_000,
+          percent: pourcentage.toFixed(1),
+        };
 
-  ligneGraph = data.find(
-    d =>
-      d.Année === annee &&
-      d.Mois === mois &&
-      (uc === "Tous" || d.UC === uc)
-  );
-
-}
-
-
-// Si "Tous" les mois,
-// on prend la dernière ligne disponible
-// de l'année sélectionnée.
-if (!ligneGraph) {
-
-  const lignesAnnee = data
-    .filter(
-      d =>
-        d.Année === annee &&
-        (uc === "Tous" || d.UC === uc)
-    )
-    .sort(
-      (a, b) =>
-        ordreMois.indexOf(a.Mois) -
-        ordreMois.indexOf(b.Mois)
-    );
-
-  ligneGraph = lignesAnnee[lignesAnnee.length - 1];
-
-}
+      });
 
 
-// Sécurité
-if (!ligneGraph) {
-  ligneGraph = data[0];
-}
-
-// =====================================================
-// GRAPHIQUE ANNUEL
-// =====================================================
-
-const yearlyData = anneesGraph.map((anneeGraph) => {
-
-  const valeur = Number(
-    ligneGraph?.[`BD ${anneeGraph} (EUR)`] || 0
-  );
-
-  const pourcentage =
-    budgetTotalProjet > 0
-      ? (valeur / budgetTotalProjet) * 100
-      : 0;
-
-  return {
-    year: String(anneeGraph),
-    value: valeur / 1_000_000,
-    percent: pourcentage.toFixed(1),
-  };
-
-});
+      console.log("========== GRAPHE ANNUEL ==========");
+      console.log("Année sélectionnée :", annee);
+      console.log("Mois sélectionné :", mois);
+      console.log("UC sélectionnée :", uc);
+      console.log("Ligne utilisée :", ligneGraph);
+      console.log("YearlyData :", yearlyData);
 
 
-console.log("========== GRAPHE ANNUEL ==========");
-console.log("Année sélectionnée :", annee);
-console.log("Mois sélectionné :", mois);
-console.log("UC sélectionnée :", uc);
-console.log("Ligne utilisée :", ligneGraph);
-console.log("YearlyData :", yearlyData);
-
-
-  const tauxComposantes = [
-    {
-      title: t.componentC1,
-      percent: (coutActuel["TAC C1"] || 0) * 100,
-      dec: coutActuel["D C1 (EUR)"] || 0,
-      plan: coutActuel["PA C1 (EUR)"] || 0,
-      color: "#2563eb",
-    },
-  
-    {
-      title: t.componentC2,
-      percent: (coutActuel["TAC C2"] || 0) * 100,
-      dec: coutActuel["D C2 (EUR)"] || 0,
-      plan: coutActuel["PA C2 (EUR)"] || 0,
-      color: "#2563eb",
-    },
-  
-    {
-      title: t.componentC3,
-      percent: (coutActuel["TAC C3"] || 0) * 100,
-      dec: coutActuel["D C3 (EUR)"] || 0,
-      plan: coutActuel["PA C3 (EUR)"] || 0,
-      color: "#16a34a",
-    },
-  
-    {
-      title: t.componentC4,
-      percent: (coutActuel["TAC C4"] || 0) * 100,
-      dec: coutActuel["D C4 (EUR)"] || 0,
-      plan: coutActuel["PA C4 (EUR)"] || 0,
-      color: "#16a34a",
-    },
-  ];
+      const tauxComposantes = [
+        {
+          title: t.componentC1,
+          percent:
+            Number(coutActuel["PA C1 (EUR)"]) > 0
+              ? (Number(coutActuel["D C1 (EUR)"]) || 0) /
+                Number(coutActuel["PA C1 (EUR)"]) *
+                100
+              : 0,
+          dec: Number(coutActuel["D C1 (EUR)"]) || 0,
+          plan: Number(coutActuel["PA C1 (EUR)"]) || 0,
+          color: "#2563eb",
+        },
+        {
+          title: t.componentC2,
+          percent:
+            Number(coutActuel["PA C2 (EUR)"]) > 0
+              ? (Number(coutActuel["D C2 (EUR)"]) || 0) /
+                Number(coutActuel["PA C2 (EUR)"]) *
+                100
+              : 0,
+          dec: Number(coutActuel["D C2 (EUR)"]) || 0,
+          plan: Number(coutActuel["PA C2 (EUR)"]) || 0,
+          color: "#2563eb",
+        },
+        {
+          title: t.componentC3,
+          percent:
+            Number(coutActuel["PA C3 (EUR)"]) > 0
+              ? (Number(coutActuel["D C3 (EUR)"]) || 0) /
+                Number(coutActuel["PA C3 (EUR)"]) *
+                100
+              : 0,
+          dec: Number(coutActuel["D C3 (EUR)"]) || 0,
+          plan: Number(coutActuel["PA C3 (EUR)"]) || 0,
+          color: "#16a34a",
+        },
+        {
+          title: t.componentC4,
+          percent:
+            Number(coutActuel["PA C4 (EUR)"]) > 0
+              ? (Number(coutActuel["D C4 (EUR)"]) || 0) /
+                Number(coutActuel["PA C4 (EUR)"]) *
+                100
+              : 0,
+          dec: Number(coutActuel["D C4 (EUR)"]) || 0,
+          plan: Number(coutActuel["PA C4 (EUR)"]) || 0,
+          color: "#16a34a",
+        },
+      ];
 
   const [bailleur, setBailleur] = useState<string>("BMZ");
 
@@ -1361,27 +1385,27 @@ console.table(
 
         {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
         <div style={styles.card}>
-  <div style={styles.cardHeader}>
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        minWidth: 0,
-      }}
-    >
-      <span
-        style={{
-          whiteSpace: 'nowrap',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-        }}
-      >
-        {t.byComponent}
-      </span>
-      <Info size={18} />
-    </div>
-  </div>
+          <div style={styles.cardHeader}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                minWidth: 0,
+              }}
+            >
+              <span
+                style={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {t.byComponent}
+              </span>
+              <Info size={18} />
+            </div>
+          </div>
 
           {/* HEADER STICKY */}
             <div style={styles.stickyHeader}>
@@ -1842,7 +1866,7 @@ console.table(
                     </Pie>
                   </PieChart>
 
-                  {/* 🔥 CENTRAGE PARFAIT ABSOLU */}
+                  {/*CENTRAGE PARFAIT ABSOLU */}
                   <div
                     style={{
                       position: 'absolute',
@@ -1958,7 +1982,7 @@ console.table(
                       </Pie>
                     </PieChart>
 
-                    {/* 🔥 CENTRAGE PARFAIT ABSOLU */}
+                    {/*CENTRAGE PARFAIT ABSOLU */}
                     <div
                       style={{
                         position: 'absolute',
@@ -2712,7 +2736,7 @@ const styles: any = {
   verticalSeparator: {
     width: 1,
     background: '#e2e8f0',
-    alignSelf: 'stretch', // 🔥 clé
+    alignSelf: 'stretch', // clé
   },
 
   money: {
