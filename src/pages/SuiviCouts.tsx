@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
-import {CalendarDays,RotateCcw,Building2,Building,Target,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
+import LoginModal from "../components/LoginModal";
+import {CalendarDays,RotateCcw,RefreshCw,Building2,Building,Target,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
       } from 'lucide-react';
 import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
 import { MdPayments, MdAccountBalanceWallet } from 'react-icons/md';
@@ -406,6 +407,8 @@ const ordreMois = [
 ];
 
 export default function SuiviCouts() {
+
+  const [showLogin, setShowLogin] = useState(false);
 
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
@@ -956,6 +959,8 @@ console.table(
           </div>
         </div>
 
+        
+
         <div style={styles.dateBox}>
           <CalendarDays size={18} />
 
@@ -968,6 +973,8 @@ console.table(
       </div>
       {/* FILTERS */}
       <div style={styles.filtersContainer}>
+
+        
         {/* ANNÉE */}
         <div style={styles.bigFilter}>
           <div style={styles.filterIcon}>
@@ -1052,16 +1059,80 @@ console.table(
           </div>
         </div>
 
-        {/* RESET */}
-        <div style={styles.resetContainer}>
-        <button
-          style={styles.resetBigBtn}
-          onClick={handleReset}
-        >
-          <RotateCcw size={20} />
-          {t.reset}
-        </button>
-      </div>
+        {/* ================= ACTIONS ================= */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                gap: 9,
+                paddingLeft: 4,
+              }}
+            >
+
+              {/* METTRE À JOUR */}
+              <button
+                onClick={() => setShowLogin(true)}
+                style={{
+                  width: "100%",
+                  height: 38,
+                  padding: "0 12px",
+                  borderRadius: 8,
+                  border: "1px solid #2563eb",
+                  background: "#2563eb",
+                  color: "#ffffff",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 7,
+                  boxShadow: "0 2px 5px rgba(37, 99, 235, 0.16)",
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#1d4ed8";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#2563eb";
+                }}
+              >
+                <RefreshCw size={15} />
+                Mettre à jour
+              </button>
+
+              {/* RÉINITIALISER */}
+              <button
+                onClick={handleReset}
+                style={{
+                  width: "100%",
+                  height: 38,
+                  padding: "0 12px",
+                  borderRadius: 8,
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#475569",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 7,
+                  transition: "all 0.2s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#f1f5f9";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#ffffff";
+                }}
+              >
+                <RotateCcw size={15} />
+                {t.reset}
+              </button>
+            </div>
       </div>
       {/* TOP GRID */}
       <div style={styles.topGrid}>
@@ -1967,26 +2038,39 @@ console.table(
           </span>
         </div>
 
-        {/* RIGHT : CTA */}
-        <div style={styles.footerCTA}>
-          <div style={styles.ctaIcon}>
-            📄
-          </div>
+              {/* RIGHT : CTA */}
+      <div style={styles.footerCTA}>
+        <div style={styles.ctaIcon}>
+          📄
+        </div>
 
         <div>
           <div style={{ fontWeight: 900, fontSize: 10 }}>
-          {t.access}
+            {t.access}
           </div>
+
           <div style={{ fontSize: 9, opacity: 0.8 }}>
-          {t.accessDesc}
+            {t.accessDesc}
           </div>
         </div>
 
         <button style={styles.ctaButton}>
-        {t.accessBtn} ↗
+          {t.accessBtn} ↗
         </button>
       </div>
     </div>
+
+    {/* ================= LOGIN MODAL ================= */}
+    {showLogin && (
+      <LoginModal
+        onClose={() => setShowLogin(false)}
+        onSuccess={() => {
+          setShowLogin(false);
+          console.log("Utilisateur authentifié");
+        }}
+      />
+    )}
+
   </div>
   );
 }
@@ -2142,66 +2226,73 @@ const styles: any = {
   },
 
   filtersContainer: {
-    width: '100%',
-    maxWidth: '100%',
-    boxSizing: 'border-box',
-    background: '#fff',
-    borderRadius: 10,
-    padding: '6px 8px',
-    border: '1px solid #dbe4f0',
-    display: 'grid',
-    gridTemplateColumns: '1fr 1fr 1.3fr 160px',
-    gap: 6,
-    alignItems: 'center',
-    overflow: 'hidden',
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr 1fr 240px",
+    gap: 16,
+    alignItems: "stretch",
+    padding: "16px",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: 14,
+    marginBottom: 20,
+    boxSizing: "border-box",
   },
 
   bigFilter: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '6px 10px',
-    borderRight: '1px solid #e5e7eb',
-    minWidth: 0,
+    display: "flex",
+    alignItems: "center",
+    gap: 13,
+    padding: "13px 15px",
+    background: "#ffffff",
+    border: "1px solid #e2e8f0",
+    borderRadius: 11,
+    minHeight: 78,
+    boxSizing: "border-box",
+    transition: "all 0.2s ease",
   },
 
   filterIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    background: '#eff6ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    width: 42,
+    height: 42,
+    minWidth: 42,
+    borderRadius: 10,
+    background: "#eff6ff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   filterLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 800,
-    color: '#1d4ed8',
-    marginBottom: 2,
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: "0.06em",
+    marginBottom: 4,
   },
 
   bigSelect: {
-    width: '100%',
-    height: 30,
-    borderRadius: 8,
-    border: '1px solid #cbd5e1',
-    padding: '0 8px',
-    fontSize: 12,
-    fontWeight: 600,
-    background: '#fff',
-    outline: 'none',
+    width: "100%",
+    height: 32,
+    padding: "0 28px 0 10px",
+    border: "1px solid #cbd5e1",
+    borderRadius: 7,
+    background: "#ffffff",
+    color: "#0f172a",
+    fontSize: 13,
+    fontWeight: 700,
+    outline: "none",
+    cursor: "pointer",
+    boxSizing: "border-box",
   },
 
   filterSub: {
-    marginTop: 6,
-    fontSize: 11,
-    color: '#6b7280',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    fontSize: 9,
+    color: "#94a3b8",
+    marginTop: 3,
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
   },
 
   resetContainer: {
