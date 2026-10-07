@@ -4,7 +4,7 @@ import { useLanguage } from "../context/LanguageContext";
 
 import {
   LayoutDashboard, BarChart3, Flame,Trees, Users, Globe2, Landmark, Map, MapPinned, Settings,Bot,Languages,Download, ChevronDown, ChevronRight,PanelLeftClose, PanelLeftOpen, Home, FolderKanban,
-  Database, Briefcase, DollarSign, Gavel, Wheat,Activity, ReceiptText, Store, BrainCircuit,
+  Database, Briefcase, DollarSign, Gavel, Wheat,Activity, ReceiptText, Store, LogOut, BrainCircuit,
 } from "lucide-react";
 
 const sidebarTxt = {
@@ -218,6 +218,9 @@ export default function Sidebar() {
   const location = useLocation();
   const { lang } = useLanguage();
   const t = sidebarTxt[lang];
+  const handleQuit = () => {
+    navigate("/");
+  };
 
   /*
    * Le module est envoyé depuis Home.tsx avec :
@@ -314,9 +317,7 @@ export default function Sidebar() {
         boxShadow: "0 0 0 1px rgba(0,0,0,0.04)",
       }}
     >
-      {/* ===================================================== */}
       {/* ======================== LOGO ======================== */}
-      {/* ===================================================== */}
 
       <div style={styles.logoBox}>
         <div
@@ -340,9 +341,8 @@ export default function Sidebar() {
       </div>
 
       <div style={styles.menuContainer}>
-        {/* ===================================================== */}
+
         {/* ======================== ACCUEIL ==================== */}
-        {/* ===================================================== */}
 
         <div
           style={{
@@ -363,9 +363,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        {/* ===================================================== */}
         {/* ======================== PADDI ====================== */}
-        {/* ===================================================== */}
 
         {module === "paddi" && (
           <>
@@ -396,9 +394,7 @@ export default function Sidebar() {
               </div>
             </div>
 
-            {/* ================================================= */}
             {/* ================= INDICATEUR PADDI+ ============= */}
-            {/* ================================================= */}
 
             <div
               style={styles.menuItem}
@@ -422,9 +418,8 @@ export default function Sidebar() {
 
             {open === "paddi" && !collapsed && (
               <div style={styles.subMenu}>
-                {/* ============================================= */}
+
                 {/* ================ SYSTEME ===================== */}
-                {/* ============================================= */}
 
                 <div
                   style={styles.groupMenu}
@@ -578,9 +573,7 @@ export default function Sidebar() {
                   </div>
                 )}
 
-                {/* ============================================= */}
                 {/* ========== AMENAGEMENT DU TERRITOIRE ========= */}
-                {/* ============================================= */}
 
                 <div
                   style={styles.groupMenu}
@@ -736,9 +729,7 @@ export default function Sidebar() {
               </div>
             )}
 
-            {/* ================================================= */}
             {/* ================= SUIVI DES COÛTS =============== */}
-            {/* ================================================= */}
 
             <div
               style={{
@@ -761,9 +752,7 @@ export default function Sidebar() {
               </div>
             </div>
 
-            {/* ================================================= */}
             {/* ========== SUIVI ACTIVITÉS ANNUELLES ============ */}
-            {/* ================================================= */}
 
             <div
               style={{
@@ -788,9 +777,7 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* ===================================================== */}
         {/* =================== ENVIRONNEMENT =================== */}
-        {/* ===================================================== */}
 
         {module === "environnement" && (
           <>
@@ -865,9 +852,7 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* ===================================================== */}
         {/* ================= CADRE STRATÉGIQUE ================= */}
-        {/* ===================================================== */}
 
         {module === "cadre" && (
           <>
@@ -894,9 +879,7 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* ===================================================== */}
         {/* ======================= SOCIÉTÉ ==================== */}
-        {/* ===================================================== */}
 
         {module === "societe" && (
           <>
@@ -948,9 +931,7 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* ===================================================== */}
         {/* ======================= ÉCONOMIE =================== */}
-        {/* ===================================================== */}
 
         {module === "economie" && (
           <>
@@ -977,9 +958,8 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* ===================================================== */}
+
         {/* ==================== CARTOGRAPHIE ================== */}
-        {/* ===================================================== */}
 
         {module === "paddi" && (
           <>
@@ -1050,9 +1030,7 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* ===================================================== */}
         {/* ==================== CONFIGURATION ================= */}
-        {/* ===================================================== */}
 
         {module === "paddi" && (
           <>
@@ -1145,24 +1123,21 @@ export default function Sidebar() {
           </>
         )}
 
-        {/* ===================================================== */}
         {/* ====================== LOGIN ======================== */}
-        {/* ===================================================== */}
 
-        <div style={styles.authBox} onClick={toggleAuth}>
+        <div style={styles.authBox} onClick={handleQuit}>
           <div style={styles.menuLeft}>
-            <Users size={18} />
-            {!collapsed &&
-                (isLoggedIn ? t.logout : t.login)}
+            <LogOut size={18} />
+            {!collapsed && "Quitter"}
           </div>
 
           <div
             style={{
               ...styles.authBadge,
-              background: isLoggedIn ? "#dc2626" : "#059669",
+              background: "#dc2626",
             }}
           >
-            {!collapsed && (isLoggedIn ? t.logoutBadge : t.loginBadge)}
+            {!collapsed && "Quitter"}
           </div>
         </div>
       </div>
@@ -1170,9 +1145,7 @@ export default function Sidebar() {
   );
 }
 
-/* ============================================================= */
 /* ======================= STYLES ============================== */
-/* ============================================================= */
 
 const styles: any = {
   sidebar: {
