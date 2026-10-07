@@ -24,7 +24,6 @@ import MicroEntreprise from "./pages/MicroEntreprise";
 import Beneficiaires from "./pages/Beneficiaires";
 import DecisionCOSAP from "./pages/DecisionCOSAP";
 import MesureRegionale from "./pages/MesureRegionale";
-import Quitter from "./pages/Quitter";
 
 export default function App() {
   const data = {
