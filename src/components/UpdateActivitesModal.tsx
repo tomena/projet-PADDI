@@ -150,18 +150,19 @@ export default function UpdateActivitesModal({
       <label style={styles.fieldLabel}>{label}</label>
 
       <input
-        type="number"
-        min="0"
-        value={values[id] || ""}
-        onChange={(e) =>
-          setValues((prev) => ({
-            ...prev,
-            [id]: e.target.value,
-          }))
-        }
-        placeholder="Saisir une valeur"
-        style={styles.normalInput}
-      />
+            type="number"
+            min="0"
+            step="1"
+            value={values[id] || ""}
+            onChange={(e) =>
+                setValues((prev) => ({
+                ...prev,
+                [id]: e.target.value,
+                }))
+            }
+            placeholder="Saisir une valeur"
+            style={styles.normalInput}
+            />
     </div>
   );
 
@@ -232,24 +233,24 @@ export default function UpdateActivitesModal({
   const renderGlobal = () => (
     <>
       {renderHeaderFields()}
-
+  
       <div style={styles.fieldsGrid}>
         <InputNumber
           id="totalPlanifiees"
           label="Total activités planifiées"
         />
-
-        <InputPercent
+  
+        <InputNumber
           id="achevees"
           label="Activités achevées"
         />
-
-        <InputPercent
+  
+        <InputNumber
           id="enCours"
           label="Activités en cours"
         />
-
-        <InputPercent
+  
+        <InputNumber
           id="nonDemarrees"
           label="Activités non démarrées"
         />
