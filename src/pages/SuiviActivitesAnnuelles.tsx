@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useLanguage } from "../context/LanguageContext";
-import { CalendarDays, RotateCcw, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
+import ActivitesAccessModal from "../components/ActivitesAccessModal";
+import UpdateActivitesModal from "../components/UpdateActivitesModal";
+import { CalendarDays, RotateCcw, RefreshCw, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
 } from 'lucide-react';
 
 import { ResponsiveContainer, PieChart, Pie, Cell,
@@ -360,6 +362,9 @@ const ordreMois = [
 ];
 export default function SuiviActivitesAnnuelles() {
 
+  const [showLogin, setShowLogin] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
 
@@ -705,17 +710,35 @@ export default function SuiviActivitesAnnuelles() {
           </div>
         </div>
 
-        {/* RESET */}
-        <div style={styles.resetContainer}>
-          <button
-            style={styles.resetBigBtn}
-            onClick={handleReset}
-          >
-            <RotateCcw size={20} />
-            <span style={{ textAlign: 'center' }}>
-              {t.reset}
-            </span>
-          </button>
+        {/* ACTIONS */}
+        <div style={styles.actionsContainer}>
+
+        {/* RÉINITIALISER */}
+        <button
+          className="suivi-reset-btn"
+          style={styles.resetBigBtn}
+          onClick={handleReset}
+        >
+          <RotateCcw size={17} strokeWidth={1.8} />
+
+          <span>
+            {t.reset}
+          </span>
+        </button>
+
+        {/* MISE À JOUR */}
+        <button
+          className="suivi-update-btn"
+          style={styles.updateBigBtn}
+          onClick={() => setShowLogin(true)}
+        >
+          <RefreshCw size={17} strokeWidth={1.8} />
+
+          <span>
+            {t.update || "Mettre à jour"}
+          </span>
+        </button>
+
         </div>
       </div>
 
@@ -1091,6 +1114,20 @@ export default function SuiviActivitesAnnuelles() {
       </div>
     </div>
 
+    <ActivitesAccessModal
+      isOpen={showLogin}
+      onClose={() => setShowLogin(false)}
+      onSuccess={() => {
+        setShowLogin(false);
+        setShowUpdate(true);
+      }}
+    />
+
+    <UpdateActivitesModal
+      isOpen={showUpdate}
+      onClose={() => setShowUpdate(false)}
+    />
+
     </div>
   );
 }
@@ -1315,9 +1352,9 @@ centerSmall: {
     padding: '6px 8px',
     border: '1px solid #dbe4f0',
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+    gridTemplateColumns: 'repeat(3, minmax(220px, 1fr)) minmax(180px, 0.7fr)',
     gap: 6,
-    alignItems: 'center',
+    alignItems: 'stretch',
     overflow: 'hidden',
     marginTop: 10,
   },
@@ -1377,30 +1414,35 @@ centerSmall: {
   },
 
   resetContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: '100%',
-    minHeight: 100,
+    display: "flex",
+    alignItems: "stretch",
   },
-
+  
   resetBigBtn: {
+    flex: 1,
     width: '100%',
-    minHeight: 60,
-    padding: '6px 10px',
-    borderRadius: 8,
-    border: '1.2px solid #bfdbfe',
-    background: '#fff',
-    color: '#16a34a',
-    fontWeight: 700,
-    fontSize: 'clamp(11px, 1vw, 14px)',
-    cursor: 'pointer',  
+    minHeight: 0,
+  
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,  
-    lineHeight: 1.1,
-    textAlign: 'center',
+    gap: 8,
+  
+    background: '#ffffff',
+    color: '#475569',
+  
+    border: '1px solid #d5dde5',
+    borderRadius: 9,
+  
+    cursor: 'pointer',
+  
+    fontSize: 12.5,
+    fontWeight: 700,
+  
+    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
+  
+    transition:
+      'background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
   },
 
   resultsColumn: {
@@ -1772,6 +1814,45 @@ centerSmall: {
     gridTemplateRows: 'repeat(2, auto)',
     gap: 4,
     marginTop: 10,
+  },
+
+  updateContainer: {
+    display: "flex",
+    alignItems: "stretch",
+  },
+  
+  updateBigBtn: {
+    flex: 1,
+    width: '100%',
+    minHeight: 0,
+  
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  
+    background: '#15803d',
+    color: '#ffffff',
+  
+    border: '1px solid #15803d',
+    borderRadius: 9,
+  
+    cursor: 'pointer',
+  
+    fontSize: 12.5,
+    fontWeight: 700,
+  
+    boxShadow: '0 3px 8px rgba(21, 128, 61, 0.18)',
+  
+    transition:
+      'background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
+  },
+
+  actionsContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    height: '100%',
   },
   
 };
