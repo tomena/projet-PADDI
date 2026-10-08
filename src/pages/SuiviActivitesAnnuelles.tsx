@@ -364,6 +364,7 @@ export default function SuiviActivitesAnnuelles() {
 
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
+  const [userName, setUserName] = useState("");
 
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
@@ -1115,18 +1116,20 @@ export default function SuiviActivitesAnnuelles() {
     </div>
 
     <ActivitesAccessModal
-      isOpen={showLogin}
-      onClose={() => setShowLogin(false)}
-      onSuccess={() => {
-        setShowLogin(false);
-        setShowUpdate(true);
-      }}
-    />
+        isOpen={showLogin}
+        onClose={() => setShowLogin(false)}
+        onSuccess={(name) => {
+          setUserName(name);
+          setShowLogin(false);
+          setShowUpdate(true);
+        }}
+      />
 
-    <UpdateActivitesModal
-      isOpen={showUpdate}
-      onClose={() => setShowUpdate(false)}
-    />
+      <UpdateActivitesModal
+        isOpen={showUpdate}
+        onClose={() => setShowUpdate(false)}
+        userName={userName}
+      />
 
     </div>
   );
@@ -1196,8 +1199,7 @@ const styles: any = {
     gridTemplateColumns:'1.2fr 1fr 1.7fr',
     gap:2,
     alignItems: 'stretch',
-    marginTop: 7,
-  
+    marginTop: 7,  
     // responsive mobile
     '@media (max-width: 900px)': {
       gridTemplateColumns: '1fr',
@@ -1421,26 +1423,19 @@ centerSmall: {
   resetBigBtn: {
     flex: 1,
     width: '100%',
-    minHeight: 0,
-  
+    minHeight: 0,  
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-  
+    gap: 8,  
     background: '#ffffff',
-    color: '#475569',
-  
+    color: '#475569',  
     border: '1px solid #d5dde5',
-    borderRadius: 9,
-  
-    cursor: 'pointer',
-  
+    borderRadius: 9,  
+    cursor: 'pointer',  
     fontSize: 12.5,
-    fontWeight: 700,
-  
-    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
-  
+    fontWeight: 700,  
+    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',  
     transition:
       'background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
   },
@@ -1465,8 +1460,7 @@ centerSmall: {
   
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'center',
-  
+    alignItems: 'center',  
     boxSizing: 'border-box',
   },
   
@@ -1824,26 +1818,19 @@ centerSmall: {
   updateBigBtn: {
     flex: 1,
     width: '100%',
-    minHeight: 0,
-  
+    minHeight: 0,  
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-  
+    gap: 8,  
     background: '#15803d',
-    color: '#ffffff',
-  
+    color: '#ffffff',  
     border: '1px solid #15803d',
-    borderRadius: 9,
-  
-    cursor: 'pointer',
-  
+    borderRadius: 9,  
+    cursor: 'pointer',  
     fontSize: 12.5,
-    fontWeight: 700,
-  
-    boxShadow: '0 3px 8px rgba(21, 128, 61, 0.18)',
-  
+    fontWeight: 700,  
+    boxShadow: '0 3px 8px rgba(21, 128, 61, 0.18)',  
     transition:
       'background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
   },
