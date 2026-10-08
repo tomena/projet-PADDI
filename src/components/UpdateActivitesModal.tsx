@@ -4,6 +4,7 @@ import { X, Save, RotateCcw } from "lucide-react";
 interface UpdateActivitesModalProps {
   isOpen: boolean;
   onClose: () => void;
+  userName?: string;
 }
 
 type MainChoice = "taux" | "axes";
@@ -39,6 +40,7 @@ const annees = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
 export default function UpdateActivitesModal({
   isOpen,
   onClose,
+  userName,
 }: UpdateActivitesModalProps) {
   const [mainChoice, setMainChoice] = useState<MainChoice>("taux");
 
@@ -406,15 +408,21 @@ export default function UpdateActivitesModal({
         {/* ================= HEADER ================= */}
 
         <div style={styles.modalHeader}>
-          <div>
-            <h2 style={styles.title}>
-              Mise à jour
-            </h2>
+        <div>
+          <h2 style={styles.title}>
+            Mise à jour
+          </h2>
 
-            <p style={styles.subtitle}>
-              Suivi des activités annuelles
-            </p>
-          </div>
+          <p style={styles.subtitle}>
+            Suivi des activités annuelles
+          </p>
+
+          {userName && (
+            <div style={styles.welcome}>
+              Bienvenue {userName} !
+            </div>
+          )}
+        </div>
 
           <button
             onClick={onClose}
@@ -916,6 +924,17 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#ffffff",
     cursor: "pointer",
     fontSize: "12px",
+    fontWeight: 700,
+  },
+
+  welcome: {
+    display: "inline-block",
+    marginTop: "6px",
+    padding: "3px 8px",
+    borderRadius: "6px",
+    background: "#dcfce7",
+    color: "#166534",
+    fontSize: "10px",
     fontWeight: 700,
   },
 };
