@@ -407,6 +407,7 @@ export default function SuiviCouts() {
 
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
+  const [userName, setUserName] = useState("");
 
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
@@ -2091,7 +2092,8 @@ console.table(
       {showLogin && (
         <LoginModal
           onClose={() => setShowLogin(false)}
-          onSuccess={() => {
+          onSuccess={(name) => {
+            setUserName(name);
             setShowLogin(false);
             setShowUpdate(true);
           }}
@@ -2101,8 +2103,9 @@ console.table(
       {/* MISE À JOUR */}
       {showUpdate && (
         <UpdateModal
-          onClose={() => setShowUpdate(false)}
-        />
+        onClose={() => setShowUpdate(false)}
+        userName={userName}
+      />
       )}
 
   </div>
