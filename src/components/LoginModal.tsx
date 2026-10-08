@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 interface LoginModalProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (userName: string) => void;
 }
 
 export default function LoginModal({
@@ -14,15 +14,29 @@ export default function LoginModal({
   const [error, setError] = useState("");
 
   // Authentification temporaire pour la démonstration
-  const DEMO_EMAIL = "zo.ravelonirina@giz.de";
   const DEMO_PASSWORD = "Paddi2026";
+
+  // Utilisateurs autorisés
+  const USERS: Record<string, string> = {
+    "zo.ravelonirina@giz.de": "Zo",
+    "anjarampifohazana.toky@giz.de": "Toky",
+    "joary.andriamiharimanana@giz.de": "Joary",
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (email === DEMO_EMAIL && password === DEMO_PASSWORD) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (
+      USERS[normalizedEmail] &&
+      password === DEMO_PASSWORD
+    ) {
       setError("");
-      onSuccess();
+
+      // Envoie le prénom de l'utilisateur au composant parent
+      onSuccess(USERS[normalizedEmail]);
+
     } else {
       setError("Email ou mot de passe incorrect.");
     }
@@ -53,8 +67,10 @@ export default function LoginModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
+
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
+
           <div
             style={{
               width: 42,
@@ -91,11 +107,14 @@ export default function LoginModal({
           >
             Connectez-vous pour mettre à jour les coûts.
           </p>
+
         </div>
 
         <form onSubmit={handleSubmit}>
+
           {/* Email */}
           <div style={{ marginBottom: 16 }}>
+
             <label
               style={{
                 display: "block",
@@ -128,10 +147,12 @@ export default function LoginModal({
                 boxSizing: "border-box",
               }}
             />
+
           </div>
 
           {/* Mot de passe */}
           <div style={{ marginBottom: 16 }}>
+
             <label
               style={{
                 display: "block",
@@ -164,6 +185,7 @@ export default function LoginModal({
                 boxSizing: "border-box",
               }}
             />
+
           </div>
 
           {/* Erreur */}
@@ -191,6 +213,7 @@ export default function LoginModal({
               marginTop: 22,
             }}
           >
+
             <button
               type="button"
               onClick={onClose}
@@ -225,7 +248,9 @@ export default function LoginModal({
             >
               Se connecter
             </button>
+
           </div>
+
         </form>
       </div>
     </div>
