@@ -10,10 +10,12 @@ import {
 
 interface UpdateModalProps {
   onClose: () => void;
+  userName?: string;
 }
 
 export default function UpdateModal({
   onClose,
+  userName,
 }: UpdateModalProps) {
   const [typeMiseAJour, setTypeMiseAJour] = useState<
     "decaissement" | "avancement" | null
@@ -27,11 +29,8 @@ export default function UpdateModal({
   useState("UCT");
 
   const [fichier, setFichier] = useState<File | null>(null);
-
   const [message, setMessage] = useState<string | null>(null);
-
   const [erreur, setErreur] = useState<string | null>(null);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* =========================
@@ -166,6 +165,11 @@ export default function UpdateModal({
                 <div style={styles.subtitle}>
                   Importer et actualiser les données financières
                 </div>
+                {userName && (
+                <div style={styles.welcome}>
+                  Bienvenue {userName} !
+                </div>
+                )}
               </div>
             </div>
 
@@ -854,5 +858,16 @@ const styles: {
     alignItems: "center",
     justifyContent: "center",
     gap: 7,
+  },
+
+  welcome: {
+    display: "inline-block",
+    marginTop: 6,
+    padding: "3px 8px",
+    borderRadius: 6,
+    background: "#eff6ff",
+    color: "#1d4ed8",
+    fontSize: 10,
+    fontWeight: 700,
   },
 };
