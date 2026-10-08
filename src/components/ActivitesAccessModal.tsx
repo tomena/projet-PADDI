@@ -3,7 +3,7 @@ import React, { useState } from "react";
 interface ActivitesAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (userName: string) => void;
 }
 
 export default function ActivitesAccessModal({
@@ -33,14 +33,24 @@ export default function ActivitesAccessModal({
      * Accès provisoire pour le prototype.
      * À remplacer plus tard par le système d'authentification réel.
      */
+    const USERS: Record<string, string> = {
+      "zo.ravelonirina@giz.de": "Zo",
+      "anjarampifohazana.toky@giz.de": "Toky",
+      "joary.andriamiharimanana@giz.de": "Joary",
+    };
+    
+    const normalizedIdentifiant =
+      identifiant.trim().toLowerCase();
+    
     if (
-      identifiant === "zo.ravelonirina@giz.de" &&
+      USERS[normalizedIdentifiant] &&
       motDePasse === "Paddi2026"
     ) {
       setIdentifiant("");
       setMotDePasse("");
       setError("");
-      onSuccess();
+    
+      onSuccess(USERS[normalizedIdentifiant]);
     } else {
       setError("Identifiant ou mot de passe incorrect.");
     }
