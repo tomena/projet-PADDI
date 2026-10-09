@@ -21,6 +21,12 @@ export default function LoginModal({
     "zo.ravelonirina@giz.de": "Zo",
     "anjarampifohazana.toky@giz.de": "Toky",
     "joary.andriamiharimanana@giz.de": "Joary",
+  
+    "allan.hong-wa@giz.de": "Allan",
+    "nantenaina.herimanga@giz.de": "Herimanga",
+    "tolojanahary.velomahafaly@giz.de": "Njaka",
+    "mmichael.raharifidinarivo@giz.de": "Michael",
+    "tsinjoharinosy.rahaingoarivelo@giz.de": "Tsinjo",
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -168,7 +174,7 @@ export default function LoginModal({
             <input
               type="password"
               value={password}
-              onChange={(e) => {
+              onChange={(e) => { 
                 setPassword(e.target.value);
                 setError("");
               }}
