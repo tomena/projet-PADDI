@@ -1,12 +1,5 @@
-import React, { useRef, useState } from "react";
-import {
-  X,
-  RefreshCw,
-  FileSpreadsheet,
-  Upload,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
+import React, { useEffect, useRef, useState,} from "react";
+import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle,} from "lucide-react";
 
 interface UpdateModalProps {
   onClose: () => void;
@@ -27,6 +20,57 @@ export default function UpdateModal({
 
   const [uniteCoordination, setUniteCoordination] =
   useState("UCT");
+
+  useEffect(() => {
+    if (!userName) return;
+  
+    const uniteParUtilisateur: Record<string, string> = {
+      Allan: "UCR-D",
+      Herimanga: "UCR-B",
+      Njaka: "UCR-F",
+      Michael: "UCR-A",
+      Tsinjo: "UCR-FD",
+    };
+  
+    // Zo, Toky et Joary peuvent choisir librement
+    if (
+      userName === "Zo" ||
+      userName === "Toky" ||
+      userName === "Joary"
+    ) {
+      return;
+    }
+  
+    const unite = uniteParUtilisateur[userName];
+  
+    if (unite) {
+      setUniteCoordination(unite);
+    }
+  }, [userName]);
+
+  // ======================================================
+// DROITS D'ACCÈS AUX UNITÉS SELON L'UTILISATEUR
+// ======================================================
+
+const accesUnite: Record<string, string[] | "ALL"> = {
+  Zo: "ALL",
+  Toky: "ALL",
+  Joary: "ALL",
+
+  Allan: ["UCR-D"],
+  Herimanga: ["UCR-B"],
+  Njaka: ["UCR-F"],
+  Michael: ["UCR-A"],
+  Tsinjo: ["UCR-FD"],
+};
+
+const unitesAutorisees =
+  userName && accesUnite[userName]
+    ? accesUnite[userName]
+    : ["UCT"];
+
+const peutChoisirUnite =
+  unitesAutorisees === "ALL";
 
   const [fichier, setFichier] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -313,26 +357,45 @@ export default function UpdateModal({
 
                 {/* UNITÉ DE COORDINATION */}
                 {typeMiseAJour === "avancement" && (
-                <div style={styles.selectGroup}>
+                  <div style={styles.selectGroup}>
                     <div style={styles.levelLabel}>
-                    Unité de coordination
+                      Unité de coordination
                     </div>
 
                     <select
-                    value={uniteCoordination}
-                    onChange={(e) =>
+                      value={uniteCoordination}
+                      onChange={(e) =>
                         setUniteCoordination(e.target.value)
-                    }
-                    style={styles.select}
+                      }
+                      disabled={!peutChoisirUnite}
+                      style={{
+                        ...styles.select,
+                        ...(peutChoisirUnite
+                          ? {}
+                          : {
+                              backgroundColor: "#f1f5f9",
+                              color: "#475569",
+                              cursor: "not-allowed",
+                              borderColor: "#cbd5e1",
+                            }),
+                      }}
                     >
-                    <option value="UCT">UCT</option>
-                    <option value="UCR-A">UCR-A</option>
-                    <option value="UCR-B">UCR-B</option>
-                    <option value="UCR-D">UCR-D</option>
-                    <option value="UCR-F">UCR-F</option>
-                    <option value="UCR-FD">UCR-FD</option>
+                      {peutChoisirUnite ? (
+                        <>
+                          <option value="UCT">UCT</option>
+                          <option value="UCR-A">UCR-A</option>
+                          <option value="UCR-B">UCR-B</option>
+                          <option value="UCR-D">UCR-D</option>
+                          <option value="UCR-F">UCR-F</option>
+                          <option value="UCR-FD">UCR-FD</option>
+                        </>
+                      ) : (
+                        <option value={uniteCoordination}>
+                          {uniteCoordination}
+                        </option>
+                      )}
                     </select>
-                </div>
+                  </div>
                 )}
 
             </div>
@@ -486,16 +549,9 @@ export default function UpdateModal({
   );
 }
 
-/* =====================================================
-   STYLES
-===================================================== */
-
 const styles: {
   [key: string]: React.CSSProperties;
 } = {
-  /* =========================
-     OVERLAY
-  ========================= */
 
   overlay: {
     position: "fixed",
@@ -510,10 +566,6 @@ const styles: {
     boxSizing: "border-box",
   },
 
-  /* =========================
-     MODAL
-  ========================= */
-
   modal: {
     width: "100%",
     maxWidth: 570,
@@ -524,10 +576,6 @@ const styles: {
     overflow: "hidden",
     border: "1px solid #e2e8f0",
   },
-
-  /* =========================
-     HEADER
-  ========================= */
 
   header: {
     display: "flex",
@@ -581,10 +629,6 @@ const styles: {
     cursor: "pointer",
   },
 
-  /* =========================
-     CONTENT
-  ========================= */
-
   content: {
     padding: "20px 22px 22px",
   },
@@ -597,10 +641,6 @@ const styles: {
     letterSpacing: "0.06em",
     marginBottom: 11,
   },
-
-  /* =========================
-     CHOIX DONNÉES
-  ========================= */
 
   dataChoices: {
     display: "flex",
@@ -652,10 +692,6 @@ const styles: {
     color: "#1d4ed8",
   },
 
-  /* =========================
-     MENU DÉROULANT
-  ========================= */
-
   levelContainer: {
     marginTop: 12,
     display: "flex",
@@ -695,10 +731,6 @@ const styles: {
     alignItems: "stretch",
     gap: 5,
   },
-
-  /* =========================
-     IMPORT
-  ========================= */
 
   importSection: {
     marginTop: 24,
@@ -787,10 +819,6 @@ const styles: {
     fontWeight: 700,
   },
 
-  /* =========================
-     MESSAGES
-  ========================= */
-
   errorMessage: {
     display: "flex",
     alignItems: "center",
@@ -818,10 +846,6 @@ const styles: {
     fontSize: 10,
     fontWeight: 600,
   },
-
-  /* =========================
-     FOOTER
-  ========================= */
 
   footer: {
     display: "flex",
