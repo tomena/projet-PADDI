@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { X, Save, RotateCcw } from "lucide-react";
 
 interface UpdateActivitesModalProps {
@@ -60,6 +60,121 @@ export default function UpdateActivitesModal({
   const [uc, setUc] = useState("");
 
   const [values, setValues] = useState<Record<string, string>>({});
+
+useEffect(() => {
+  if (!annee || !moisSelectionne || !uc) {
+    setValues({});
+    return;
+  }
+
+  let cancelled = false;
+
+  const chargerEnregistrement = async () => {
+    setValues({});
+
+    try {
+      const params = new URLSearchParams({
+        annee,
+        mois: moisSelectionne,
+        uc,
+      });
+
+      const response = await fetch(
+        `/api/update-geojson?${params.toString()}`
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (!cancelled) {
+          console.warn(
+            "Chargement de l'enregistrement :",
+            result.error
+          );
+        }
+        return;
+      }
+
+      const p = result.properties;
+
+      const mapping: Record<string, string> = {
+        totalPlanifiees: "NAP",
+        achevees: "NAA",
+        enCours: "NAC",
+        nonDemarrees: "NAD",
+
+        r1: "TAR 1",
+        r2: "TAR 2",
+
+        c1: "TAC  C1",
+        c2: "TAC C2",
+        c3: "TAC  C3",
+        c4: "TAC C4",
+
+        a111: "TAA 1.1.1",
+        a112: "TAA 1.1.2",
+        a113: "TAA 1.1.3",
+        a114: "TAA 1.1.4",
+
+        a121: "TAA 1.2.1",
+        a122: "TAA 1.2.2",
+        a123: "TAA 1.2.3",
+        a124: "TAA 1.2.4",
+
+        a211: "TAA 2.1.1",
+        a212: "TAA 2.1.2",
+        a213: "TAA 2.1.3",
+        a214: "TAA 2.1.4",
+
+        a221: "TAA 2.2.1",
+        a222: "TAA 2.2.2",
+        a223: "TAA 2.2.3",
+        a224: "TAA 2.2.4",
+      };
+
+      const percentageFields = new Set([
+        "r1", "r2",
+        "c1", "c2", "c3", "c4",
+        "a111", "a112", "a113", "a114",
+        "a121", "a122", "a123", "a124",
+        "a211", "a212", "a213", "a214",
+        "a221", "a222", "a223", "a224",
+      ]);
+
+      const loadedValues: Record<string, string> = {};
+
+      for (const [formKey, column] of Object.entries(mapping)) {
+        const storedValue = p[column];
+
+        if (storedValue === null || storedValue === undefined) {
+          loadedValues[formKey] = "";
+          continue;
+        }
+
+        const displayValue = percentageFields.has(formKey)
+          ? Number(storedValue) * 100
+          : Number(storedValue);
+
+        loadedValues[formKey] = String(
+          Number(displayValue.toFixed(6))
+        );
+      }
+
+      if (!cancelled) {
+        setValues(loadedValues);
+      }
+    } catch (error) {
+      console.error("Erreur de chargement :", error);
+    }
+  };
+
+  chargerEnregistrement();
+
+  return () => {
+    cancelled = true;
+  };
+}, [annee, moisSelectionne, uc]);
+
 
   if (!isOpen) return null;
 
