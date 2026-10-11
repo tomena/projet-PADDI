@@ -365,6 +365,8 @@ export default function SuiviActivitesAnnuelles() {
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
   const [userName, setUserName] = useState("");
+  const [userIdentifiant, setUserIdentifiant] = useState("");
+  const [userMotDePasse, setUserMotDePasse] = useState("");
 
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
@@ -1115,21 +1117,25 @@ export default function SuiviActivitesAnnuelles() {
       </div>
     </div>
 
-    <ActivitesAccessModal
-        isOpen={showLogin}
-        onClose={() => setShowLogin(false)}
-        onSuccess={(name) => {
-          setUserName(name);
-          setShowLogin(false);
-          setShowUpdate(true);
-        }}
-      />
+<ActivitesAccessModal
+  isOpen={showLogin}
+  onClose={() => setShowLogin(false)}
+  onSuccess={(name, identifiant, motDePasse) => {
+    setUserName(name);
+    setUserIdentifiant(identifiant);
+    setUserMotDePasse(motDePasse);
+    setShowLogin(false);
+    setShowUpdate(true);
+  }}
+/>
 
-      <UpdateActivitesModal
-        isOpen={showUpdate}
-        onClose={() => setShowUpdate(false)}
-        userName={userName}
-      />
+<UpdateActivitesModal
+  isOpen={showUpdate}
+  onClose={() => setShowUpdate(false)}
+  userName={userName}
+  identifiant={userIdentifiant}
+  motDePasse={userMotDePasse}
+/>
 
     </div>
   );

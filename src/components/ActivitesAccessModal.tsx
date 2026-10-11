@@ -3,7 +3,11 @@ import React, { useState } from "react";
 interface ActivitesAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (userName: string) => void;
+  onSuccess: (
+    userName: string,
+    identifiant: string,
+    motDePasse: string
+  ) => void;
 }
 
 export default function ActivitesAccessModal({
@@ -44,13 +48,17 @@ export default function ActivitesAccessModal({
     
     if (
       USERS[normalizedIdentifiant] &&
-      motDePasse === "Paddi2026"
+      motDePasse === "PaddiActivite2026"
     ) {
       setIdentifiant("");
       setMotDePasse("");
       setError("");
     
-      onSuccess(USERS[normalizedIdentifiant]);
+      onSuccess(
+        USERS[normalizedIdentifiant],
+        normalizedIdentifiant,
+        motDePasse
+      );
     } else {
       setError("Identifiant ou mot de passe incorrect.");
     }

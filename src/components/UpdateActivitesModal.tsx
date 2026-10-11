@@ -5,6 +5,8 @@ interface UpdateActivitesModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName?: string;
+  identifiant: string;
+  motDePasse: string;
 }
 
 type MainChoice = "taux" | "axes";
@@ -41,7 +43,10 @@ export default function UpdateActivitesModal({
   isOpen,
   onClose,
   userName,
+  identifiant,
+  motDePasse,
 }: UpdateActivitesModalProps) {
+
   const [mainChoice, setMainChoice] = useState<MainChoice>("taux");
 
   const [tauxChoice, setTauxChoice] =
@@ -96,23 +101,111 @@ export default function UpdateActivitesModal({
     setValues({});
   };
 
-  const handleSave = () => {
-    /*
-      Pour l'instant :
-      aucune donnée n'est envoyée vers une base.
-      L'interface est uniquement un prototype de saisie.
-    */
+const handleSave = async () => {
+  if (!annee || !moisSelectionne || !uc) {
+    alert("Veuillez sélectionner l’année, le mois et l’unité de coordination.");
+    return;
+  }
 
-    console.log("Données du formulaire :", {
-      mainChoice,
-      tauxChoice,
-      axeChoice,
-      annee,
-      mois: moisSelectionne,
-      uc,
-      values,
-    });
+  const updates: Record<string, number> = {};
+
+  const fieldMapping: Record<string, string> = {
+    totalPlanifiees: "NAP",
+    achevees: "NAA",
+    enCours: "NAC",
+    nonDemarrees: "NAD",
+
+    r1: "TAR 1",
+    r2: "TAR 2",
+
+    c1: "TAC  C1",
+    c2: "TAC C2",
+    c3: "TAC  C3",
+    c4: "TAC C4",
+
+    a111: "TAA 1.1.1",
+    a112: "TAA 1.1.2",
+    a113: "TAA 1.1.3",
+    a114: "TAA 1.1.4",
+
+    a121: "TAA 1.2.1",
+    a122: "TAA 1.2.2",
+    a123: "TAA 1.2.3",
+    a124: "TAA 1.2.4",
+
+    a211: "TAA 2.1.1",
+    a212: "TAA 2.1.2",
+    a213: "TAA 2.1.3",
+    a214: "TAA 2.1.4",
+
+    a221: "TAA 2.2.1",
+    a222: "TAA 2.2.2",
+    a223: "TAA 2.2.3",
+    a224: "TAA 2.2.4",
   };
+
+  const percentageFields = new Set([
+    "r1", "r2",
+    "c1", "c2", "c3", "c4",
+    "a111", "a112", "a113", "a114",
+    "a121", "a122", "a123", "a124",
+    "a211", "a212", "a213", "a214",
+    "a221", "a222", "a223", "a224",
+  ]);
+
+  for (const [formKey, rawValue] of Object.entries(values)) {
+    if (rawValue.trim() === "") continue;
+
+    const column = fieldMapping[formKey];
+    if (!column) continue;
+
+    const parsedValue = Number(rawValue);
+    if (!Number.isFinite(parsedValue)) {
+      alert(`Valeur invalide pour le champ ${formKey}.`);
+      return;
+    }
+
+    updates[column] = percentageFields.has(formKey)
+      ? parsedValue / 100
+      : parsedValue;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    alert("Veuillez saisir au moins une valeur à enregistrer.");
+    return;
+  }
+
+  try {
+    const response = await fetch("/api/update-geojson", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        identifiant,
+        motDePasse,
+        annee,
+        mois: moisSelectionne,
+        uc,
+        updates,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      alert(result.error || "Échec de l’enregistrement.");
+      return;
+    }
+
+    alert("Les données ont été enregistrées avec succès dans GitHub.");
+    onClose();
+  } catch (error) {
+    console.error("Erreur d’enregistrement :", error);
+    alert("Impossible de contacter le serveur. Vérifiez votre connexion.");
+  }
+};
+
 
   const InputPercent = ({
     id,
