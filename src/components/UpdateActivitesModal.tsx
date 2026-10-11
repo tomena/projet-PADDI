@@ -72,6 +72,12 @@ useEffect(() => {
   const chargerEnregistrement = async () => {
     setValues({});
 
+    console.log("Chargement demandé :", {
+      annee,
+      mois: moisSelectionne,
+      uc,
+    });
+
     try {
       const params = new URLSearchParams({
         annee,
@@ -82,6 +88,8 @@ useEffect(() => {
       const response = await fetch(
         `/api/update-geojson?${params.toString()}`
       );
+
+      console.log("Réponse API :", response.status);
 
       const result = await response.json();
 
