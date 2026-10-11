@@ -17,7 +17,7 @@ const USERS: Record<string, string> = {
 };
 
 export default async function handler(req: any, res: any) {
-  if (req.method !== "POST") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée." });
   }
 
@@ -28,10 +28,71 @@ export default async function handler(req: any, res: any) {
   const path = process.env.GEOJSON_PATH;
   const accessPassword = process.env.PADDI_ACCESS_PASSWORD;
 
-  if (!token || !owner || !repo || !branch || !path || !accessPassword) {
-    return res.status(500).json({
-      error: "Configuration serveur incomplète.",
-    });
+  if (req.method === "GET") {
+    const annee = String(req.query?.annee ?? "");
+    const mois = String(req.query?.mois ?? "");
+    const uc = String(req.query?.uc ?? "");
+  
+    if (!annee || !mois || !uc) {
+      return res.status(400).json({
+        error: "Année, mois et unité de coordination obligatoires.",
+      });
+    }
+  
+    try {
+      const apiUrl =
+        `https://api.github.com/repos/${owner}/${repo}/contents/` +
+        path.split("/").map(encodeURIComponent).join("/");
+  
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      };
+  
+      const response = await fetch(
+        `${apiUrl}?ref=${encodeURIComponent(branch)}`,
+        { headers, cache: "no-store" }
+      );
+  
+      if (!response.ok) {
+        throw new Error("Impossible de lire le GeoJSON sur GitHub.");
+      }
+  
+      const file = await response.json();
+      const geojson = JSON.parse(
+        Buffer.from(file.content, "base64").toString("utf8")
+      );
+  
+      const matches = geojson.features.filter((feature: any) => {
+        const p = feature.properties ?? {};
+  
+        return (
+          Number(p["Année"]) === Number(annee) &&
+          p["Mois"] === mois &&
+          p["UC"] === uc
+        );
+      });
+  
+      if (matches.length !== 1) {
+        return res.status(404).json({
+          error:
+            matches.length === 0
+              ? "Aucun enregistrement correspondant."
+              : "Plusieurs enregistrements correspondent.",
+        });
+      }
+  
+      return res.status(200).json({
+        properties: matches[0].properties,
+      });
+    } catch (error) {
+      console.error("Erreur de lecture GeoJSON :", error);
+  
+      return res.status(500).json({
+        error: "Impossible de lire les données enregistrées.",
+      });
+    }
   }
 
   const {
