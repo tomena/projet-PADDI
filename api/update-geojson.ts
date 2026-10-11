@@ -18,7 +18,9 @@ const USERS: Record<string, string> = {
 
 export default async function handler(req: any, res: any) {
   if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({ error: "Méthode non autorisée." });
+    return res.status(405).json({
+      error: "Méthode non autorisée.",
+    });
   }
 
   const token = process.env.GITHUB_TOKEN;
@@ -28,73 +30,101 @@ export default async function handler(req: any, res: any) {
   const path = process.env.GEOJSON_PATH;
   const accessPassword = process.env.PADDI_ACCESS_PASSWORD;
 
+  if (!token || !owner || !repo || !branch || !path) {
+    console.error("Configuration GitHub incomplète.");
+
+    return res.status(500).json({
+      error: "Configuration serveur incomplète.",
+    });
+  }
+
+  const apiUrl =
+    `https://api.github.com/repos/${owner}/${repo}/contents/` +
+    path.split("/").map(encodeURIComponent).join("/");
+
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+
+  // GET : lire une ligne existante pour remplir le formulaire.
   if (req.method === "GET") {
     const annee = String(req.query?.annee ?? "");
     const mois = String(req.query?.mois ?? "");
     const uc = String(req.query?.uc ?? "");
-  
+
     if (!annee || !mois || !uc) {
       return res.status(400).json({
         error: "Année, mois et unité de coordination obligatoires.",
       });
     }
-  
+
     try {
-      const apiUrl =
-        `https://api.github.com/repos/${owner}/${repo}/contents/` +
-        path.split("/").map(encodeURIComponent).join("/");
-  
-      const headers = {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-      };
-  
-      const response = await fetch(
+      const rawResponse = await fetch(
         `${apiUrl}?ref=${encodeURIComponent(branch)}`,
-        { headers, cache: "no-store" }
+        {
+          headers: {
+            ...headers,
+            Accept: "application/vnd.github.raw+json",
+          },
+          cache: "no-store",
+        }
       );
-  
-      if (!response.ok) {
-        throw new Error("Impossible de lire le GeoJSON sur GitHub.");
+
+      if (!rawResponse.ok) {
+        const details = await rawResponse.text();
+
+        console.error(
+          "Erreur GitHub pendant la lecture :",
+          rawResponse.status,
+          details
+        );
+
+        throw new Error(
+          `Lecture du GeoJSON impossible : ${rawResponse.status}`
+        );
       }
-  
-      const file = await response.json();
-      const geojson = JSON.parse(
-        Buffer.from(file.content, "base64").toString("utf8")
-      );
-  
+
+      const geojson = JSON.parse(await rawResponse.text());
+
+      if (!Array.isArray(geojson.features)) {
+        throw new Error("Le fichier ne contient pas de tableau features.");
+      }
+
       const matches = geojson.features.filter((feature: any) => {
         const p = feature.properties ?? {};
-  
+
         return (
           Number(p["Année"]) === Number(annee) &&
           p["Mois"] === mois &&
           p["UC"] === uc
         );
       });
-  
+
       if (matches.length !== 1) {
         return res.status(404).json({
           error:
             matches.length === 0
               ? "Aucun enregistrement correspondant."
               : "Plusieurs enregistrements correspondent.",
+          matches: matches.length,
         });
       }
-  
+
       return res.status(200).json({
         properties: matches[0].properties,
       });
     } catch (error) {
       console.error("Erreur de lecture GeoJSON :", error);
-  
+
       return res.status(500).json({
         error: "Impossible de lire les données enregistrées.",
       });
     }
   }
 
+  // POST : modifier une ligne existante.
   const {
     identifiant,
     motDePasse,
@@ -110,6 +140,7 @@ export default async function handler(req: any, res: any) {
       : "";
 
   if (
+    !accessPassword ||
     !USERS[normalizedId] ||
     typeof motDePasse !== "string" ||
     motDePasse !== accessPassword
@@ -151,32 +182,67 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const apiUrl =
-      `https://api.github.com/repos/${owner}/${repo}/contents/` +
-      path.split("/").map(encodeURIComponent).join("/");
-
-    const headers = {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-    };
-
-    const readResponse = await fetch(
+    // Première lecture : récupérer le SHA du fichier GitHub.
+    const metadataResponse = await fetch(
       `${apiUrl}?ref=${encodeURIComponent(branch)}`,
-      { headers, cache: "no-store" }
+      {
+        headers,
+        cache: "no-store",
+      }
     );
 
-    if (!readResponse.ok) {
-      throw new Error("Impossible de lire le fichier dans GitHub.");
+    if (!metadataResponse.ok) {
+      const details = await metadataResponse.text();
+
+      console.error(
+        "Erreur GitHub pendant la récupération du SHA :",
+        metadataResponse.status,
+        details
+      );
+
+      throw new Error("Impossible de lire les métadonnées du fichier.");
     }
 
-    const file = await readResponse.json();
-    const geojson = JSON.parse(
-      Buffer.from(file.content, "base64").toString("utf8")
+    const fileMetadata = await metadataResponse.json();
+
+    if (!fileMetadata.sha) {
+      throw new Error("GitHub n'a pas fourni le SHA du fichier.");
+    }
+
+    // Deuxième lecture : récupérer le contenu réel du GeoJSON.
+    const rawResponse = await fetch(
+      `${apiUrl}?ref=${encodeURIComponent(branch)}`,
+      {
+        headers: {
+          ...headers,
+          Accept: "application/vnd.github.raw+json",
+        },
+        cache: "no-store",
+      }
     );
 
+    if (!rawResponse.ok) {
+      const details = await rawResponse.text();
+
+      console.error(
+        "Erreur GitHub pendant la lecture brute :",
+        rawResponse.status,
+        details
+      );
+
+      throw new Error("Impossible de lire le GeoJSON.");
+    }
+
+    const geojson = JSON.parse(await rawResponse.text());
+
+    if (!Array.isArray(geojson.features)) {
+      throw new Error("Le fichier ne contient pas de tableau features.");
+    }
+
+    // Recherche stricte : aucune nouvelle ligne ne sera créée.
     const matches = geojson.features.filter((feature: any) => {
       const p = feature.properties ?? {};
+
       return (
         Number(p["Année"]) === Number(annee) &&
         p["Mois"] === mois &&
@@ -196,15 +262,18 @@ export default async function handler(req: any, res: any) {
 
     const properties = matches[0].properties;
 
+    // Modifier uniquement les colonnes reçues et autorisées.
     for (const [key, value] of updateEntries) {
       if (!Object.prototype.hasOwnProperty.call(properties, key)) {
         return res.status(400).json({
           error: `La colonne "${key}" n'existe pas dans cette ligne.`,
         });
       }
+
       properties[key] = value;
     }
 
+    // Enregistrer le GeoJSON sur GitHub en conservant le SHA.
     const saveResponse = await fetch(apiUrl, {
       method: "PUT",
       headers: {
@@ -217,14 +286,16 @@ export default async function handler(req: any, res: any) {
           JSON.stringify(geojson, null, 2),
           "utf8"
         ).toString("base64"),
-        sha: file.sha,
+        sha: fileMetadata.sha,
         branch,
       }),
     });
 
     if (!saveResponse.ok) {
       const details = await saveResponse.text();
-      console.error("Erreur GitHub:", details);
+
+      console.error("Erreur GitHub pendant la sauvegarde :", details);
+
       throw new Error("GitHub n'a pas accepté la sauvegarde.");
     }
 
@@ -234,9 +305,10 @@ export default async function handler(req: any, res: any) {
       userName: USERS[normalizedId],
     });
   } catch (error) {
-    console.error("Erreur de sauvegarde GeoJSON:", error);
+    console.error("Erreur de sauvegarde GeoJSON :", error);
+
     return res.status(500).json({
-      error: "Échec de la sauvegarde. Vérifiez les journaux du serveur.",
+      error: "Échec de la sauvegarde. Consultez les journaux Vercel.",
     });
   }
 }
