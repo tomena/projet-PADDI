@@ -1383,131 +1383,8 @@ console.table(
             </BarChart>
           </ResponsiveContainer>
         </div>
-
-        {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                minWidth: 0,
-              }}
-            >
-              <span
-                style={{
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}
-              >
-                {t.byComponent}
-              </span>
-              <Info size={18} />
-            </div>
-          </div>
-
-          {/* HEADER STICKY */}
-            <div style={styles.stickyHeader}>
-              <span>{t.component}</span>
-              <span>{t.disbursed}</span>
-              <span>{t.budgetShare}</span>
-            </div>
-
-          {composantes.map((item, i) => {
-            const Icon = item.icon;
-
-            const percent = Math.min(
-                Number(item.percent) || 0,
-                100
-              );
-
-            return (
-              <div
-                key={i}
-                style={{
-                  ...styles.saasRow,
-                  gridTemplateColumns: '2.2fr 1.5fr 2fr',
-                  background: i % 2 === 0 ? '#ffffff' : 'transparent',
-                }}
-              >
-                {/* COL 1 */}
-                <div style={styles.cellFlex}>
-                  <div
-                    style={{
-                      ...styles.badge,
-                      background: 'transparent',
-                    }}
-                  >
-                    <Icon size={18} color={item.color} />
-                  </div>
-
-                  <div style={styles.rowTitle}>{item.title}</div>
-                </div>
-
-                {/* AMOUNT */}
-                <div style={styles.amount}>{new Intl.NumberFormat("fr-FR").format(item.amount)} €</div>
-
-                {/* PROGRESS + % INLINE */}
-                <div style={styles.progressCell}>
-                <span
-                  style={{
-                    ...styles.percentLeft,
-                    color: getProgressColor(percent),
-                    fontWeight: 700,
-                  }}
-                >
-                  {percent.toFixed(1)}%
-                </span>
-
-                <div style={styles.progress}>
-                  <div
-                    style={{
-                      ...styles.progressBarAnimated,
-                      width: `${percent}%`,
-                      background: getProgressColor(percent),
-                    }}
-                  />
-                </div>
-                </div>
-              </div>
-            );
-          })}
-          <div style={styles.totalRow}>
-            <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
-            {t.total}
-            </div>
-
-            <div
-              style={{
-                fontWeight: 800,
-                textAlign: 'left',
-                fontSize: 12,
-                color: '#1d4ed8',
-              }}
-            >
-              {new Intl.NumberFormat("fr-FR").format(totalOutputs)} €
-            </div>
-
-            <div
-              style={{
-                textAlign: 'center',
-                fontSize: 12,
-                color: '#1d4ed8',
-                fontWeight: 800,
-              }}
-            >
-              {budgetTotalProjet > 0
-                ? ((totalOutputs / budgetTotalProjet) * 100).toFixed(1)
-                : "0.0"
-              }%
-            </div>
-          </div>
-        </div>
-
-      {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT  */}
-        <div style={styles.card}>
+{/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT  */}
+<div style={styles.card}>
           <div style={styles.cardHeader}>
              {t.byInstrument}
              <select
@@ -1647,6 +1524,129 @@ console.table(
           </div>
           </div>
         </div>{' '}
+        {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
+        <div style={styles.card}>
+          <div style={styles.cardHeader}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                minWidth: 0,
+              }}
+            >
+              <span
+                style={{
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}
+              >
+                {t.byComponent}
+              </span>
+              <Info size={18} />
+            </div>
+          </div>
+
+          {/* HEADER STICKY */}
+            <div style={styles.stickyHeader}>
+              <span>{t.component}</span>
+              <span>{t.disbursed}</span>
+              <span>{t.budgetShare}</span>
+            </div>
+
+          {composantes.map((item, i) => {
+            const Icon = item.icon;
+
+            const percent = Math.min(
+                Number(item.percent) || 0,
+                100
+              );
+
+            return (
+              <div
+                key={i}
+                style={{
+                  ...styles.saasRow,
+                  gridTemplateColumns: '2.2fr 1.5fr 2fr',
+                  background: i % 2 === 0 ? '#ffffff' : 'transparent',
+                }}
+              >
+                {/* COL 1 */}
+                <div style={styles.cellFlex}>
+                  <div
+                    style={{
+                      ...styles.badge,
+                      background: 'transparent',
+                    }}
+                  >
+                    <Icon size={18} color={item.color} />
+                  </div>
+
+                  <div style={styles.rowTitle}>{item.title}</div>
+                </div>
+
+                {/* AMOUNT */}
+                <div style={styles.amount}>{new Intl.NumberFormat("fr-FR").format(item.amount)} €</div>
+
+                {/* PROGRESS + % INLINE */}
+                <div style={styles.progressCell}>
+                <span
+                  style={{
+                    ...styles.percentLeft,
+                    color: getProgressColor(percent),
+                    fontWeight: 700,
+                  }}
+                >
+                  {percent.toFixed(1)}%
+                </span>
+
+                <div style={styles.progress}>
+                  <div
+                    style={{
+                      ...styles.progressBarAnimated,
+                      width: `${percent}%`,
+                      background: getProgressColor(percent),
+                    }}
+                  />
+                </div>
+                </div>
+              </div>
+            );
+          })}
+          <div style={styles.totalRow}>
+            <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
+            {t.total}
+            </div>
+
+            <div
+              style={{
+                fontWeight: 800,
+                textAlign: 'left',
+                fontSize: 12,
+                color: '#1d4ed8',
+              }}
+            >
+              {new Intl.NumberFormat("fr-FR").format(totalOutputs)} €
+            </div>
+
+            <div
+              style={{
+                textAlign: 'center',
+                fontSize: 12,
+                color: '#1d4ed8',
+                fontWeight: 800,
+              }}
+            >
+              {budgetTotalProjet > 0
+                ? ((totalOutputs / budgetTotalProjet) * 100).toFixed(1)
+                : "0.0"
+              }%
+            </div>
+          </div>
+        </div>
+
+      
       </div>{' '}
 
 
@@ -2180,8 +2180,8 @@ const styles: any = {
 
   topGrid: {
     display: 'grid',
-    gridTemplateColumns: '1.2fr 1fr 1fr',
-    gap: 10,
+    gridTemplateColumns: '1.2fr 1.1fr 0.9fr',
+    gap: 5,
     alignItems: 'start',
     minHeight: 320,
   },
@@ -2610,7 +2610,7 @@ const styles: any = {
 
   bottomGrid: {
     display: 'grid',
-    gridTemplateColumns: '0.65fr 1.07fr 1.60fr',
+    gridTemplateColumns: '0.55fr 1.15fr 1.9fr',
     gap: 5,
     marginTop: 10,
     alignItems: 'stretch',
