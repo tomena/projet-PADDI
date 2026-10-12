@@ -317,7 +317,6 @@ const handleSave = async () => {
       }),
     });
 
-    c
     const result = await response.json();
 
         if (!response.ok) {
@@ -326,6 +325,7 @@ const handleSave = async () => {
         }
 
         // La date change uniquement si l'enregistrement a réussi
+        console.log("✅ ENREGISTREMENT RÉUSSI - appel de onUpdateSuccess");
         onUpdateSuccess();
 
         alert("Les données ont été enregistrées avec succès dans GitHub.");
