@@ -382,6 +382,8 @@ export default function SuiviActivitesAnnuelles() {
     setUc("Tous");
   };
 
+  const [showModal, setShowModal] = useState(false);
+
   const [dateMiseAJour, setDateMiseAJour] = useState<string>(() => {
     return (
       localStorage.getItem("paddi_date_mise_a_jour") ||
@@ -1326,15 +1328,13 @@ export default function SuiviActivitesAnnuelles() {
     />
     
     <UpdateActivitesModal
-      // Conserve ici tes propriétés actuelles
-      isOpen={showUpdateModal}
-      onClose={() => setShowUpdateModal(false)}
-      identifiant={identifiant}
-      motDePasse={motDePasse}
+      isOpen={showUpdate}
+      onClose={() => setShowUpdate(false)}
+      userName={userName}
+      identifiant={userIdentifiant}
+      motDePasse={userMotDePasse}
       onUpdateSuccess={() => {
-        const maintenant = new Date();
-
-        const nouvelleDate = maintenant.toLocaleDateString("fr-FR", {
+        const nouvelleDate = new Date().toLocaleDateString("fr-FR", {
           day: "numeric",
           month: "long",
           year: "numeric",
