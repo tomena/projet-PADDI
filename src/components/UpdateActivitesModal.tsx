@@ -4,6 +4,7 @@ import { X, Save, RotateCcw } from "lucide-react";
 interface UpdateActivitesModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onUpdateSuccess: () => void;
   userName?: string;
   identifiant: string;
   motDePasse: string;
@@ -42,10 +43,12 @@ const annees = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
 export default function UpdateActivitesModal({
   isOpen,
   onClose,
+  onUpdateSuccess,
   userName,
   identifiant,
   motDePasse,
 }: UpdateActivitesModalProps) {
+
 
   const [mainChoice, setMainChoice] = useState<MainChoice>("taux");
 
@@ -315,19 +318,23 @@ const handleSave = async () => {
     });
 
     const result = await response.json();
+        
+      if (!response.ok) {
+        alert(result.error || "Échec de l’enregistrement.");
+        return;
+      }
 
-    if (!response.ok) {
-      alert(result.error || "Échec de l’enregistrement.");
-      return;
-    }
+      // Actualiser la date uniquement après la réussite de l'enregistrement
+      onUpdateSuccess();
 
-    alert("Les données ont été enregistrées avec succès dans GitHub.");
-    onClose();
-  } catch (error) {
-    console.error("Erreur d’enregistrement :", error);
-    alert("Impossible de contacter le serveur. Vérifiez votre connexion.");
-  }
-};
+      alert("Les données ont été enregistrées avec succès dans GitHub.");
+      onClose();
+
+      } catch (error) {
+        console.error("Erreur d’enregistrement :", error);
+        alert("Impossible de contacter le serveur. Vérifiez votre connexion.");
+      }
+    };
 
 
   const InputPercent = ({
@@ -843,9 +850,7 @@ const handleSave = async () => {
   );
 }
 
-/* =========================================================
-   STYLES
-========================================================= */
+/* ============  STYLES  ============== */
 
 const GREEN = "#15803d";
 const GREEN_DARK = "#166534";
