@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useLanguage } from "../context/LanguageContext";
 import ActivitesAccessModal from "../components/ActivitesAccessModal";
 import UpdateActivitesModal from "../components/UpdateActivitesModal";
-import { CalendarDays, RotateCcw, RefreshCw, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
+import * as XLSX from "xlsx";
+import { CalendarDays, RotateCcw, RefreshCw, Download, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
 } from 'lucide-react';
 
 import { ResponsiveContainer, PieChart, Pie, Cell,
@@ -601,6 +602,148 @@ export default function SuiviActivitesAnnuelles() {
     console.log(moisListe);
     console.log(ucListe);
 
+    const handleExportExcel = () => {
+      // 1. Récupérer toutes les lignes de l'année sélectionnée
+      const lignes = data.filter(
+        (ligne) => Number(ligne["Année"]) === Number(annee)
+      );
+    
+      if (lignes.length === 0) {
+        alert(`Aucune donnée disponible pour l'année ${annee}.`);
+        return;
+      }
+    
+      // 2. Définir les 29 colonnes dans l'ordre du modèle Excel
+      const colonnes = [
+        { titre: "Année", champ: "Année" },
+        { titre: "Mois", champ: "Mois" },
+        { titre: "UC", champ: "UC" },
+    
+        { titre: "TAP", champ: "NAP" },
+        { titre: "AA", champ: "NAA" },
+        { titre: "AC", champ: "NAC" },
+        { titre: "AND", champ: "NAD" },
+    
+        { titre: "R1.SG", champ: "TAR 1" },
+        { titre: "R2.AT", champ: "TAR 2" },
+    
+        { titre: "C1.GSE", champ: "TAC  C1" },
+        { titre: "C2.GED", champ: "TAC C2" },
+        { titre: "C3.DPP", champ: "TAC  C3" },
+        { titre: "C4.CEV", champ: "TAC C4" },
+    
+        { titre: "1.1.1 AD", champ: "TAA 1.1.1" },
+        { titre: "1.1.2 PT", champ: "TAA 1.1.2" },
+        { titre: "1.1.3 SE", champ: "TAA 1.1.3" },
+        { titre: "1.1.4 FD", champ: "TAA 1.1.4" },
+        { titre: "1.2.1 PP", champ: "TAA 1.2.1" },
+        { titre: "1.2.2 CMNP", champ: "TAA 1.2.2" },
+        { titre: "1.2.3 CI", champ: "TAA 1.2.3" },
+        { titre: "1.2.4 LCC", champ: "TAA 1.2.4" },
+    
+        { titre: "2.1.1 RP", champ: "TAA 2.1.1" },
+        { titre: "2.1.2 PD", champ: "TAA 2.1.2" },
+        { titre: "2.1.3 SF", champ: "TAA 2.1.3" },
+        { titre: "2.1.4 GF", champ: "TAA 2.1.4" },
+        { titre: "2.2.1 SM", champ: "TAA 2.2.1" },
+        { titre: "2.2.2 VP", champ: "TAA 2.2.2" },
+        { titre: "2.2.3 DA", champ: "TAA 2.2.3" },
+        { titre: "2.2.4 MC", champ: "TAA 2.2.4" },
+      ];
+    
+      // 3. Construire les trois niveaux d'en-tête
+      const entete1 = Array(29).fill("");
+      const entete2 = Array(29).fill("");
+      const entete3 = colonnes.map((c) => c.titre);
+    
+      entete1[0] = "Année";
+      entete1[1] = "Mois";
+      entete1[2] = "UC";
+      entete1[3] = "Taux d'Avancement";
+      entete1[13] = "Axes prioritaires";
+    
+      entete2[3] = "Avancement Global des Activités";
+      entete2[7] = "Avancement par réalisation";
+      entete2[9] = "Avancement par composante";
+      entete2[13] = "Système de gestion";
+      entete2[21] = "Aménagement du territoire";
+    
+      // 4. Convertir les lignes GeoJSON en lignes Excel
+      const lignesExcel = lignes.map((ligne) =>
+        colonnes.map(({ champ }) => ligne[champ] ?? null)
+      );
+    
+      const worksheet = XLSX.utils.aoa_to_sheet([
+        entete1,
+        entete2,
+        entete3,
+        ...lignesExcel,
+      ]);
+    
+      // 5. Fusionner les cellules des en-têtes
+      worksheet["!merges"] = [
+        // Colonnes fixes sur les trois niveaux
+        { s: { r: 0, c: 0 }, e: { r: 2, c: 0 } },
+        { s: { r: 0, c: 1 }, e: { r: 2, c: 1 } },
+        { s: { r: 0, c: 2 }, e: { r: 2, c: 2 } },
+    
+        // Niveau 1
+        { s: { r: 0, c: 3 }, e: { r: 0, c: 28 } },
+    
+        // Niveau 2 : taux d'avancement
+        { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },
+        { s: { r: 1, c: 7 }, e: { r: 1, c: 8 } },
+        { s: { r: 1, c: 9 }, e: { r: 1, c: 12 } },
+    
+        // Niveau 2 : axes prioritaires
+        { s: { r: 0, c: 13 }, e: { r: 0, c: 28 } },
+        { s: { r: 1, c: 13 }, e: { r: 1, c: 20 } },
+        { s: { r: 1, c: 21 }, e: { r: 1, c: 28 } },
+      ];
+    
+      // 6. Largeurs de colonnes
+      worksheet["!cols"] = [
+        { wch: 10 },
+        { wch: 14 },
+        { wch: 12 },
+        ...Array(26).fill({ wch: 14 }),
+      ];
+    
+      // 7. Générer et télécharger le fichier
+      const workbook = XLSX.utils.book_new();
+    
+      XLSX.utils.book_append_sheet(
+        workbook,
+        worksheet,
+        `Activites ${annee}`
+      );
+    
+      XLSX.writeFile(
+        workbook,
+        `Export_Activite_${annee}.xlsx`
+      );
+    };
+
+    
+const actionButtonStyle: React.CSSProperties = {
+  width: 150,
+  height: 38,
+  boxSizing: "border-box",
+  padding: "0 10px",
+  borderRadius: 8,
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 7,
+  whiteSpace: "nowrap",
+  transition: "all 0.2s ease",
+};
+
+  
+
   return (
     <div style={styles.page}>
 
@@ -651,6 +794,50 @@ export default function SuiviActivitesAnnuelles() {
 
             <div style={styles.filterSub}>{t.yearRange}</div>
           </div>
+
+          {/* EXPORTER EXCEL À CÔTÉ DU FILTRE ANNÉE */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 2,
+            marginLeft: 0,
+            padding: 0,
+            alignSelf: "stretch",
+          }}
+        >
+          <span
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#15803d",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Exporter
+          </span>
+
+          <button
+            className="suivi-excel-btn"
+            style={{
+              ...styles.excelBigBtn,
+              width: 42,
+              minWidth: 42,
+              height: 50,
+              padding: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+            onClick={handleExportExcel}
+            title="Exporter Excel"
+            aria-label="Exporter Excel"
+          >
+            <Download size={22} strokeWidth={1.8} />
+          </button>
+        </div>
         </div>
 
         {/* MOIS */}
@@ -716,31 +903,34 @@ export default function SuiviActivitesAnnuelles() {
         {/* ACTIONS */}
         <div style={styles.actionsContainer}>
 
-        {/* RÉINITIALISER */}
-        <button
-          className="suivi-reset-btn"
-          style={styles.resetBigBtn}
-          onClick={handleReset}
-        >
-          <RotateCcw size={17} strokeWidth={1.8} />
+          {/* COLONNE : RÉINITIALISER + MISE À JOUR */}
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 5,
+            }}
+          >
+            {/* RÉINITIALISER */}
+            <button
+              className="suivi-reset-btn"
+              style={styles.resetBigBtn}
+              onClick={handleReset}
+            >
+              <RotateCcw size={17} strokeWidth={1.8} />
+              <span>{t.reset}</span>
+            </button>
 
-          <span>
-            {t.reset}
-          </span>
-        </button>
-
-        {/* MISE À JOUR */}
-        <button
-          className="suivi-update-btn"
-          style={styles.updateBigBtn}
-          onClick={() => setShowLogin(true)}
-        >
-          <RefreshCw size={17} strokeWidth={1.8} />
-
-          <span>
-            {t.update || "Mettre à jour"}
-          </span>
-        </button>
+            {/* MISE À JOUR */}
+            <button
+              className="suivi-update-btn"
+              style={styles.updateBigBtn}
+              onClick={() => setShowLogin(true)}
+            >
+              <RefreshCw size={17} strokeWidth={1.8} />
+              <span>{t.update || "Mettre à jour"}</span>
+            </button>
+          </div>
 
         </div>
       </div>
@@ -1427,23 +1617,22 @@ centerSmall: {
   },
   
   resetBigBtn: {
-    flex: 1,
-    width: '100%',
-    minHeight: 0,  
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,  
-    background: '#ffffff',
-    color: '#475569',  
-    border: '1px solid #d5dde5',
-    borderRadius: 9,  
-    cursor: 'pointer',  
-    fontSize: 12.5,
-    fontWeight: 700,  
-    boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',  
-    transition:
-      'background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
+    width: 220,
+    height: 40,
+    boxSizing: "border-box",
+    padding: "0 10px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    background: "#ffffff",
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    whiteSpace: "nowrap",
   },
 
   resultsColumn: {
@@ -1822,30 +2011,50 @@ centerSmall: {
   },
   
   updateBigBtn: {
-    flex: 1,
-    width: '100%',
-    minHeight: 0,  
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,  
-    background: '#15803d',
-    color: '#ffffff',  
-    border: '1px solid #15803d',
-    borderRadius: 9,  
-    cursor: 'pointer',  
-    fontSize: 12.5,
-    fontWeight: 700,  
-    boxShadow: '0 3px 8px rgba(21, 128, 61, 0.18)',  
-    transition:
-      'background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease',
+    width: 220,
+    height: 40,
+    boxSizing: "border-box",
+    padding: "0 10px",
+    borderRadius: 8,
+    border: "1px solid #2563eb",
+    background: "#2563eb",
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    whiteSpace: "nowrap",
   },
 
-  actionsContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    height: '100%',
+actionsContainer: {
+  display: "flex",
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  paddingLeft: 4,
+},
+
+  excelBigBtn: {
+    width: 170,
+    height: 40,
+    boxSizing: "border-box",
+    padding: "0 10px",
+    borderRadius: 8,
+    border: "1px solid #15803d",
+    background: "#15803d",
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    whiteSpace: "nowrap",
   },
   
 };
