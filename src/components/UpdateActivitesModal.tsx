@@ -233,6 +233,16 @@ const handleSave = async () => {
     return;
   }
 
+  // Calcul automatique des activités non démarrées
+  const total = Number(values.totalPlanifiees || 0);
+  const achevees = Number(values.achevees || 0);
+  const enCours = Number(values.enCours || 0);
+
+  const nonDemarrees = Math.max(
+    0,
+    total - (achevees + enCours)
+  );
+
   const updates: Record<string, number> = {};
 
   const fieldMapping: Record<string, string> = {
@@ -367,27 +377,41 @@ const handleSave = async () => {
   const InputNumber = ({
     id,
     label,
+    readOnly = false,
+    calculatedValue,
   }: {
     id: string;
     label: string;
+    readOnly?: boolean;
+    calculatedValue?: number | string;
   }) => (
     <div style={styles.fieldCard}>
       <label style={styles.fieldLabel}>{label}</label>
-
+  
       <input
-            type="number"
-            min="0"
-            step="1"
-            value={values[id] || ""}
-            onChange={(e) =>
-                setValues((prev) => ({
-                ...prev,
-                [id]: e.target.value,
-                }))
-            }
-            placeholder="Saisir une valeur"
-            style={styles.normalInput}
-            />
+        type="number"
+        min="0"
+        step="1"
+        value={
+          calculatedValue !== undefined
+            ? calculatedValue
+            : values[id] || ""
+        }
+        onChange={(e) =>
+          !readOnly &&
+          setValues((prev) => ({
+            ...prev,
+            [id]: e.target.value,
+          }))
+        }
+        readOnly={readOnly}
+        placeholder="Saisir une valeur"
+        style={{
+          ...styles.normalInput,
+          backgroundColor: readOnly ? "#f3f4f6" : undefined,
+          cursor: readOnly ? "not-allowed" : "text",
+        }}
+      />
     </div>
   );
 
@@ -478,6 +502,15 @@ const handleSave = async () => {
         <InputNumber
           id="nonDemarrees"
           label="Activités non démarrées"
+          value={Math.max(
+            0,
+            Number(values.totalPlanifiees || 0) -
+              (
+                Number(values.achevees || 0) +
+                Number(values.enCours || 0)
+              )
+          )}
+          readOnly
         />
       </div>
     </>
