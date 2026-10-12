@@ -306,6 +306,21 @@ const handleSave = async () => {
       : parsedValue;
   }
 
+  
+  const hasGlobalActivityValues = [
+    values.totalPlanifiees,
+    values.achevees,
+    values.enCours,
+  ].some((value) => String(value ?? "").trim() !== "");
+
+  if (
+    mainChoice === "taux" &&
+    tauxChoice === "global" &&
+    hasGlobalActivityValues
+  ) {
+    updates["NAD"] = nonDemarrees;
+  }
+
   if (Object.keys(updates).length === 0) {
     alert("Veuillez saisir au moins une valeur à enregistrer.");
     return;
@@ -499,10 +514,12 @@ const handleSave = async () => {
           label="Activités en cours"
         />
   
+        
         <InputNumber
           id="nonDemarrees"
           label="Activités non démarrées"
-          value={Math.max(
+          readOnly
+          calculatedValue={Math.max(
             0,
             Number(values.totalPlanifiees || 0) -
               (
@@ -510,7 +527,6 @@ const handleSave = async () => {
                 Number(values.enCours || 0)
               )
           )}
-          readOnly
         />
       </div>
     </>
