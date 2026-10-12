@@ -317,19 +317,19 @@ const handleSave = async () => {
       }),
     });
 
+    c
     const result = await response.json();
-        
-      if (!response.ok) {
-        alert(result.error || "Échec de l’enregistrement.");
-        return;
-      }
 
-      // Actualiser la date uniquement après la réussite de l'enregistrement
-      onUpdateSuccess();
+        if (!response.ok) {
+          alert(result.error || "Échec de l’enregistrement.");
+          return;
+        }
 
-      alert("Les données ont été enregistrées avec succès dans GitHub.");
-      onClose();
+        // La date change uniquement si l'enregistrement a réussi
+        onUpdateSuccess();
 
+        alert("Les données ont été enregistrées avec succès dans GitHub.");
+        onClose();
       } catch (error) {
         console.error("Erreur d’enregistrement :", error);
         alert("Impossible de contacter le serveur. Vérifiez votre connexion.");
