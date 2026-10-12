@@ -382,6 +382,13 @@ export default function SuiviActivitesAnnuelles() {
     setUc("Tous");
   };
 
+  const [dateMiseAJour, setDateMiseAJour] = useState<string>(() => {
+    return (
+      localStorage.getItem("paddi_date_mise_a_jour") ||
+      "24 septembre 2026"
+    );
+  });
+
 
   const composantesConfig = [
     { code: "C1", icon: Leaf, title: t.componentC1Short },
@@ -594,8 +601,8 @@ export default function SuiviActivitesAnnuelles() {
       },
     ],
   };
-    const Axis1Icon = axes1.icon;
-    const Axis2Icon = axes2.icon;  
+  const Axis1Icon = axes1.icon;
+  const Axis2Icon = axes2.icon;  
   const couleurActivites = getProgressColor(tauxGlobalActivites);
     console.log(data);
     console.log(annees);
@@ -723,25 +730,23 @@ export default function SuiviActivitesAnnuelles() {
         `Export_Activite_${annee}.xlsx`
       );
     };
-
     
-const actionButtonStyle: React.CSSProperties = {
-  width: 150,
-  height: 38,
-  boxSizing: "border-box",
-  padding: "0 10px",
-  borderRadius: 8,
-  fontSize: 12,
-  fontWeight: 700,
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 7,
-  whiteSpace: "nowrap",
-  transition: "all 0.2s ease",
-};
-
+    const actionButtonStyle: React.CSSProperties = {
+      width: 150,
+      height: 38,
+      boxSizing: "border-box",
+      padding: "0 10px",
+      borderRadius: 8,
+      fontSize: 12,
+      fontWeight: 700,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 7,
+      whiteSpace: "nowrap",
+      transition: "all 0.2s ease",
+    };
   
 
   return (
@@ -762,7 +767,8 @@ const actionButtonStyle: React.CSSProperties = {
           <CalendarDays size={18} />
           <div>
             <div style={styles.dateLabel}>{t.updated}</div>
-            <div style={styles.dateValue}>24 septembre 2026</div>
+            <div style={styles.dateValue}>{dateMiseAJour}</div>
+
           </div>
         </div>
       </div>
@@ -1135,10 +1141,10 @@ const actionButtonStyle: React.CSSProperties = {
                     </div>           
               </div>
             );
-        })}            
+          })}            
           </div>
         </div>
-        </div>
+      </div>
 
       {/* ================= TABLEAU AXES ================= */}
       <div style={styles.grid2}>
@@ -1307,26 +1313,37 @@ const actionButtonStyle: React.CSSProperties = {
       </div>
     </div>
 
-<ActivitesAccessModal
-  isOpen={showLogin}
-  onClose={() => setShowLogin(false)}
-  onSuccess={(name, identifiant, motDePasse) => {
-    setUserName(name);
-    setUserIdentifiant(identifiant);
-    setUserMotDePasse(motDePasse);
-    setShowLogin(false);
-    setShowUpdate(true);
-  }}
-/>
+    <ActivitesAccessModal
+      isOpen={showLogin}
+      onClose={() => setShowLogin(false)}
+      onSuccess={(name, identifiant, motDePasse) => {
+        setUserName(name);
+        setUserIdentifiant(identifiant);
+        setUserMotDePasse(motDePasse);
+        setShowLogin(false);
+        setShowUpdate(true);
+      }}
+    />
+    
+    <UpdateActivitesModal
+      // Conserve ici tes propriétés actuelles
+      isOpen={showUpdateModal}
+      onClose={() => setShowUpdateModal(false)}
+      identifiant={identifiant}
+      motDePasse={motDePasse}
+      onUpdateSuccess={() => {
+        const maintenant = new Date();
 
-<UpdateActivitesModal
-  isOpen={showUpdate}
-  onClose={() => setShowUpdate(false)}
-  userName={userName}
-  identifiant={userIdentifiant}
-  motDePasse={userMotDePasse}
-/>
+        const nouvelleDate = maintenant.toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        });
 
+        setDateMiseAJour(nouvelleDate);
+        localStorage.setItem("paddi_date_mise_a_jour", nouvelleDate);
+      }}
+    />
     </div>
   );
 }
