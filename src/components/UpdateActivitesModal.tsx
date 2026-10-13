@@ -1032,14 +1032,14 @@ const celluleHistorique: React.CSSProperties = {
 
                 {/* ================= FOOTER ================= */}
 
-                <div style={styles.footer}>
-          <button
-            onClick={handleReset}
-            style={styles.resetButton}
-          >
-            <RotateCcw size={16} />
-            Réinitialiser
-          </button>
+              <div style={styles.footer}>
+                <button
+                  onClick={handleReset}
+                  style={styles.resetButton}
+                >
+                  <RotateCcw size={16} />
+                  Réinitialiser
+                </button>
 
           <div style={styles.footerRight}>
             <button
@@ -1185,7 +1185,6 @@ const celluleHistorique: React.CSSProperties = {
                             <tr style={{ background: "#f0f5f1" }}>
                               {[
                                 "Utilisateur",
-                                "Mail",
                                 "Date",
                                 "Heure",
                                 "Nom colonne modifié",
@@ -1234,9 +1233,7 @@ const celluleHistorique: React.CSSProperties = {
                                     <td style={celluleHistorique}>
                                       {entry.utilisateur ?? entry.nom ?? ""}
                                     </td>
-                                    <td style={celluleHistorique}>
-                                      {entry.identifiant ?? ""}
-                                    </td>
+                                    
                                     <td style={celluleHistorique}>
                                       {date && !isNaN(date.getTime())
                                         ? date.toLocaleDateString("fr-FR")
