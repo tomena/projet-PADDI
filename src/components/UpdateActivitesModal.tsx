@@ -413,7 +413,7 @@ const handleSave = async () => {
       <input
         type="number"
         min="0"
-        step="1"
+        step="5"
         value={
           calculatedValue !== undefined
             ? calculatedValue
@@ -734,6 +734,66 @@ setHistorique(
   }
 };
 
+const lignesHistorique = historique.flatMap((entry) => {
+  const date = entry.date ? new Date(entry.date) : null;
+
+  return (Array.isArray(entry.changements) ? entry.changements : [])
+    .filter((changement) => {
+      const ancienneValeur =
+        changement.ancienneValeur ??
+        changement.ancienne ??
+        changement.oldValue ??
+        null;
+
+      const nouvelleValeur =
+        changement.nouvelleValeur ??
+        changement.nouvelle ??
+        changement.newValue ??
+        null;
+
+      return (
+        JSON.stringify(ancienneValeur) !==
+        JSON.stringify(nouvelleValeur)
+      );
+    })
+    .map((changement) => ({
+      utilisateur: entry.utilisateur ?? entry.nom ?? "",
+      mail: entry.identifiant ?? "",
+      date: date
+        ? date.toLocaleDateString("fr-FR")
+        : "",
+      heure: date
+        ? date.toLocaleTimeString("fr-FR", {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })
+        : "",
+      colonne:
+        changement.colonne ??
+        changement.champ ??
+        changement.field ??
+        changement.nomColonne ??
+        "",
+      ancienneValeur:
+        changement.ancienneValeur ??
+        changement.ancienne ??
+        changement.oldValue ??
+        "",
+      nouvelleValeur:
+        changement.nouvelleValeur ??
+        changement.nouvelle ??
+        changement.newValue ??
+        "",
+    }));
+});
+
+const celluleHistorique: React.CSSProperties = {
+  padding: 10,
+  border: "1px solid #e2e8e3",
+  verticalAlign: "top",
+  whiteSpace: "nowrap",
+};
 
 
   return (
@@ -1107,32 +1167,105 @@ setHistorique(
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
                   {historique.map((entry, index) => (
-                    <div
-                      key={entry.id ?? index}
-                      style={{
-                        padding: 14,
-                        border: "1px solid #e5e7eb",
-                        borderRadius: 8,
-                      }}
-                    >
-                      <div style={{ fontWeight: 700 }}>
-                        {entry.utilisateur ?? entry.nom ?? "Utilisateur"}
-                      </div>
-
-                      <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
-                        {entry.date ?? entry.createdAt ?? ""}
-                      </div>
-
-                      <pre
-                        style={{
-                          whiteSpace: "pre-wrap",
-                          overflowWrap: "anywhere",
-                          fontSize: 12,
-                          marginBottom: 0,
-                        }}
-                      >
-                        {JSON.stringify(entry, null, 2)}
-                      </pre>
+                    <div style={{ overflowX: "auto", width: "100%" }}>
+                      {historique.length === 0 ? (
+                        <p style={{ textAlign: "center", padding: 24 }}>
+                          Aucune modification enregistrée.
+                        </p>
+                      ) : (
+                        <table
+                          style={{
+                            width: "100%",
+                            borderCollapse: "collapse",
+                            fontSize: 13,
+                            textAlign: "left",
+                          }}
+                        >
+                          <thead>
+                            <tr style={{ background: "#f0f5f1" }}>
+                              {[
+                                "Utilisateur",
+                                "Mail",
+                                "Date",
+                                "Heure",
+                                "Nom colonne modifié",
+                                "Ancienne valeur",
+                                "Nouvelle valeur",
+                              ].map((titre) => (
+                                <th
+                                  key={titre}
+                                  style={{
+                                    padding: 10,
+                                    border: "1px solid #dce5dd",
+                                    color: "#245c3a",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {titre}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                    
+                          <tbody>
+                            {historique.flatMap((entry, index) => {
+                              const date = entry.date
+                                ? new Date(entry.date)
+                                : null;
+                    
+                              return (
+                                Array.isArray(entry.changements)
+                                  ? entry.changements
+                                  : []
+                              )
+                                .filter((c) => {
+                                  const ancienne =
+                                    c.ancienneValeur ?? c.ancienne ?? c.oldValue ?? null;
+                                  const nouvelle =
+                                    c.nouvelleValeur ?? c.nouvelle ?? c.newValue ?? null;
+                    
+                                  return (
+                                    JSON.stringify(ancienne) !==
+                                    JSON.stringify(nouvelle)
+                                  );
+                                })
+                                .map((c, i) => (
+                                  <tr key={`${entry.id ?? index}-${i}`}>
+                                    <td style={celluleHistorique}>
+                                      {entry.utilisateur ?? entry.nom ?? ""}
+                                    </td>
+                                    <td style={celluleHistorique}>
+                                      {entry.identifiant ?? ""}
+                                    </td>
+                                    <td style={celluleHistorique}>
+                                      {date && !isNaN(date.getTime())
+                                        ? date.toLocaleDateString("fr-FR")
+                                        : ""}
+                                    </td>
+                                    <td style={celluleHistorique}>
+                                      {date && !isNaN(date.getTime())
+                                        ? date.toLocaleTimeString("fr-FR")
+                                        : ""}
+                                    </td>
+                                    <td style={celluleHistorique}>
+                                      {c.colonne ?? c.champ ?? c.field ?? c.nomColonne ?? ""}
+                                    </td>
+                                    <td style={celluleHistorique}>
+                                      {String(
+                                        c.ancienneValeur ?? c.ancienne ?? c.oldValue ?? ""
+                                      )}
+                                    </td>
+                                    <td style={celluleHistorique}>
+                                      {String(
+                                        c.nouvelleValeur ?? c.nouvelle ?? c.newValue ?? ""
+                                      )}
+                                    </td>
+                                  </tr>
+                                ));
+                            })}
+                          </tbody>
+                        </table>
+                      )}
                     </div>
                   ))}
                 </div>
