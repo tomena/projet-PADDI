@@ -40,6 +40,127 @@ const unites = [
 
 const annees = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
 
+const InputPercent = ({
+  id,
+  label,
+  value,
+  invalid,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  invalid?: boolean;
+  onChange: (value: string) => void;
+}) => (
+  <div style={styles.fieldCard}>
+    <label style={styles.fieldLabel}>{label}</label>
+
+    <div
+      style={{
+        ...styles.percentInputWrapper,
+        borderColor: invalid ? "#dc2626" : "#d1d5db",
+        boxShadow: invalid
+          ? "0 0 0 1px rgba(220,38,38,0.15)"
+          : "none",
+      }}
+    >
+      <input
+        type="text"
+        inputMode="decimal"
+        value={value ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        style={styles.percentInput}
+      />
+
+      <span
+        style={{
+          ...styles.percentSymbol,
+          color: invalid ? "#dc2626" : GREEN,
+        }}
+      >
+        %
+      </span>
+    </div>
+
+    {invalid && (
+      <div
+        style={{
+          marginTop: 5,
+          fontSize: 11,
+          color: "#dc2626",
+        }}
+      >
+        Valeur invalide. Saisissez un nombre entre 0 et 100.
+      </div>
+    )}
+  </div>
+);
+
+
+const InputNumber = ({
+  id,
+  label,
+  value,
+  invalid,
+  onChange,
+  readOnly = false,
+  calculatedValue,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  invalid?: boolean;
+  onChange: (value: string) => void;
+  readOnly?: boolean;
+  calculatedValue?: number | string;
+}) => (
+  <div style={styles.fieldCard}>
+    <label style={styles.fieldLabel}>{label}</label>
+
+    <input
+      type="text"
+      inputMode="numeric"
+      value={
+        calculatedValue !== undefined
+          ? calculatedValue
+          : value ?? ""
+      }
+      onChange={(e) => {
+        if (!readOnly) {
+          onChange(e.target.value);
+        }
+      }}
+      readOnly={readOnly}
+      placeholder="Saisir une valeur"
+      style={{
+        ...styles.normalInput,
+        borderColor: invalid ? "#dc2626" : "#d1d5db",
+        boxShadow: invalid
+          ? "0 0 0 1px rgba(220,38,38,0.15)"
+          : "none",
+        backgroundColor: readOnly ? "#f3f4f6" : "#ffffff",
+        cursor: readOnly ? "not-allowed" : "text",
+      }}
+    />
+
+    {invalid && !readOnly && (
+      <div
+        style={{
+          marginTop: 5,
+          fontSize: 11,
+          color: "#dc2626",
+        }}
+      >
+        Veuillez saisir uniquement un nombre entier positif.
+      </div>
+    )}
+  </div>
+);
+
+
+
 export default function UpdateActivitesModal({
   isOpen,
   onClose,
@@ -63,6 +184,7 @@ export default function UpdateActivitesModal({
   const [uc, setUc] = useState("");
 
   const [values, setValues] = useState<Record<string, string>>({});
+  const [invalidFields, setInvalidFields] = useState<Record<string, boolean>>({});
   const [showHistorique, setShowHistorique] = useState(false);
 
   
@@ -200,12 +322,17 @@ useEffect(() => {
     key: string,
     value: string
   ) => {
-    // Autoriser uniquement les nombres et le point décimal
-    if (!/^\d*\.?\d*$/.test(value)) return;
-
-    // Limiter les pourcentages à 100
-    if (value !== "" && Number(value) > 100) return;
-
+    const isValidFormat = /^\d*\.?\d*$/.test(value);
+    const isValidRange =
+      value === "" || Number(value) <= 100;
+  
+    const isValid = isValidFormat && isValidRange;
+  
+    setInvalidFields((prev) => ({
+      ...prev,
+      [key]: !isValid,
+    }));
+  
     setValues((prev) => ({
       ...prev,
       [key]: value,
@@ -234,11 +361,20 @@ useEffect(() => {
     setValues({});
   };
 
-const handleSave = async () => {
-  if (!annee || !moisSelectionne || !uc) {
-    alert("Veuillez sélectionner l’année, le mois et l’unité de coordination.");
-    return;
-  }
+  const handleSave = async () => {
+    if (!annee || !moisSelectionne || !uc) {
+      alert(
+        "Veuillez sélectionner l’année, le mois et l’unité de coordination."
+      );
+      return;
+    }
+  
+    if (Object.values(invalidFields).some(Boolean)) {
+      alert(
+        "Veuillez corriger les valeurs indiquées en rouge avant d'enregistrer."
+      );
+      return;
+    }
 
   // Calcul automatique des activités non démarrées
   const total = Number(values.totalPlanifiees || 0);
@@ -369,74 +505,6 @@ const handleSave = async () => {
     };
 
 
-  const InputPercent = ({
-    id,
-    label,
-  }: {
-    id: string;
-    label: string;
-  }) => (
-    <div style={styles.fieldCard}>
-      <label style={styles.fieldLabel}>{label}</label>
-
-      <div style={styles.percentInputWrapper}>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={values[id] || ""}
-          onChange={(e) =>
-            handleValueChange(id, e.target.value)
-          }
-          placeholder="0"
-          style={styles.percentInput}
-        />
-
-        <span style={styles.percentSymbol}>%</span>
-      </div>
-    </div>
-  );
-
-  const InputNumber = ({
-    id,
-    label,
-    readOnly = false,
-    calculatedValue,
-  }: {
-    id: string;
-    label: string;
-    readOnly?: boolean;
-    calculatedValue?: number | string;
-  }) => (
-    <div style={styles.fieldCard}>
-      <label style={styles.fieldLabel}>{label}</label>
-  
-      <input
-        type="number"
-        min="0"
-        step="5"
-        value={
-          calculatedValue !== undefined
-            ? calculatedValue
-            : values[id] || ""
-        }
-        onChange={(e) =>
-          !readOnly &&
-          setValues((prev) => ({
-            ...prev,
-            [id]: e.target.value,
-          }))
-        }
-        readOnly={readOnly}
-        placeholder="Saisir une valeur"
-        style={{
-          ...styles.normalInput,
-          backgroundColor: readOnly ? "#f3f4f6" : undefined,
-          cursor: readOnly ? "not-allowed" : "text",
-        }}
-      />
-    </div>
-  );
-
   const renderHeaderFields = () => (
     <>
       <div style={styles.contextGrid}>
@@ -506,25 +574,70 @@ const handleSave = async () => {
       {renderHeaderFields()}
   
       <div style={styles.fieldsGrid}>
-        <InputNumber
-          id="totalPlanifiees"
-          label="Total activités planifiées"
-        />
+      <InputNumber
+        id="totalPlanifiees"
+        label="Total activités planifiées"
+        value={values.totalPlanifiees ?? ""}
+        invalid={invalidFields.totalPlanifiees}
+        onChange={(value) => {
+          const isValid = /^\d*$/.test(value);
+
+          setInvalidFields((prev) => ({
+            ...prev,
+            totalPlanifiees: !isValid,
+          }));
+
+          setValues((prev) => ({
+            ...prev,
+            totalPlanifiees: value,
+          }));
+        }}
+      />
   
         <InputNumber
           id="achevees"
           label="Activités achevées"
+          value={values.achevees ?? ""}
+          invalid={invalidFields.achevees}
+          onChange={(value) => {
+            const isValid = /^\d*$/.test(value);
+
+            setInvalidFields((prev) => ({
+              ...prev,
+              achevees: !isValid,
+            }));
+
+            setValues((prev) => ({
+              ...prev,
+              achevees: value,
+            }));
+          }}
         />
   
         <InputNumber
           id="enCours"
           label="Activités en cours"
-        />
-  
+          value={values.enCours ?? ""}
+          invalid={invalidFields.enCours}
+          onChange={(value) => {
+            const isValid = /^\d*$/.test(value);
+
+            setInvalidFields((prev) => ({
+              ...prev,
+              enCours: !isValid,
+            }));
+
+            setValues((prev) => ({
+              ...prev,
+              enCours: value,
+            }));
+          }}
+        />  
         
         <InputNumber
           id="nonDemarrees"
           label="Activités non démarrées"
+          value=""
           readOnly
           calculatedValue={Math.max(
             0,
@@ -534,6 +647,7 @@ const handleSave = async () => {
                 Number(values.enCours || 0)
               )
           )}
+          onChange={() => {}}
         />
       </div>
     </>
@@ -547,11 +661,17 @@ const handleSave = async () => {
         <InputPercent
           id="r1"
           label="R1. Système de gestion"
+          value={values.r1 ?? ""}
+          invalid={invalidFields.r1}
+          onChange={(value) => handleValueChange("r1", value)}
         />
 
         <InputPercent
           id="r2"
           label="R2. Aménagement du territoire"
+          value={values.r2 ?? ""}
+          invalid={invalidFields.r2}
+          onChange={(value) => handleValueChange("r2", value)}
         />
       </div>
     </>
@@ -565,21 +685,33 @@ const handleSave = async () => {
         <InputPercent
           id="c1"
           label="C1. Gestion de services écosystémiques"
+          value={values.c1 ?? ""}
+          invalid={invalidFields.c1}
+          onChange={(value) => handleValueChange("c1", value)}
         />
 
         <InputPercent
           id="c2"
           label="C2. Gouvernance environnementale décentralisée"
+          value={values.c2 ?? ""}
+          invalid={invalidFields.c2}
+          onChange={(value) => handleValueChange("c2", value)}
         />
 
         <InputPercent
           id="c3"
           label="C3. Développement des paysages productifs"
+          value={values.c3 ?? ""}
+          invalid={invalidFields.c3}
+          onChange={(value) => handleValueChange("c3", value)}
         />
 
         <InputPercent
           id="c4"
           label="C4. Création d'emplois verts"
+          value={values.c4 ?? ""}
+          invalid={invalidFields.c4}
+          onChange={(value) => handleValueChange("c4", value)}
         />
       </div>
     </>
@@ -593,41 +725,65 @@ const handleSave = async () => {
         <InputPercent
           id="a111"
           label="1.1.1 Analyses diagnostiques"
+          value={values.a111 ?? ""}
+          invalid={invalidFields.a111}
+          onChange={(value) => handleValueChange("a111", value)}
         />
 
         <InputPercent
           id="a112"
           label="1.1.2 Planification territoriale"
+          value={values.a112 ?? ""}
+          invalid={invalidFields.a112}
+          onChange={(value) => handleValueChange("a112", value)}
         />
 
         <InputPercent
           id="a113"
           label="1.1.3 Suivi écosystémique"
+          value={values.a113 ?? ""}
+          invalid={invalidFields.a113}
+          onChange={(value) => handleValueChange("a113", value)}
         />
 
         <InputPercent
           id="a114"
           label="1.1.4 Financement durable"
+          value={values.a114 ?? ""}
+          invalid={invalidFields.a114}
+          onChange={(value) => handleValueChange("a114", value)}
         />
 
         <InputPercent
           id="a121"
           label="1.2.1 Participation des populations"
+          value={values.a121 ?? ""}
+          invalid={invalidFields.a121}
+          onChange={(value) => handleValueChange("a121", value)}
         />
 
         <InputPercent
           id="a122"
           label="1.2.2 Coopération avec MNP"
+          value={values.a122 ?? ""}
+          invalid={invalidFields.a122}
+          onChange={(value) => handleValueChange("a122", value)}
         />
 
         <InputPercent
           id="a123"
           label="1.2.3 Coordination intersectorielle"
+          value={values.a123 ?? ""}
+          invalid={invalidFields.a123}
+          onChange={(value) => handleValueChange("a123", value)}
         />
 
         <InputPercent
           id="a124"
           label="1.2.4 Lutte contre la corruption"
+          value={values.a124 ?? ""}
+          invalid={invalidFields.a124}
+          onChange={(value) => handleValueChange("a124", value)}
         />
       </div>
     </>
@@ -641,41 +797,65 @@ const handleSave = async () => {
         <InputPercent
           id="a211"
           label="2.1.1 Restauration paysages"
+          value={values.a211 ?? ""}
+          invalid={invalidFields.a211}
+          onChange={(value) => handleValueChange("a211", value)}
         />
 
         <InputPercent
           id="a212"
           label="2.1.2 Production durable"
+          value={values.a212 ?? ""}
+          invalid={invalidFields.a212}
+          onChange={(value) => handleValueChange("a212", value)}
         />
 
         <InputPercent
           id="a213"
           label="2.1.3 Sécurisation foncière"
+          value={values.a213 ?? ""}
+          invalid={invalidFields.a213}
+          onChange={(value) => handleValueChange("a213", value)}
         />
 
         <InputPercent
           id="a214"
           label="2.1.4 Gestion des feux"
+          value={values.a214 ?? ""}
+          invalid={invalidFields.a214}
+          onChange={(value) => handleValueChange("a214", value)}
         />
 
         <InputPercent
           id="a221"
           label="2.2.1 Système de marché"
+          value={values.a221 ?? ""}
+          invalid={invalidFields.a221}
+          onChange={(value) => handleValueChange("a221", value)}
         />
 
         <InputPercent
           id="a222"
           label="2.2.2 Valorisation des productions"
+          value={values.a222 ?? ""}
+          invalid={invalidFields.a222}
+          onChange={(value) => handleValueChange("a222", value)}
         />
 
         <InputPercent
           id="a223"
           label="2.2.3 Diversification des activités"
+          value={values.a223 ?? ""}
+          invalid={invalidFields.a223}
+          onChange={(value) => handleValueChange("a223", value)}
         />
 
         <InputPercent
           id="a224"
           label="2.2.4 Mobilisation communautaire"
+          value={values.a224 ?? ""}
+          invalid={invalidFields.a224}
+          onChange={(value) => handleValueChange("a224", value)}
         />
       </div>
     </>
