@@ -491,13 +491,23 @@ useEffect(() => {
           alert(result.error || "Échec de l’enregistrement.");
           return;
         }
+        
+      if (result.historySaved) {
+        console.log("Historique enregistré avec succès.");
+      } else {
+        console.warn("Les données sont enregistrées, mais l'historique ne l'est pas.");
+      }
 
-        // La date change uniquement si l'enregistrement a réussi
-        console.log("✅ ENREGISTREMENT RÉUSSI - appel de onUpdateSuccess");
-        onUpdateSuccess();
+      onUpdateSuccess();
 
-        alert("Les données ont été enregistrées avec succès dans GitHub.");
-        onClose();
+      alert(
+        result.historySaved
+          ? "Les données ont été enregistrées avec succès dans GitHub."
+          : "Les données ont été enregistrées, mais l'historique n'a pas pu être enregistré."
+      );
+
+      onClose();
+
       } catch (error) {
         console.error("Erreur d’enregistrement :", error);
         alert("Impossible de contacter le serveur. Vérifiez votre connexion.");
