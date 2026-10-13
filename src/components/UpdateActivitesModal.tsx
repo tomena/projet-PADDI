@@ -1187,6 +1187,7 @@ const celluleHistorique: React.CSSProperties = {
                                 "Utilisateur",
                                 "Date",
                                 "Heure",
+                                "Unité de coordination",
                                 "Nom colonne modifié",
                                 "Ancienne valeur",
                                 "Nouvelle valeur",
@@ -1243,6 +1244,9 @@ const celluleHistorique: React.CSSProperties = {
                                       {date && !isNaN(date.getTime())
                                         ? date.toLocaleTimeString("fr-FR")
                                         : ""}
+                                    </td>
+                                    <td style={celluleHistorique}>
+                                      {entry.uc ?? ""}
                                     </td>
                                     <td style={celluleHistorique}>
                                       {c.colonne ?? c.champ ?? c.field ?? c.nomColonne ?? ""}
