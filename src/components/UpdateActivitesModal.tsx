@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, Save, RotateCcw } from "lucide-react";
+import { X, Save, History, RotateCcw } from "lucide-react";
 
 interface UpdateActivitesModalProps {
   isOpen: boolean;
@@ -63,6 +63,13 @@ export default function UpdateActivitesModal({
   const [uc, setUc] = useState("");
 
   const [values, setValues] = useState<Record<string, string>>({});
+  const [showHistorique, setShowHistorique] = useState(false);
+
+  
+const [historique, setHistorique] = useState<any[]>([]);
+const [chargementHistorique, setChargementHistorique] = useState(false);
+const [erreurHistorique, setErreurHistorique] = useState("");
+
 
 useEffect(() => {
   if (!annee || !moisSelectionne || !uc) {
@@ -674,36 +681,133 @@ const handleSave = async () => {
     </>
   );
 
+  
+const chargerHistorique = async () => {
+  setChargementHistorique(true);
+  setErreurHistorique("");
+
+  try {
+    // Réutiliser ici les identifiants de la session existante.
+    const response = await fetch("/api/historique-geojson", {
+      method: "GET",      
+      headers: {
+        "x-paddi-identifiant": identifiant,
+        "x-paddi-password": motDePasse,
+      },
+
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        response.status === 401
+          ? "Accès non autorisé."
+          : "Impossible de charger l'historique."
+      );
+    }
+
+    const texte = await response.text();
+
+console.log("Statut API historique :", response.status);
+console.log("Réponse API historique :", texte);
+
+let result;
+
+try {
+  result = JSON.parse(texte);
+} catch {
+  throw new Error(
+    "L'API historique ne renvoie pas du JSON valide. Vérifie la réponse dans la console du navigateur."
+  );
+}
+
+setHistorique(
+  Array.isArray(result.entries) ? result.entries : []
+);
+  } catch (error) {
+    setErreurHistorique(
+      error instanceof Error
+        ? error.message
+        : "Une erreur est survenue."
+    );
+  } finally {
+    setChargementHistorique(false);
+  }
+};
+
+
+
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
         {/* ================= HEADER ================= */}
 
-        <div style={styles.modalHeader}>
-        <div>
-          <h2 style={styles.title}>
-            Mise à jour
-          </h2>
+      <div style={styles.modalHeader}>
 
-          <p style={styles.subtitle}>
-            Suivi des activités annuelles
-          </p>
+      {/* GAUCHE : TITRE */}
+      <div>
+        <h2 style={styles.title}>
+          Mise à jour
+        </h2>
 
-          {userName && (
-            <div style={styles.welcome}>
-              Bienvenue {userName} !
-            </div>
-          )}
-        </div>
+        <p style={styles.subtitle}>
+          Suivi des activités annuelles
+        </p>
 
-          <button
-            onClick={onClose}
-            style={styles.closeButton}
-            title="Fermer"
-          >
-            <X size={21} />
-          </button>
-        </div>
+        {userName && (
+          <div style={styles.welcome}>
+            Bienvenue {userName} !
+          </div>
+        )}
+      </div>
+
+      {/* DROITE : HISTORIQUE + FERMER */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+
+        {/* HISTORIQUE */}
+        <button
+          type="button"          
+          onClick={() => {
+            setShowHistorique(true);
+            chargerHistorique();
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.45)",
+            backgroundColor: "rgba(255,255,255,0.15)",
+            color: "#ffffff",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+          title="Voir l'historique des mises à jour"
+        >
+          <History size={16} />
+          Historique
+        </button>
+
+        {/* FERMER */}
+        <button
+          type="button"
+          onClick={onClose}
+          style={styles.closeButton}
+          title="Fermer"
+        >
+          <X size={21} />
+        </button>
+
+      </div>
+
+      </div>
 
         {/* ================= CONTENU ================= */}
 
@@ -866,9 +970,9 @@ const handleSave = async () => {
           )}
         </div>
 
-        {/* ================= FOOTER ================= */}
+                {/* ================= FOOTER ================= */}
 
-        <div style={styles.footer}>
+                <div style={styles.footer}>
           <button
             onClick={handleReset}
             style={styles.resetButton}
@@ -894,7 +998,151 @@ const handleSave = async () => {
             </button>
           </div>
         </div>
+
       </div>
+
+      {/* ================= HISTORIQUE ================= */}
+
+      {showHistorique && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              width: "min(900px, 95vw)",
+              maxHeight: "85vh",
+              backgroundColor: "#ffffff",
+              borderRadius: 14,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+
+            {/* HEADER HISTORIQUE */}
+            <div
+              style={{
+                background: GREEN,
+                color: "#ffffff",
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 19,
+                    fontWeight: 700,
+                  }}
+                >
+                  Historique des mises à jour
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 13,
+                    opacity: 0.9,
+                    marginTop: 3,
+                  }}
+                >
+                  Consultez les modifications effectuées sur les activités.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowHistorique(false)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  padding: 5,
+                }}
+                title="Fermer"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* CONTENU HISTORIQUE */}
+            <div
+              style={{
+                padding: 20,
+                overflowY: "auto",
+              }}
+            >
+              <div
+                style={{
+                  padding: 30,
+                  textAlign: "center",
+                  color: "#6b7280",
+                }}
+              >
+                
+              {chargementHistorique ? (
+                <div style={{ padding: 30, textAlign: "center" }}>
+                  Chargement de l'historique...
+                </div>
+              ) : erreurHistorique ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#dc2626" }}>
+                  {erreurHistorique}
+                </div>
+              ) : historique.length === 0 ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#6b7280" }}>
+                  Aucune mise à jour enregistrée.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+                  {historique.map((entry, index) => (
+                    <div
+                      key={entry.id ?? index}
+                      style={{
+                        padding: 14,
+                        border: "1px solid #e5e7eb",
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ fontWeight: 700 }}>
+                        {entry.utilisateur ?? entry.nom ?? "Utilisateur"}
+                      </div>
+
+                      <div style={{ fontSize: 13, color: "#6b7280", marginTop: 4 }}>
+                        {entry.date ?? entry.createdAt ?? ""}
+                      </div>
+
+                      <pre
+                        style={{
+                          whiteSpace: "pre-wrap",
+                          overflowWrap: "anywhere",
+                          fontSize: 12,
+                          marginBottom: 0,
+                        }}
+                      >
+                        {JSON.stringify(entry, null, 2)}
+                      </pre>
+                    </div>
+                  ))}
+                </div>
+              )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
