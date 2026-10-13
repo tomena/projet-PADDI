@@ -3,7 +3,7 @@ import { useLanguage } from "../context/LanguageContext";
 import ActivitesAccessModal from "../components/ActivitesAccessModal";
 import UpdateActivitesModal from "../components/UpdateActivitesModal";
 import * as XLSX from "xlsx";
-import { CalendarDays, RotateCcw, History, RefreshCw, Download, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
+import { CalendarDays, RotateCcw, RefreshCw, Download, CheckCircle, ListChecks, Clock, Building,  Briefcase, TrendingUp, TrendingDown, Leaf, ShieldCheck, Mountain, BriefcaseBusiness, XCircle, Building2, Info, TreePine, Users, Trees, MapPin,
 } from 'lucide-react';
 
 import { ResponsiveContainer, PieChart, Pie, Cell,
@@ -368,7 +368,6 @@ export default function SuiviActivitesAnnuelles() {
   const [userName, setUserName] = useState("");
   const [userIdentifiant, setUserIdentifiant] = useState("");
   const [userMotDePasse, setUserMotDePasse] = useState("");
-  const [showHistorique, setShowHistorique] = useState(false);
 
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
@@ -939,24 +938,7 @@ export default function SuiviActivitesAnnuelles() {
               <RefreshCw size={17} strokeWidth={1.8} />
               <span>{t.update || "Mettre à jour"}</span>
             </button>
-
-            
-            {/* HISTORIQUE */}
-            <button
-              style={{
-                ...styles.resetBigBtn,
-                backgroundColor: "#eff6ff",
-                color: "#1d4ed8",
-                border: "1px solid #bfdbfe",
-              }}
-              onClick={() => setShowHistorique(true)}
-            >
-              <History size={17} strokeWidth={1.8} />
-              <span>Historique</span>
-            </button>
-
           </div>
-
         </div>
       </div>
 
