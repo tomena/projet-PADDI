@@ -384,12 +384,48 @@ export default function SuiviActivitesAnnuelles() {
 
   const [showModal, setShowModal] = useState(false);
 
-  const [dateMiseAJour, setDateMiseAJour] = useState<string>(() => {
-    return (
-      localStorage.getItem("paddi_date_mise_a_jour") ||
-      "24 septembre 2026"
+  
+const [dateMiseAJour, setDateMiseAJour] = useState<string>(
+  "Chargement..."
+);
+
+const chargerDateMiseAJour = async () => {
+  try {
+    const response = await fetch(
+      "/api/derniere-mise-a-jour",
+      { cache: "no-store" }
     );
-  });
+
+    if (!response.ok) {
+      throw new Error("Erreur lors de la récupération de la date.");
+    }
+
+    const result = await response.json();
+
+    if (!result.date) {
+      setDateMiseAJour("Aucune mise à jour enregistrée");
+      return;
+    }
+
+    const date = new Date(result.date);
+
+    setDateMiseAJour(
+      new Intl.DateTimeFormat("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Indian/Antananarivo",
+      }).format(date)
+    );
+  } catch (error) {
+    console.error("Erreur de chargement de la date :", error);
+    setDateMiseAJour("Date indisponible");
+  }
+};
+
+useEffect(() => {
+  chargerDateMiseAJour();
+}, []);
 
 
   const composantesConfig = [
@@ -1324,9 +1360,8 @@ export default function SuiviActivitesAnnuelles() {
         setShowLogin(false);
         setShowUpdate(true);
       }}
-    />
-    
-    
+    />   
+      
       <UpdateActivitesModal
         isOpen={showUpdate}
         onClose={() => setShowUpdate(false)}
@@ -1334,14 +1369,7 @@ export default function SuiviActivitesAnnuelles() {
         identifiant={userIdentifiant}
         motDePasse={userMotDePasse}
         onUpdateSuccess={() => {
-          const nouvelleDate = new Date().toLocaleDateString("fr-FR", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          });
-
-          setDateMiseAJour(nouvelleDate);
-          localStorage.setItem("paddi_date_mise_a_jour", nouvelleDate);
+          chargerDateMiseAJour();
         }}
       />
 
