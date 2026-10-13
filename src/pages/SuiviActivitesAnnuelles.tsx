@@ -1326,23 +1326,25 @@ export default function SuiviActivitesAnnuelles() {
       }}
     />
     
-    <UpdateActivitesModal
-      isOpen={showUpdate}
-      onClose={() => setShowUpdate(false)}
-      userName={userName}
-      identifiant={userIdentifiant}
-      motDePasse={userMotDePasse}
-      onUpdateSuccess={() => {
-        const nouvelleDate = new Date().toLocaleDateString("fr-FR", {
-          day: "numeric",
-          month: "long",
-          year: "numeric",
-        });
+    
+      <UpdateActivitesModal
+        isOpen={showUpdate}
+        onClose={() => setShowUpdate(false)}
+        userName={userName}
+        identifiant={userIdentifiant}
+        motDePasse={userMotDePasse}
+        onUpdateSuccess={() => {
+          const nouvelleDate = new Date().toLocaleDateString("fr-FR", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          });
 
-        setDateMiseAJour(nouvelleDate);
-        localStorage.setItem("paddi_date_mise_a_jour", nouvelleDate);
-      }}
-    />
+          setDateMiseAJour(nouvelleDate);
+          localStorage.setItem("paddi_date_mise_a_jour", nouvelleDate);
+        }}
+      />
+
     </div>
   );
 }
