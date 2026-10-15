@@ -1356,116 +1356,154 @@ const celluleHistorique: React.CSSProperties = {
                 </div>
               ) : (
                 <div style={{ display: "grid", gap: 12 }}>
-                  {historique.map((entry, index) => (
-                    <div style={{ overflowX: "auto", width: "100%" }}>
-                      {historique.length === 0 ? (
-                        <p style={{ textAlign: "center", padding: 24 }}>
-                          Aucune modification enregistrée.
-                        </p>
-                      ) : (
-                        <table
-                          style={{
-                            width: "100%",
-                            borderCollapse: "collapse",
-                            fontSize: 13,
-                            textAlign: "left",
-                          }}
-                        >
-                          <thead>
-                            <tr style={{ background: "#f0f5f1" }}>
-                              {[
-                                "Utilisateur",
-                                "Date",
-                                "Heure",
-                                "Année",
-                                "Unité de coordination",
-                                "Nom colonne modifié",
-                                "Ancienne valeur",
-                                "Nouvelle valeur",
-                              ].map((titre) => (
-                                <th
-                                  key={titre}
-                                  style={{
-                                    padding: 10,
-                                    border: "1px solid #dce5dd",
-                                    color: "#245c3a",
-                                    whiteSpace: "nowrap",
-                                  }}
-                                >
-                                  {titre}
-                                </th>
-                              ))}
-                            </tr>
-                          </thead>
-                    
-                          <tbody>
-                            {historique.flatMap((entry, index) => {
-                              const date = entry.date
-                                ? new Date(entry.date)
-                                : null;
-                    
-                              return (
-                                Array.isArray(entry.changements)
-                                  ? entry.changements
-                                  : []
-                              )
-                                .filter((c) => {
-                                  const ancienne =
-                                    c.ancienneValeur ?? c.ancienne ?? c.oldValue ?? null;
-                                  const nouvelle =
-                                    c.nouvelleValeur ?? c.nouvelle ?? c.newValue ?? null;
-                    
-                                  return (
-                                    JSON.stringify(ancienne) !==
-                                    JSON.stringify(nouvelle)
-                                  );
-                                })
-                                .map((c, i) => (
-                                  <tr key={`${entry.id ?? index}-${i}`}>
-                                    <td style={celluleHistorique}>
-                                      {entry.utilisateur ?? entry.nom ?? ""}
-                                    </td>
-                                    
-                                    <td style={celluleHistorique}>
-                                      {date && !isNaN(date.getTime())
-                                        ? date.toLocaleDateString("fr-FR")
-                                        : ""}
-                                    </td>
-                                    <td style={celluleHistorique}>
-                                      {date && !isNaN(date.getTime())
-                                        ? date.toLocaleTimeString("fr-FR")
-                                        : ""}
-                                    </td>
 
-                                    <td style={celluleHistorique}>
-                                      {entry.annee ?? ""}
-                                    </td>
+  {historique.length === 0 ? (
+    <p style={{ textAlign: "center", padding: 24 }}>
+      Aucune modification enregistrée.
+    </p>
+  ) : (
+    <div
+      style={{
+        maxHeight: "420px",
+        overflowY: "auto",
+        overflowX: "auto",
+        width: "100%",
+      }}
+    >
 
-                                    <td style={celluleHistorique}>
-                                      {entry.uc ?? ""}
-                                    </td>
-                                    <td style={celluleHistorique}>
-                                      {c.colonne ?? c.champ ?? c.field ?? c.nomColonne ?? ""}
-                                    </td>
-                                    <td style={celluleHistorique}>
-                                      {String(
-                                        c.ancienneValeur ?? c.ancienne ?? c.oldValue ?? ""
-                                      )}
-                                    </td>
-                                    <td style={celluleHistorique}>
-                                      {String(
-                                        c.nouvelleValeur ?? c.nouvelle ?? c.newValue ?? ""
-                                      )}
-                                    </td>
-                                  </tr>
-                                ));
-                            })}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-                  ))}
-                </div>
+      <table
+        style={{
+          width: "100%",
+          borderCollapse: "collapse",
+          fontSize: 13,
+          textAlign: "left",
+        }}
+      >
+
+        <thead>
+          <tr style={{ background: "#f0f5f1" }}>
+            {[
+              "Utilisateur",
+              "Date",
+              "Heure",
+              "Année",
+              "Unité de coordination",
+              "Nom colonne modifié",
+              "Ancienne valeur",
+              "Nouvelle valeur",
+            ].map((titre) => (
+              <th
+                key={titre}
+                style={{
+                  padding: 10,
+                  border: "1px solid #dce5dd",
+                  color: "#245c3a",
+                  whiteSpace: "nowrap",
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 2,
+                  background: "#f0f5f1",
+                }}
+              >
+                {titre}
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {historique.flatMap((entry, index) => {
+
+            const date = entry.date
+              ? new Date(entry.date)
+              : null;
+
+            return (
+              Array.isArray(entry.changements)
+                ? entry.changements
+                : []
+            )
+              .filter((c) => {
+                const ancienne =
+                  c.ancienneValeur ??
+                  c.ancienne ??
+                  c.oldValue ??
+                  null;
+
+                const nouvelle =
+                  c.nouvelleValeur ??
+                  c.nouvelle ??
+                  c.newValue ??
+                  null;
+
+                return (
+                  JSON.stringify(ancienne) !==
+                  JSON.stringify(nouvelle)
+                );
+              })
+              .map((c, i) => (
+                <tr key={`${entry.id ?? index}-${i}`}>
+
+                  <td style={celluleHistorique}>
+                    {entry.utilisateur ?? entry.nom ?? ""}
+                  </td>
+
+                  <td style={celluleHistorique}>
+                    {date && !isNaN(date.getTime())
+                      ? date.toLocaleDateString("fr-FR")
+                      : ""}
+                  </td>
+
+                  <td style={celluleHistorique}>
+                    {date && !isNaN(date.getTime())
+                      ? date.toLocaleTimeString("fr-FR")
+                      : ""}
+                  </td>
+
+                  <td style={celluleHistorique}>
+                    {entry.annee ?? ""}
+                  </td>
+
+                  <td style={celluleHistorique}>
+                    {entry.uc ?? ""}
+                  </td>
+
+                  <td style={celluleHistorique}>
+                    {c.colonne ??
+                      c.champ ??
+                      c.field ??
+                      c.nomColonne ??
+                      ""}
+                  </td>
+
+                  <td style={celluleHistorique}>
+                    {String(
+                      c.ancienneValeur ??
+                      c.ancienne ??
+                      c.oldValue ??
+                      ""
+                    )}
+                  </td>
+
+                  <td style={celluleHistorique}>
+                    {String(
+                      c.nouvelleValeur ??
+                      c.nouvelle ??
+                      c.newValue ??
+                      ""
+                    )}
+                  </td>
+
+                </tr>
+              ));
+          })}
+        </tbody>
+
+      </table>
+    </div>
+  )}
+
+</div>
               )}
               </div>
             </div>
