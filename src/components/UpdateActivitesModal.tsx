@@ -1382,32 +1382,39 @@ const celluleHistorique: React.CSSProperties = {
 
         <thead>
           <tr style={{ background: "#f0f5f1" }}>
-            {[
-              "Utilisateur",
-              "Date",
-              "Heure",
-              "Année",
-              "Unité de coordination",
-              "Nom colonne modifié",
-              "Ancienne valeur",
-              "Nouvelle valeur",
-            ].map((titre) => (
-              <th
-                key={titre}
-                style={{
-                  padding: 10,
-                  border: "1px solid #dce5dd",
-                  color: "#245c3a",
-                  whiteSpace: "nowrap",
-                  position: "sticky",
-                  top: 0,
-                  zIndex: 2,
-                  background: "#f0f5f1",
-                }}
-              >
-                {titre}
-              </th>
-            ))}
+          {[
+            "Utilisateur",
+            "Date",
+            "Heure",
+            "Année",
+            "Unité de coordination",
+            "Nom colonne modifié",
+            "Ancienne valeur",
+            "Nouvelle valeur",
+          ].map((titre) => (
+            <th
+              key={titre}
+              style={{
+                padding: 10,
+                border: "1px solid #dce5dd",
+                color: "#245c3a",
+                whiteSpace: "normal",
+                lineHeight: 1.2,
+                position: "sticky",
+                top: 0,
+                zIndex: 2,
+                background: "#f0f5f1",
+                minWidth: 100,
+              }}
+            >
+              {titre.split(" ").map((mot, index) => (
+                <React.Fragment key={index}>
+                  {index > 0 && " "}
+                  {mot}
+                </React.Fragment>
+              ))}
+            </th>
+          ))}
           </tr>
         </thead>
 
