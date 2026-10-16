@@ -10,6 +10,51 @@ const ALLOWED_FIELDS = new Set([
   "TAC", "TAC  C1", "TAC C2", "TAC  C3", "TAC C4",
 ]);
 
+// Colonnes quantitatives : on fait la SOMME pour "Tous"
+const SUM_FIELDS = new Set([
+  "NAP",
+  "NAA",
+  "NAC",
+  "NAD",
+]);
+
+// Colonnes en pourcentage : on fait la MOYENNE uniquement des UC qui possèdent une valeur.
+const AVERAGE_FIELDS = new Set([
+  "TAR 1",
+  "TAR 2",
+
+  "TAR 1.1",
+  "TAR 1.2",
+  "TAR 2.1",
+  "TAR 2.2",
+
+  "TAA 1.1.1",
+  "TAA 1.1.2",
+  "TAA 1.1.3",
+  "TAA 1.1.4",
+
+  "TAA 1.2.1",
+  "TAA 1.2.2",
+  "TAA 1.2.3",
+  "TAA 1.2.4",
+
+  "TAA 2.1.1",
+  "TAA 2.1.2",
+  "TAA 2.1.3",
+  "TAA 2.1.4",
+
+  "TAA 2.2.1",
+  "TAA 2.2.2",
+  "TAA 2.2.3",
+  "TAA 2.2.4",
+
+  "TAC",
+  "TAC C1",
+  "TAC C2",
+  "TAC C3",
+  "TAC C4",
+]);
+
 const USERS: Record<string, string> = {
   "zo.ravelonirina@giz.de": "Zo",
   "anjarampifohazana.toky@giz.de": "Toky",
@@ -81,7 +126,114 @@ async function appendHistory(
   }
 }
 
+function recalculerLigneTous(
+  features: any[],
+  annee: number,
+  mois: string
+) {
+  const UCs = [
+    "UCT",
+    "UCR-A",
+    "UCR-B",
+    "UCR-D",
+    "UCR-F",
+    "UCR-FD",
+  ];
 
+  // Chercher la ligne "Tous"
+  const ligneTous = features.find((feature: any) => {
+    const p = feature.properties ?? {};
+
+    return (
+      Number(p["Année"]) === Number(annee) &&
+      p["Mois"] === mois &&
+      p["UC"] === "Tous"
+    );
+  });
+
+  if (!ligneTous) {
+    throw new Error(
+      `La ligne "Tous" est introuvable pour ${annee} - ${mois}.`
+    );
+  }
+
+  // Récupérer les 6 UC
+  const lignesUC = UCs
+    .map((nomUC) =>
+      features.find((feature: any) => {
+        const p = feature.properties ?? {};
+
+        return (
+          Number(p["Année"]) === Number(annee) &&
+          p["Mois"] === mois &&
+          p["UC"] === nomUC
+        );
+      })
+    )
+    .filter(Boolean);
+
+  const propertiesTous = ligneTous.properties ?? {};
+
+  // ==============================
+  // SOMME DES COLONNES QUANTITATIVES
+  // ==============================
+
+  for (const field of SUM_FIELDS) {
+    let total = 0;
+
+    for (const feature of lignesUC) {
+      const value = feature.properties?.[field];
+
+      if (
+        value !== null &&
+        value !== undefined &&
+        value !== "" &&
+        Number.isFinite(Number(value))
+      ) {
+        total += Number(value);
+      }
+    }
+
+    propertiesTous[field] = total;
+  }
+
+  // ==============================
+  // MOYENNE DES POURCENTAGES
+  // ==============================
+
+  for (const field of AVERAGE_FIELDS) {
+    const valeurs: number[] = [];
+
+    for (const feature of lignesUC) {
+      const value = feature.properties?.[field];
+
+      // Les cellules vides sont ignorées
+      if (
+        value !== null &&
+        value !== undefined &&
+        value !== "" &&
+        Number.isFinite(Number(value))
+      ) {
+        valeurs.push(Number(value));
+      }
+    }
+
+    if (valeurs.length > 0) {
+      const moyenne =
+        valeurs.reduce((sum, value) => sum + value, 0) /
+        valeurs.length;
+
+      propertiesTous[field] = moyenne;
+    } else {
+      // Si aucune UC n'a de valeur,
+      // on laisse "Tous" vide.
+      propertiesTous[field] = null;
+    }
+  }
+
+  // Réaffecter les propriétés
+  ligneTous.properties = propertiesTous;
+}
 
 
 export default async function handler(req: any, res: any) {
@@ -329,23 +481,34 @@ export default async function handler(req: any, res: any) {
     }
 
     const properties = matches[0].properties;
-    
-    const changements = updateEntries.map(([key, value]) => ({
-      colonne: key,
-      ancienneValeur: properties[key] ?? null,
-      nouvelleValeur: value,
-    }));
 
-    // Modifier uniquement les colonnes reçues et autorisées.
-    for (const [key, value] of updateEntries) {
-      if (!Object.prototype.hasOwnProperty.call(properties, key)) {
-        return res.status(400).json({
-          error: `La colonne "${key}" n'existe pas dans cette ligne.`,
-        });
-      }
+        // Vérifier que toutes les colonnes existent
+        for (const [key] of updateEntries) {
+          if (!Object.prototype.hasOwnProperty.call(properties, key)) {
+            return res.status(400).json({
+              error: `La colonne "${key}" n'existe pas dans cette ligne.`,
+            });
+          }
+        }
 
-      properties[key] = value;
-    }
+        // Historique de la modification demandée
+        const changements = updateEntries.map(([key, value]) => ({
+          colonne: key,
+          ancienneValeur: properties[key] ?? null,
+          nouvelleValeur: value,
+        }));
+
+        // Modifier l'UC sélectionné
+        for (const [key, value] of updateEntries) {
+          properties[key] = value;
+        }
+
+        // Recalculer automatiquement "Tous"
+        recalculerLigneTous(
+          geojson.features,
+          Number(annee),
+          mois
+        );
 
     // Enregistrer le GeoJSON sur GitHub en conservant le SHA.
     const saveResponse = await fetch(apiUrl, {
