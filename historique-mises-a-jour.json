@@ -1,6 +1,38 @@
 {
   "entries": [
     {
+      "id": "1792564728603-r623yh",
+      "date": "2026-10-21T06:38:48.603Z",
+      "utilisateur": "Toky",
+      "identifiant": "anjarampifohazana.toky@giz.de",
+      "annee": 2027,
+      "mois": "Janvier",
+      "uc": "UCR-B",
+      "nombreColonnesModifiees": 4,
+      "changements": [
+        {
+          "colonne": "TAC  C1",
+          "ancienneValeur": 0.15,
+          "nouvelleValeur": 0
+        },
+        {
+          "colonne": "TAC C2",
+          "ancienneValeur": 0.25,
+          "nouvelleValeur": 0
+        },
+        {
+          "colonne": "TAC  C3",
+          "ancienneValeur": 0.15,
+          "nouvelleValeur": 0
+        },
+        {
+          "colonne": "TAC C4",
+          "ancienneValeur": 0.26,
+          "nouvelleValeur": 0
+        }
+      ]
+    },
+    {
       "id": "1792564461666-63s61n",
       "date": "2026-10-21T06:34:21.666Z",
       "utilisateur": "Toky",
