@@ -9,7 +9,6 @@ import { CalendarDays, RotateCcw, RefreshCw, Download, CheckCircle, ListChecks, 
 import { ResponsiveContainer, PieChart, Pie, Cell,
 } from 'recharts';
 
-
 const TEXT = {
   fr: {
     title: "SUIVI DES ACTIVITÉS ANNUELLES",
@@ -347,20 +346,9 @@ interface CoutActivite {
   [key:string]: any;
       } 
 
-const ordreMois = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre"
+const ordreMois = [ "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ];
+
 export default function SuiviActivitesAnnuelles() {
 
   const [showLogin, setShowLogin] = useState(false);
@@ -383,7 +371,6 @@ export default function SuiviActivitesAnnuelles() {
   };
 
   const [showModal, setShowModal] = useState(false);
-
   
 const [dateMiseAJour, setDateMiseAJour] = useState<string>(
   "Chargement..."
@@ -427,7 +414,6 @@ useEffect(() => {
   chargerDateMiseAJour();
 }, []);
 
-
   const composantesConfig = [
     { code: "C1", icon: Leaf, title: t.componentC1Short },
     { code: "C2", icon: Building, title: t.componentC2Short },
@@ -441,22 +427,33 @@ useEffect(() => {
     if (value <= 75) return '#22c55e';
     return '#2563eb';
 };
-  useEffect(() => {
-    fetch("/data/Base_Cout_Activite.geojson")
-      .then(res => {
-        if (!res.ok) {
-          throw new Error("Base_Cout_Activite.geojson introuvable");
-        }  
-        return res.json();
-      })
-      .then(json => {  
-        const table = json.features.map((f:any)=>f.properties);  
-        setData(table);  
-      })
-      .catch(err => {
-        console.error("Erreur chargement Base Cout :", err);
-      });  
-  }, []);
+  
+  const chargerDonnees = async () => {
+  try {
+    const response = await fetch(
+      `/data/Base_Cout_Activite.geojson?t=${Date.now()}`,
+      {
+        cache: "no-store",
+      }
+    );
+    if (!response.ok) {
+      throw new Error("Base_Cout_Activite.geojson introuvable");
+    }
+    const json = await response.json();
+    const table = json.features.map(
+      (f: any) => f.properties
+    );
+    setData(table);    console.log("Données activités rechargées :", table);
+  } catch (error) {
+    console.error(
+      "Erreur chargement Base Cout :",
+      error
+    );
+  }
+};
+useEffect(() => {
+  chargerDonnees();
+}, []);
 
   const annees = Array.from(
     new Set(
@@ -515,35 +512,31 @@ useEffect(() => {
   typeof window !== 'undefined' && window.innerWidth < 900;
 
   const composantes = [
-    {
-      label: t.componentC1,
-      percent: Number(coutActuel["TAR 1.1"] || 0) * 100,
-      icon: Leaf,
-    },
-  
-    {
-      label: t.componentC2,
-      percent: Number(coutActuel["TAR 1.2"] || 0) * 100,
-      icon: ShieldCheck,
-    },
-  
-    {
-      label: t.componentC3,
-      percent: Number(coutActuel["TAR 2.1"] || 0) * 100,
-      icon: Mountain,
-    },
-  
-    {
-      label: t.componentC4,
-      percent: Number(coutActuel["TAR 2.2"] || 0) * 100,
-      icon: BriefcaseBusiness,
-    },
-  
-  ].map(item => ({
-    ...item,
-    percent: Number(item.percent.toFixed(1)),
-    color: getProgressColor(item.percent)
-  }));
+  {
+    label: t.componentC1,
+    percent: Number(coutActuel["TAC  C1"] || 0) * 100,
+    icon: Leaf,
+  },
+  {
+    label: t.componentC2,
+    percent: Number(coutActuel["TAC C2"] || 0) * 100,
+    icon: ShieldCheck,
+  },
+  {
+    label: t.componentC3,
+    percent: Number(coutActuel["TAC  C3"] || 0) * 100,
+    icon: Mountain,
+  },
+  {
+    label: t.componentC4,
+    percent: Number(coutActuel["TAC C4"] || 0) * 100,
+    icon: BriefcaseBusiness,
+  },
+].map(item => ({
+  ...item,
+  percent: Number(item.percent.toFixed(1)),
+  color: getProgressColor(item.percent),
+}));
 
   const axes1 = {
     title: t.axis1Title,
@@ -1368,8 +1361,9 @@ useEffect(() => {
         userName={userName}
         identifiant={userIdentifiant}
         motDePasse={userMotDePasse}
-        onUpdateSuccess={() => {
-          chargerDateMiseAJour();
+        onUpdateSuccess={async () => {
+          await chargerDonnees();
+          await chargerDateMiseAJour();
         }}
       />
 
