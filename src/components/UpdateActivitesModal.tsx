@@ -14,28 +14,10 @@ type MainChoice = "taux" | "axes";
 type TauxChoice = "global" | "realisation" | "composante";
 type AxeChoice = "gestion" | "amenagement";
 
-const mois = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre",
+const mois = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre",
 ];
 
-const unites = [
-  "UCT",
-  "UCR-A",
-  "UCR-B",
-  "UCR-D",
-  "UCR-F",
-  "UCR-FD",
+const unites = ["UCT","UCR-A","UCR-B","UCR-D","UCR-F","UCR-FD",
 ];
 
 const annees = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
@@ -97,7 +79,6 @@ const InputPercent = ({
     )}
   </div>
 );
-
 
 const InputNumber = ({
   id,
