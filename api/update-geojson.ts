@@ -270,11 +270,12 @@ export default async function handler(req: any, res: any) {
 
   // GET : lire une ligne existante pour remplir le formulaire.
   if (req.method === "GET") {
+    const tout = String(req.query?.tout ?? "") === "1";
     const annee = String(req.query?.annee ?? "");
     const mois = String(req.query?.mois ?? "");
     const uc = String(req.query?.uc ?? "");
-
-    if (!annee || !mois || !uc) {
+    
+    if (!tout && (!annee || !mois || !uc)) {
       return res.status(400).json({
         error: "Année, mois et unité de coordination obligatoires.",
       });
@@ -310,6 +311,12 @@ export default async function handler(req: any, res: any) {
 
       if (!Array.isArray(geojson.features)) {
         throw new Error("Le fichier ne contient pas de tableau features.");
+      }
+      // Le tableau de bord demande toutes les données à jour depuis GitHub.
+      if (tout) {
+        return res.status(200).json({
+          features: geojson.features,
+        });
       }
 
       const matches = geojson.features.filter((feature: any) => {
