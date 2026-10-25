@@ -428,32 +428,29 @@ useEffect(() => {
     return '#2563eb';
 };
   
+  
   const chargerDonnees = async () => {
-  try {
-    const response = await fetch(
-      `/data/Base_Cout_Activite.geojson?t=${Date.now()}`,
-      {
+    try {
+      const response = await fetch("/api/update-geojson?tout=1", {
         cache: "no-store",
-      }
-    );
-    if (!response.ok) {
-      throw new Error("Base_Cout_Activite.geojson introuvable");
+      });
+  
+      if (!response.ok) {
+        throw new Error("Impossible de charger les données à jour.");
+      }  
+      const json = await response.json();  
+      const table = json.features.map(
+        (feature: any) => feature.properties
+      );  
+      setData(table);
+    } catch (error) {
+      console.error("Erreur de chargement des activités :", error);
     }
-    const json = await response.json();
-    const table = json.features.map(
-      (f: any) => f.properties
-    );
-    setData(table);    console.log("Données activités rechargées :", table);
-  } catch (error) {
-    console.error(
-      "Erreur chargement Base Cout :",
-      error
-    );
-  }
-};
-useEffect(() => {
-  chargerDonnees();
-}, []);
+  };  
+  useEffect(() => {
+    chargerDonnees();
+  }, []);
+
 
   const annees = Array.from(
     new Set(
