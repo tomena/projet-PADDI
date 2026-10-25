@@ -483,7 +483,10 @@ useEffect(() => {
   const activitesAchevees = Number(coutActuel["NAA"] || 0);
   const activitesEnCours = Number(coutActuel["NAC"] || 0);
   const activitesNonDemarrees = Number(coutActuel["NAD"] || 0);
-  const tauxGlobalActivites = Number(coutActuel["TAG"] || 0) * 100;
+  const tauxGlobalActivites =
+  totalActivites > 0
+    ? ((activitesAchevees + activitesEnCours) / totalActivites) * 100
+    : 0;
   const globalPie = [
       { value: tauxGlobalActivites },
       { value: 100 - tauxGlobalActivites },
