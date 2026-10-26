@@ -23,6 +23,8 @@ export default async function handler(req: any, res: any) {
   const repo = process.env.GITHUB_REPO;
   const branch = process.env.GITHUB_BRANCH;
   const path = process.env.GEOJSON_PATH;
+  const historyPath =
+  process.env.HISTORY_PATH || "historique-mises-a-jour.json";
   const accessPassword = process.env.PADDI_ACCESS_PASSWORD;
 
   if (!token || !owner || !repo || !branch || !path) {
@@ -480,8 +482,101 @@ export default async function handler(req: any, res: any) {
   } catch (error) {
     console.error("Erreur de sauvegarde GeoJSON :", error);
 
-    return res.status(500).json({
-      error: "Échec de la sauvegarde. Consultez les journaux Vercel.",
+   
+    // Enregistrer la mise à jour dans l'historique GitHub
+    try {
+      const historyUrl =
+        `https://api.github.com/repos/${owner}/${repo}/contents/` +
+        historyPath.split("/").map(encodeURIComponent).join("/");
+
+      // Lire le fichier d'historique existant
+      const historyResponse = await fetch(
+        `${historyUrl}?ref=${encodeURIComponent(branch)}`,
+        {
+          headers,
+          cache: "no-store",
+        }
+      );
+
+      if (!historyResponse.ok) {
+        console.error(
+          "Impossible de lire l'historique :",
+          historyResponse.status,
+          await historyResponse.text()
+        );
+
+        throw new Error("Impossible de lire le fichier d'historique.");
+      }
+
+      const historyMetadata = await historyResponse.json();
+
+      const historyContent = Buffer.from(
+        String(historyMetadata.content || "").replace(/\n/g, ""),
+        "base64"
+      ).toString("utf8");
+
+      const historyData = JSON.parse(historyContent);
+
+      if (!Array.isArray(historyData.entries)) {
+        throw new Error("Le fichier d'historique ne contient pas entries.");
+      }
+
+      // Ajouter une nouvelle entrée sans effacer les précédentes
+      historyData.entries.unshift({
+        id: `${Date.now()}-${normalizedId}`,
+        date: new Date().toISOString(),
+        utilisateur: USERS[normalizedId],
+        identifiant: normalizedId,
+        annee: Number(annee),
+        mois,
+        uc,
+        champsModifies: updateEntries.map(([key]) => key),
+      });
+
+      // Enregistrer l'historique sur GitHub
+      const saveHistoryResponse = await fetch(historyUrl, {
+        method: "PUT",
+        headers: {
+          ...headers,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: `Historique de mise à jour ${annee} - ${mois} - ${uc}`,
+          content: Buffer.from(
+            JSON.stringify(historyData, null, 2),
+            "utf8"
+          ).toString("base64"),
+          sha: historyMetadata.sha,
+          branch,
+        }),
+      });
+
+      if (!saveHistoryResponse.ok) {
+        console.error(
+          "Erreur de sauvegarde de l'historique :",
+          saveHistoryResponse.status,
+          await saveHistoryResponse.text()
+        );
+
+        throw new Error("La mise à jour est enregistrée, mais l'historique n'a pas pu être sauvegardé.");
+      }
+    } catch (historyError) {
+      console.error("Erreur d'enregistrement de l'historique :", historyError);
+
+      return res.status(500).json({
+        error:
+          historyError instanceof Error
+            ? historyError.message
+            : "La mise à jour est enregistrée, mais l'historique n'a pas pu être sauvegardé.",
+        geojsonEnregistre: true,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Mise à jour et historique enregistrés dans GitHub.",
+      userName: USERS[normalizedId],
     });
+
   }
 }
