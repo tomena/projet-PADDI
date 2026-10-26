@@ -315,6 +315,137 @@ export default async function handler(req: any, res: any) {
       properties[key] = value;
     }
 
+    
+    // ============================================
+    // Mise à jour automatique de la ligne "Tous"
+    // ============================================
+
+    const unitesIndividuelles = new Set([
+      "UCT",
+      "UCR-A",
+      "UCR-B",
+      "UCR-D",
+      "UCR-F",
+      "UCR-FD",
+    ]);
+
+    // Trouver la ligne "Tous" pour la même année et le même mois
+    const lignesTous = geojson.features.filter((feature: any) => {
+      const p = feature.properties ?? {};
+
+      return (
+        Number(p["Année"]) === Number(annee) &&
+        p["Mois"] === mois &&
+        String(p["UC"] ?? "").trim() === "Tous"
+      );
+    });
+
+    // Il faut exactement une ligne "Tous"
+    if (lignesTous.length !== 1) {
+      return res.status(409).json({
+        error:
+          lignesTous.length === 0
+            ? `La ligne UC "Tous" n'existe pas pour ${annee} - ${mois}.`
+            : `Plusieurs lignes UC "Tous" existent pour ${annee} - ${mois}.`,
+      });
+    }
+
+    // Récupérer uniquement les lignes des UC individuelles
+    // pour la même année et le même mois
+    const lignesUC = geojson.features.filter((feature: any) => {
+      const p = feature.properties ?? {};
+
+      return (
+        Number(p["Année"]) === Number(annee) &&
+        p["Mois"] === mois &&
+        unitesIndividuelles.has(String(p["UC"] ?? "").trim())
+      );
+    });
+
+    const proprietesTous = lignesTous[0].properties;
+
+    // Colonnes numériques : on fait la SOMME
+    const colonnesSomme = [
+      "NAP",
+      "NAA",
+      "NAC",
+      "NAD",
+    ];
+
+    // Colonnes de pourcentage : on fait la MOYENNE
+    // Les valeurs du GeoJSON sont stockées sous forme décimale
+    const colonnesMoyenne = [
+      "TAG",
+      "TAR 1",
+      "TAR 2",
+      "TAC  C1",
+      "TAC C2",
+      "TAC  C3",
+      "TAC C4",
+      "TAA 1.1.1",
+      "TAA 1.1.2",
+      "TAA 1.1.3",
+      "TAA 1.1.4",
+      "TAA 1.2.1",
+      "TAA 1.2.2",
+      "TAA 1.2.3",
+      "TAA 1.2.4",
+      "TAA 2.1.1",
+      "TAA 2.1.2",
+      "TAA 2.1.3",
+      "TAA 2.1.4",
+      "TAA 2.2.1",
+      "TAA 2.2.2",
+      "TAA 2.2.3",
+      "TAA 2.2.4",
+    ];
+
+    // 1. Somme des nombres : NAP, NAA, NAC et NAD
+    for (const colonne of colonnesSomme) {
+      proprietesTous[colonne] = lignesUC.reduce(
+        (total: number, feature: any) => {
+          const valeur = feature.properties?.[colonne];
+
+          if (
+            valeur === null ||
+            valeur === undefined ||
+            valeur === ""
+          ) {
+            return total;
+          }
+
+          const nombre = Number(valeur);
+
+          return total + (
+            Number.isFinite(nombre) ? nombre : 0
+          );
+        },
+        0
+      );
+    }
+
+    // 2. Moyenne des pourcentages : TAG, TAR, TAC et TAA
+    for (const colonne of colonnesMoyenne) {
+      const valeurs = lignesUC
+        .map((feature: any) => feature.properties?.[colonne])
+        .filter(
+          (valeur: any) =>
+            valeur !== null &&
+            valeur !== undefined &&
+            valeur !== "" &&
+            Number.isFinite(Number(valeur))
+        )
+        .map(Number);
+
+      proprietesTous[colonne] =
+        valeurs.length > 0
+          ? valeurs.reduce(
+              (total: number, valeur: number) => total + valeur,
+              0
+            ) / valeurs.length
+          : 0;
+    }
+
     // Enregistrer le GeoJSON sur GitHub en conservant le SHA.
     const saveResponse = await fetch(apiUrl, {
       method: "PUT",
