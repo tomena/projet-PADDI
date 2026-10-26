@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, Save, RotateCcw } from "lucide-react";
+import { X, Save, History, RotateCcw } from "lucide-react";
 
 interface UpdateActivitesModalProps {
   isOpen: boolean;
@@ -142,6 +142,12 @@ export default function UpdateActivitesModal({
   const [uc, setUc] = useState("");
 
   const [values, setValues] = useState<Record<string, string>>({});
+  const [showHistorique, setShowHistorique] = useState(false);
+
+  const [historique, setHistorique] = useState<any[]>([]);
+  const [erreurHistorique, setErreurHistorique] = useState("");
+  const [chargementHistorique, setChargementHistorique] = useState(false);
+
   const [showValidation, setShowValidation] = useState(false);
   const requiredFields = [
   "tauxGlobal",
@@ -864,36 +870,203 @@ useEffect(() => {
     </>
   );
 
+  const chargerHistorique = async () => {
+    setChargementHistorique(true);
+    setErreurHistorique("");
+  
+    try {
+      // Réutiliser ici les identifiants de la session existante.
+      const response = await fetch("/api/historique-geojson", {
+        method: "GET",      
+        headers: {
+          "x-paddi-identifiant": identifiant,
+          "x-paddi-password": motDePasse,
+        },
+  
+      });
+  
+      if (!response.ok) {
+        throw new Error(
+          response.status === 401
+            ? "Accès non autorisé."
+            : "Impossible de charger l'historique."
+        );
+      }
+  
+      const texte = await response.text();
+
+console.log("Statut API historique :", response.status);
+console.log("Type de contenu :", response.headers.get("content-type"));
+console.log("Réponse API historique :", texte);
+
+let result;
+
+try {
+  result = JSON.parse(texte);
+} catch (error) {
+  console.error("Erreur JSON :", error);
+  console.error("Contenu reçu par l'API :", texte);
+
+  setErreurHistorique(
+    `Réponse API invalide (HTTP ${response.status}). Consulte la console (F12).`
+  );
+
+  return;
+}
+
+console.log("JSON décodé :", result);
+
+setHistorique(
+  Array.isArray(result.entries) ? result.entries : []
+);
+  
+  setHistorique(
+    Array.isArray(result.entries) ? result.entries : []
+  );
+    } catch (error) {
+      setErreurHistorique(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue."
+      );
+    } finally {
+      setChargementHistorique(false);
+    }
+  };
+  
+  const lignesHistorique = historique.flatMap((entry) => {
+    const date = entry.date ? new Date(entry.date) : null;
+  
+    return (Array.isArray(entry.changements) ? entry.changements : [])
+      .filter((changement) => {
+        const ancienneValeur =
+          changement.ancienneValeur ??
+          changement.ancienne ??
+          changement.oldValue ??
+          null;
+  
+        const nouvelleValeur =
+          changement.nouvelleValeur ??
+          changement.nouvelle ??
+          changement.newValue ??
+          null;
+  
+        return (
+          JSON.stringify(ancienneValeur) !==
+          JSON.stringify(nouvelleValeur)
+        );
+      })
+      .map((changement) => ({
+        utilisateur: entry.utilisateur ?? entry.nom ?? "",
+        mail: entry.identifiant ?? "",
+        date: date
+          ? date.toLocaleDateString("fr-FR")
+          : "",
+        heure: date
+          ? date.toLocaleTimeString("fr-FR", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })
+          : "",
+        colonne:
+          changement.colonne ??
+          changement.champ ??
+          changement.field ??
+          changement.nomColonne ??
+          "",
+        ancienneValeur:
+          changement.ancienneValeur ??
+          changement.ancienne ??
+          changement.oldValue ??
+          "",
+        nouvelleValeur:
+          changement.nouvelleValeur ??
+          changement.nouvelle ??
+          changement.newValue ??
+          "",
+      }));
+  });
+  
+  const celluleHistorique: React.CSSProperties = {
+    padding: 10,
+    border: "1px solid #e2e8e3",
+    verticalAlign: "top",
+    whiteSpace: "nowrap",
+  };
+
   return (
     <div style={styles.overlay}>
       <div style={styles.modal}>
         {/* ================= HEADER ================= */}
 
-        <div style={styles.modalHeader}>
-        <div>
-          <h2 style={styles.title}>
-            Mise à jour
-          </h2>
+      <div style={styles.modalHeader}>
 
-          <p style={styles.subtitle}>
-            Suivi des activités annuelles
-          </p>
+      {/* GAUCHE : TITRE */}
+      <div>
+        <h2 style={styles.title}>
+          Mise à jour
+        </h2>
 
-          {userName && (
-            <div style={styles.welcome}>
-              Bienvenue {userName} !
-            </div>
-          )}
-        </div>
+        <p style={styles.subtitle}>
+          Suivi des activités annuelles
+        </p>
 
-          <button
-            onClick={onClose}
-            style={styles.closeButton}
-            title="Fermer"
-          >
-            <X size={21} />
-          </button>
-        </div>
+        {userName && (
+          <div style={styles.welcome}>
+            Bienvenue {userName} !
+          </div>
+        )}
+      </div>
+
+      {/* DROITE : HISTORIQUE + FERMER */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+
+        {/* HISTORIQUE */}
+        <button
+          type="button"          
+          onClick={() => {
+            setShowHistorique(true);
+            chargerHistorique();
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "1px solid rgba(255,255,255,0.45)",
+            backgroundColor: "rgba(255,255,255,0.15)",
+            color: "#ffffff",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 13,
+          }}
+          title="Voir l'historique des mises à jour"
+        >
+          <History size={16} />
+          Historique
+        </button>
+
+        {/* FERMER */}
+        <button
+          type="button"
+          onClick={onClose}
+          style={styles.closeButton}
+          title="Fermer"
+        >
+          <X size={21} />
+        </button>
+
+      </div>
+
+      </div>
 
         {/* ================= CONTENU ================= */}
 
@@ -1115,6 +1288,274 @@ useEffect(() => {
           </div>
         </div>
       </div>
+      
+ {/* ================= HISTORIQUE ================= */}
+
+ {showHistorique && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "rgba(0, 0, 0, 0.45)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 10000,
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              width: "min(900px, 95vw)",
+              maxHeight: "85vh",
+              backgroundColor: "#ffffff",
+              borderRadius: 14,
+              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+
+            {/* HEADER HISTORIQUE */}
+            <div
+              style={{
+                background: GREEN,
+                color: "#ffffff",
+                padding: "16px 20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 19,
+                    fontWeight: 700,
+                  }}
+                >
+                  Historique des mises à jour
+                </div>
+
+                <div
+                  style={{
+                    fontSize: 13,
+                    opacity: 0.9,
+                    marginTop: 3,
+                  }}
+                >
+                  Consultez les modifications effectuées sur les activités.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowHistorique(false)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#ffffff",
+                  cursor: "pointer",
+                  padding: 5,
+                }}
+                title="Fermer"
+              >
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* CONTENU HISTORIQUE */}
+            <div
+              style={{
+                padding: 20,
+                overflowY: "auto",
+              }}
+            >
+              <div
+                style={{
+                  padding: 30,
+                  textAlign: "center",
+                  color: "#6b7280",
+                }}
+              >
+                
+              {chargementHistorique ? (
+                <div style={{ padding: 30, textAlign: "center" }}>
+                  Chargement de l'historique...
+                </div>
+              ) : erreurHistorique ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#dc2626" }}>
+                  {erreurHistorique}
+                </div>
+              ) : historique.length === 0 ? (
+                <div style={{ padding: 30, textAlign: "center", color: "#6b7280" }}>
+                  Aucune mise à jour enregistrée.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 12 }}>
+
+                  {historique.length === 0 ? (
+                    <p style={{ textAlign: "center", padding: 24 }}>
+                      Aucune modification enregistrée.
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        maxHeight: "420px",
+                        overflowY: "auto",
+                        overflowX: "auto",
+                        width: "100%",
+                      }}
+                    >
+
+                      <table
+                        style={{
+                          width: "100%",
+                          borderCollapse: "collapse",
+                          fontSize: 13,
+                          textAlign: "left",
+                        }}
+                      >
+
+                        <thead>
+                          <tr style={{ background: "#f0f5f1" }}>
+                          {[
+                            "Utilisateur",
+                            "Date",
+                            "Heure",
+                            "Année",
+                            "Unité de coordination",
+                            "Nom colonne modifié",
+                            "Ancienne valeur",
+                            "Nouvelle valeur",
+                          ].map((titre) => (
+                            <th
+                              key={titre}
+                              style={{
+                                padding: 10,
+                                border: "1px solid #dce5dd",
+                                color: "#245c3a",
+                                whiteSpace: "normal",
+                                lineHeight: 1.2,
+                                position: "sticky",
+                                top: 0,
+                                zIndex: 2,
+                                background: "#f0f5f1",
+                                minWidth: 100,
+                              }}
+                            >
+                              {titre.split(" ").map((mot, index) => (
+                                <React.Fragment key={index}>
+                                  {index > 0 && " "}
+                                  {mot}
+                                </React.Fragment>
+                              ))}
+                            </th>
+                          ))}
+                          </tr>
+                        </thead>
+
+                        <tbody>
+                          {historique.flatMap((entry, index) => {
+
+                            const date = entry.date
+                              ? new Date(entry.date)
+                              : null;
+
+                            return (
+                              Array.isArray(entry.changements)
+                                ? entry.changements
+                                : []
+                            )
+                              .filter((c) => {
+                                const ancienne =
+                                  c.ancienneValeur ??
+                                  c.ancienne ??
+                                  c.oldValue ??
+                                  null;
+
+                                const nouvelle =
+                                  c.nouvelleValeur ??
+                                  c.nouvelle ??
+                                  c.newValue ??
+                                  null;
+
+                                return (
+                                  JSON.stringify(ancienne) !==
+                                  JSON.stringify(nouvelle)
+                                );
+                              })
+                              .map((c, i) => (
+                                <tr key={`${entry.id ?? index}-${i}`}>
+
+                                  <td style={celluleHistorique}>
+                                    {entry.utilisateur ?? entry.nom ?? ""}
+                                  </td>
+
+                                  <td style={celluleHistorique}>
+                                    {date && !isNaN(date.getTime())
+                                      ? date.toLocaleDateString("fr-FR")
+                                      : ""}
+                                  </td>
+
+                                  <td style={celluleHistorique}>
+                                    {date && !isNaN(date.getTime())
+                                      ? date.toLocaleTimeString("fr-FR")
+                                      : ""}
+                                  </td>
+
+                                  <td style={celluleHistorique}>
+                                    {entry.annee ?? ""}
+                                  </td>
+
+                                  <td style={celluleHistorique}>
+                                    {entry.uc ?? ""}
+                                  </td>
+
+                                  <td style={celluleHistorique}>
+                                    {c.colonne ??
+                                      c.champ ??
+                                      c.field ??
+                                      c.nomColonne ??
+                                      ""}
+                                  </td>
+
+                                  <td style={celluleHistorique}>
+                                    {String(
+                                      c.ancienneValeur ??
+                                      c.ancienne ??
+                                      c.oldValue ??
+                                      ""
+                                    )}
+                                  </td>
+
+                                  <td style={celluleHistorique}>
+                                    {String(
+                                      c.nouvelleValeur ??
+                                      c.nouvelle ??
+                                      c.newValue ??
+                                      ""
+                                    )}
+                                  </td>
+
+                                </tr>
+                              ));
+                          })}
+                        </tbody>
+
+                      </table>
+                    </div>
+                  )}
+
+                </div>
+              )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
