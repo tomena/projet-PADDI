@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState,} from "react";
 import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle,} from "lucide-react";
+import { testerParseCoutsExcel } from "../utils/parseCoutsExcel";
 
 interface UpdateModalProps {
   onClose: () => void;
@@ -55,8 +56,8 @@ export default function UpdateModal({
 const accesUnite: Record<string, string[] | "ALL"> = {
   Zo: "ALL",
   Toky: "ALL",
-  Joary: "ALL",
 
+  Joary: ["UCT"],
   Allan: ["UCR-D"],
   Herimanga: ["UCR-B"],
   Njaka: ["UCR-F"],
@@ -131,28 +132,26 @@ const peutChoisirUnite =
   const handleImport = () => {
     setErreur(null);
     setMessage(null);
-
+  
     if (!typeMiseAJour) {
       setErreur(
         "Veuillez sélectionner le type de donnée à mettre à jour."
       );
       return;
     }
-
+  
     if (!fichier) {
       setErreur(
         "Veuillez sélectionner un fichier Excel."
       );
       return;
     }
-
+  
     /*
       Pour le moment, cette partie est une démonstration.
-
-      Plus tard, le fichier sera envoyé vers Django
-      pour validation puis mise à jour de PostgreSQL.
+      Nous testerons la lecture Excel séparément.
     */
-
+  
     setMessage(
       `Le fichier "${fichier.name}" est prêt à être importé pour ${
         typeMiseAJour === "decaissement"
@@ -160,6 +159,35 @@ const peutChoisirUnite =
           : "le taux d'avancement"
       } (${niveau.toLowerCase()}).`
     );
+  };
+  
+  // AJOUTE LA NOUVELLE FONCTION JUSTE ICI
+  const handleTestExcel = async () => {
+    if (!fichier) {
+      setErreur("Veuillez d'abord sélectionner un fichier Excel.");
+      return;
+    }
+  
+    try {
+      setErreur(null);
+      setMessage("Lecture du fichier Excel en cours...");
+  
+      await testerParseCoutsExcel(fichier);
+  
+      setMessage(
+        "Lecture terminée. Ouvre la console pour vérifier les données."
+      );
+    } catch (error) {
+      console.error("Erreur lors du test Excel :", error);
+  
+      setErreur(
+        error instanceof Error
+          ? error.message
+          : "Une erreur est survenue pendant la lecture du fichier."
+      );
+  
+      setMessage(null);
+    }
   };
 
   /* =========================
@@ -541,6 +569,10 @@ const peutChoisirUnite =
               <RefreshCw size={16} />
 
               Importer et mettre à jour
+            </button>
+
+            <button type="button" onClick={handleTestExcel}>
+              Tester la lecture Excel
             </button>
           </div>
         </div>
