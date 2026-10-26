@@ -45,16 +45,14 @@ export default async function handler(req: any, res: any) {
 
   // GET : lire une ligne existante pour remplir le formulaire.
   if (req.method === "GET") {
-    const annee = String(req.query?.annee ?? "");
-    const mois = String(req.query?.mois ?? "");
-    const uc = String(req.query?.uc ?? "");
+  const tout = String(req.query?.tout ?? "") === "1";
 
-    if (!annee || !mois || !uc) {
-      return res.status(400).json({
-        error: "Année, mois et unité de coordination obligatoires.",
-      });
-    }
+  const annee = String(req.query?.annee ?? "");
+  const mois = String(req.query?.mois ?? "");
+  const uc = String(req.query?.uc ?? "");
 
+  // Charger toutes les lignes pour le tableau annuel
+  if (tout) {
     try {
       const rawResponse = await fetch(
         `${apiUrl}?ref=${encodeURIComponent(branch)}`,
@@ -68,56 +66,105 @@ export default async function handler(req: any, res: any) {
       );
 
       if (!rawResponse.ok) {
-        const details = await rawResponse.text();
-
         console.error(
-          "Erreur GitHub pendant la lecture :",
+          "Erreur GitHub lors du chargement complet :",
           rawResponse.status,
-          details
+          await rawResponse.text()
         );
 
-        throw new Error(
-          `Lecture du GeoJSON impossible : ${rawResponse.status}`
-        );
+        return res.status(502).json({
+          error: "Impossible de lire le fichier GeoJSON depuis GitHub.",
+        });
       }
 
       const geojson = JSON.parse(await rawResponse.text());
 
       if (!Array.isArray(geojson.features)) {
-        throw new Error("Le fichier ne contient pas de tableau features.");
-      }
-
-      const matches = geojson.features.filter((feature: any) => {
-        const p = feature.properties ?? {};
-
-        return (
-          Number(p["Année"]) === Number(annee) &&
-          p["Mois"] === mois &&
-          p["UC"] === uc
-        );
-      });
-
-      if (matches.length !== 1) {
-        return res.status(404).json({
-          error:
-            matches.length === 0
-              ? "Aucun enregistrement correspondant."
-              : "Plusieurs enregistrements correspondent.",
-          matches: matches.length,
+        return res.status(500).json({
+          error: "Le fichier GeoJSON ne contient pas de tableau features valide.",
         });
       }
 
-      return res.status(200).json({
-        properties: matches[0].properties,
-      });
+      return res.status(200).json(geojson);
     } catch (error) {
-      console.error("Erreur de lecture GeoJSON :", error);
+      console.error("Erreur de lecture complète du GeoJSON :", error);
 
       return res.status(500).json({
-        error: "Impossible de lire les données enregistrées.",
+        error: "Impossible de charger les données du GeoJSON.",
       });
     }
   }
+
+  // Charger une seule ligne pour le formulaire de mise à jour
+  if (!annee || !mois || !uc) {
+    return res.status(400).json({
+      error: "Année, mois et unité de coordination obligatoires.",
+    });
+  }
+
+  try {
+    const rawResponse = await fetch(
+      `${apiUrl}?ref=${encodeURIComponent(branch)}`,
+      {
+        headers: {
+          ...headers,
+          Accept: "application/vnd.github.raw+json",
+        },
+        cache: "no-store",
+      }
+    );
+
+    if (!rawResponse.ok) {
+      console.error(
+        "Erreur GitHub lors du chargement d'une ligne :",
+        rawResponse.status,
+        await rawResponse.text()
+      );
+
+      return res.status(502).json({
+        error: "Impossible de lire le fichier GeoJSON depuis GitHub.",
+      });
+    }
+
+    const geojson = JSON.parse(await rawResponse.text());
+
+    if (!Array.isArray(geojson.features)) {
+      return res.status(500).json({
+        error: "Le fichier GeoJSON ne contient pas de tableau features valide.",
+      });
+    }
+
+    const matches = geojson.features.filter((feature: any) => {
+      const p = feature.properties ?? {};
+
+      return (
+        Number(p["Année"]) === Number(annee) &&
+        p["Mois"] === mois &&
+        p["UC"] === uc
+      );
+    });
+
+    if (matches.length !== 1) {
+      return res.status(404).json({
+        error:
+          matches.length === 0
+            ? "Aucune ligne trouvée pour cette année, ce mois et cette UC."
+            : "Plusieurs lignes correspondent à cette année, ce mois et cette UC.",
+        matches: matches.length,
+      });
+    }
+
+    return res.status(200).json({
+      properties: matches[0].properties,
+    });
+  } catch (error) {
+    console.error("Erreur de chargement d'une ligne GeoJSON :", error);
+
+    return res.status(500).json({
+      error: "Impossible de lire les données enregistrées.",
+    });
+  }
+}
 
   // POST : modifier une ligne existante.
   const {
