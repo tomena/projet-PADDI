@@ -166,7 +166,7 @@ useEffect(() => {
       const p = result.properties;
 
       const mapping: Record<string, string> = {
-        tauxGlobal: "TAP",
+        tauxGlobal: "TAG",
         totalPlanifiees: "NAP",
         achevees: "NAA",
         enCours: "NAC",
@@ -366,7 +366,7 @@ useEffect(() => {
     // =====================================================
   
     const fieldMapping: Record<string, string> = {
-      tauxGlobal: "TAP",
+      tauxGlobal: "TAG",
   
       totalPlanifiees: "NAP",
       achevees: "NAA",
