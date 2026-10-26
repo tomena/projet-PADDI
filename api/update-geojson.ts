@@ -1,6 +1,6 @@
 
 const ALLOWED_FIELDS = new Set([
-  "TAP","NAP","NAA","NAC","NAD","TAR 1","TAR 2","TAC  C1","TAC C2","TAC  C3","TAC C4","TAA 1.1.1","TAA 1.1.2",
+  "TAG","NAP","NAA","NAC","NAD","TAR 1","TAR 2","TAC  C1","TAC C2","TAC  C3","TAC C4","TAA 1.1.1","TAA 1.1.2",
   "TAA 1.1.3","TAA 1.1.4","TAA 1.2.1","TAA 1.2.2","TAA 1.2.3","TAA 1.2.4","TAA 2.1.1","TAA 2.1.2","TAA 2.1.3",
   "TAA 2.1.4","TAA 2.2.1","TAA 2.2.2","TAA 2.2.3","TAA 2.2.4",
 ]);
