@@ -147,7 +147,7 @@ export default function UpdateActivitesModal({
   const [historique, setHistorique] = useState<any[]>([]);
   const [erreurHistorique, setErreurHistorique] = useState("");
   const [chargementHistorique, setChargementHistorique] = useState(false);
-
+  
   const [showValidation, setShowValidation] = useState(false);
   const requiredFields = [
   "tauxGlobal",
@@ -894,31 +894,19 @@ useEffect(() => {
       }
   
       const texte = await response.text();
-
-console.log("Statut API historique :", response.status);
-console.log("Type de contenu :", response.headers.get("content-type"));
-console.log("Réponse API historique :", texte);
-
-let result;
-
-try {
-  result = JSON.parse(texte);
-} catch (error) {
-  console.error("Erreur JSON :", error);
-  console.error("Contenu reçu par l'API :", texte);
-
-  setErreurHistorique(
-    `Réponse API invalide (HTTP ${response.status}). Consulte la console (F12).`
-  );
-
-  return;
-}
-
-console.log("JSON décodé :", result);
-
-setHistorique(
-  Array.isArray(result.entries) ? result.entries : []
-);
+  
+  console.log("Statut API historique :", response.status);
+  console.log("Réponse API historique :", texte);
+  
+  let result;
+  
+  try {
+    result = JSON.parse(texte);
+  } catch {
+    throw new Error(
+      "L'API historique ne renvoie pas du JSON valide. Vérifie la réponse dans la console du navigateur."
+    );
+  }
   
   setHistorique(
     Array.isArray(result.entries) ? result.entries : []
