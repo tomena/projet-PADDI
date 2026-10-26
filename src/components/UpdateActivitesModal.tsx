@@ -44,6 +44,7 @@ interface InputPercentProps {
   label: string;
   value: string;
   onChange: (id: string, value: string) => void;
+  invalid?: boolean;
 }
 
 const InputPercent = ({
@@ -51,11 +52,22 @@ const InputPercent = ({
   label,
   value,
   onChange,
+  invalid = false,
 }: InputPercentProps) => (
-  <div style={styles.fieldCard}>
+    <div
+    style={{
+      ...styles.fieldCard,
+      ...(invalid ? styles.invalidFieldCard : {}),
+    }}
+  >
     <label style={styles.fieldLabel}>{label}</label>
 
-    <div style={styles.percentInputWrapper}>
+    <div
+      style={{
+        ...styles.percentInputWrapper,
+        ...(invalid ? styles.invalidInput : {}),
+      }}
+    >
       <input
         type="text"
         inputMode="decimal"
@@ -76,6 +88,7 @@ interface InputNumberProps {
   label: string;
   value: string;
   onChange: (id: string, value: string) => void;
+  invalid?: boolean;
 }
 
 const InputNumber = ({
@@ -83,8 +96,14 @@ const InputNumber = ({
   label,
   value,
   onChange,
+  invalid = false,
 }: InputNumberProps) => (
-  <div style={styles.fieldCard}>
+    <div
+    style={{
+      ...styles.fieldCard,
+      ...(invalid ? styles.invalidFieldCard : {}),
+    }}
+  >
     <label style={styles.fieldLabel}>{label}</label>
 
     <input
@@ -94,7 +113,10 @@ const InputNumber = ({
       value={value}
       onChange={(e) => onChange(id, e.target.value)}
       placeholder="Saisir une valeur"
-      style={styles.normalInput}
+      style={{
+        ...styles.normalInput,
+        ...(invalid ? styles.invalidInput : {}),
+      }}
     />
   </div>
 );
@@ -120,6 +142,51 @@ export default function UpdateActivitesModal({
   const [uc, setUc] = useState("");
 
   const [values, setValues] = useState<Record<string, string>>({});
+  const [showValidation, setShowValidation] = useState(false);
+  const requiredFields = [
+  "tauxGlobal",
+  "totalPlanifiees",
+  "achevees",
+  "enCours",
+  "nonDemarrees",
+  "r1", "r2",
+  "c1", "c2", "c3", "c4",
+  "a111", "a112", "a113", "a114",
+  "a121", "a122", "a123", "a124",
+  "a211", "a212", "a213", "a214",
+  "a221", "a222", "a223", "a224",
+];
+
+const tabFields = {
+  global: [
+    "tauxGlobal",
+    "totalPlanifiees",
+    "achevees",
+    "enCours",
+    "nonDemarrees",
+  ],
+  realisation: ["r1", "r2"],
+  composante: ["c1", "c2", "c3", "c4"],
+  gestion: [
+    "a111", "a112", "a113", "a114",
+    "a121", "a122", "a123", "a124",
+  ],
+  amenagement: [
+    "a211", "a212", "a213", "a214",
+    "a221", "a222", "a223", "a224",
+  ],
+};
+
+const isFieldMissing = (field: string) =>
+  showValidation &&
+  (!values[field] || values[field].trim() === "");
+
+const isTabInvalid = (fields: string[]) =>
+  showValidation &&
+  fields.some(
+    (field) =>
+      !values[field] || values[field].trim() === ""
+  );
 
 useEffect(() => {
   if (!annee || !moisSelectionne || !uc) {
@@ -268,11 +335,12 @@ useEffect(() => {
   };
 
   const handleReset = () => {
-    setAnnee("");
-    setMoisSelectionne("");
-    setUc("");
-    setValues({});
-  };
+      setAnnee("");
+      setMoisSelectionne("");
+      setUc("");
+      setValues({});
+      setShowValidation(false);
+    };
 
   const handleMainChoice = (choice: MainChoice) => {
     setMainChoice(choice);
@@ -287,6 +355,8 @@ useEffect(() => {
   };
 
   const handleSave = async () => {
+
+    setShowValidation(true);
     // =====================================================
     // 1. Vérification des informations générales
     // =====================================================
@@ -297,49 +367,6 @@ useEffect(() => {
       );
       return;
     }
-  
-    // =====================================================
-    // 2. Vérification de TOUS les champs obligatoires
-    // =====================================================
-  
-    const requiredFields = [
-      // Global
-      "tauxGlobal",
-      "totalPlanifiees",
-      "achevees",
-      "enCours",
-      "nonDemarrees",
-  
-      // Réalisation
-      "r1",
-      "r2",
-  
-      // Composante
-      "c1",
-      "c2",
-      "c3",
-      "c4",
-  
-      // Axe gestion
-      "a111",
-      "a112",
-      "a113",
-      "a114",
-      "a121",
-      "a122",
-      "a123",
-      "a124",
-  
-      // Axe aménagement
-      "a211",
-      "a212",
-      "a213",
-      "a214",
-      "a221",
-      "a222",
-      "a223",
-      "a224",
-    ];
   
     const missingFields = requiredFields.filter(
       (field) =>
@@ -594,6 +621,7 @@ useEffect(() => {
         label="Taux d'avancement global des activités"
         value={values["tauxGlobal"] || ""}
         onChange={handleValueChange}
+        invalid={isFieldMissing("tauxGlobal")}
       />
 
       <InputNumber
@@ -601,6 +629,7 @@ useEffect(() => {
         label="Total activités planifiées"
         value={values["totalPlanifiees"] || ""}
         onChange={handleValueChange}
+        invalid={isFieldMissing("totalPlanifiees")}
       />
 
       <InputNumber
@@ -608,6 +637,7 @@ useEffect(() => {
         label="Activités achevées"
         value={values["achevees"] || ""}
         onChange={handleValueChange}
+        invalid={isFieldMissing("achevees")}
       />
 
       <InputNumber
@@ -615,6 +645,7 @@ useEffect(() => {
         label="Activités en cours"
         value={values["enCours"] || ""}
         onChange={handleValueChange}
+        invalid={isFieldMissing("enCours")}
       />
 
       <InputNumber
@@ -622,6 +653,7 @@ useEffect(() => {
         label="Activités non démarrées"
         value={values["nonDemarrees"] || ""}
         onChange={handleValueChange}
+        invalid={isFieldMissing("nonDemarrees")}
       />
 
     </div>
@@ -637,6 +669,7 @@ useEffect(() => {
           label="R1. Système de gestion"
           value={values["r1"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("r1")}
         />
 
         <InputPercent
@@ -644,6 +677,7 @@ useEffect(() => {
           label="R2. Aménagement du territoire"
           value={values["r2"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("r2")}
         />
       </div>
     </>
@@ -658,6 +692,7 @@ useEffect(() => {
           label="C1. Gestion de services écosystémiques"
           value={values["c1"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("c1")}
         />
 
         <InputPercent
@@ -665,6 +700,7 @@ useEffect(() => {
           label="C2. Gouvernance environnementale décentralisée"
           value={values["c2"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("c2")}
         />
 
         <InputPercent
@@ -672,6 +708,7 @@ useEffect(() => {
           label="C3. Développement des paysages productifs"
           value={values["c3"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("c3")}
         />
 
         <InputPercent
@@ -679,6 +716,7 @@ useEffect(() => {
           label="C4. Création d'emplois verts"
           value={values["c4"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("c4")}
         />
       </div>
     </>
@@ -693,6 +731,7 @@ useEffect(() => {
           label="1.1.1 Analyses diagnostiques"
           value={values["a111"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a111")}
         />
 
         <InputPercent
@@ -700,6 +739,7 @@ useEffect(() => {
           label="1.1.2 Planification territoriale"
           value={values["a112"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a112")}
         />
 
         <InputPercent
@@ -707,6 +747,7 @@ useEffect(() => {
           label="1.1.3 Suivi écosystémique"
           value={values["a113"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a113")}
         />
 
         <InputPercent
@@ -714,6 +755,7 @@ useEffect(() => {
           label="1.1.4 Financement durable"
           value={values["a114"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a114")}
         />
 
         <InputPercent
@@ -721,6 +763,7 @@ useEffect(() => {
           label="1.2.1 Participation des populations"
           value={values["a121"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a121")}
         />
 
         <InputPercent
@@ -728,6 +771,7 @@ useEffect(() => {
           label="1.2.2 Coopération avec MNP"
           value={values["a122"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a122")}
         />
 
         <InputPercent
@@ -735,6 +779,7 @@ useEffect(() => {
           label="1.2.3 Coordination intersectorielle"
           value={values["a123"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a123")}
         />
 
         <InputPercent
@@ -742,6 +787,7 @@ useEffect(() => {
           label="1.2.4 Lutte contre la corruption"
           value={values["a124"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a124")}
         />
       </div>
     </>
@@ -756,6 +802,7 @@ useEffect(() => {
           label="2.1.1 Restauration paysages"
           value={values["a211"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a211")}
         />
 
         <InputPercent
@@ -763,6 +810,7 @@ useEffect(() => {
           label="2.1.2 Production durable"
           value={values["a212"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a212")}
         />
 
         <InputPercent
@@ -770,6 +818,7 @@ useEffect(() => {
           label="2.1.3 Sécurisation foncière"
           value={values["a213"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a213")}
         />
 
         <InputPercent
@@ -777,6 +826,7 @@ useEffect(() => {
           label="2.1.4 Gestion des feux"
           value={values["a214"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a214")}
         />
 
         <InputPercent
@@ -784,6 +834,7 @@ useEffect(() => {
           label="2.2.1 Système de marché"
           value={values["a221"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a221")}
         />
 
         <InputPercent
@@ -791,6 +842,7 @@ useEffect(() => {
           label="2.2.2 Valorisation des productions"
           value={values["a222"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a222")}
         />
 
         <InputPercent
@@ -798,6 +850,7 @@ useEffect(() => {
           label="2.2.3 Diversification des activités"
           value={values["a223"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a223")}
         />
 
         <InputPercent
@@ -805,6 +858,7 @@ useEffect(() => {
           label="2.2.4 Mobilisation communautaire"
           value={values["a224"] || ""}
           onChange={handleValueChange}
+          invalid={isFieldMissing("a224")}
         />
       </div>
     </>
@@ -856,11 +910,18 @@ useEffect(() => {
             <button
               onClick={() => handleMainChoice("taux")}
               style={{
-                ...styles.choiceButton,
-                ...(mainChoice === "taux"
-                  ? styles.choiceButtonActive
-                  : {}),
-              }}
+                  ...styles.choiceButton,
+                  ...(mainChoice === "taux"
+                    ? styles.choiceButtonActive
+                    : {}),
+                  ...(isTabInvalid([
+                    ...tabFields.global,
+                    ...tabFields.realisation,
+                    ...tabFields.composante,
+                  ])
+                    ? styles.invalidTab
+                    : {}),
+                }}
             >
               <div style={styles.choiceTitle}>
                 Taux d'avancement
@@ -874,11 +935,17 @@ useEffect(() => {
             <button
               onClick={() => handleMainChoice("axes")}
               style={{
-                ...styles.choiceButton,
-                ...(mainChoice === "axes"
-                  ? styles.choiceButtonActive
-                  : {}),
-              }}
+                  ...styles.choiceButton,
+                  ...(mainChoice === "axes"
+                    ? styles.choiceButtonActive
+                    : {}),
+                  ...(isTabInvalid([
+                    ...tabFields.gestion,
+                    ...tabFields.amenagement,
+                  ])
+                    ? styles.invalidTab
+                    : {}),
+                }}
             >
               <div style={styles.choiceTitle}>
                 Axes prioritaires
@@ -907,7 +974,9 @@ useEffect(() => {
                     ...styles.tab,
                     ...(tauxChoice === "global"
                       ? styles.tabActive
-                      : {}),
+                        ...(isTabInvalid(tabFields.global)
+                        ? styles.invalidTab
+                        : {}),
                   }}
                 >
                   Avancement global des activités
@@ -921,6 +990,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(tauxChoice === "realisation"
                       ? styles.tabActive
+                      ...(isTabInvalid(tabFields.realisation)
+                      ? styles.invalidTab
                       : {}),
                   }}
                 >
@@ -935,6 +1006,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(tauxChoice === "composante"
                       ? styles.tabActive
+                      ...(isTabInvalid(tabFields.composante)
+                      ? styles.invalidTab
                       : {}),
                   }}
                 >
@@ -972,6 +1045,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(axeChoice === "gestion"
                       ? styles.tabActive
+                      ...(isTabInvalid(tabFields.gestion)
+                      ? styles.invalidTab
                       : {}),
                   }}
                 >
@@ -986,6 +1061,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(axeChoice === "amenagement"
                       ? styles.tabActive
+                      ...(isTabInvalid(tabFields.amenagement)
+                      ? styles.invalidTab
                       : {}),
                   }}
                 >
@@ -1346,5 +1423,20 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#166534",
     fontSize: "10px",
     fontWeight: 700,
+  },
+
+  invalidFieldCard: {
+    border: "1px solid #dc2626",
+    boxShadow: "0 0 0 1px #dc2626",
+  },
+  
+  invalidInput: {
+    border: "1px solid #dc2626",
+    boxShadow: "0 0 0 1px #dc2626",
+  },
+  
+  invalidTab: {
+    border: "2px solid #dc2626",
+    boxShadow: "0 0 0 1px #dc2626",
   },
 };
