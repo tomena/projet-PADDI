@@ -531,6 +531,12 @@ export default async function handler(req: any, res: any) {
         champsModifies: updateEntries.map(([key]) => key),
       });
 
+      console.log("=== TENTATIVE ENREGISTREMENT HISTORIQUE ===");
+console.log("historyUrl :", historyUrl);
+console.log("branch :", branch);
+console.log("historyPath :", historyPath);
+console.log("historySHA :", historyMetadata.sha);
+
       // Sauvegarder le fichier d'historique sur GitHub
       const saveHistoryResponse = await fetch(historyUrl, {
         method: "PUT",
@@ -548,6 +554,12 @@ export default async function handler(req: any, res: any) {
           branch,
         }),
       });
+
+      console.log(
+        "Réponse GitHub historique :",
+        saveHistoryResponse.status,
+        saveHistoryResponse.statusText
+      );
 
       if (!saveHistoryResponse.ok) {
         const details = await saveHistoryResponse.text();
