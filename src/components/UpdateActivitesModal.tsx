@@ -974,9 +974,10 @@ useEffect(() => {
                     ...styles.tab,
                     ...(tauxChoice === "global"
                       ? styles.tabActive
-                        ...(isTabInvalid(tabFields.global)
-                        ? styles.invalidTab
-                        : {}),
+                      : {}),
+                    ...(isTabInvalid(tabFields.global)
+                      ? styles.invalidTab
+                      : {}),
                   }}
                 >
                   Avancement global des activités
@@ -990,7 +991,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(tauxChoice === "realisation"
                       ? styles.tabActive
-                      ...(isTabInvalid(tabFields.realisation)
+                      : {}),
+                    ...(isTabInvalid(tabFields.realisation)
                       ? styles.invalidTab
                       : {}),
                   }}
@@ -1006,7 +1008,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(tauxChoice === "composante"
                       ? styles.tabActive
-                      ...(isTabInvalid(tabFields.composante)
+                      : {}),
+                    ...(isTabInvalid(tabFields.composante)
                       ? styles.invalidTab
                       : {}),
                   }}
@@ -1045,7 +1048,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(axeChoice === "gestion"
                       ? styles.tabActive
-                      ...(isTabInvalid(tabFields.gestion)
+                      : {}),
+                    ...(isTabInvalid(tabFields.gestion)
                       ? styles.invalidTab
                       : {}),
                   }}
@@ -1061,7 +1065,8 @@ useEffect(() => {
                     ...styles.tab,
                     ...(axeChoice === "amenagement"
                       ? styles.tabActive
-                      ...(isTabInvalid(tabFields.amenagement)
+                      : {}),
+                    ...(isTabInvalid(tabFields.amenagement)
                       ? styles.invalidTab
                       : {}),
                   }}
