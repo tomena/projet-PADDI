@@ -887,11 +887,14 @@ useEffect(() => {
   
     try {
       // Réutiliser ici les identifiants de la session existante.
-      const response = await fetch("/api/historique-geojson", {
-        method: "GET",      
+      const response = await fetch('/api/historique-geojson?t=${Date.now()}', 
+      {
+        method: "GET",
+        cache:"no-store",      
         headers: {
           "x-paddi-identifiant": identifiant,
           "x-paddi-password": motDePasse,
+          "Cache-Control":"no-cache",
         },
   
       });
