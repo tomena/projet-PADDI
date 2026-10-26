@@ -1,10 +1,8 @@
 import * as XLSX from "xlsx";
-
 /* ================================
  * TYPES
  * ================================
  */
-
 export interface CoutMensuel {
   annee: number;
   mois: string;
@@ -57,12 +55,10 @@ export interface ResultatImportCouts {
   budget: BudgetCouts;
   mois: CoutMensuel[];
 }
-
 /* ================================
  * CONFIGURATION DES FEUILLES
  * ================================
  */
-
 export const FEUILLES_UC = [
   "UCT (ext)",
   "UCR-N (Boeny-ext)",
@@ -85,12 +81,10 @@ export const FEUILLE_VERS_UC: Record<string, string> = {
   "UCR-S (Farafangana-ext)": "UCR-F",
   "UCR-S (Fort-dauphin-ext)": "UCR-FD",
 };
-
 /* ================================
  * MOIS
  * ================================
  */
-
 const MOIS = [
   "Janvier",
   "Février",
@@ -105,12 +99,10 @@ const MOIS = [
   "Novembre",
   "Décembre",
 ];
-
 /* ================================
  * OUTILS
  * ================================
  */
-
 function nombre(value: unknown): number {
   if (value === null || value === undefined || value === "") {
     return 0;
