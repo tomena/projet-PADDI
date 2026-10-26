@@ -226,6 +226,17 @@ useEffect(() => {
 
       const result = await response.json();
 
+        console.log("Réponse API mise à jour :", result);
+        console.log("Statut HTTP :", response.status);
+
+        if (!response.ok) {
+          alert(
+            result.error ||
+            "Échec de l’enregistrement."
+          );
+          return;
+        }
+
       if (!response.ok) {
         if (!cancelled) {
           console.warn(
