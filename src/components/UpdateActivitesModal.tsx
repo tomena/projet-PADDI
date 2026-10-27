@@ -1052,31 +1052,32 @@ const chargerHistorique = async () => {
         }}
       >
 
-        {/* HISTORIQUE */}
-        <button
-          type="button"          
-          onClick={() => {
-            setShowHistorique(true);
-            chargerHistorique();
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            padding: "8px 12px",
-            borderRadius: 8,
-            border: "1px solid rgba(255,255,255,0.45)",
-            backgroundColor: "rgba(255,255,255,0.15)",
-            color: "#ffffff",
-            cursor: "pointer",
-            fontWeight: 600,
-            fontSize: 13,
-          }}
-          title="Voir l'historique des mises à jour"
-        >
-          <History size={16} />
-          Historique
-        </button>
+{/* HISTORIQUE */}
+<button
+  type="button"
+  onClick={async () => {
+    setShowHistorique(true);
+    await chargerHistorique();
+  }}
+  style={{
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "8px 12px",
+    borderRadius: 8,
+    border: "1px solid rgba(255,255,255,0.45)",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    color: "#ffffff",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: 13,
+  }}
+  title="Voir l'historique des mises à jour"
+>
+  <History size={16} />
+  Historique
+</button>
+
 
         {/* FERMER */}
         <button
