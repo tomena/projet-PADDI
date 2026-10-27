@@ -174,12 +174,7 @@ const handleImport = async () => {
     setErreur("Utilisateur connecté introuvable.");
     return;
   }
-
-  if (!motDePasseImport) {
-    setErreur("Veuillez saisir le mot de passe d'accès.");
-    return;
-  }
-
+  
   setImportEnCours(true);
 
   try {
