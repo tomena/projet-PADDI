@@ -496,62 +496,66 @@ const peutImporter =
             )}
 
             {/* IMPORT EXCEL */}
-            <div style={styles.importSection}>
-              <div style={styles.sectionTitle}>
-                IMPORTER LE FICHIER EXCEL
-              </div>
-
-              {/* ANNÉE, MOIS ET FICHIER SUR UNE MÊME LIGNE */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr 1.5fr",
-                  gap: "12px",
-                  alignItems: "end",
-                }}
-              >
-                {/* ANNÉE */}
-                <div style={styles.selectGroup}>
-                  <div style={styles.levelLabel}>Année</div>
-
-                  <select
-                    value={anneeImport}
-                    onChange={(e) =>
-                      setAnneeImport(e.target.value)
-                    }
-                    style={styles.select}
-                  >
-                    <option value="">Choisir l'année</option>
-                    {anneesDisponibles.map((annee) => (
-                      <option key={annee} value={annee}>
-                        {annee}
-                      </option>
-                    ))}
-                  </select>
+              <div style={styles.importSection}>
+                <div style={styles.sectionTitle}>
+                  IMPORTER LE FICHIER EXCEL
                 </div>
-
-                {/* MOIS */}
-                <div style={styles.selectGroup}>
-                  <div style={styles.levelLabel}>Mois</div>
-
-                  <select
-                    value={moisImport}
-                    onChange={(e) =>
-                      setMoisImport(e.target.value)
-                    }
-                    style={styles.select}
-                  >
-                    <option value="">Choisir le mois</option>
-                    {moisDisponibles.map((mois) => (
-                      <option key={mois} value={mois}>
-                        {mois}
-                      </option>
-                    ))}
-                  </select>
+              
+                {/* PREMIÈRE LIGNE : ANNÉE ET MOIS */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                    alignItems: "end",
+                    width: "100%",
+                  }}
+                >
+                  {/* ANNÉE */}
+                  <div style={styles.selectGroup}>
+                    <div style={styles.levelLabel}>Année</div>
+              
+                    <select
+                      value={anneeImport}
+                      onChange={(e) => setAnneeImport(e.target.value)}
+                      style={styles.select}
+                    >
+                      <option value="">Choisir l'année</option>
+                      {anneesDisponibles.map((annee) => (
+                        <option key={annee} value={annee}>
+                          {annee}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+              
+                  {/* MOIS */}
+                  <div style={styles.selectGroup}>
+                    <div style={styles.levelLabel}>Mois</div>
+              
+                    <select
+                      value={moisImport}
+                      onChange={(e) => setMoisImport(e.target.value)}
+                      style={styles.select}
+                    >
+                      <option value="">Choisir le mois</option>
+                      {moisDisponibles.map((mois) => (
+                        <option key={mois} value={mois}>
+                          {mois}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
-
-                {/* SÉLECTION DU FICHIER */}
-                <div style={styles.importButtonContainer}>
+              
+                {/* DEUXIÈME LIGNE : FICHIER EXCEL SUR TOUTE LA LARGEUR */}
+                <div
+                  style={{
+                    ...styles.importButtonContainer,
+                    width: "100%",
+                    marginTop: "12px",
+                  }}
+                >
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -559,36 +563,30 @@ const peutImporter =
                     onChange={handleFileChange}
                     style={{ display: "none" }}
                   />
-
+              
                   <div
                     style={{
                       ...styles.uploadBox,
+                      width: "100%",
                       minHeight: "100px",
-                      padding: "12px",
+                      padding: "16px",
                       boxSizing: "border-box",
-                      ...(fichier
-                        ? styles.uploadBoxSelected
-                        : {}),
+                      ...(fichier ? styles.uploadBoxSelected : {}),
                     }}
                     onClick={handleOpenFile}
                   >
                     {fichier ? (
                       <>
                         <div style={styles.fileIcon}>
-                          <FileSpreadsheet
-                            size={24}
-                            color="#16a34a"
-                          />
+                          <FileSpreadsheet size={24} color="#16a34a" />
                         </div>
-
-                        <div style={styles.fileName}>
-                          {fichier.name}
-                        </div>
-
+              
+                        <div style={styles.fileName}>{fichier.name}</div>
+              
                         <div style={styles.fileInfo}>
                           {(fichier.size / 1024).toFixed(1)} Ko
                         </div>
-
+              
                         <div style={styles.changeFile}>
                           Cliquer pour remplacer
                         </div>
@@ -596,16 +594,13 @@ const peutImporter =
                     ) : (
                       <>
                         <div style={styles.uploadIcon}>
-                          <Upload
-                            size={22}
-                            color="#2563eb"
-                          />
+                          <Upload size={22} color="#2563eb" />
                         </div>
-
+              
                         <div style={styles.uploadTitle}>
                           Choisir le fichier Excel
                         </div>
-
+              
                         <div style={styles.uploadFormat}>
                           .xlsx / .xls
                         </div>
@@ -877,6 +872,7 @@ const styles: {
     justifyContent: "center",
     cursor: "pointer",
     padding: "20px",
+    width: "100%",
     boxSizing: "border-box",
     transition: "all 0.2s ease",
   },
@@ -1027,7 +1023,7 @@ const styles: {
 
   importButtonContainer: {
   width: "100%",
-  marginTop: "12px",
-  display: "flex",
+  minWidth: 0,
+  boxSizing: "border-box",
 },
 };
