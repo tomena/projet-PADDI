@@ -141,13 +141,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "Configuration serveur incomplète." });
   }
 
-  const { userName, motDePasse, imports } = req.body ?? {};
-  const nom = typeof userName === "string" ? userName.trim() : "";
-  
-  if (motDePasse !== accessPassword || (!ADMIN.has(nom) && !ONGLET_PAR_UTILISATEUR[nom])) {
-    return res.status(401).json({ error: "Accès refusé. Vérifiez votre utilisateur et votre mot de passe." });
-  }
-  if (!Array.isArray(imports) || imports.length === 0) return res.status(400).json({ error: "Aucune donnée Excel à importer." });
+  const { userName, imports } = req.body ?? {};
+const nom = typeof userName === "string" ? userName.trim() : "";
+
+// Vérifier que l'utilisateur est autorisé à importer
+if (!nom || (!ADMIN.has(nom) && !ONGLET_PAR_UTILISATEUR[nom])) {
+  return res.status(401).json({
+    error: "Accès refusé. Utilisateur non autorisé.",
+  });
+}
+
+// Vérifier que des données Excel sont présentes
+if (!Array.isArray(imports) || imports.length === 0) {
+  return res.status(400).json({
+    error: "Aucune donnée Excel à importer.",
+  });
+}
 
   const ongletsEnvoyes = imports.map((item: any) => String(item?.onglet ?? ""));
   if (ongletsEnvoyes.some((sheet: string) => !UC_PAR_ONGLET[sheet])) return res.status(400).json({ error: "Le fichier contient un onglet UC non autorisé à l'importation." });
