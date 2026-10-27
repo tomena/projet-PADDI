@@ -302,18 +302,7 @@ function extraireBudget(
   const PAF = cellule(feuille, "W4");
 
   return {
-    annee,
-    uc,
-    PA,
-    PAC1,
-    PAC2,
-    PAC3,
-    PAC4,
-    PAF,
-    PAA,
-    PAC,
-    PAMI,
-    PAMP,
+    annee,uc,PA,PAC1, PAC2,PAC3,PAC4,PAF,PAA,PAC,PAMI,PAMP,
   };
 }
 
