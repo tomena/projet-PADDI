@@ -335,21 +335,44 @@ useEffect(() => {
 
   if (!isOpen) return null;
 
-  const handleValueChange = (
-    key: string,
-    value: string
-  ) => {
-    // Autoriser uniquement les nombres et le point décimal
-    if (!/^\d*\.?\d*$/.test(value)) return;
+  
+const handleValueChange = (
+  key: string,
+  value: string
+) => {
+  // Autoriser uniquement les nombres et le point décimal
+  if (!/^\d*\.?\d*$/.test(value)) return;
 
-    // Limiter les pourcentages à 100
-    if (value !== "" && Number(value) > 100) return;
+  // Limiter les pourcentages à 100
+  if (value !== "" && Number(value) > 100) return;
 
-    setValues((prev) => ({
+  setValues((prev) => {
+    const next = {
       ...prev,
       [key]: value,
-    }));
-  };
+    };
+
+    // Recalcul automatique des activités non démarrées
+    if (
+      ["totalPlanifiees", "achevees", "enCours"].includes(key)
+    ) {
+      const total = Number(next.totalPlanifiees || 0);
+      const achevees = Number(next.achevees || 0);
+      const enCours = Number(next.enCours || 0);
+
+      // Ne pas afficher de résultat tant que le total est vide
+      next.nonDemarrees =
+        next.totalPlanifiees === ""
+          ? ""
+          : String(
+              Math.max(0, total - achevees - enCours)
+            );
+    }
+
+    return next;
+  });
+};
+
 
   const handleReset = () => {
       setAnnee("");
@@ -487,9 +510,27 @@ useEffect(() => {
     // =====================================================
   
     const updates: Record<string, number> = {};
+
+    
+const valeursAEnregistrer = {
+  ...values,
+  nonDemarrees:
+    values.totalPlanifiees === undefined ||
+    values.totalPlanifiees === ""
+      ? ""
+      : String(
+          Math.max(
+            0,
+            Number(values.totalPlanifiees || 0) -
+              Number(values.achevees || 0) -
+              Number(values.enCours || 0)
+          )
+        ),
+};
+
   
     for (const field of requiredFields) {
-      const rawValue = values[field];
+      const rawValue = valeursAEnregistrer[field];
   
       const column = fieldMapping[field];
   
@@ -629,6 +670,15 @@ useEffect(() => {
     </>
   );
 
+  const totalPlanifiees = Number(values["totalPlanifiees"] || 0);
+    const achevees = Number(values["achevees"] || 0);
+    const enCours = Number(values["enCours"] || 0);
+
+    const nonDemarrees = Math.max(
+      0,
+      totalPlanifiees - (achevees + enCours)
+    );
+
   const renderGlobal = () => (
   <>
     <div style={styles.fieldsGrid}>
@@ -665,13 +715,15 @@ useEffect(() => {
         invalid={isFieldMissing("enCours")}
       />
 
+      
       <InputNumber
         id="nonDemarrees"
         label="Activités non démarrées"
         value={values["nonDemarrees"] || ""}
-        onChange={handleValueChange}
+        onChange={() => {}}
         invalid={isFieldMissing("nonDemarrees")}
       />
+
 
     </div>
   </>
