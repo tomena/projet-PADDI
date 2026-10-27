@@ -1,6 +1,181 @@
 {
   "entries": [
     {
+      "id": "1793062068920-anjarampifohazana.toky@giz.de",
+      "date": "2026-10-27T00:47:48.920Z",
+      "utilisateur": "Toky",
+      "identifiant": "anjarampifohazana.toky@giz.de",
+      "annee": 2027,
+      "mois": "Janvier",
+      "uc": "UCT",
+      "champsModifies": [
+        "TAG",
+        "NAP",
+        "NAA",
+        "NAC",
+        "NAD",
+        "TAR 1",
+        "TAR 2",
+        "TAC  C1",
+        "TAC C2",
+        "TAC  C3",
+        "TAC C4",
+        "TAA 1.1.1",
+        "TAA 1.1.2",
+        "TAA 1.1.3",
+        "TAA 1.1.4",
+        "TAA 1.2.1",
+        "TAA 1.2.2",
+        "TAA 1.2.3",
+        "TAA 1.2.4",
+        "TAA 2.1.1",
+        "TAA 2.1.2",
+        "TAA 2.1.3",
+        "TAA 2.1.4",
+        "TAA 2.2.1",
+        "TAA 2.2.2",
+        "TAA 2.2.3",
+        "TAA 2.2.4"
+      ],
+      "changements": [
+        {
+          "colonne": "TAG",
+          "ancienneValeur": 0.8,
+          "nouvelleValeur": 0.75
+        },
+        {
+          "colonne": "NAP",
+          "ancienneValeur": 75,
+          "nouvelleValeur": 75
+        },
+        {
+          "colonne": "NAA",
+          "ancienneValeur": 40,
+          "nouvelleValeur": 40
+        },
+        {
+          "colonne": "NAC",
+          "ancienneValeur": 26,
+          "nouvelleValeur": 26
+        },
+        {
+          "colonne": "NAD",
+          "ancienneValeur": 14,
+          "nouvelleValeur": 14
+        },
+        {
+          "colonne": "TAR 1",
+          "ancienneValeur": 0.12,
+          "nouvelleValeur": 0.12
+        },
+        {
+          "colonne": "TAR 2",
+          "ancienneValeur": 0.15,
+          "nouvelleValeur": 0.15
+        },
+        {
+          "colonne": "TAC  C1",
+          "ancienneValeur": 0.12,
+          "nouvelleValeur": 0.12
+        },
+        {
+          "colonne": "TAC C2",
+          "ancienneValeur": 0.45,
+          "nouvelleValeur": 0.45
+        },
+        {
+          "colonne": "TAC  C3",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 0
+        },
+        {
+          "colonne": "TAC C4",
+          "ancienneValeur": 0.45,
+          "nouvelleValeur": 0.45
+        },
+        {
+          "colonne": "TAA 1.1.1",
+          "ancienneValeur": 0.12,
+          "nouvelleValeur": 0.12
+        },
+        {
+          "colonne": "TAA 1.1.2",
+          "ancienneValeur": 0.15,
+          "nouvelleValeur": 0.15
+        },
+        {
+          "colonne": "TAA 1.1.3",
+          "ancienneValeur": 0.01,
+          "nouvelleValeur": 0.01
+        },
+        {
+          "colonne": "TAA 1.1.4",
+          "ancienneValeur": 0.12,
+          "nouvelleValeur": 0.12
+        },
+        {
+          "colonne": "TAA 1.2.1",
+          "ancienneValeur": 0.11,
+          "nouvelleValeur": 0.11
+        },
+        {
+          "colonne": "TAA 1.2.2",
+          "ancienneValeur": 0.11,
+          "nouvelleValeur": 0.11
+        },
+        {
+          "colonne": "TAA 1.2.3",
+          "ancienneValeur": 0.52,
+          "nouvelleValeur": 0.52
+        },
+        {
+          "colonne": "TAA 1.2.4",
+          "ancienneValeur": 0.22,
+          "nouvelleValeur": 0.22
+        },
+        {
+          "colonne": "TAA 2.1.1",
+          "ancienneValeur": 0.48,
+          "nouvelleValeur": 0.48
+        },
+        {
+          "colonne": "TAA 2.1.2",
+          "ancienneValeur": 0.57,
+          "nouvelleValeur": 0.57
+        },
+        {
+          "colonne": "TAA 2.1.3",
+          "ancienneValeur": 0.98,
+          "nouvelleValeur": 0.98
+        },
+        {
+          "colonne": "TAA 2.1.4",
+          "ancienneValeur": 0.54,
+          "nouvelleValeur": 0.54
+        },
+        {
+          "colonne": "TAA 2.2.1",
+          "ancienneValeur": 0.11,
+          "nouvelleValeur": 0.11
+        },
+        {
+          "colonne": "TAA 2.2.2",
+          "ancienneValeur": 0.11,
+          "nouvelleValeur": 0.11
+        },
+        {
+          "colonne": "TAA 2.2.3",
+          "ancienneValeur": 0.11,
+          "nouvelleValeur": 0.11
+        },
+        {
+          "colonne": "TAA 2.2.4",
+          "ancienneValeur": 0.45,
+          "nouvelleValeur": 0.45
+        }
+      ]
+    },
+    {
       "id": "1793059516677-anjarampifohazana.toky@giz.de",
       "date": "2026-10-27T00:05:16.677Z",
       "utilisateur": "Toky",
