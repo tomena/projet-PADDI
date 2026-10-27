@@ -137,6 +137,21 @@ export default function UpdateModal({
      IMPORTATION
   ========================= */
 
+  const estAdminImport = UTILISATEURS_ADMIN.has(userName);
+    const ongletImpose = ONGLET_PAR_UTILISATEUR[userName];
+    const ongletsDisponibles = Object.keys(UC_PAR_ONGLET);
+    const peutImporterDecaissement = estAdmin || estCeline;
+
+const peutImporterAvancement =
+  estAdmin || Boolean(ONGLET_PAR_UTILISATEUR[userName ?? ""]);
+
+const peutImporter =
+  typeMiseAJour === "decaissement"
+    ? peutImporterDecaissement
+    : typeMiseAJour === "avancement"
+      ? peutImporterAvancement
+      : false;
+
   const handleImport = async () => {
     setErreur(null);
     setMessage(null);
@@ -155,20 +170,6 @@ export default function UpdateModal({
       setErreur("Vous n'êtes pas autorisé à importer ces données.");
       return;
     }
-    const estAdminImport = UTILISATEURS_ADMIN.has(userName);
-    const ongletImpose = ONGLET_PAR_UTILISATEUR[userName];
-    const ongletsDisponibles = Object.keys(UC_PAR_ONGLET);
-    const peutImporterDecaissement = estAdmin || estCeline;
-
-const peutImporterAvancement =
-  estAdmin || Boolean(ONGLET_PAR_UTILISATEUR[userName ?? ""]);
-
-const peutImporter =
-  typeMiseAJour === "decaissement"
-    ? peutImporterDecaissement
-    : typeMiseAJour === "avancement"
-      ? peutImporterAvancement
-      : false;
   
     let ongletsAImporter: string[] = [];
   
