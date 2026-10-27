@@ -590,5 +590,4 @@ export const ONGLET_PAR_UTILISATEUR: Record<string, string> = {
 export const UTILISATEURS_ADMIN = new Set([
   "Toky",
   "Zo",
-  "Joary",
 ]);
