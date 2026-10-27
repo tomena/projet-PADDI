@@ -174,7 +174,7 @@ const handleImport = async () => {
     setErreur("Utilisateur connecté introuvable.");
     return;
   }
-  
+
   setImportEnCours(true);
 
   try {
