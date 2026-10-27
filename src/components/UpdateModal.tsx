@@ -86,7 +86,6 @@ export default function UpdateModal({
   const [erreur, setErreur] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [motDePasseImport, setMotDePasseImport] = useState("");
   const [importEnCours, setImportEnCours] = useState(false);
 
   /* =========================
@@ -383,228 +382,222 @@ const handleImport = async () => {
                 MENUS DE PARAMÉTRAGE
             ========================= */}
 
+            
+            {/* MENUS DE PARAMÉTRAGE */}
             {typeMiseAJour && (
-            <div style={styles.levelContainer}>
+              <div style={styles.levelContainer}>
+                {/* NIVEAU : uniquement pour le décaissement */}
+                {typeMiseAJour === "decaissement" && (
+                  <div style={styles.selectGroup}>
+                    <div style={styles.levelLabel}>
+                      Niveau de mise à jour
+                    </div>
 
-                {/* NIVEAU DE MISE À JOUR */}
-                <div style={styles.selectGroup}>
-                  <div className={styles.levelLabel}>Niveau de mise à jour</div>
-
-                  <select
-                    value={niveau}
-                    onChange={(e) =>
-                      setNiveau(e.target.value as "Par composante" | "Par instrument")
-                    }
-                    disabled={!peutChoisirNiveau}
-                    style={styles.select}
-                  >
-                    <option value="Par composante">Par composante</option>
-                    <option value="Par instrument">Par instrument</option>
-                  </select>
-                </div>
-
-                
-              {/* UNITÉ DE COORDINATION */}
-              {typeMiseAJour === "avancement" && !estCeline && (
-                <div style={styles.selectGroup}>
-                  <div style={styles.levelLabel}>
-                    Unité de coordination
-                  </div>
-
-                  <select
-                    value={uniteCoordination}
-                    onChange={(e) =>
-                      setUniteCoordination(e.target.value)
-                    }
-                    disabled={!peutChoisirUnite}
-                    style={{
-                      ...styles.select,
-                      ...(!peutChoisirUnite
-                        ? {
-                            backgroundColor: "#f1f5f9",
-                            color: "#475569",
-                            cursor: "not-allowed",
-                            borderColor: "#cbd5e1",
-                          }
-                        : {}),
-                    }}
-                  >
-                    {peutChoisirUnite ? (
-                      <>
-                        <option value="UCT">UCT</option>
-                        <option value="UCR-A">UCR-A</option>
-                        <option value="UCR-B">UCR-B</option>
-                        <option value="UCR-D">UCR-D</option>
-                        <option value="UCR-F">UCR-F</option>
-                        <option value="UCR-FD">UCR-FD</option>
-                      </>
-                    ) : (
-                      <option value={uniteCoordination}>
-                        {uniteCoordination}
+                    <select
+                      value={niveau}
+                      onChange={(e) =>
+                        setNiveau(
+                          e.target.value as
+                            | "Par composante"
+                            | "Par instrument"
+                        )
+                      }
+                      disabled={!peutChoisirNiveau}
+                      style={styles.select}
+                    >
+                      <option value="Par composante">
+                        Par composante
                       </option>
-                    )}
-                  </select>
-                </div>
-              )}
-            </div>
+                      <option value="Par instrument">
+                        Par instrument
+                      </option>
+                    </select>
+                  </div>
+                )}
+
+                {/* UNITÉ : uniquement pour le taux d'avancement */}
+                {typeMiseAJour === "avancement" && !estCeline && (
+                  <div style={styles.selectGroup}>
+                    <div style={styles.levelLabel}>
+                      Unité de coordination
+                    </div>
+
+                    <select
+                      value={uniteCoordination}
+                      onChange={(e) =>
+                        setUniteCoordination(e.target.value)
+                      }
+                      disabled={!peutChoisirUnite}
+                      style={{
+                        ...styles.select,
+                        ...(!peutChoisirUnite
+                          ? {
+                              backgroundColor: "#f1f5f9",
+                              color: "#475569",
+                              cursor: "not-allowed",
+                              borderColor: "#cbd5e1",
+                            }
+                          : {}),
+                      }}
+                    >
+                      {peutChoisirUnite ? (
+                        <>
+                          <option value="UCT">UCT</option>
+                          <option value="UCR-A">UCR-A</option>
+                          <option value="UCR-B">UCR-B</option>
+                          <option value="UCR-D">UCR-D</option>
+                          <option value="UCR-F">UCR-F</option>
+                          <option value="UCR-FD">UCR-FD</option>
+                        </>
+                      ) : (
+                        <option value={uniteCoordination}>
+                          {uniteCoordination}
+                        </option>
+                      )}
+                    </select>
+                  </div>
+                )}
+              </div>
             )}
 
-            {/* =========================
-                IMPORT EXCEL
-            ========================= */}
-
+            {/* IMPORT EXCEL */}
             <div style={styles.importSection}>
-
               <div style={styles.sectionTitle}>
                 IMPORTER LE FICHIER EXCEL
               </div>
 
-              {/* ANNÉE */}
-              <div style={styles.selectGroup}>
-                <div style={styles.levelLabel}>Année</div>
-
-                <select
-                  value={anneeImport}
-                  onChange={(e) => setAnneeImport(e.target.value)}
-                  style={styles.select}
-                >
-                  <option value="">Choisir l'année</option>
-                  {anneesDisponibles.map((annee) => (
-                    <option key={annee} value={annee}>
-                      {annee}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* MOIS */}
-              <div style={styles.selectGroup}>
-                <div style={styles.levelLabel}>Mois</div>
-
-                <select
-                  value={moisImport}
-                  onChange={(e) => setMoisImport(e.target.value)}
-                  style={styles.select}
-                >
-                  <option value="">Choisir le mois</option>
-                
-                  {moisDisponibles.map((mois) => (
-                    <option key={mois} value={mois}>
-                      {mois}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* MOT DE PASSE */}
-              <div style={styles.field}>
-                <label>Mot de passe d'accès</label>
-
-                <input
-                  type="password"
-                  value={motDePasseImport}
-                  onChange={(e) => setMotDePasseImport(e.target.value)}
-                  autoComplete="current-password"
-                />
-              </div>
-
-              {/* INPUT INVISIBLE */}
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileChange}
-                style={{ display: "none" }}
-              />
-
-              {/* DROPZONE */}
-
+              {/* ANNÉE, MOIS ET FICHIER SUR UNE MÊME LIGNE */}
               <div
                 style={{
-                  ...styles.uploadBox,
-                  ...(fichier
-                    ? styles.uploadBoxSelected
-                    : {}),
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1.5fr",
+                  gap: "12px",
+                  alignItems: "end",
                 }}
-                onClick={handleOpenFile}
               >
-                {fichier ? (
-                  <>
-                    <div style={styles.fileIcon}>
-                      <FileSpreadsheet
-                        size={27}
-                        color="#16a34a"
-                      />
-                    </div>
+                {/* ANNÉE */}
+                <div style={styles.selectGroup}>
+                  <div style={styles.levelLabel}>Année</div>
 
-                    <div style={styles.fileName}>
-                      {fichier.name}
-                    </div>
+                  <select
+                    value={anneeImport}
+                    onChange={(e) =>
+                      setAnneeImport(e.target.value)
+                    }
+                    style={styles.select}
+                  >
+                    <option value="">Choisir l'année</option>
+                    {anneesDisponibles.map((annee) => (
+                      <option key={annee} value={annee}>
+                        {annee}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                    <div style={styles.fileInfo}>
-                      {(fichier.size / 1024).toFixed(1)} Ko
-                    </div>
+                {/* MOIS */}
+                <div style={styles.selectGroup}>
+                  <div style={styles.levelLabel}>Mois</div>
 
-                    <div style={styles.changeFile}>
-                      Cliquer pour remplacer le fichier
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div style={styles.uploadIcon}>
-                      <Upload
-                        size={25}
-                        color="#2563eb"
-                      />
-                    </div>
+                  <select
+                    value={moisImport}
+                    onChange={(e) =>
+                      setMoisImport(e.target.value)
+                    }
+                    style={styles.select}
+                  >
+                    <option value="">Choisir le mois</option>
+                    {moisDisponibles.map((mois) => (
+                      <option key={mois} value={mois}>
+                        {mois}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-                    <div style={styles.uploadTitle}>
-                      Importer le fichier Excel
-                    </div>
+                {/* SÉLECTION DU FICHIER */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileChange}
+                    style={{ display: "none" }}
+                  />
 
-                    <div style={styles.uploadDescription}>
-                      Cliquez pour sélectionner votre fichier
-                    </div>
+                  <div
+                    style={{
+                      ...styles.uploadBox,
+                      minHeight: "100px",
+                      padding: "12px",
+                      boxSizing: "border-box",
+                      ...(fichier
+                        ? styles.uploadBoxSelected
+                        : {}),
+                    }}
+                    onClick={handleOpenFile}
+                  >
+                    {fichier ? (
+                      <>
+                        <div style={styles.fileIcon}>
+                          <FileSpreadsheet
+                            size={24}
+                            color="#16a34a"
+                          />
+                        </div>
 
-                    <div style={styles.uploadFormat}>
-                      Formats acceptés : .xlsx / .xls
-                    </div>
-                  </>
-                )}
+                        <div style={styles.fileName}>
+                          {fichier.name}
+                        </div>
+
+                        <div style={styles.fileInfo}>
+                          {(fichier.size / 1024).toFixed(1)} Ko
+                        </div>
+
+                        <div style={styles.changeFile}>
+                          Cliquer pour remplacer
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={styles.uploadIcon}>
+                          <Upload
+                            size={22}
+                            color="#2563eb"
+                          />
+                        </div>
+
+                        <div style={styles.uploadTitle}>
+                          Choisir le fichier Excel
+                        </div>
+
+                        <div style={styles.uploadFormat}>
+                          .xlsx / .xls
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* =========================
-                MESSAGE ERREUR
-            ========================= */}
-
+            {/* MESSAGE ERREUR */}
             {erreur && (
               <div style={styles.errorMessage}>
-                <AlertCircle
-                  size={16}
-                  color="#dc2626"
-                />
-
+                <AlertCircle size={16} color="#dc2626" />
                 <span>{erreur}</span>
               </div>
             )}
 
-            {/* =========================
-                MESSAGE SUCCÈS
-            ========================= */}
-
+            {/* MESSAGE SUCCÈS */}
             {message && (
               <div style={styles.successMessage}>
-                <CheckCircle2
-                  size={16}
-                  color="#16a34a"
-                />
-
+                <CheckCircle2 size={16} color="#16a34a" />
                 <span>{message}</span>
               </div>
             )}
-            </div>
+          </div>
+
 
           {/* =========================
                   FOOTER
