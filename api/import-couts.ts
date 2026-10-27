@@ -143,6 +143,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { userName, motDePasse, imports } = req.body ?? {};
   const nom = typeof userName === "string" ? userName.trim() : "";
+  
   if (motDePasse !== accessPassword || (!ADMIN.has(nom) && !ONGLET_PAR_UTILISATEUR[nom])) {
     return res.status(401).json({ error: "Accès refusé. Vérifiez votre utilisateur et votre mot de passe." });
   }
