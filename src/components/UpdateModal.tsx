@@ -13,6 +13,7 @@ export default function UpdateModal({
 }: UpdateModalProps) {
   const [anneeImport, setAnneeImport] = useState<string>("2026");
   const anneesDisponibles = [ 2024,2025,2026,2027,2028,2029,2030,];
+  
   const [moisImport, setMoisImport] = useState<string>("");
   const moisDisponibles = [
   "Janvier", "Février", "Mars", "Avril",
@@ -491,6 +492,7 @@ const handleImport = async () => {
                   style={styles.select}
                 >
                   <option value="">Choisir le mois</option>
+                
                   {moisDisponibles.map((mois) => (
                     <option key={mois} value={mois}>
                       {mois}
