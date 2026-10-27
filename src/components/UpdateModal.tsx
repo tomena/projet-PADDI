@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState,} from "react";
 import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle,} from "lucide-react";
-import { testerParseCoutsExcel } from "../utils/parseCoutsExcel";
+import {  analyserFichierCouts,  UC_PAR_ONGLET,  ONGLET_PAR_UTILISATEUR,  UTILISATEURS_ADMIN,} from "../utils/parseCoutsExcel";
 
 interface UpdateModalProps {
   onClose: () => void;
@@ -78,6 +78,9 @@ const peutChoisirUnite =
   const [erreur, setErreur] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [motDePasseImport, setMotDePasseImport] = useState("");
+  const [importEnCours, setImportEnCours] = useState(false);
+
   /* =========================
      SÉLECTION DU FICHIER
   ========================= */
@@ -129,66 +132,78 @@ const peutChoisirUnite =
      IMPORTATION
   ========================= */
 
-  const handleImport = () => {
-    setErreur(null);
-    setMessage(null);
   
-    if (!typeMiseAJour) {
+const handleImport = async () => {
+  setErreur(null);
+  setMessage(null);
+
+  // 1. Vérifications communes
+  if (!typeMiseAJour) {
+    setErreur("Veuillez sélectionner le type de données à mettre à jour.");
+    return;
+  }
+
+  if (!fichier) {
+    setErreur("Veuillez sélectionner un fichier Excel.");
+    return;
+  }
+
+  if (!anneeImport) {
+    setErreur("Veuillez sélectionner une année.");
+    return;
+  }
+
+  if (!moisImport) {
+    setErreur("Veuillez sélectionner un mois.");
+    return;
+  }
+
+  if (!uniteCoordination) {
+    setErreur("Veuillez sélectionner une unité de coordination.");
+    return;
+  }
+
+  if (!userName) {
+    setErreur("Utilisateur connecté introuvable.");
+    return;
+  }
+
+  if (!motDePasseImport) {
+    setErreur("Veuillez saisir le mot de passe d'accès.");
+    return;
+  }
+
+  setImportEnCours(true);
+
+  try {
+    // 2. Traitement du fichier de taux d'avancement
+    if (typeMiseAJour === "avancement") {
       setErreur(
-        "Veuillez sélectionner le type de donnée à mettre à jour."
+        "Le traitement du fichier Excel de taux d'avancement doit être connecté à son propre parseur et à son API. Il n'est pas encore configuré dans cette fonction."
       );
       return;
     }
-  
-    if (!fichier) {
+
+    // 3. Traitement du fichier de décaissement
+    if (typeMiseAJour === "decaissement") {
       setErreur(
-        "Veuillez sélectionner un fichier Excel."
+        "Le traitement du fichier Excel de décaissement reste à configurer avec son format spécifique."
       );
       return;
     }
-  
-    /*
-      Pour le moment, cette partie est une démonstration.
-      Nous testerons la lecture Excel séparément.
-    */
-  
-    setMessage(
-      `Le fichier "${fichier.name}" est prêt à être importé pour ${
-        typeMiseAJour === "decaissement"
-          ? "le décaissement"
-          : "le taux d'avancement"
-      } (${niveau.toLowerCase()}).`
+  } catch (error: unknown) {
+    console.error("Erreur import Excel :", error);
+
+    setErreur(
+      error instanceof Error
+        ? error.message
+        : "Impossible d'importer le fichier Excel."
     );
-  };
-  
-  // AJOUTE LA NOUVELLE FONCTION JUSTE ICI
-  const handleTestExcel = async () => {
-    if (!fichier) {
-      setErreur("Veuillez d'abord sélectionner un fichier Excel.");
-      return;
-    }
-  
-    try {
-      setErreur(null);
-      setMessage("Lecture du fichier Excel en cours...");
-  
-      await testerParseCoutsExcel(fichier);
-  
-      setMessage(
-        "Lecture terminée. Ouvre la console pour vérifier les données."
-      );
-    } catch (error) {
-      console.error("Erreur lors du test Excel :", error);
-  
-      setErreur(
-        error instanceof Error
-          ? error.message
-          : "Une erreur est survenue pendant la lecture du fichier."
-      );
-  
-      setMessage(null);
-    }
-  };
+  } finally {
+    setImportEnCours(false);
+  }
+};
+
 
   /* =========================
      RESET DU MODAL
@@ -439,6 +454,54 @@ const peutChoisirUnite =
                 IMPORTER LE FICHIER EXCEL
               </div>
 
+              {/* ANNÉE */}
+              <div style={styles.selectGroup}>
+                <div style={styles.levelLabel}>Année</div>
+
+                <select
+                  value={anneeImport}
+                  onChange={(e) => setAnneeImport(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="">Choisir l'année</option>
+                  {anneesDisponibles.map((annee) => (
+                    <option key={annee} value={annee}>
+                      {annee}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* MOIS */}
+              <div style={styles.selectGroup}>
+                <div style={styles.levelLabel}>Mois</div>
+
+                <select
+                  value={moisImport}
+                  onChange={(e) => setMoisImport(e.target.value)}
+                  style={styles.select}
+                >
+                  <option value="">Choisir le mois</option>
+                  {moisDisponibles.map((mois) => (
+                    <option key={mois} value={mois}>
+                      {mois}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* MOT DE PASSE */}
+              <div style={styles.field}>
+                <label>Mot de passe d'accès</label>
+
+                <input
+                  type="password"
+                  value={motDePasseImport}
+                  onChange={(e) => setMotDePasseImport(e.target.value)}
+                  autoComplete="current-password"
+                />
+              </div>
+
               {/* INPUT INVISIBLE */}
 
               <input
@@ -538,43 +601,34 @@ const peutChoisirUnite =
           </div>
 
           {/* =========================
-              FOOTER
-          ========================= */}
+                  FOOTER
+              ========================= */}
 
-          <div style={styles.footer}>
-            <button
-              onClick={handleClose}
-              style={styles.cancelButton}
-            >
-              Annuler
-            </button>
+              <div style={styles.footer}>
+                <button
+                  onClick={handleClose}
+                  style={styles.cancelButton}
+                >
+                  Annuler
+                </button>
 
-            <button
-              onClick={handleImport}
-              style={{
-                ...styles.importButton,
-                opacity:
-                  !typeMiseAJour || !fichier
-                    ? 0.55
-                    : 1,
-                cursor:
-                  !typeMiseAJour || !fichier
-                    ? "not-allowed"
-                    : "pointer",
-              }}
-              disabled={
-                !typeMiseAJour || !fichier
-              }
-            >
-              <RefreshCw size={16} />
-
-              Importer et mettre à jour
-            </button>
-
-            <button type="button" onClick={handleTestExcel}>
-              Tester la lecture Excel
-            </button>
-          </div>
+                <button
+                  onClick={handleImport}
+                  style={{
+                    ...styles.importButton,
+                    opacity: !typeMiseAJour || !fichier ? 0.55 : 1,
+                    cursor: !typeMiseAJour || !fichier
+                      ? "not-allowed"
+                      : "pointer",
+                  }}
+                  disabled={!typeMiseAJour || !fichier || importEnCours}
+                >
+                  <RefreshCw size={16} />
+                  {importEnCours
+                    ? "Importation en cours..."
+                    : "Importer et mettre à jour"}
+                </button>
+              </div>
         </div>
       </div>
     </>
