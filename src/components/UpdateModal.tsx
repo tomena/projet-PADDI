@@ -30,9 +30,7 @@ export default function UpdateModal({
   >("Par composante");
 
   const [uniteCoordination, setUniteCoordination] =
-  useState("UCT");
-
-  
+  useState("UCT");  
 
   const uniteParUtilisateur: Record<string, string> = {
     Joary: "UCT",
@@ -44,7 +42,7 @@ export default function UpdateModal({
   };
   
   // Utilisateurs et droits
-  const estAdmin = userName === "Zo" || userName === "Toky";
+  const estAdmin = UTILISATEURS_ADMIN.has(userName ?? "");
   const estCeline = userName === "Celine";
   
   // Seuls les administrateurs choisissent le type de mise à jour.
@@ -139,72 +137,114 @@ export default function UpdateModal({
      IMPORTATION
   ========================= */
 
+  const handleImport = async () => {
+    setErreur(null);
+    setMessage(null);
   
-const handleImport = async () => {
-  setErreur(null);
-  setMessage(null);
-
-  // 1. Vérifications communes
-  if (!typeMiseAJour) {
-    setErreur("Veuillez sélectionner le type de données à mettre à jour.");
-    return;
-  }
-
-  if (!fichier) {
-    setErreur("Veuillez sélectionner un fichier Excel.");
-    return;
-  }
-
-  if (!anneeImport) {
-    setErreur("Veuillez sélectionner une année.");
-    return;
-  }
-
-  if (!moisImport) {
-    setErreur("Veuillez sélectionner un mois.");
-    return;
-  }
-
-  if (typeMiseAJour === "avancement" && !uniteCoordination) {
-    setErreur("Veuillez sélectionner une unité de coordination.");
-    return;
-  }
-
-  if (!userName) {
-    setErreur("Utilisateur connecté introuvable.");
-    return;
-  }
-
-  setImportEnCours(true);
-
-  try {
-    // 2. Traitement du fichier de taux d'avancement
-    if (typeMiseAJour === "avancement") {
+    if (!fichier) {
+      setErreur("Veuillez sélectionner un fichier Excel.");
+      return;
+    }
+  
+    if (!userName) {
+      setErreur("Utilisateur non identifié.");
+      return;
+    }
+  
+    if (!motDePasseImport.trim()) {
+      setErreur("Veuillez saisir votre mot de passe.");
+      return;
+    }
+  
+    if (typeMiseAJour !== "decaissement") {
       setErreur(
-        "Le traitement du fichier Excel de taux d'avancement doit être connecté à son propre parseur et à son API. Il n'est pas encore configuré dans cette fonction."
+        "L'importation Excel est réservée au suivi des décaissements."
       );
       return;
     }
-
-    // 3. Traitement du fichier de décaissement
-    if (typeMiseAJour === "decaissement") {
+  
+    const estAdminImport = UTILISATEURS_ADMIN.has(userName);
+    const ongletImpose = ONGLET_PAR_UTILISATEUR[userName];
+    const ongletsDisponibles = Object.keys(UC_PAR_ONGLET);
+  
+    let ongletsAImporter: string[] = [];
+  
+    if (estAdminImport) {
+      if (uniteCoordination === "Tous") {
+        ongletsAImporter = ongletsDisponibles;
+      } else {
+        ongletsAImporter = ongletsDisponibles.filter(
+          (onglet) =>
+            UC_PAR_ONGLET[onglet] === uniteCoordination
+        );
+      }
+    } else if (ongletImpose) {
+      ongletsAImporter = [ongletImpose];
+    }
+  
+    if (ongletsAImporter.length === 0) {
       setErreur(
-        "Le traitement du fichier Excel de décaissement reste à configurer avec son format spécifique."
+        "Aucun onglet Excel autorisé ne correspond à votre unité de coordination."
       );
       return;
     }
-  } catch (error: unknown) {
-    console.error("Erreur import Excel :", error);
-
-    setErreur(
-      error instanceof Error
-        ? error.message
-        : "Impossible d'importer le fichier Excel."
-    );
-  } finally {
-    setImportEnCours(false);
-  }
-};
+  
+    setImportEnCours(true);
+  
+    try {
+      // Lire uniquement les onglets autorisés.
+      const imports = await analyserFichierCouts(
+        fichier,
+        ongletsAImporter
+      );
+  
+      if (!imports || imports.length === 0) {
+        throw new Error(
+          "Aucune donnée exploitable trouvée dans les onglets sélectionnés."
+        );
+      }
+  
+      // Envoyer les données à l'API import-couts.
+      const reponse = await fetch("/api/import-couts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          userName,
+          motDePasse: motDePasseImport,
+          imports,
+        }),
+      });
+  
+      const resultatAPI = await reponse.json();
+  
+      if (!reponse.ok || !resultatAPI.success) {
+        throw new Error(
+          resultatAPI.error ||
+            resultatAPI.message ||
+            "Échec de la mise à jour des coûts."
+        );
+      }
+  
+      setMessage(
+        resultatAPI.message ||
+          "Importation et mise à jour effectuées avec succès."
+      );
+  
+      console.log("Résultat de l'importation :", resultatAPI);
+    } catch (error) {
+      console.error("Erreur pendant l'importation :", error);
+  
+      setErreur(
+        error instanceof Error
+          ? error.message
+          : "Une erreur inattendue est survenue."
+      );
+    } finally {
+      setImportEnCours(false);
+    }
+  };
 
 
   /* =========================
@@ -419,9 +459,7 @@ const handleImport = async () => {
 
                     <select
                       value={uniteCoordination}
-                      onChange={(e) =>
-                        setUniteCoordination(e.target.value)
-                      }
+                      onChange={(e) => setUniteCoordination(e.target.value)}
                       disabled={!peutChoisirUnite}
                       style={{
                         ...styles.select,
@@ -437,6 +475,7 @@ const handleImport = async () => {
                     >
                       {peutChoisirUnite ? (
                         <>
+                          <option value="Tous">Toutes les antennes</option>
                           <option value="UCT">UCT</option>
                           <option value="UCR-A">UCR-A</option>
                           <option value="UCR-B">UCR-B</option>
@@ -598,31 +637,41 @@ const handleImport = async () => {
                   FOOTER
               ========================= */}
 
-              <div style={styles.footer}>
-                <button
-                  onClick={handleClose}
-                  style={styles.cancelButton}
-                >
-                  Annuler
-                </button>
+          <div style={styles.footer}>
+            <button
+              type="button"
+              onClick={handleClose}
+              style={styles.cancelButton}
+              disabled={importEnCours}
+            >
+              Annuler
+            </button>
 
-                <button
-                  onClick={handleImport}
-                  style={{
-                    ...styles.importButton,
-                    opacity: !typeMiseAJour || !fichier ? 0.55 : 1,
-                    cursor: !typeMiseAJour || !fichier
-                      ? "not-allowed"
-                      : "pointer",
-                  }}
-                  disabled={!typeMiseAJour || !fichier || importEnCours}
-                >
-                  <RefreshCw size={16} />
-                  {importEnCours
-                    ? "Importation en cours..."
-                    : "Importer et mettre à jour"}
-                </button>
-              </div>
+            <button
+              type="button"
+              onClick={handleImport}
+              style={{
+                ...styles.importButton,
+                opacity: !typeMiseAJour || !fichier || importEnCours ? 0.55 : 1,
+                cursor:
+                  !typeMiseAJour || !fichier || importEnCours
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+              disabled={!typeMiseAJour || !fichier || importEnCours}
+            >
+              <RefreshCw
+                size={16}
+                style={{
+                  animation: importEnCours ? "spin 1s linear infinite" : "none",
+                }}
+              />
+
+              {importEnCours
+                ? "Importation en cours..."
+                : "Importer et mettre à jour"}
+            </button>
+          </div>
         </div> {/* fin de styles.modal */}
         </div>   {/* fin de styles.overlay */}
       </>
