@@ -22,6 +22,8 @@ export default function UpdateModal({
   const [uniteCoordination, setUniteCoordination] =
   useState("UCT");
 
+  const [anneeImport, setAnneeImport] = useState<string>("2026");
+
   useEffect(() => {
     if (!userName) return;
   
