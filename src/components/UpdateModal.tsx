@@ -212,7 +212,6 @@ export default function UpdateModal({
         },
         body: JSON.stringify({
           userName,
-          motDePasse: motDePasseImport,
           imports,
         }),
       });
