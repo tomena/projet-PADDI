@@ -11,6 +11,8 @@ export default function UpdateModal({
   onClose,
   userName,
 }: UpdateModalProps) {
+  const [anneeImport, setAnneeImport] = useState<string>("2026");
+  const [moisImport, setMoisImport] = useState<string>("");
   const [typeMiseAJour, setTypeMiseAJour] = useState<
     "decaissement" | "avancement" | null
   >(null);
@@ -21,8 +23,6 @@ export default function UpdateModal({
 
   const [uniteCoordination, setUniteCoordination] =
   useState("UCT");
-
-  const [anneeImport, setAnneeImport] = useState<string>("2026");
 
   useEffect(() => {
     if (!userName) return;
