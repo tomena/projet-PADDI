@@ -125,14 +125,6 @@ function nombre(value: unknown): number {
   return 0;
 }
 
-/* Recherche une ligne dont la colonne A commence par le code
- * de la composante.
- *
- * Exemple :
- * "1.1 Gestion des services écosystémiques"
- *
- * retourne la ligne correspondant à 1.1.
- */
 function trouverLigneComposante(
   feuille: XLSX.WorkSheet,
   code: string
@@ -233,21 +225,7 @@ function trouverAnnee(feuille: XLSX.WorkSheet): number {
 
 /* ================================
  * BUDGET
- * ================================
- *
- * Structure confirmée :
- *
- * R = Personnel (HJ)
- * S = Mission GIZ (EUR)
- * T = Mission des partenaires (EUR)
- * U = Contrats (EUR)
- * V = Achats (EUR)
- * W = Financements (EUR)
- * X = Autres (EUR)
- * Y = Total (EUR)
- *
- * Ligne 4 = total général
- */
+ * ================================ */
 
 function extraireBudget(
   feuille: XLSX.WorkSheet,
@@ -257,11 +235,6 @@ function extraireBudget(
   // Ligne 4 = budget total
   const PA = cellule(feuille, "Y4");
 
-  /**
-   * Budget par composante.
-   *
-   * On recherche dynamiquement les lignes.
-   */
   const ligneC1 = trouverLigneComposante(feuille, "1.1");
   const ligneC2 = trouverLigneComposante(feuille, "1.2");
   const ligneC3 = trouverLigneComposante(feuille, "2.1");
@@ -287,14 +260,6 @@ function extraireBudget(
       ? valeurColonne(feuille, 25, ligneC4)
       : 0;
 
-  /* Budget par instrument.
-   *
-   * S = Mission GIZ
-   * T = Mission partenaires
-   * U = Contrats
-   * V = Achats
-   * W = Financements
-   */
   const PAMI = cellule(feuille, "S4");
   const PAMP = cellule(feuille, "T4");
   const PAC = cellule(feuille, "U4");
@@ -305,35 +270,6 @@ function extraireBudget(
     annee,uc,PA,PAC1, PAC2,PAC3,PAC4,PAF,PAA,PAC,PAMI,PAMP,
   };
 }
-
-/* ================================
- * EXTRACTION DES COÛTS MENSUELS
- * ================================
- *
- * Structure confirmée :
- *
- * Z:AG = Janvier - Décembre cumulé
- *
- * AH:AN = Janvier
- * AO:AU = Février
- * AV:BB = Mars
- * ...
- *
- * Chaque mois possède 7 colonnes :
- *
- * +0 = Mission GIZ
- * +1 = Mission partenaires
- * +2 = Contrats
- * +3 = Achats
- * +4 = Financements
- * +5 = Autres
- * +6 = Total
- *
- * Ligne 4 = total global
- *
- * Les lignes des composantes sont recherchées
- * dynamiquement.
- */
 
 function extraireMois(
   feuille: XLSX.WorkSheet,
@@ -350,14 +286,7 @@ function extraireMois(
   const ligneC3 = trouverLigneComposante(feuille, "2.1");
   const ligneC4 = trouverLigneComposante(feuille, "2.2");
 
-  /**
-   * Première colonne des blocs mensuels.
-   *
-   * AH = 34
-   *
-   * En JavaScript / XLSX :
-   * colonne 34 = AH
-   */
+  
   const PREMIERE_COLONNE_MOIS = 34;
 
   /**
@@ -415,11 +344,6 @@ function extraireMois(
       4
     );
 
-    /**
-     * Décaissement par composante.
-     *
-     * On récupère le TOTAL de chaque composante.
-     */
     const DC1 =
       ligneC1 !== null
         ? valeurColonne(
@@ -456,11 +380,6 @@ function extraireMois(
           )
         : 0;
 
-    /**
-     * Taux mensuel.
-     *
-     * On calcule uniquement si le budget existe.
-     */
     const mois = MOIS[indexMois];
 
     resultats.push({
@@ -482,25 +401,11 @@ function extraireMois(
     });
   }
 
-  /**
-   * On récupère le taux cumulé Janvier-Décembre
-   * depuis la colonne AG.
-   *
-   * Ce taux est actuellement global.
-   */
   const tauxGlobal = valeurColonne(
     feuille,
     33,
     4
   );
-
-  /**
-   * Pour l'instant, on ne remplace pas les taux
-   * mensuels par le taux global.
-   *
-   * Le taux global pourra être utilisé plus tard
-   * pour la ligne annuelle.
-   */
 
   void tauxGlobal;
   return resultats;
@@ -523,15 +428,6 @@ export async function parseCoutsExcel(
     cellDates: false,
   });
 
-  /**
-   * Feuilles à traiter.
-   *
-   * Si une feuille est spécifiée :
-   * on ne traite que celle-ci.
-   *
-   * Sinon :
-   * on traite les six feuilles UC.
-   */
   const feuillesATraiter = feuilleDemandee
     ? [feuilleDemandee]
     : FEUILLES_UC.filter((nom) =>
@@ -589,26 +485,14 @@ export async function parseCoutsExcel(
   return resultats;
 }
 
-/* ================================
- * FONCTION UTILITAIRE POUR TEST
- * ================================
- *
- * Permet de voir facilement ce que le parser
- * récupère avant de connecter GitHub.
- */
 
 export async function testerParseCoutsExcel(
   fichier: File,
   feuille?: string
 ): Promise<void> {
-  const resultat = await parseCoutsExcel(
-    fichier,
-    feuille
-  );
+  const resultat = await parseCoutsExcel(fichier, feuille);
 
-  console.log(
-    "========== IMPORT SUIVI DES COÛTS =========="
-  );
+  console.log("========== IMPORT SUIVI DES COÛTS ==========");
 
   for (const uc of resultat) {
     console.log("============================================");
@@ -622,26 +506,89 @@ export async function testerParseCoutsExcel(
     console.log("---------- MOIS ----------");
 
     for (const mois of uc.mois) {
-      console.log(
-        mois.mois,
-        {
-          DMI: mois.DMI,
-          DMP: mois.DMP,
-          DC: mois.DC,
-          DA: mois.DA,
-          DF: mois.DF,
-          Autres: mois.Autres,
-          D: mois.D,
-          DC1: mois.DC1,
-          DC2: mois.DC2,
-          DC3: mois.DC3,
-          DC4: mois.DC4,
-        }
-      );
+      console.log(mois.mois, {
+        DMI: mois.DMI,
+        DMP: mois.DMP,
+        DC: mois.DC,
+        DA: mois.DA,
+        DF: mois.DF,
+        Autres: mois.Autres,
+        D: mois.D,
+        DC1: mois.DC1,
+        DC2: mois.DC2,
+        DC3: mois.DC3,
+        DC4: mois.DC4,
+      });
     }
   }
 
-  console.log(
-    "============================================"
-  );
+  console.log("============================================");
+} // <-- Fermeture de testerParseCoutsExcel
+
+export async function analyserFichierCouts(
+  fichier: File,
+  ongletsAImporter: string[]
+) {
+  const resultats: ResultatImportCouts[] = [];
+
+  for (const onglet of ongletsAImporter) {
+    const resultat = await parseCoutsExcel(fichier, onglet);
+    resultats.push(...resultat);
+  }
+
+  return resultats.map((resultat) => ({
+    onglet: resultat.feuille,
+    uc: resultat.uc,
+    annee: resultat.annee,
+
+    budget: {
+      total: resultat.budget.PA,
+      financements: resultat.budget.PAF,
+      achats: resultat.budget.PAA,
+      contrats: resultat.budget.PAC,
+      dmi: resultat.budget.PAMI,
+      dmp: resultat.budget.PAMP,
+      c1: resultat.budget.PAC1,
+      c2: resultat.budget.PAC2,
+      c3: resultat.budget.PAC3,
+      c4: resultat.budget.PAC4,
+    },
+
+    mois: resultat.mois
+      .filter((m) =>
+        [
+          m.DMI, m.DMP, m.DC, m.DA, m.DF,
+          m.Autres, m.D, m.DC1, m.DC2, m.DC3, m.DC4,
+        ].some((valeur) => valeur !== 0)
+      )
+      .map((m) => ({
+        mois: m.mois,
+        total: m.D,
+        dmi: m.DMI,
+        dmp: m.DMP,
+        contrats: m.DC,
+        achats: m.DA,
+        financements: m.DF,
+        c1: m.DC1,
+        c2: m.DC2,
+        c3: m.DC3,
+        c4: m.DC4,
+      })),
+  }));
 }
+
+export const UC_PAR_ONGLET = FEUILLE_VERS_UC;
+
+export const ONGLET_PAR_UTILISATEUR: Record<string, string> = {
+  Allan: "UCR-N (DIANA-ext)",
+  Herimanga: "UCR-N (Boeny-ext)",
+  Michael: "UCR-S (Ambositra-ext)",
+  Tsinjo: "UCR-S (Fort-dauphin-ext)",
+  Njaka: "UCR-S (Farafangana-ext)",
+};
+
+export const UTILISATEURS_ADMIN = new Set([
+  "Toky",
+  "Zo",
+  "Joary",
+]);
