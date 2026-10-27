@@ -1,6 +1,1930 @@
 {
   "entries": [
     {
+      "id": "1793111462750-q48h5y",
+      "date": "2026-10-27T14:31:02.750Z",
+      "utilisateur": "Toky",
+      "identifiant": "Toky",
+      "annee": 2026,
+      "mois": "Import annuel (janvier-décembre)",
+      "uc": "UCT",
+      "nombreColonnesModifiees": 239,
+      "changements": [
+        {
+          "colonne": "Février — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PAF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PAA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 118200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PAC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1516200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PAMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 81700,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PAMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 31000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PA C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 109400,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PA C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 584600,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PA C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1048100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — PA C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 5000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — D (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 720,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — DMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — DMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — DC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 650,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — DA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 70,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — DF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — D C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — D C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 720,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — D C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — D C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — DC",
+          "ancienneValeur": 7778708.52,
+          "nouvelleValeur": 4190060.18,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TD",
+          "ancienneValeur": 0.22546981217391307,
+          "nouvelleValeur": 2.3982944193234506,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC",
+          "ancienneValeur": null,
+          "nouvelleValeur": 2.3982944193234506,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC F",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC A",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.0005922165820642978,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC C",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.00042870333729059493,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC MI",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février —  TAC MP",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC  C1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC C2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.0012316113581936367,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC  C3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC C4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — BD 2026 (EUR)",
+          "ancienneValeur": 3589368.34,
+          "nouvelleValeur": 720,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — BD 2026 (%)",
+          "ancienneValeur": 0.10403966202898551,
+          "nouvelleValeur": 0.00041211149905557784,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Mars — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PAF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PAA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 118200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PAC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1516200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PAMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 81700,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PAMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 31000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PA C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 109400,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PA C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 584600,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PA C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1048100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — PA C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 5000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — D (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 328448,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — DMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 950,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — DMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — DC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 326618,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — DA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 880,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — DF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — D C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — D C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1830,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — D C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 326618,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — D C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — DC",
+          "ancienneValeur": 7863692.9,
+          "nouvelleValeur": 4518508.18,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TD",
+          "ancienneValeur": 0.2279331275362319,
+          "nouvelleValeur": 2.586290527159292,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC",
+          "ancienneValeur": null,
+          "nouvelleValeur": 2.586290527159292,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC F",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC A",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.008037225042301184,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC C",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.2158475135206437,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC MI",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.011627906976744186,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars —  TAC MP",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC  C1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC C2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.004361956893602463,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC  C3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.3116286613872722,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC C4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — BD 2026 (EUR)",
+          "ancienneValeur": 3674352.72,
+          "nouvelleValeur": 329168,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — BD 2026 (%)",
+          "ancienneValeur": 0.10650297739130435,
+          "nouvelleValeur": 0.18840821933489782,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Avril — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PAF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PAA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 118200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PAC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1516200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PAMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 81700,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PAMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 31000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PA C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 109400,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PA C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 584600,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PA C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1048100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — PA C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 5000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — D (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 270,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — DMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 240,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — DMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — DC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — DA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 30,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — DF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — D C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — D C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 270,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — D C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — D C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — DC",
+          "ancienneValeur": 7933945.88,
+          "nouvelleValeur": 4518778.18,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TD",
+          "ancienneValeur": 0.22996944579710146,
+          "nouvelleValeur": 2.586445068971438,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC",
+          "ancienneValeur": null,
+          "nouvelleValeur": 2.586445068971438,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC F",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC A",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.008291032148900168,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC C",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.2158475135206437,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC MI",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.014565483476132192,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril —  TAC MP",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC  C1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC C2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.004823811152925077,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC  C3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.3116286613872722,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC C4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — BD 2026 (EUR)",
+          "ancienneValeur": 3744605.7,
+          "nouvelleValeur": 329438,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — BD 2026 (%)",
+          "ancienneValeur": 0.10853929565217392,
+          "nouvelleValeur": 0.18856276114704368,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Mai — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PAF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PAA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 118200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PAC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1516200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PAMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 81700,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PAMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 31000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PA C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 109400,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PA C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 584600,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PA C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1048100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — PA C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 5000,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — D (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 30,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — DMI (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — DMP (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — DC (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — DA (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 30,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — DF (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — D C1 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — D C2 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 30,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — D C3 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — D C4 (EUR)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — DC",
+          "ancienneValeur": 8066821.91,
+          "nouvelleValeur": 4518808.18,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TD",
+          "ancienneValeur": 0.23382092492753623,
+          "nouvelleValeur": 2.586462240283899,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC",
+          "ancienneValeur": null,
+          "nouvelleValeur": 2.586462240283899,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC F",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC A",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.008544839255499153,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC C",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.2158475135206437,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC MI",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.014565483476132192,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai —  TAC MP",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC  C1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC C2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.0048751282928498115,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC  C3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.3116286613872722,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC C4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — BD 2026 (EUR)",
+          "ancienneValeur": 3877481.73,
+          "nouvelleValeur": 329468,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — BD 2026 (%)",
+          "ancienneValeur": 0.11239077478260871,
+          "nouvelleValeur": 0.18857993245950433,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Juin — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — D (EUR)",
+          "ancienneValeur": 337711.5624999999,
+          "nouvelleValeur": 8243.5625,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — DMI (EUR)",
+          "ancienneValeur": "7073.3125",
+          "nouvelleValeur": 5883.3125,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — DC (EUR)",
+          "ancienneValeur": 327444.25,
+          "nouvelleValeur": 176.25,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — DA (EUR)",
+          "ancienneValeur": 3194,
+          "nouvelleValeur": 2184,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — D C2 (EUR)",
+          "ancienneValeur": 3299.9999999999995,
+          "nouvelleValeur": 450,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — D C3 (EUR)",
+          "ancienneValeur": 326618,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — DC",
+          "ancienneValeur": 8231864.96,
+          "nouvelleValeur": 4527051.7425,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — TD",
+          "ancienneValeur": 0.23860478144927538,
+          "nouvelleValeur": 2.591180666533112,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — TAC",
+          "ancienneValeur": 0.19329835870871723,
+          "nouvelleValeur": 2.591180666533112,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — TAC F",
+          "ancienneValeur": "#DIV/0!",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — TAC MI",
+          "ancienneValeur": "8.6576652386780903E-2",
+          "nouvelleValeur": 0.0865766523867809,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — TAC C2",
+          "ancienneValeur": 0.005644885391720834,
+          "nouvelleValeur": 0.005644885391720835,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — TAC C4",
+          "ancienneValeur": "0",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — BD 2026 (EUR)",
+          "ancienneValeur": 4042524.78,
+          "nouvelleValeur": 337711.5625,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — BD 2026 (%)",
+          "ancienneValeur": 0.11717463130434784,
+          "nouvelleValeur": 0.1932983587087173,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juillet — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — D (EUR)",
+          "ancienneValeur": 338363.02083333326,
+          "nouvelleValeur": 651.4583333333333,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — DMI (EUR)",
+          "ancienneValeur": "7393.3125",
+          "nouvelleValeur": 320,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — DMP (EUR)",
+          "ancienneValeur": 107.7083333333333,
+          "nouvelleValeur": 107.70833333333333,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — DC (EUR)",
+          "ancienneValeur": 327620.5,
+          "nouvelleValeur": 176.25,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — DA (EUR)",
+          "ancienneValeur": 3241.5,
+          "nouvelleValeur": 47.5,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — D C1 (EUR)",
+          "ancienneValeur": 8289.8125,
+          "nouvelleValeur": 496.25,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — D C2 (EUR)",
+          "ancienneValeur": 3455.208333333333,
+          "nouvelleValeur": 155.20833333333331,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — D C3 (EUR)",
+          "ancienneValeur": 326618,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — DC",
+          "ancienneValeur": 8669455.43,
+          "nouvelleValeur": 4527703.200833334,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — TD",
+          "ancienneValeur": 0.2512885631884058,
+          "nouvelleValeur": 2.5915535463530044,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — TAC",
+          "ancienneValeur": 0.19367123852860926,
+          "nouvelleValeur": 2.5915535463530044,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — TAC F",
+          "ancienneValeur": "#DIV/0!",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — TAC MI",
+          "ancienneValeur": "9.0493421052631584E-2",
+          "nouvelleValeur": 0.09049342105263158,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet —  TAC MP",
+          "ancienneValeur": 0.0034744623655913968,
+          "nouvelleValeur": 0.0034744623655913976,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — TAC C2",
+          "ancienneValeur": 0.005910380317025886,
+          "nouvelleValeur": 0.005910380317025887,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — TAC C4",
+          "ancienneValeur": "0",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — BD 2026 (EUR)",
+          "ancienneValeur": 4480115.25,
+          "nouvelleValeur": 338363.0208333333,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — BD 2026 (%)",
+          "ancienneValeur": 0.12985841304347825,
+          "nouvelleValeur": 0.1936712385286093,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Août — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — D (EUR)",
+          "ancienneValeur": 561233.0208333333,
+          "nouvelleValeur": 222870,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — DMI (EUR)",
+          "ancienneValeur": "7393.3125",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — DMP (EUR)",
+          "ancienneValeur": 107.7083333333333,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — DC (EUR)",
+          "ancienneValeur": 550460.5,
+          "nouvelleValeur": 222840,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — DA (EUR)",
+          "ancienneValeur": 3271.5,
+          "nouvelleValeur": 30,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — D C1 (EUR)",
+          "ancienneValeur": 8289.8125,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — D C2 (EUR)",
+          "ancienneValeur": 3485.208333333333,
+          "nouvelleValeur": 30,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — D C3 (EUR)",
+          "ancienneValeur": 549458,
+          "nouvelleValeur": 222840,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — DC",
+          "ancienneValeur": 9502225.7,
+          "nouvelleValeur": 4750573.200833334,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — TD",
+          "ancienneValeur": 0.275426831884058,
+          "nouvelleValeur": 2.719119226623166,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — TAC",
+          "ancienneValeur": 0.32123691879877125,
+          "nouvelleValeur": 2.719119226623166,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — TAC F",
+          "ancienneValeur": "#DIV/0!",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — TAC MI",
+          "ancienneValeur": "9.0493421052631584E-2",
+          "nouvelleValeur": 0.09049342105263158,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août —  TAC MP",
+          "ancienneValeur": 0.0034744623655913968,
+          "nouvelleValeur": 0.0034744623655913976,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — TAC C2",
+          "ancienneValeur": 0.005961697456950621,
+          "nouvelleValeur": 0.005961697456950622,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — TAC C4",
+          "ancienneValeur": "0",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — BD 2026 (EUR)",
+          "ancienneValeur": 5312885.52,
+          "nouvelleValeur": 561233.0208333333,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — BD 2026 (%)",
+          "ancienneValeur": 0.15399668173913045,
+          "nouvelleValeur": 0.32123691879877125,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Septembre — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — D (EUR)",
+          "ancienneValeur": 565413.0208333333,
+          "nouvelleValeur": 4180,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — DMI (EUR)",
+          "ancienneValeur": "10546.3125",
+          "nouvelleValeur": 3153,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — DMP (EUR)",
+          "ancienneValeur": 107.7083333333333,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — DC (EUR)",
+          "ancienneValeur": 550460.5,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — DA (EUR)",
+          "ancienneValeur": 4298.5,
+          "nouvelleValeur": 1027,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — D C1 (EUR)",
+          "ancienneValeur": 10489.8125,
+          "nouvelleValeur": 2200,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — D C2 (EUR)",
+          "ancienneValeur": 3515.208333333333,
+          "nouvelleValeur": 30,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — D C3 (EUR)",
+          "ancienneValeur": 550876,
+          "nouvelleValeur": 1418,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — DC",
+          "ancienneValeur": 9666821.26,
+          "nouvelleValeur": 4754753.200833334,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TD",
+          "ancienneValeur": 0.2801977176811594,
+          "nouvelleValeur": 2.7215117628260166,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC",
+          "ancienneValeur": 0.3236294550016217,
+          "nouvelleValeur": 2.7215117628260166,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC F",
+          "ancienneValeur": "#DIV/0!",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC MI",
+          "ancienneValeur": "0.1290858323133415",
+          "nouvelleValeur": 0.1290858323133415,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre —  TAC MP",
+          "ancienneValeur": 0.0034744623655913968,
+          "nouvelleValeur": 0.0034744623655913976,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC  C1",
+          "ancienneValeur": 0.09588494,
+          "nouvelleValeur": 0.09588494058500914,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC C2",
+          "ancienneValeur": 0.00601301,
+          "nouvelleValeur": 0.006013014596875357,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC  C3",
+          "ancienneValeur": 0.52559489,
+          "nouvelleValeur": 0.5255948859841618,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC C4",
+          "ancienneValeur": 0.10640000000000001,
+          "nouvelleValeur": 0.1064,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — BD 2026 (EUR)",
+          "ancienneValeur": 5477481.08,
+          "nouvelleValeur": 565413.0208333333,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — BD 2026 (%)",
+          "ancienneValeur": 0.1587675675362319,
+          "nouvelleValeur": 0.3236294550016217,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Octobre — BT",
+          "ancienneValeur": 34500000,
+          "nouvelleValeur": 1747100,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — D (EUR)",
+          "ancienneValeur": 565413.0208333333,
+          "nouvelleValeur": 245703.4081632653,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — DMI (EUR)",
+          "ancienneValeur": "10546.3125",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — DMP (EUR)",
+          "ancienneValeur": 107.7083333333333,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — DC (EUR)",
+          "ancienneValeur": 550460.5,
+          "nouvelleValeur": 233173,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — DA (EUR)",
+          "ancienneValeur": 4298.5,
+          "nouvelleValeur": 12530.408163265307,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — D C1 (EUR)",
+          "ancienneValeur": 10489.8125,
+          "nouvelleValeur": 12530.408163265307,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — D C2 (EUR)",
+          "ancienneValeur": 3515.208333333333,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — D C3 (EUR)",
+          "ancienneValeur": 550876,
+          "nouvelleValeur": 233173,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — D C4 (EUR)",
+          "ancienneValeur": 532,
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — DC",
+          "ancienneValeur": 4189340.18,
+          "nouvelleValeur": 5000456.608996599,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TD",
+          "ancienneValeur": 0.12143015014492754,
+          "nouvelleValeur": 2.8621467626332775,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC",
+          "ancienneValeur": 0.3236294550016217,
+          "nouvelleValeur": 2.8621467626332775,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC F",
+          "ancienneValeur": "#DIV/0!",
+          "nouvelleValeur": 0,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC A",
+          "ancienneValeur": 0.0363663282571912,
+          "nouvelleValeur": 0.14237654960461343,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC C",
+          "ancienneValeur": 0.36305269753330693,
+          "nouvelleValeur": 0.5168404564041683,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC MI",
+          "ancienneValeur": "0.1290858323133415",
+          "nouvelleValeur": 0.1290858323133415,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre —  TAC MP",
+          "ancienneValeur": 0.0034744623655913968,
+          "nouvelleValeur": 0.0034744623655913976,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC  C1",
+          "ancienneValeur": 0.76,
+          "nouvelleValeur": 0.21042249235160243,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC C2",
+          "ancienneValeur": 0.77,
+          "nouvelleValeur": 0.006013014596875357,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC  C3",
+          "ancienneValeur": 0.55,
+          "nouvelleValeur": 0.7480669783417613,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC C4",
+          "ancienneValeur": 0.55,
+          "nouvelleValeur": 0.1064,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — BD 2026 (EUR)",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 811116.4289965986,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — BD 2026 (%)",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 0.46426445480888245,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        }
+      ]
+    },
+    {
       "id": "1793109412306-u8g6ad",
       "date": "2026-10-27T13:56:52.306Z",
       "utilisateur": "Herimanga",
