@@ -881,60 +881,82 @@ useEffect(() => {
     </>
   );
 
-  const chargerHistorique = async () => {
-    setChargementHistorique(true);
-    setErreurHistorique("");
-  
-    try {
-      // Réutiliser ici les identifiants de la session existante.
-      const response = await fetch(`/api/historique-geojson?t=${Date.now()}`, 
+const chargerHistorique = async () => {
+  setChargementHistorique(true);
+  setErreurHistorique("");
+
+  try {
+    const response = await fetch(
+      `/api/historique-geojson?t=${Date.now()}`,
       {
         method: "GET",
-        cache:"no-store",      
+        cache: "no-store",
         headers: {
           "x-paddi-identifiant": identifiant,
           "x-paddi-password": motDePasse,
-          "Cache-Control":"no-cache",
+          "Cache-Control": "no-cache",
         },
-  
-      });
-  
-      if (!response.ok) {
-        throw new Error(
-          response.status === 401
-            ? "Accès non autorisé."
-            : "Impossible de charger l'historique."
-        );
       }
-  
-      const texte = await response.text();
-  
-  console.log("Statut API historique :", response.status);
-  console.log("Réponse API historique :", texte);
-  
-  let result;
-  
-  try {
-    result = JSON.parse(texte);
-  } catch {
-    throw new Error(
-      "L'API historique ne renvoie pas du JSON valide. Vérifie la réponse dans la console du navigateur."
     );
-  }
-  
-  setHistorique(
-    Array.isArray(result.entries) ? result.entries : []
-  );
-    } catch (error) {
-      setErreurHistorique(
-        error instanceof Error
-          ? error.message
-          : "Une erreur est survenue."
+
+    const texte = await response.text();
+
+    console.log("Statut API historique :", response.status);
+    console.log("Réponse brute API historique :", texte);
+
+    if (!response.ok) {
+      throw new Error(
+        response.status === 401
+          ? "Accès non autorisé : vérifie les identifiants de session."
+          : `Erreur API historique (${response.status}) : ${texte}`
       );
-    } finally {
-      setChargementHistorique(false);
     }
-  };
+
+    let result: any;
+
+    try {
+      result = JSON.parse(texte);
+    } catch {
+      throw new Error(
+        "La réponse de l'API historique n'est pas un JSON valide."
+      );
+    }
+
+    // Accepter les deux formats possibles :
+    // { entries: [...] } ou directement [...]
+    const entries = Array.isArray(result)
+      ? result
+      : result?.entries;
+
+    if (!Array.isArray(entries)) {
+      console.error(
+        "Structure JSON inattendue pour l'historique :",
+        result
+      );
+
+      throw new Error(
+        "L'API répond, mais ne renvoie pas de tableau entries. Vérifie la structure JSON."
+      );
+    }
+
+    console.log("Nombre d'entrées reçues :", entries.length);
+    console.log("Dernière entrée reçue :", entries[0]);
+
+    setHistorique(entries);
+  } catch (error) {
+    console.error("Erreur chargement historique :", error);
+
+    setHistorique([]);
+
+    setErreurHistorique(
+      error instanceof Error
+        ? error.message
+        : "Une erreur est survenue lors du chargement de l'historique."
+    );
+  } finally {
+    setChargementHistorique(false);
+  }
+};
   
   const lignesHistorique = historique.flatMap((entry) => {
     const date = entry.date ? new Date(entry.date) : null;
