@@ -5,7 +5,6 @@ const reponse = await fetch("/api/update-couts", {
     },
     body: JSON.stringify({
       identifiant: userName,
-      motDePasse: motDePasseImport,
       resultats,
     }),
   });
