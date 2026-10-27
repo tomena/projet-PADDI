@@ -306,16 +306,23 @@ export default async function handler(req: any, res: any) {
 
     const properties = matches[0].properties;
 
-    // Modifier uniquement les colonnes reçues et autorisées.
-    for (const [key, value] of updateEntries) {
-      if (!Object.prototype.hasOwnProperty.call(properties, key)) {
-        return res.status(400).json({
-          error: `La colonne "${key}" n'existe pas dans cette ligne.`,
-        });
-      }
+// Conserver les anciennes et nouvelles valeurs pour l'historique.
+const changements = updateEntries.map(([key, nouvelleValeur]) => ({
+  colonne: key,
+  ancienneValeur: properties[key] ?? null,
+  nouvelleValeur,
+}));
 
-      properties[key] = value;
-    }
+// Modifier uniquement les colonnes reçues et autorisées.
+for (const [key, value] of updateEntries) {
+  if (!Object.prototype.hasOwnProperty.call(properties, key)) {
+    return res.status(400).json({
+      error: `La colonne "${key}" n'existe pas dans cette ligne.`,
+    });
+  }
+
+  properties[key] = value;
+}
 
     
     // ============================================
@@ -529,6 +536,7 @@ export default async function handler(req: any, res: any) {
         mois,
         uc,
         champsModifies: updateEntries.map(([key]) => key),
+        changements,
       });
       
       console.log(
