@@ -32,56 +32,54 @@ export default function UpdateModal({
   const [uniteCoordination, setUniteCoordination] =
   useState("UCT");
 
+  
+
+  const uniteParUtilisateur: Record<string, string> = {
+    Joary: "UCT",
+    Allan: "UCR-D",
+    Herimanga: "UCR-B",
+    Njaka: "UCR-F",
+    Michael: "UCR-A",
+    Tsinjo: "UCR-FD",
+  };
+  
+  // Utilisateurs et droits
+  const estAdmin = userName === "Zo" || userName === "Toky";
+  const estCeline = userName === "Celine";
+  
+  // Seuls les administrateurs choisissent le type de mise à jour.
+  const peutChoisirType = estAdmin;
+  
+  // Celine peut choisir le niveau pour le décaissement.
+  // Les autres utilisateurs ne peuvent pas changer le niveau.
+  const peutChoisirNiveau = estAdmin || estCeline;
+  
+  // Seuls les administrateurs choisissent l'unité de coordination.
+  const peutChoisirUnite = estAdmin;
+  
+  // Initialisation selon l'utilisateur connecté
   useEffect(() => {
     if (!userName) return;
   
-    const uniteParUtilisateur: Record<string, string> = {
-      Allan: "UCR-D",
-      Herimanga: "UCR-B",
-      Njaka: "UCR-F",
-      Michael: "UCR-A",
-      Tsinjo: "UCR-FD",
-    };
-  
-    // Zo, Toky et Joary peuvent choisir librement
-    if (
-      userName === "Zo" ||
-      userName === "Toky" ||
-      userName === "Joary"
-    ) {
+    if (estAdmin) {
+      setTypeMiseAJour(null);
+      setNiveau("Par composante");
+      setUniteCoordination("UCT");
       return;
     }
   
-    const unite = uniteParUtilisateur[userName];
-  
-    if (unite) {
-      setUniteCoordination(unite);
+    if (estCeline) {
+      setTypeMiseAJour("decaissement");
+      setNiveau("Par composante");
+      setUniteCoordination("");
+      return;
     }
-  }, [userName]);
-
-  // ======================================================
-// DROITS D'ACCÈS AUX UNITÉS SELON L'UTILISATEUR
-// ======================================================
-
-const accesUnite: Record<string, string[] | "ALL"> = {
-  Zo: "ALL",
-  Toky: "ALL",
-
-  Joary: ["UCT"],
-  Allan: ["UCR-D"],
-  Herimanga: ["UCR-B"],
-  Njaka: ["UCR-F"],
-  Michael: ["UCR-A"],
-  Tsinjo: ["UCR-FD"],
-};
-
-const unitesAutorisees =
-  userName && accesUnite[userName]
-    ? accesUnite[userName]
-    : ["UCT"];
-
-const peutChoisirUnite =
-  unitesAutorisees === "ALL";
+  
+    setTypeMiseAJour("avancement");
+    setNiveau("Par composante");
+    setUniteCoordination(uniteParUtilisateur[userName] || "");
+  }, [userName, estAdmin, estCeline]);
+  
 
   const [fichier, setFichier] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -168,7 +166,7 @@ const handleImport = async () => {
     return;
   }
 
-  if (!uniteCoordination) {
+  if (typeMiseAJour === "avancement" && !uniteCoordination) {
     setErreur("Veuillez sélectionner une unité de coordination.");
     return;
   }
@@ -295,38 +293,43 @@ const handleImport = async () => {
                 CHOIX DES DONNÉES
             ========================= */}
 
+            
             <div style={styles.dataChoices}>
-
               {/* DÉCAISSEMENT */}
-
               <label
                 style={{
                   ...styles.choice,
                   ...(typeMiseAJour === "decaissement"
                     ? styles.choiceActive
                     : {}),
+                  ...(!estAdmin && !estCeline
+                    ? { opacity: 0.5, cursor: "not-allowed" }
+                    : {}),
+                  ...(estCeline
+                    ? { cursor: "default" }
+                    : {}),
                 }}
               >
                 <input
                   type="checkbox"
-                  checked={
-                    typeMiseAJour === "decaissement"
-                  }
-                  onChange={() =>
+                  checked={typeMiseAJour === "decaissement"}
+                  disabled={!estAdmin && !estCeline}
+                  onChange={() => {
+                    if (!estAdmin && !estCeline) return;
+
                     setTypeMiseAJour(
                       typeMiseAJour === "decaissement"
                         ? null
                         : "decaissement"
-                    )
-                  }
+                    );
+                  }}
                   style={styles.checkbox}
                 />
 
                 <span
                   style={{
                     ...styles.choiceText,
-                    ...(typeMiseAJour ===
-                    "decaissement"
+                    ...(typeMiseAJour === "decaissement"
                       ? styles.choiceTextActive
                       : {}),
                   }}
@@ -336,35 +339,37 @@ const handleImport = async () => {
               </label>
 
               {/* TAUX D'AVANCEMENT */}
-
               <label
                 style={{
                   ...styles.choice,
                   ...(typeMiseAJour === "avancement"
                     ? styles.choiceActive
                     : {}),
+                  ...(estCeline
+                    ? { opacity: 0.5, cursor: "not-allowed" }
+                    : {}),
                 }}
               >
                 <input
                   type="checkbox"
-                  checked={
-                    typeMiseAJour === "avancement"
-                  }
-                  onChange={() =>
+                  checked={typeMiseAJour === "avancement"}
+                  disabled={!estAdmin}
+                  onChange={() => {
+                    if (!estAdmin) return;
+
                     setTypeMiseAJour(
                       typeMiseAJour === "avancement"
                         ? null
                         : "avancement"
-                    )
-                  }
+                    );
+                  }}
                   style={styles.checkbox}
                 />
 
                 <span
                   style={{
                     ...styles.choiceText,
-                    ...(typeMiseAJour ===
-                    "avancement"
+                    ...(typeMiseAJour === "avancement"
                       ? styles.choiceTextActive
                       : {}),
                   }}
@@ -372,7 +377,7 @@ const handleImport = async () => {
                   Taux d'avancement
                 </span>
               </label>
-            </div>
+            </div>       
 
            {/* =========================
                 MENUS DE PARAMÉTRAGE
@@ -383,74 +388,64 @@ const handleImport = async () => {
 
                 {/* NIVEAU DE MISE À JOUR */}
                 <div style={styles.selectGroup}>
-                <div style={styles.levelLabel}>
-                    Niveau de mise à jour
-                </div>
+                  <div className={styles.levelLabel}>Niveau de mise à jour</div>
 
-                <select
+                  <select
                     value={niveau}
                     onChange={(e) =>
-                    setNiveau(
-                        e.target.value as
-                        | "Par composante"
-                        | "Par instrument"
-                    )
+                      setNiveau(e.target.value as "Par composante" | "Par instrument")
                     }
+                    disabled={!peutChoisirNiveau}
                     style={styles.select}
-                >
-                    <option value="Par composante">
-                    Par composante
-                    </option>
-
-                    <option value="Par instrument">
-                    Par instrument
-                    </option>
-                </select>
+                  >
+                    <option value="Par composante">Par composante</option>
+                    <option value="Par instrument">Par instrument</option>
+                  </select>
                 </div>
 
-                {/* UNITÉ DE COORDINATION */}
-                {typeMiseAJour === "avancement" && (
-                  <div style={styles.selectGroup}>
-                    <div style={styles.levelLabel}>
-                      Unité de coordination
-                    </div>
-
-                    <select
-                      value={uniteCoordination}
-                      onChange={(e) =>
-                        setUniteCoordination(e.target.value)
-                      }
-                      disabled={!peutChoisirUnite}
-                      style={{
-                        ...styles.select,
-                        ...(peutChoisirUnite
-                          ? {}
-                          : {
-                              backgroundColor: "#f1f5f9",
-                              color: "#475569",
-                              cursor: "not-allowed",
-                              borderColor: "#cbd5e1",
-                            }),
-                      }}
-                    >
-                      {peutChoisirUnite ? (
-                        <>
-                          <option value="UCT">UCT</option>
-                          <option value="UCR-A">UCR-A</option>
-                          <option value="UCR-B">UCR-B</option>
-                          <option value="UCR-D">UCR-D</option>
-                          <option value="UCR-F">UCR-F</option>
-                          <option value="UCR-FD">UCR-FD</option>
-                        </>
-                      ) : (
-                        <option value={uniteCoordination}>
-                          {uniteCoordination}
-                        </option>
-                      )}
-                    </select>
+                
+              {/* UNITÉ DE COORDINATION */}
+              {typeMiseAJour === "avancement" && !estCeline && (
+                <div style={styles.selectGroup}>
+                  <div style={styles.levelLabel}>
+                    Unité de coordination
                   </div>
-                )}
 
+                  <select
+                    value={uniteCoordination}
+                    onChange={(e) =>
+                      setUniteCoordination(e.target.value)
+                    }
+                    disabled={!peutChoisirUnite}
+                    style={{
+                      ...styles.select,
+                      ...(!peutChoisirUnite
+                        ? {
+                            backgroundColor: "#f1f5f9",
+                            color: "#475569",
+                            cursor: "not-allowed",
+                            borderColor: "#cbd5e1",
+                          }
+                        : {}),
+                    }}
+                  >
+                    {peutChoisirUnite ? (
+                      <>
+                        <option value="UCT">UCT</option>
+                        <option value="UCR-A">UCR-A</option>
+                        <option value="UCR-B">UCR-B</option>
+                        <option value="UCR-D">UCR-D</option>
+                        <option value="UCR-F">UCR-F</option>
+                        <option value="UCR-FD">UCR-FD</option>
+                      </>
+                    ) : (
+                      <option value={uniteCoordination}>
+                        {uniteCoordination}
+                      </option>
+                    )}
+                  </select>
+                </div>
+              )}
             </div>
             )}
 
@@ -609,7 +604,7 @@ const handleImport = async () => {
                 <span>{message}</span>
               </div>
             )}
-          </div>
+            </div>
 
           {/* =========================
                   FOOTER
@@ -640,11 +635,11 @@ const handleImport = async () => {
                     : "Importer et mettre à jour"}
                 </button>
               </div>
-        </div>
-      </div>
-    </>
-  );
-}
+        </div> {/* fin de styles.modal */}
+        </div>   {/* fin de styles.overlay */}
+      </>
+    );
+  }
 
 const styles: {
   [key: string]: React.CSSProperties;
