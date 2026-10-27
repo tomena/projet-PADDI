@@ -151,11 +151,6 @@ export default function UpdateModal({
       return;
     }
   
-    if (!motDePasseImport.trim()) {
-      setErreur("Veuillez saisir votre mot de passe.");
-      return;
-    }
-  
     if (typeMiseAJour !== "decaissement") {
       setErreur(
         "L'importation Excel est réservée au suivi des décaissements."
