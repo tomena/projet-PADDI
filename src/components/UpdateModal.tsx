@@ -14,6 +14,12 @@ export default function UpdateModal({
   const [anneeImport, setAnneeImport] = useState<string>("2026");
   const anneesDisponibles = [ 2024,2025,2026,2027,2028,2029,2030,];
   const [moisImport, setMoisImport] = useState<string>("");
+  const moisDisponibles = [
+  "Janvier", "Février", "Mars", "Avril",
+  "Mai", "Juin", "Juillet", "Août",
+  "Septembre", "Octobre", "Novembre", "Décembre",
+];
+  
   const [typeMiseAJour, setTypeMiseAJour] = useState<
     "decaissement" | "avancement" | null
   >(null);
