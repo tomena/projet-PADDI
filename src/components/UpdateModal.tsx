@@ -152,15 +152,24 @@ export default function UpdateModal({
     }
   
     if (typeMiseAJour !== "decaissement") {
-      setErreur(
-        "L'importation Excel est réservée au suivi des décaissements."
-      );
+      setErreur("L'importation Excel est réservée au suivi des décaissements.");
       return;
     }
   
     const estAdminImport = UTILISATEURS_ADMIN.has(userName);
     const ongletImpose = ONGLET_PAR_UTILISATEUR[userName];
     const ongletsDisponibles = Object.keys(UC_PAR_ONGLET);
+    const peutImporterDecaissement = estAdmin || estCeline;
+
+const peutImporterAvancement =
+  estAdmin || Boolean(ONGLET_PAR_UTILISATEUR[userName ?? ""]);
+
+const peutImporter =
+  typeMiseAJour === "decaissement"
+    ? peutImporterDecaissement
+    : typeMiseAJour === "avancement"
+      ? peutImporterAvancement
+      : false;
   
     let ongletsAImporter: string[] = [];
   
