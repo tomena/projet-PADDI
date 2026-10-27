@@ -329,7 +329,6 @@ const peutImporter =
             {/* =========================
                 CHOIX DES DONNÉES
             ========================= */}
-
             
             <div style={styles.dataChoices}>
               {/* DÉCAISSEMENT */}
@@ -419,7 +418,6 @@ const peutImporter =
            {/* =========================
                 MENUS DE PARAMÉTRAGE
             ========================= */}
-
             
             {/* MENUS DE PARAMÉTRAGE */}
             {typeMiseAJour && (
@@ -553,7 +551,7 @@ const peutImporter =
                 </div>
 
                 {/* SÉLECTION DU FICHIER */}
-                <div>
+                <div style={styles.importButtonContainer}>
                   <input
                     ref={fileInputRef}
                     type="file"
@@ -1026,4 +1024,10 @@ const styles: {
     fontSize: 10,
     fontWeight: 700,
   },
+
+  importButtonContainer: {
+  width: "100%",
+  marginTop: "12px",
+  display: "flex",
+},
 };
