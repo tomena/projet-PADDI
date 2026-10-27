@@ -609,7 +609,6 @@ const peutImporter =
                   </div>
                 </div>
               </div>
-            </div>
 
             {/* MESSAGE ERREUR */}
             {erreur && (
