@@ -1,6 +1,181 @@
 {
   "entries": [
     {
+      "id": "1793069467439-zo.ravelonirina@giz.de",
+      "date": "2026-10-27T02:51:07.439Z",
+      "utilisateur": "Zo",
+      "identifiant": "zo.ravelonirina@giz.de",
+      "annee": 2026,
+      "mois": "Octobre",
+      "uc": "UCR-B",
+      "champsModifies": [
+        "TAG",
+        "NAP",
+        "NAA",
+        "NAC",
+        "NAD",
+        "TAR 1",
+        "TAR 2",
+        "TAC  C1",
+        "TAC C2",
+        "TAC  C3",
+        "TAC C4",
+        "TAA 1.1.1",
+        "TAA 1.1.2",
+        "TAA 1.1.3",
+        "TAA 1.1.4",
+        "TAA 1.2.1",
+        "TAA 1.2.2",
+        "TAA 1.2.3",
+        "TAA 1.2.4",
+        "TAA 2.1.1",
+        "TAA 2.1.2",
+        "TAA 2.1.3",
+        "TAA 2.1.4",
+        "TAA 2.2.1",
+        "TAA 2.2.2",
+        "TAA 2.2.3",
+        "TAA 2.2.4"
+      ],
+      "changements": [
+        {
+          "colonne": "TAG",
+          "ancienneValeur": 0.75,
+          "nouvelleValeur": 0.69
+        },
+        {
+          "colonne": "NAP",
+          "ancienneValeur": 63,
+          "nouvelleValeur": 63
+        },
+        {
+          "colonne": "NAA",
+          "ancienneValeur": 22,
+          "nouvelleValeur": 22
+        },
+        {
+          "colonne": "NAC",
+          "ancienneValeur": 40,
+          "nouvelleValeur": 40
+        },
+        {
+          "colonne": "NAD",
+          "ancienneValeur": 1,
+          "nouvelleValeur": 1
+        },
+        {
+          "colonne": "TAR 1",
+          "ancienneValeur": 0.7,
+          "nouvelleValeur": 0.7
+        },
+        {
+          "colonne": "TAR 2",
+          "ancienneValeur": 0.68,
+          "nouvelleValeur": 0.68
+        },
+        {
+          "colonne": "TAC  C1",
+          "ancienneValeur": 0.49,
+          "nouvelleValeur": 0.49
+        },
+        {
+          "colonne": "TAC C2",
+          "ancienneValeur": 0.82,
+          "nouvelleValeur": 0.82
+        },
+        {
+          "colonne": "TAC  C3",
+          "ancienneValeur": 0.72,
+          "nouvelleValeur": 0.72
+        },
+        {
+          "colonne": "TAC C4",
+          "ancienneValeur": 0.6,
+          "nouvelleValeur": 0.6
+        },
+        {
+          "colonne": "TAA 1.1.1",
+          "ancienneValeur": 0.78,
+          "nouvelleValeur": 0.78
+        },
+        {
+          "colonne": "TAA 1.1.2",
+          "ancienneValeur": 0.52,
+          "nouvelleValeur": 0.52
+        },
+        {
+          "colonne": "TAA 1.1.3",
+          "ancienneValeur": 0.2,
+          "nouvelleValeur": 0.2
+        },
+        {
+          "colonne": "TAA 1.1.4",
+          "ancienneValeur": 0.17,
+          "nouvelleValeur": 0.17
+        },
+        {
+          "colonne": "TAA 1.2.1",
+          "ancienneValeur": 0.74,
+          "nouvelleValeur": 0.74
+        },
+        {
+          "colonne": "TAA 1.2.2",
+          "ancienneValeur": 0.86,
+          "nouvelleValeur": 0.86
+        },
+        {
+          "colonne": "TAA 1.2.3",
+          "ancienneValeur": 0.92,
+          "nouvelleValeur": 0.92
+        },
+        {
+          "colonne": "TAA 1.2.4",
+          "ancienneValeur": 0.83,
+          "nouvelleValeur": 0.83
+        },
+        {
+          "colonne": "TAA 2.1.1",
+          "ancienneValeur": 0.73,
+          "nouvelleValeur": 0.73
+        },
+        {
+          "colonne": "TAA 2.1.2",
+          "ancienneValeur": 0.75,
+          "nouvelleValeur": 0.75
+        },
+        {
+          "colonne": "TAA 2.1.3",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 0
+        },
+        {
+          "colonne": "TAA 2.1.4",
+          "ancienneValeur": 0.67,
+          "nouvelleValeur": 0.67
+        },
+        {
+          "colonne": "TAA 2.2.1",
+          "ancienneValeur": 0.79,
+          "nouvelleValeur": 0.79
+        },
+        {
+          "colonne": "TAA 2.2.2",
+          "ancienneValeur": 0.44,
+          "nouvelleValeur": 0.44
+        },
+        {
+          "colonne": "TAA 2.2.3",
+          "ancienneValeur": 0.33,
+          "nouvelleValeur": 0.33
+        },
+        {
+          "colonne": "TAA 2.2.4",
+          "ancienneValeur": 0.69,
+          "nouvelleValeur": 0.69
+        }
+      ]
+    },
+    {
       "id": "1793069248888-zo.ravelonirina@giz.de",
       "date": "2026-10-27T02:47:28.888Z",
       "utilisateur": "Zo",
