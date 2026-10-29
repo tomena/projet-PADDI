@@ -858,7 +858,7 @@ const budgetTotal =
     {
       title: t.missionsPartenaires,
       icon:Users,
-      percent:Number(coutActuel[" TAC MP"] || 0) * 100,
+      percent:Number(coutActuel["TAC MP"] || 0) * 100,
       dec:coutActuel["DMP (EUR)"] || 0,
       plan:coutActuel["PAMP (EUR)"] || 0,
       color:"#f97316",
