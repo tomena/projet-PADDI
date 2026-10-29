@@ -385,22 +385,7 @@ const getProgressColor = (percent) => {
   if (percent < 75) return '#22c55e'; // vert
   return '#2563eb'; // bleu
 };
-
-
-
-const ordreMois = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre"
+const ordreMois = [ "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ];
 
 export default function SuiviCouts() {
@@ -408,10 +393,8 @@ export default function SuiviCouts() {
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
   const [userName, setUserName] = useState("");
-
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
-
   const [data,setData] = useState<CoutActivite[]>([]);
   const [annee,setAnnee] = useState<number>(2026);
   const [mois,setMois] = useState<string>("Tous");
@@ -421,7 +404,6 @@ export default function SuiviCouts() {
         setMois("Tous");
         setUc("Tous");
       };
-
   useEffect(() => {
     fetch("/data/Base_Cout_Activite.geojson")
       .then(res => {
@@ -438,31 +420,25 @@ export default function SuiviCouts() {
         console.error("Erreur chargement Base Cout :", err);
       });  
   }, []);
-
-
   const composantesConfig = [
     { code: "C1", icon: Leaf, title: t.componentC1Short },
     { code: "C2", icon: Building, title: t.componentC2Short },
     { code: "C3", icon: Map, title: t.componentC3Short },
     { code: "C4", icon: Briefcase, title: t.componentC4Short },
   ];
-
   const annees = Array.from(
     new Set(
     data.map(d=>d.Année)
     )
     ).sort();
-
   const moisListe = ordreMois.filter(m =>
       data.some(d => d.Mois === m)
     );
-
   const ucListe = Array.from(
     new Set(
     data.map(d=>d.UC)
      )
     );
-
   const dataFiltre = data.filter((d)=>{
       const filtreAnnee = d.Année === annee;    
       const filtreMois = mois === "Tous" || d.Mois === mois;    
@@ -490,17 +466,13 @@ export default function SuiviCouts() {
       ) ||
       dataFiltre[0] ||
       {};
-
       const budgetTotalProjet = 34_500_000;
-
       // =====================================================
       // LIGNE DE RÉFÉRENCE POUR LE KPI ET LE GRAPHE
       // =====================================================
 
       const ucCible = uc === "Tous" ? "Tous" : uc;
-
       let ligneGraph: CoutActivite | undefined;
-
       // -----------------------------------------------------
       // 1. MOIS PRÉCIS
       // -----------------------------------------------------
@@ -512,7 +484,6 @@ export default function SuiviCouts() {
             d.UC === ucCible
         );
       }
-
       // -----------------------------------------------------
       // 2. TOUS LES MOIS
       // → prendre la dernière ligne de l'année
@@ -543,7 +514,6 @@ export default function SuiviCouts() {
           ligneGraph = lignesAnnee[0];
         }
       }
-
       // -----------------------------------------------------
       // 3. SÉCURITÉ
       // -----------------------------------------------------
@@ -591,8 +561,7 @@ const budgetTotal =
       ? "#f59e0b"
       : tauxAvancement < 75
       ? "#22c55e"
-      : "#2563eb";
-    
+      : "#2563eb";    
 
       const output0 = Number(coutActuel["BD O0 (EUR)"]) || 0;
       const output1 = Number(coutActuel["BD O1 (EUR)"]) || 0;
@@ -606,7 +575,6 @@ const budgetTotal =
         output2 +
         output3 +
         output4;
-
         const composantes = [
           {
             icon: Target,
@@ -617,8 +585,7 @@ const budgetTotal =
                 ? (output0 / budgetTotalProjet) * 100
                 : 0,
             color: "#2563eb",
-          },
-        
+          },        
           {
             icon: Leaf,
             title: "Output 1",
@@ -628,8 +595,7 @@ const budgetTotal =
                 ? (output1 / budgetTotalProjet) * 100
                 : 0,
             color: "#16a34a",
-          },
-        
+          },        
           {
             icon: Building,
             title: "Output 2",
@@ -639,8 +605,7 @@ const budgetTotal =
                 ? (output2 / budgetTotalProjet) * 100
                 : 0,
             color: "#7c3aed",
-          },
-        
+          },        
           {
             icon: Map,
             title: "Output 3",
@@ -650,8 +615,7 @@ const budgetTotal =
                 ? (output3 / budgetTotalProjet) * 100
                 : 0,
             color: "#f59e0b",
-          },
-        
+          },        
           {
             icon: Briefcase,
             title: "Output 4",
@@ -663,7 +627,6 @@ const budgetTotal =
             color: "#f97316",
           },
         ];
-
         const totalInstruments =
           (Number(coutActuel["1. S (EUR)"]) || 0) +
           (Number(coutActuel["1.6 L (EUR)"]) || 0) +
@@ -686,8 +649,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["1. S (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#f59e0b",
-          },
-        
+          },        
           {
             icon: Building2,
             title: t.prestationsSiege,
@@ -697,8 +659,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["1.6 L (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#f59e0b",
-          },
-        
+          },        
           {
             icon: Building,
             title: t.prestationsBureaux,
@@ -708,8 +669,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["1.7 S (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#f59e0b",
-          },
-        
+          },        
           {
             icon: UserRound,
             title: t.servicesRessourcesHumaines,
@@ -719,8 +679,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["1.8 P (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#f59e0b",
-          },
-        
+          },        
           {
             icon: Plane,
             title: t.fraisDeplacement,
@@ -730,8 +689,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["1.9 R (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#f97316",
-          },
-        
+          },        
           {
             icon: ShoppingCart,
             title: t.achats,
@@ -741,8 +699,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["2.1 S (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#2563eb",
-          },
-        
+          },        
           {
             icon: Briefcase,
             title: t.approvisionnementConstruction,
@@ -752,8 +709,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["2.2 S (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#7c3aed",
-          },
-        
+          },        
           {
             icon: Wallet,
             title: t.sl,
@@ -763,8 +719,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["3.2 F (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#2563eb",
-          },
-        
+          },        
           {
             icon: Coins,
             title: t.grants,
@@ -774,8 +729,7 @@ const budgetTotal =
                 ? ((Number(coutActuel["3.4 G (EUR)"]) || 0) / budgetTotalProjet) * 100
                 : 0,
             color: "#2563eb",
-          },
-        
+          },        
           {
             icon: Coins,
             title: t.autres,
@@ -787,7 +741,6 @@ const budgetTotal =
             color: "#64748b",
           },
         ];
-
         const anneesGraph = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 
       // =====================================================
@@ -795,33 +748,25 @@ const budgetTotal =
       // =====================================================
 
       const yearlyData = anneesGraph.map((anneeGraph) => {
-
         const valeur = Number(
           ligneGraph?.[`BD ${anneeGraph} (EUR)`] || 0
         );
-
         const pourcentage =
           budgetTotalProjet > 0
             ? (valeur / budgetTotalProjet) * 100
             : 0;
-
         return {
           year: String(anneeGraph),
           value: valeur / 1_000_000,
           percent: pourcentage.toFixed(1),
         };
-
       });
-
-
       console.log("========== GRAPHE ANNUEL ==========");
       console.log("Année sélectionnée :", annee);
       console.log("Mois sélectionné :", mois);
       console.log("UC sélectionnée :", uc);
       console.log("Ligne utilisée :", ligneGraph);
       console.log("YearlyData :", yearlyData);
-
-
       const tauxComposantes = [
         {
           title: t.componentC1,
@@ -872,9 +817,7 @@ const budgetTotal =
           color: "#16a34a",
         },
       ];
-
   const [bailleur, setBailleur] = useState<string>("BMZ");
-
   const tauxInstruments = [
     {
       title: t.financements,
@@ -921,8 +864,6 @@ const budgetTotal =
       color:"#f97316",
     },
   ];
-
-
     console.log(data);
     console.log(annees);
     console.log(moisListe);
@@ -936,21 +877,18 @@ const budgetTotal =
 
     console.log("========== DC PAR ANNÉE ==========");
 
-console.table(
-  data
-    .filter(d => d.UC === "Tous")
-    .map(d => ({
-      Année: d.Année,
-      Mois: d.Mois,
-      D: d["D (EUR)"],
-      DC: d["DC"],
-      TD: d["TD"],
-      BT: d["BT"],
-    }))
-);
-
-    
-
+      console.table(
+        data
+          .filter(d => d.UC === "Tous")
+          .map(d => ({
+            Année: d.Année,
+            Mois: d.Mois,
+            D: d["D (EUR)"],
+            DC: d["DC"],
+            TD: d["TD"],
+            BT: d["BT"],
+          }))
+      );
   const getPercent = (p: string) =>
     Math.min(parseFloat(p.replace(',', '.')) || 0, 100);
 
@@ -961,17 +899,12 @@ console.table(
         return `${(num / 1000000)
           .toFixed(1)
           .replace('.', ',')} M€`;
-      }
-    
+      }    
       if (num >= 1000) {
         return `${Math.round(num / 1000)} k€`;
-      }
-    
+      }    
       return `${Math.round(num)} €`;
     };
-
-
-
   return (
     <div style={styles.page}>
       {/* HEADER */}
@@ -984,13 +917,10 @@ console.table(
 
             <div style={styles.subtitle}>{t.subtitle}</div>
           </div>
-        </div>
-
-        
+        </div>   
 
         <div style={styles.dateBox}>
           <CalendarDays size={18} />
-
           <div>
             <div style={styles.dateLabel}>{t.updated}</div>
 
@@ -999,9 +929,7 @@ console.table(
         </div>
       </div>
       {/* FILTERS */}
-      <div style={styles.filtersContainer}>
-
-        
+      <div style={styles.filtersContainer}>        
         {/* ANNÉE */}
         <div style={styles.bigFilter}>
           <div style={styles.filterIcon}>
@@ -1024,7 +952,6 @@ console.table(
               )
               }
             </select>
-
             <div style={styles.filterSub}>2025 - 2030</div>
           </div>
         </div>
@@ -1034,17 +961,14 @@ console.table(
           <div style={styles.filterIcon}>
             <CalendarDays size={28} color="#1d4ed8" />
           </div>
-
           <div style={{ flex: 1 }}>
             <div style={styles.filterLabel}>{t.month}</div>
-
             <select
               style={styles.bigSelect}
               value={mois}
               onChange={(e) => setMois(e.target.value)}
             >
               <option value="Tous">{t.all}</option>
-
               {moisListe.map((m) => (
                 <option key={m} value={m}>
                   {t.months[m] || m}
@@ -1054,8 +978,7 @@ console.table(
 
             <div style={styles.filterSub}>Janvier - Décembre</div>
           </div>
-        </div>
-        
+        </div>    
 
         {/* UNITÉ */}
         <div style={styles.bigFilter}>
@@ -1096,7 +1019,6 @@ console.table(
                 paddingLeft: 4,
               }}
             >
-
               {/* METTRE À JOUR */}
               <button
                 onClick={() => setShowLogin(true)}
@@ -1208,7 +1130,6 @@ console.table(
             {/* RIGHT PIE */}
             <div style={{ textAlign: 'center' }}>
             <div style={styles.kpiLabel}>{t.disbursementRate}</div>
-
               <div style={styles.pieWrapper}>
               <ResponsiveContainer width="100%" height={100}>
                     <PieChart>
@@ -1329,7 +1250,6 @@ console.table(
               <Bar dataKey="value" radius={[3, 3, 0, 0]} barSize={22}>
                 {yearlyData.map((entry, index) => {
                   const max = Math.max(...yearlyData.map((d) => d.value));
-
                   return (
                     <Cell
                       key={index}
@@ -1341,15 +1261,12 @@ console.table(
                     />
                   );
                 })}
-
                 {/* POURCENTAGE EN DESSOUS */}
                 <LabelList
                   position="top"
                   content={(props: any) => {
                     const { x, y, width, value, index } = props;
-
                     const percent = yearlyData[index]?.percent || 0;
-
                     return (
                       <g>
                         {/* VALEUR */}
@@ -1411,7 +1328,6 @@ console.table(
               <option value="UE">UE</option>
             </select>
           </div>
-
           <div style={styles.tableHeaderRow}>
             <span>{t.instrument}</span>
             <span>{t.disbursed}</span>
@@ -1432,7 +1348,6 @@ console.table(
                 Number(item.percent) || 0,
                 100
               );
-
               return (
                 <div
                   key={i}
@@ -1493,7 +1408,6 @@ console.table(
           <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
             {t.total}
           </div>
-
           <div
             style={{
               fontWeight: 800,
@@ -1557,12 +1471,10 @@ console.table(
 
           {composantes.map((item, i) => {
             const Icon = item.icon;
-
             const percent = Math.min(
                 Number(item.percent) || 0,
                 100
               );
-
             return (
               <div
                 key={i}
@@ -1644,11 +1556,8 @@ console.table(
               }%
             </div>
           </div>
-        </div>
-
-      
+        </div>      
       </div>{' '}
-
 
       {/* ===================== NEW BOTTOM GRIDS ===================== */}
       <div style={styles.bottomGrid}>
@@ -2022,17 +1931,14 @@ console.table(
               );
             })}
           </div>
-        </div>
-        
+        </div>        
       </div>
 
-      {/* ================= FOOTER LEGEND ================= */}
-      
+      {/* ================= FOOTER LEGEND ================= */}      
       <div style={styles.footer}>
-
-      <div style={styles.footerHeader}>
-         {t.legend}
-      </div>
+            <div style={styles.footerHeader}>
+               {t.legend}
+            </div>
   
       {/* LEFT : LEGEND */}
         <div style={styles.footerLegend}>
@@ -2111,7 +2017,6 @@ console.table(
   </div>
   );
 }
-
 const styles: any = {
   page: {
     display: 'flex',
@@ -2858,7 +2763,6 @@ const styles: any = {
     marginTop: 10,
     color: '#1d4ed8',
     marginBottom: 0,
-    letterSpacing: 0.4,
-    
+    letterSpacing: 0.4,    
   },
 };
