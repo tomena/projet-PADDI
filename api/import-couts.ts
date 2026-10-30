@@ -21,15 +21,24 @@ const UC_AGREGEES = ["UCT", "UCR-A", "UCR-B", "UCR-D", "UCR-F", "UCR-FD"];
 
 const SUM_FIELDS = [
   "D (EUR)", "DC", "BT", "PA (EUR)",
+
+  "BD O0 (EUR)",
+  "BD O1 (EUR)",
+  "BD O2 (EUR)",
+  "BD O3 (EUR)",
+  "BD O4 (EUR)",
+
   "D C1 (EUR)", "D C2 (EUR)", "D C3 (EUR)", "D C4 (EUR)",
   "PA C1 (EUR)", "PA C2 (EUR)", "PA C3 (EUR)", "PA C4 (EUR)",
+
   "DF (EUR)", "DA (EUR)", "DC (EUR)", "DMI (EUR)", "DMP (EUR)",
   "PAF (EUR)", "PAA (EUR)", "PAC (EUR)", "PAMI (EUR)", "PAMP (EUR)",
 ];
+
 const COMPONENTS = [
-  { spend: "D C1 (EUR)", plan: "PA C1 (EUR)", rate: "TAC  C1" },
+  { spend: "D C1 (EUR)", plan: "PA C1 (EUR)", rate: "TAC C1" },
   { spend: "D C2 (EUR)", plan: "PA C2 (EUR)", rate: "TAC C2" },
-  { spend: "D C3 (EUR)", plan: "PA C3 (EUR)", rate: "TAC  C3" },
+  { spend: "D C3 (EUR)", plan: "PA C3 (EUR)", rate: "TAC C3" },
   { spend: "D C4 (EUR)", plan: "PA C4 (EUR)", rate: "TAC C4" },
 ];
 const INSTRUMENTS = [
@@ -37,7 +46,7 @@ const INSTRUMENTS = [
   { spend: "DA (EUR)", plan: "PAA (EUR)", rate: "TAC A" },
   { spend: "DC (EUR)", plan: "PAC (EUR)", rate: "TAC C" },
   { spend: "DMI (EUR)", plan: "PAMI (EUR)", rate: "TAC MI" },
-  { spend: "DMP (EUR)", plan: "PAMP (EUR)", rate: " TAC MP" },
+  { spend: "DMP (EUR)", plan: "PAMP (EUR)", rate: "TAC MP" },
 ];
 
 function num(value: unknown): number {
@@ -117,7 +126,20 @@ function recalcTous(features: any[], annee: number, mois: string) {
       pTous[pctKey] = ratio(num(pTous[eurKey]), num(pTous.BT));
     }
   }
-  pTous.TD = ratio(num(pTous.DC), num(pTous.BT));
+  
+  const bdEUR = `BD ${annee} (EUR)`;
+  const depenseAnnuelleCumulee = num(pTous[bdEUR]);
+  const budgetPlanifieAnnuel = num(pTous["PA (EUR)"]);
+
+  pTous.TD = ratio(
+    depenseAnnuelleCumulee,
+    budgetPlanifieAnnuel
+  );
+
+  if (Object.prototype.hasOwnProperty.call(pTous, "TAC")) {
+    pTous.TAC = pTous.TD;
+  }
+
   if (Object.prototype.hasOwnProperty.call(pTous, "TAC")) pTous.TAC = pTous.TD;
   for (const item of [...COMPONENTS, ...INSTRUMENTS]) {
     if (Object.prototype.hasOwnProperty.call(pTous, item.rate)) {
@@ -205,14 +227,43 @@ if (!Array.isArray(imports) || imports.length === 0) {
       });
       const previousYearRows = previousRows.filter((f: any) => Number(f.properties?.["Année"]) < year);
       const previousYearSorted = [...previousYearRows].sort((a: any, b: any) => Number(a.properties["Année"]) - Number(b.properties["Année"]) || monthIndex(a.properties.Mois) - monthIndex(b.properties.Mois));
-      const lastPreviousYear = previousYearSorted[previousYearSorted.length - 1]?.properties ?? {};
-      const cumulativeTotalBeforePreviousMonths = num(lastPreviousYear.DC) || previousYearRows.reduce((s: number, f: any) => s + num(f.properties?.["D (EUR)"]), 0);
+      const lastPreviousYear = 
+        previousYearSorted[previousYearSorted.length - 1]?.properties ?? {};
+        
+      const cumulativeTotalBeforePreviousMonths =
+        lastPreviousYear.DC !== null &&
+        lastPreviousYear.DC !== undefined &&
+        lastPreviousYear.DC !== ""
+          ? num(lastPreviousYear.DC)
+          : previousYearRows.reduce(
+              (s: number, f: any) =>
+                s + num(f.properties?.["D (EUR)"]),
+              0
+      );
       const currentYearBeforeMonths = previousRows.filter((f: any) => Number(f.properties?.["Année"]) === year);
       const currentYearTotalBeforeMonths = currentYearBeforeMonths.reduce((s: number, f: any) => s + num(f.properties?.["D (EUR)"]), 0);
       const cumulativeBefore = (field: string) => previousRows.reduce((s: number, f: any) => s + num(f.properties?.[field]), 0);
-      let runningYearTotal = currentYearTotalBeforeMonths;
-      let runningDMI = 0, runningDMP = 0, runningContracts = 0, runningPurchases = 0, runningFinancing = 0;
-      let runningC1 = 0, runningC2 = 0, runningC3 = 0, runningC4 = 0;
+
+      // Dépenses cumulées depuis janvier jusqu'au mois précédant l'import
+      // Dépenses cumulées depuis janvier jusqu'au mois précédant l'import
+      const sommeMoisPrecedents = (champ: string) =>
+        currentYearBeforeMonths.reduce(
+          (s: number, f: any) => s + num(f.properties?.[champ]),
+          0
+      );
+
+        let runningYearTotal = currentYearTotalBeforeMonths;
+
+        let runningDMI = sommeMoisPrecedents("DMI (EUR)");
+        let runningDMP = sommeMoisPrecedents("DMP (EUR)");
+        let runningContracts = sommeMoisPrecedents("DC (EUR)");
+        let runningPurchases = sommeMoisPrecedents("DA (EUR)");
+        let runningFinancing = sommeMoisPrecedents("DF (EUR)");
+        
+        let runningC1 = sommeMoisPrecedents("D C1 (EUR)");
+        let runningC2 = sommeMoisPrecedents("D C2 (EUR)");
+        let runningC3 = sommeMoisPrecedents("D C3 (EUR)");
+        let runningC4 = sommeMoisPrecedents("D C4 (EUR)");
 
       for (const entry of monthRows) {
         const { month, feature } = entry;
@@ -252,21 +303,27 @@ if (!Array.isArray(imports) || imports.length === 0) {
         const lifetimeC4 = cumulativeBefore("D C4 (EUR)") + runningC4;
 
         const calculated: Record<string, number> = {
+          // Cumul historique, toutes années confondues
           DC: lifetimeTotal,
+        
+          // Taux global annuel : janvier jusqu'au mois courant
           TD: ratio(runningYearTotal, num(plan.total)),
           TAC: ratio(runningYearTotal, num(plan.total)),
-
+        
+          // Taux des instruments : cumul annuel
           "TAC F": ratio(runningFinancing, num(plan.financements)),
           "TAC A": ratio(runningPurchases, num(plan.achats)),
           "TAC C": ratio(runningContracts, num(plan.contrats)),
           "TAC MI": ratio(runningDMI, num(plan.dmi)),
           "TAC MP": ratio(runningDMP, num(plan.dmp)),
-
+        
+          // Taux des composantes : cumul annuel
           "TAC C1": ratio(runningC1, num(plan.c1)),
           "TAC C2": ratio(runningC2, num(plan.c2)),
           "TAC C3": ratio(runningC3, num(plan.c3)),
           "TAC C4": ratio(runningC4, num(plan.c4)),
-          };
+        };
+
         const bdEUR = `BD ${year} (EUR)`;
         const bdPct = `BD ${year} (%)`;
         if (Object.prototype.hasOwnProperty.call(p, bdEUR)) calculated[bdEUR] = runningYearTotal;
