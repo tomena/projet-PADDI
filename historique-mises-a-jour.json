@@ -1,6 +1,162 @@
 {
   "entries": [
     {
+      "id": "1793345535572-1ukfsk",
+      "date": "2026-10-30T07:32:15.572Z",
+      "utilisateur": "Toky",
+      "identifiant": "Toky",
+      "annee": 2026,
+      "mois": "Import annuel (janvier-décembre)",
+      "uc": "UCT",
+      "nombreColonnesModifiees": 18,
+      "changements": [
+        {
+          "colonne": "Février — TD",
+          "ancienneValeur": 2.3982944193234506,
+          "nouvelleValeur": 0.00041211149905557784,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février — TAC",
+          "ancienneValeur": 2.3982944193234506,
+          "nouvelleValeur": 0.00041211149905557784,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Mars — TD",
+          "ancienneValeur": 2.586290527159292,
+          "nouvelleValeur": 0.18840821933489782,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars — TAC",
+          "ancienneValeur": 2.586290527159292,
+          "nouvelleValeur": 0.18840821933489782,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Avril — TD",
+          "ancienneValeur": 2.586445068971438,
+          "nouvelleValeur": 0.18856276114704368,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril — TAC",
+          "ancienneValeur": 2.586445068971438,
+          "nouvelleValeur": 0.18856276114704368,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Mai — TD",
+          "ancienneValeur": 2.586462240283899,
+          "nouvelleValeur": 0.18857993245950433,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai — TAC",
+          "ancienneValeur": 2.586462240283899,
+          "nouvelleValeur": 0.18857993245950433,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Juin — TD",
+          "ancienneValeur": 2.591180666533112,
+          "nouvelleValeur": 0.1932983587087173,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin — TAC",
+          "ancienneValeur": 2.591180666533112,
+          "nouvelleValeur": 0.1932983587087173,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juillet — TD",
+          "ancienneValeur": 2.5915535463530044,
+          "nouvelleValeur": 0.1936712385286093,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet — TAC",
+          "ancienneValeur": 2.5915535463530044,
+          "nouvelleValeur": 0.1936712385286093,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Août — TD",
+          "ancienneValeur": 2.719119226623166,
+          "nouvelleValeur": 0.32123691879877125,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août — TAC",
+          "ancienneValeur": 2.719119226623166,
+          "nouvelleValeur": 0.32123691879877125,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Septembre — TD",
+          "ancienneValeur": 2.7215117628260166,
+          "nouvelleValeur": 0.3236294550016217,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC",
+          "ancienneValeur": 2.7215117628260166,
+          "nouvelleValeur": 0.3236294550016217,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Octobre — TD",
+          "ancienneValeur": 2.8621467626332775,
+          "nouvelleValeur": 0.46426445480888245,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC",
+          "ancienneValeur": 2.8621467626332775,
+          "nouvelleValeur": 0.46426445480888245,
+          "uc": "UCT",
+          "annee": 2026,
+          "mois": "Octobre"
+        }
+      ]
+    },
+    {
       "id": "1793111462750-q48h5y",
       "date": "2026-10-27T14:31:02.750Z",
       "utilisateur": "Toky",
