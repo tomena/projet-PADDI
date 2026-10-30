@@ -245,24 +245,28 @@ if (!Array.isArray(imports) || imports.length === 0) {
         const lifetimeContracts = cumulativeBefore("DC (EUR)") + runningContracts;
         const lifetimePurchases = cumulativeBefore("DA (EUR)") + runningPurchases;
         const lifetimeFinancing = cumulativeBefore("DF (EUR)") + runningFinancing;
+
         const lifetimeC1 = cumulativeBefore("D C1 (EUR)") + runningC1;
         const lifetimeC2 = cumulativeBefore("D C2 (EUR)") + runningC2;
         const lifetimeC3 = cumulativeBefore("D C3 (EUR)") + runningC3;
         const lifetimeC4 = cumulativeBefore("D C4 (EUR)") + runningC4;
+
         const calculated: Record<string, number> = {
           DC: lifetimeTotal,
-          TD: ratio(lifetimeTotal, num(plan.total)),
-          TAC: ratio(lifetimeTotal, num(plan.total)),
-          "TAC F": ratio(lifetimeFinancing, num(plan.financements)),
-          "TAC A": ratio(lifetimePurchases, num(plan.achats)),
-          "TAC C": ratio(lifetimeContracts, num(plan.contrats)),
-          "TAC MI": ratio(lifetimeDMI, num(plan.dmi)),
-          " TAC MP": ratio(lifetimeDMP, num(plan.dmp)),
-          "TAC  C1": ratio(lifetimeC1, num(plan.c1)),
-          "TAC C2": ratio(lifetimeC2, num(plan.c2)),
-          "TAC  C3": ratio(lifetimeC3, num(plan.c3)),
-          "TAC C4": ratio(lifetimeC4, num(plan.c4)),
-        };
+          TD: ratio(runningYearTotal, num(plan.total)),
+          TAC: ratio(runningYearTotal, num(plan.total)),
+
+          "TAC F": ratio(runningFinancing, num(plan.financements)),
+          "TAC A": ratio(runningPurchases, num(plan.achats)),
+          "TAC C": ratio(runningContracts, num(plan.contrats)),
+          "TAC MI": ratio(runningDMI, num(plan.dmi)),
+          "TAC MP": ratio(runningDMP, num(plan.dmp)),
+
+          "TAC C1": ratio(runningC1, num(plan.c1)),
+          "TAC C2": ratio(runningC2, num(plan.c2)),
+          "TAC C3": ratio(runningC3, num(plan.c3)),
+          "TAC C4": ratio(runningC4, num(plan.c4)),
+          };
         const bdEUR = `BD ${year} (EUR)`;
         const bdPct = `BD ${year} (%)`;
         if (Object.prototype.hasOwnProperty.call(p, bdEUR)) calculated[bdEUR] = runningYearTotal;
