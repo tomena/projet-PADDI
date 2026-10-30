@@ -108,45 +108,95 @@ async function appendHistory(owner: string, repo: string, branch: string, path: 
 }
 
 function recalcTous(features: any[], annee: number, mois: string) {
-  const tous = features.find((f: any) => Number(f.properties?.["Année"]) === annee && f.properties?.Mois === mois && f.properties?.UC === "Tous");
+  // Retrouver la ligne Tous déjà existante
+  const tous = features.find(
+    (f: any) =>
+      Number(f.properties?.["Année"]) === annee &&
+      f.properties?.Mois === mois &&
+      f.properties?.UC === "Tous"
+  );
+
   if (!tous) return;
-  const lignes = features.filter((f: any) => Number(f.properties?.["Année"]) === annee && f.properties?.Mois === mois && UC_AGREGEES.includes(f.properties?.UC));
+
+  // Récupérer les six UC réelles
+  const lignes = features.filter(
+    (f: any) =>
+      Number(f.properties?.["Année"]) === annee &&
+      f.properties?.Mois === mois &&
+      UC_AGREGEES.includes(f.properties?.UC)
+  );
+
   if (!lignes.length) return;
+
   const pTous = tous.properties;
+
+  // 1. Additionner tous les champs monétaires
   for (const key of SUM_FIELDS) {
-    if (Object.prototype.hasOwnProperty.call(pTous, key)) pTous[key] = lignes.reduce((s: number, f: any) => s + num(f.properties?.[key]), 0);
+    if (Object.prototype.hasOwnProperty.call(pTous, key)) {
+      pTous[key] = lignes.reduce(
+        (s: number, f: any) => s + num(f.properties?.[key]),
+        0
+      );
+    }
   }
+
+  // 2. Additionner les dépenses annuelles cumulées
   for (const year of [2024, 2025, 2026, 2027, 2028, 2029, 2030]) {
     const eurKey = `BD ${year} (EUR)`;
-    const pctKey = `BD ${year} (%)`;
+
     if (Object.prototype.hasOwnProperty.call(pTous, eurKey)) {
-      pTous[eurKey] = lignes.reduce((s: number, f: any) => s + num(f.properties?.[eurKey]), 0);
-    }
-    if (Object.prototype.hasOwnProperty.call(pTous, pctKey)) {
-      pTous[pctKey] = ratio(num(pTous[eurKey]), num(pTous.BT));
+      pTous[eurKey] = lignes.reduce(
+        (s: number, f: any) => s + num(f.properties?.[eurKey]),
+        0
+      );
     }
   }
-  
+
+  // 3. Calculer le taux global de l'année concernée
   const bdEUR = `BD ${annee} (EUR)`;
+  const bdPct = `BD ${annee} (%)`;
+
   const depenseAnnuelleCumulee = num(pTous[bdEUR]);
   const budgetPlanifieAnnuel = num(pTous["PA (EUR)"]);
 
-  pTous.TD = ratio(
+  const tauxGlobal = ratio(
     depenseAnnuelleCumulee,
     budgetPlanifieAnnuel
   );
 
+  pTous.TD = tauxGlobal;
+
   if (Object.prototype.hasOwnProperty.call(pTous, "TAC")) {
-    pTous.TAC = pTous.TD;
+    pTous.TAC = tauxGlobal;
   }
 
-  if (Object.prototype.hasOwnProperty.call(pTous, "TAC")) pTous.TAC = pTous.TD;
+  if (Object.prototype.hasOwnProperty.call(pTous, bdPct)) {
+    pTous[bdPct] = tauxGlobal;
+  }
+
+  // 4. Recalculer les taux par composante et par instrument
   for (const item of [...COMPONENTS, ...INSTRUMENTS]) {
-    if (Object.prototype.hasOwnProperty.call(pTous, item.rate)) {
-      const weighted = lignes.reduce((s: number, f: any) => s + num(f.properties?.[item.rate]) * num(f.properties?.[item.plan]), 0);
-      const plan = num(pTous[item.plan]);
-      pTous[item.rate] = ratio(weighted, plan);
+    if (!Object.prototype.hasOwnProperty.call(pTous, item.rate)) {
+      continue;
     }
+
+    // Retrouver les dépenses cumulées à partir des taux individuels
+    const depensesCumulees = lignes.reduce(
+      (s: number, f: any) => {
+        const taux = num(f.properties?.[item.rate]);
+        const budget = num(f.properties?.[item.plan]);
+
+        return s + (taux * budget / 100);
+      },
+      0
+    );
+
+    const budgetTotal = num(pTous[item.plan]);
+
+    pTous[item.rate] = ratio(
+      depensesCumulees,
+      budgetTotal
+    );
   }
 }
 
@@ -229,7 +279,7 @@ if (!Array.isArray(imports) || imports.length === 0) {
       const previousYearSorted = [...previousYearRows].sort((a: any, b: any) => Number(a.properties["Année"]) - Number(b.properties["Année"]) || monthIndex(a.properties.Mois) - monthIndex(b.properties.Mois));
       const lastPreviousYear = 
         previousYearSorted[previousYearSorted.length - 1]?.properties ?? {};
-        
+
       const cumulativeTotalBeforePreviousMonths =
         lastPreviousYear.DC !== null &&
         lastPreviousYear.DC !== undefined &&
