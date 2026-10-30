@@ -521,7 +521,7 @@ export default function SuiviCouts() {
         ligneGraph = data[0];
       }
 
-const budgetTotal =
+    const budgetTotal =
       Number(ligneGraph?.["BT"]) || 34_500_000;
     
     const decaissementCumule =
@@ -534,10 +534,10 @@ const budgetTotal =
         ? (decaissementCumule / budgetTotal) * 100
         : 0;
     
-  const decaisse =
+    const decaisse =
       Number(coutActuel["D (EUR)"]) || 0;
     
-  const planification =
+    const planification =
       Number(coutActuel["PA (EUR)"]) || 0;
     
   const tauxAvancement =
@@ -1114,12 +1114,12 @@ const budgetTotal =
                   <div style={styles.kpiDivider} />
 
                   <div style={styles.kpiSubOverlay}>
-                  <span style={styles.kpiSubLabel}>
-                    {t.totalBudget}
-                  </span>
+                    <span style={styles.kpiSubLabel}>
+                      {t.totalBudget}
+                    </span>
                     <span style={styles.kpiSubValue}>
                     <span style={styles.kpiSubValue}>
-                      {new Intl.NumberFormat("fr-FR").format(budgetTotal)} €
+                      {new Intl.NumberFormat("fr-FR").format(budgetTotalProjet)} €
                     </span>
                     </span>
                   </div>
