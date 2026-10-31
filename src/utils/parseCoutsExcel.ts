@@ -393,6 +393,16 @@ export async function analyserFichierCouts(
 ) {
   const resultats = await parseCoutsExcelFeuilles(fichier, ongletsAImporter);
 
+  // Dernier mois ayant des données dans N'IMPORTE QUEL onglet. Tous les onglets sont
+  // importés jusqu'à ce mois : ainsi un onglet sans dépense récente (ex. UCR-A en
+  // octobre) reporte quand même son cumul, et la ligne « Tous » reste cohérente.
+  const dernierGlobal = Math.max(
+    -1,
+    ...resultats.flatMap((r) =>
+      r.mois.filter(aDesValeurs).map((m) => MOIS.indexOf(m.mois))
+    )
+  );
+
   return resultats.map((resultat) => {
     if (anneeAttendue && resultat.annee !== anneeAttendue) {
       throw new Error(
@@ -400,10 +410,8 @@ export async function analyserFichierCouts(
       );
     }
 
-    // On importe tous les mois jusqu'au DERNIER mois non nul (les mois à 0 au milieu
-    // sont conservés, sinon leur ligne GeoJSON resterait vide), les mois suivants sont ignorés.
-    const dernier = resultat.mois.map(aDesValeurs).lastIndexOf(true);
-    const moisAImporter = dernier < 0 ? [] : resultat.mois.slice(0, dernier + 1);
+    // Les mois à 0 au milieu sont conservés (sinon leur ligne GeoJSON resterait vide).
+    const moisAImporter = resultat.mois.filter((m) => MOIS.indexOf(m.mois) <= dernierGlobal);
 
     return {
       onglet: resultat.feuille,
