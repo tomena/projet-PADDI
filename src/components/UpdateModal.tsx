@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState,} from "react";
 import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle,} from "lucide-react";
 import {  analyserFichierCouts,  UC_PAR_ONGLET,  ONGLET_PAR_UTILISATEUR,  UTILISATEURS_ADMIN,} from "../utils/parseCoutsExcel";
-const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
+
 
 interface UpdateModalProps {
   onClose: () => void;
@@ -12,6 +12,8 @@ export default function UpdateModal({
   onClose,
   userName,
 }: UpdateModalProps) {
+
+  const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
   const [anneeImport, setAnneeImport] = useState<string>("2026");
   const anneesDisponibles = [ 2024,2025,2026,2027,2028,2029,2030,];
   
