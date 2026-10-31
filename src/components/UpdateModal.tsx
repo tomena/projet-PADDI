@@ -11,7 +11,6 @@ interface UpdateModalProps {
 
 export default function UpdateModal({ onClose, userName, password }: UpdateModalProps) {
 
-  const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
   const [anneeImport, setAnneeImport] = useState<string>("2026");
   const anneesDisponibles = [ 2024,2025,2026,2027,2028,2029,2030,];
   
@@ -138,10 +137,10 @@ export default function UpdateModal({ onClose, userName, password }: UpdateModal
      IMPORTATION
   ========================= */
 
-  const estAdminImport = UTILISATEURS_ADMIN.has(userName);
-    const ongletImpose = ONGLET_PAR_UTILISATEUR[userName];
-    const ongletsDisponibles = Object.keys(UC_PAR_ONGLET);
-    const peutImporterDecaissement = estAdmin || estCeline;
+  const estAdminImport = UTILISATEURS_ADMIN.has(userName ?? "");
+  const ongletImpose = ONGLET_PAR_UTILISATEUR[userName ?? ""];
+  const ongletsDisponibles = Object.keys(UC_PAR_ONGLET);
+  const peutImporterDecaissement = estAdmin || estCeline;
 
 const peutImporterAvancement =
   estAdmin || Boolean(ONGLET_PAR_UTILISATEUR[userName ?? ""]);
