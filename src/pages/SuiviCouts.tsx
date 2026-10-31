@@ -388,6 +388,7 @@ const getProgressColor = (percent) => {
 const ordreMois = [ "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
 ];
 
+
 export default function SuiviCouts() {
 
   const [showLogin, setShowLogin] = useState(false);
@@ -420,6 +421,10 @@ export default function SuiviCouts() {
         console.error("Erreur chargement Base Cout :", err);
       });  
   }, []);
+
+const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+const clamp = (p: number) => Math.min(100, Math.max(0, p));
+      
   const composantesConfig = [
     { code: "C1", icon: Leaf, title: t.componentC1Short },
     { code: "C2", icon: Building, title: t.componentC2Short },
@@ -447,25 +452,16 @@ export default function SuiviCouts() {
       return filtreAnnee && filtreMois && filtreUC;    
   });
 
-  const coutActuel =
-  mois !== "Tous"
-    ? dataFiltre.find(
-        d => d.UC === (uc === "Tous" ? "Tous" : uc)
-      ) || {}
-    : dataFiltre.find(
-        d => d.UC === (uc === "Tous" ? "Tous" : uc) &&
-             d.Mois === "Décembre"
-      ) ||
-      dataFiltre.find(
-        d => d.UC === (uc === "Tous" ? "Tous" : uc) &&
-             d.Mois === "Novembre"
-      ) ||
-      dataFiltre.find(
-        d => d.UC === (uc === "Tous" ? "Tous" : uc) &&
-             d.Mois === "Octobre"
-      ) ||
-      dataFiltre[0] ||
-      {};
+        const ucCible = uc === "Tous" ? "Tous" : uc;
+        const lignesUC = data
+          .filter(d => d.Année === annee && d.UC === ucCible)
+          .sort((a, b) => ordreMois.indexOf(a.Mois) - ordreMois.indexOf(b.Mois));
+      
+        const coutActuel: any =
+        mois !== "Tous"
+          ? lignesUC.find(d => d.Mois === mois) ?? {}
+          : [...lignesUC].reverse().find(d => n(d["PA (EUR)"]) > 0) ?? {};
+      
       const budgetTotalProjet = 34_500_000;
       // =====================================================
       // LIGNE DE RÉFÉRENCE POUR LE KPI ET LE GRAPHE
