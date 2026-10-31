@@ -9,11 +9,7 @@ interface UpdateModalProps {
   password?: string;
 }
 
-export default function UpdateModal({
-  onClose,
-  userName,
-  password,
-}: UpdateModalProps) {
+export default function UpdateModal({ onClose, userName, password }: UpdateModalProps) {
 
   const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
   const [anneeImport, setAnneeImport] = useState<string>("2026");
@@ -170,6 +166,11 @@ const peutImporter =
       setErreur("Utilisateur non identifié.");
       return;
     }
+
+    if (!password) {
+      setErreur("Session expirée : fermez cette fenêtre et reconnectez-vous.");
+      return;
+    }
   
   if (!peutImporter) {
       setErreur("Vous n'êtes pas autorisé à importer ces données.");
@@ -202,7 +203,11 @@ const peutImporter =
   
     try {
       // Lire uniquement les onglets autorisés.
-      const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
+      const imports = await analyserFichierCouts(
+        fichier,
+        ongletsAImporter,
+        Number(anneeImport)
+      );
   
       if (!imports || imports.length === 0) {
         throw new Error(
