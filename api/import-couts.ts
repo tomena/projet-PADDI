@@ -1,5 +1,5 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 
 /* =====================================================================
  * CONVENTION DE LA BASE (confirmée sur la ligne UCR-A / Septembre 2026)
@@ -49,6 +49,23 @@ const CHAMPS = [
 
 type Props = Record<string, any>;
 type Changement = { colonne: string; ancienneValeur: any; nouvelleValeur: number; uc: string; annee: number; mois: string };
+
+/* ---------- Jeton de session (créé par api/auth.ts) ---------- */
+function lireJeton(jeton: unknown, secret: string): string | null {
+  if (typeof jeton !== "string") return null;
+  const [payload, signature] = jeton.split(".");
+  if (!payload || !signature) return null;
+  const attendu = createHmac("sha256", secret).update(payload).digest("base64url");
+  const a = Buffer.from(signature);
+  const b = Buffer.from(attendu);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  try {
+    const { u, exp } = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return typeof u === "string" && typeof exp === "number" && exp > Date.now() ? u : null;
+  } catch {
+    return null;
+  }
+}
 
 /* ---------- Outils ---------- */
 function num(value: unknown): number {
@@ -160,23 +177,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const repo = process.env.GITHUB_REPO;
   const branch = process.env.GITHUB_BRANCH;
   const path = process.env.GEOJSON_PATH;
-  const accessPassword = process.env.PADDI_ACCESS_PASSWORD;
-  if (!token || !owner || !repo || !branch || !path || !accessPassword) {
+  const authSecret = process.env.AUTH_SECRET;
+  if (!token || !owner || !repo || !branch || !path || !authSecret) {
     return res.status(500).json({ error: "Configuration serveur incomplète." });
   }
 
-  const { userName, password, imports } = req.body ?? {};
+  const { token: jeton, imports } = req.body ?? {};
 
-  // 1. Mot de passe (avant toute autre vérification)
-  const fourni = Buffer.from(String(password ?? ""));
-  const attendu = Buffer.from(accessPassword);
-  if (fourni.length !== attendu.length || !timingSafeEqual(fourni, attendu)) {
-    return res.status(401).json({ error: "Mot de passe invalide." });
+  // 1. Session : le nom de l'utilisateur vient du jeton signé, jamais du navigateur.
+  const nom = lireJeton(jeton, authSecret);
+  if (!nom) {
+    return res.status(401).json({ error: "Session expirée ou invalide. Fermez cette fenêtre et reconnectez-vous." });
   }
 
-  // 2. Utilisateur
-  const nom = typeof userName === "string" ? userName.trim() : "";
-  if (!nom || (!ADMIN.has(nom) && !ONGLET_PAR_UTILISATEUR[nom])) {
+  // 2. Droits
+  if (!ADMIN.has(nom) && !ONGLET_PAR_UTILISATEUR[nom]) {
     return res.status(401).json({ error: "Accès refusé. Utilisateur non autorisé." });
   }
 
