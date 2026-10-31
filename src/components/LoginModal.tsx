@@ -2,51 +2,110 @@ import React, { useState } from "react";
 
 interface LoginModalProps {
   onClose: () => void;
-  onSuccess: (userName: string, password: string) => void;
+  // userName : prénom de l'utilisateur ; token : jeton de session signé par le serveur
+  onSuccess: (userName: string, token: string) => void;
 }
 
-export default function LoginModal({
-  onClose,
-  onSuccess,
-}: LoginModalProps) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
+const LONGUEUR_MIN = 10;
 
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  marginBottom: 6,
+  fontSize: 13,
+  fontWeight: 600,
+  color: "#374151",
+};
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  height: 42,
+  padding: "0 12px",
+  border: "1px solid #d1d5db",
+  borderRadius: 8,
+  fontSize: 14,
+  outline: "none",
+  boxSizing: "border-box",
+};
+
+export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
+  const [mode, setMode] = useState<"login" | "change">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState(""); // mot de passe (connexion) ou actuel (changement)
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Utilisateurs autorisés
-  const USERS: Record<string, string> = {
-    "zo.ravelonirina@giz.de": "Zo",
-    "anjarampifohazana.toky@giz.de": "Toky",
-    "joary.andriamiharimanana@giz.de": "Joary",
-  
-    "allan.hong-wa@giz.de": "Allan",
-    "nantenaina.herimanga@giz.de": "Herimanga",
-    "tolojanahary.velomahafaly@giz.de": "Njaka",
-    "mmichael.raharifidinarivo@giz.de": "Michael",
-    "tsinjoharinosy.rahaingoarivelo@giz.de": "Tsinjo",
+  const effacerMessages = () => {
+    setError("");
+    setInfo("");
+  };
+
+  const changerMode = (m: "login" | "change") => {
+    setMode(m);
+    setNewPassword("");
+    setConfirmPassword("");
+    effacerMessages();
+  };
+
+  const appelerAuth = async (corps: Record<string, string>) => {
+    const reponse = await fetch("/api/auth", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(corps),
+    });
+    const data = await reponse.json().catch(() => ({}));
+    if (!reponse.ok) throw new Error(data.error || "Connexion impossible.");
+    return data as { userName: string; token: string; mustChange: boolean };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    effacerMessages();
+
+    const mail = email.trim().toLowerCase();
+
+    if (mode === "change") {
+      if (newPassword.length < LONGUEUR_MIN) {
+        setError(`Le nouveau mot de passe doit contenir au moins ${LONGUEUR_MIN} caractères.`);
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setError("La confirmation ne correspond pas au nouveau mot de passe.");
+        return;
+      }
+    }
+
     setLoading(true);
-    setError("");
     try {
-      const reponse = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
-      });
-      const data = await reponse.json();
-      if (!reponse.ok) throw new Error(data.error || "Connexion impossible.");
-      onSuccess(data.userName, password);
+      if (mode === "login") {
+        const data = await appelerAuth({ action: "login", email: mail, password });
+
+        if (data.mustChange) {
+          // Première connexion : mot de passe initial, l'utilisateur doit choisir le sien.
+          setMode("change");
+          setInfo("Première connexion : choisissez votre mot de passe personnel.");
+          return;
+        }
+        onSuccess(data.userName, data.token);
+      } else {
+        const data = await appelerAuth({
+          action: "change",
+          email: mail,
+          currentPassword: password,
+          newPassword,
+        });
+        onSuccess(data.userName, data.token);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur de connexion.");
     } finally {
       setLoading(false);
     }
   };
+
+  const enChangement = mode === "change";
 
   return (
     <div
@@ -73,10 +132,8 @@ export default function LoginModal({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-
         {/* Header */}
         <div style={{ marginBottom: 24 }}>
-
           <div
             style={{
               width: 42,
@@ -93,106 +150,107 @@ export default function LoginModal({
             🔒
           </div>
 
-          <h2
-            style={{
-              margin: 0,
-              fontSize: 20,
-              fontWeight: 700,
-              color: "#111827",
-            }}
-          >
-            Accès sécurisé
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: "#111827" }}>
+            {enChangement ? "Changer le mot de passe" : "Accès sécurisé"}
           </h2>
 
-          <p
-            style={{
-              margin: "6px 0 0",
-              fontSize: 13,
-              color: "#6b7280",
-            }}
-          >
-            Connectez-vous pour mettre à jour les coûts.
+          <p style={{ margin: "6px 0 0", fontSize: 13, color: "#6b7280" }}>
+            {enChangement
+              ? "Choisissez un mot de passe personnel."
+              : "Connectez-vous pour mettre à jour les coûts."}
           </p>
-
         </div>
 
         <form onSubmit={handleSubmit}>
-
           {/* Email */}
           <div style={{ marginBottom: 16 }}>
-
-            <label
-              style={{
-                display: "block",
-                marginBottom: 6,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#374151",
-              }}
-            >
-              Email
-            </label>
-
+            <label style={labelStyle}>Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                setError("");
+                effacerMessages();
               }}
               placeholder="exemple@giz.de"
               required
-              style={{
-                width: "100%",
-                height: 42,
-                padding: "0 12px",
-                border: "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
+              style={inputStyle}
             />
-
           </div>
 
-          {/* Mot de passe */}
+          {/* Mot de passe (actuel en mode changement) */}
           <div style={{ marginBottom: 16 }}>
-
-            <label
-              style={{
-                display: "block",
-                marginBottom: 6,
-                fontSize: 13,
-                fontWeight: 600,
-                color: "#374151",
-              }}
-            >
-              Mot de passe
+            <label style={labelStyle}>
+              {enChangement ? "Mot de passe actuel" : "Mot de passe"}
             </label>
-
             <input
               type="password"
               value={password}
-              onChange={(e) => { 
+              onChange={(e) => {
                 setPassword(e.target.value);
-                setError("");
+                effacerMessages();
               }}
               placeholder="••••••••"
               required
-              style={{
-                width: "100%",
-                height: 42,
-                padding: "0 12px",
-                border: "1px solid #d1d5db",
-                borderRadius: 8,
-                fontSize: 14,
-                outline: "none",
-                boxSizing: "border-box",
-              }}
+              style={inputStyle}
             />
-
           </div>
+
+          {/* Nouveau mot de passe + confirmation */}
+          {enChangement && (
+            <>
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>
+                  Nouveau mot de passe (min. {LONGUEUR_MIN} caractères)
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => {
+                    setNewPassword(e.target.value);
+                    effacerMessages();
+                  }}
+                  placeholder="••••••••••"
+                  required
+                  minLength={LONGUEUR_MIN}
+                  autoComplete="new-password"
+                  style={inputStyle}
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={labelStyle}>Confirmer le nouveau mot de passe</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => {
+                    setConfirmPassword(e.target.value);
+                    effacerMessages();
+                  }}
+                  placeholder="••••••••••"
+                  required
+                  autoComplete="new-password"
+                  style={inputStyle}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Information */}
+          {info && (
+            <div
+              style={{
+                marginBottom: 16,
+                padding: "9px 12px",
+                borderRadius: 8,
+                backgroundColor: "#eff6ff",
+                color: "#1d4ed8",
+                fontSize: 13,
+              }}
+            >
+              {info}
+            </div>
+          )}
 
           {/* Erreur */}
           {error && (
@@ -210,16 +268,28 @@ export default function LoginModal({
             </div>
           )}
 
-          {/* Boutons */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 10,
-              marginTop: 22,
-            }}
-          >
+          {/* Lien de bascule */}
+          <div style={{ textAlign: "left" }}>
+            <button
+              type="button"
+              onClick={() => changerMode(enChangement ? "login" : "change")}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                color: "#2563eb",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
+            >
+              {enChangement ? "← Retour à la connexion" : "Changer le mot de passe ?"}
+            </button>
+          </div>
 
+          {/* Boutons */}
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
             <button
               type="button"
               onClick={onClose}
@@ -240,6 +310,7 @@ export default function LoginModal({
 
             <button
               type="submit"
+              disabled={loading}
               style={{
                 height: 40,
                 padding: "0 18px",
@@ -249,14 +320,17 @@ export default function LoginModal({
                 color: "#ffffff",
                 fontSize: 13,
                 fontWeight: 600,
-                cursor: "pointer",
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading ? 0.6 : 1,
               }}
             >
-              Se connecter
+              {loading
+                ? "Veuillez patienter..."
+                : enChangement
+                ? "Enregistrer et se connecter"
+                : "Se connecter"}
             </button>
-
           </div>
-
         </form>
       </div>
     </div>
