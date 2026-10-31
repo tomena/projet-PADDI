@@ -6,11 +6,13 @@ import {  analyserFichierCouts,  UC_PAR_ONGLET,  ONGLET_PAR_UTILISATEUR,  UTILIS
 interface UpdateModalProps {
   onClose: () => void;
   userName?: string;
+  password?: string;
 }
 
 export default function UpdateModal({
   onClose,
   userName,
+  password,
 }: UpdateModalProps) {
 
   const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
@@ -200,10 +202,7 @@ const peutImporter =
   
     try {
       // Lire uniquement les onglets autorisés.
-      const imports = await analyserFichierCouts(
-        fichier,
-        ongletsAImporter
-      );
+      const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
   
       if (!imports || imports.length === 0) {
         throw new Error(
@@ -219,6 +218,7 @@ const peutImporter =
         },
         body: JSON.stringify({
           userName,
+          password,
           imports,
         }),
       });
