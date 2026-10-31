@@ -13,8 +13,7 @@ export default function LoginModal({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Authentification temporaire pour la démonstration
-  const DEMO_PASSWORD = "Paddi2026";
+  const [loading, setLoading] = useState(false);
 
   // Utilisateurs autorisés
   const USERS: Record<string, string> = {
@@ -29,22 +28,23 @@ export default function LoginModal({
     "tsinjoharinosy.rahaingoarivelo@giz.de": "Tsinjo",
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const normalizedEmail = email.trim().toLowerCase();
-
-    if (
-      USERS[normalizedEmail] &&
-      password === DEMO_PASSWORD
-    ) {
-      setError("");
-
-      // Envoie le prénom de l'utilisateur au composant parent
-      onSuccess(USERS[normalizedEmail], password);
-
-    } else {
-      setError("Email ou mot de passe incorrect.");
+    setLoading(true);
+    setError("");
+    try {
+      const reponse = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+      });
+      const data = await reponse.json();
+      if (!reponse.ok) throw new Error(data.error || "Connexion impossible.");
+      onSuccess(data.userName, password);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de connexion.");
+    } finally {
+      setLoading(false);
     }
   };
 
