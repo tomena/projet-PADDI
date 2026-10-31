@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState,} from "react";
 import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle,} from "lucide-react";
 import {  analyserFichierCouts,  UC_PAR_ONGLET,  ONGLET_PAR_UTILISATEUR,  UTILISATEURS_ADMIN,} from "../utils/parseCoutsExcel";
+const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
 
 interface UpdateModalProps {
   onClose: () => void;
