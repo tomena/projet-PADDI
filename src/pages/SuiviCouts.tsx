@@ -468,7 +468,6 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
       // LIGNE DE RÉFÉRENCE POUR LE KPI ET LE GRAPHE
       // =====================================================
 
-      const ucCible = uc === "Tous" ? "Tous" : uc;
       let ligneGraph: CoutActivite | undefined;
       // -----------------------------------------------------
       // 1. MOIS PRÉCIS
