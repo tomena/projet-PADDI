@@ -391,6 +391,7 @@ const ordreMois = [ "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juil
 
 export default function SuiviCouts() {
       
+  const [token, setToken] = useState("");
   const [password, setPassword] = useState("");
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
@@ -1993,25 +1994,22 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
     {/* LOGIN */}
       {showLogin && (
         <LoginModal
-          onClose={() => setShowLogin(false)}
-          onSuccess={(name, pwd) => {
-            setUserName(name);
-            setPassword(pwd);
-            setShowLogin(false);
-            setShowUpdate(true);
-          }}
-        />
+        onClose={() => setShowLogin(false)}
+        onSuccess={(name, jeton) => {
+          setUserName(name);
+          setToken(jeton);
+          setShowLogin(false);
+          setShowUpdate(true);
+        }}
+      />
       )}
       
       {showUpdate && (
         <UpdateModal
-          onClose={() => {
-            setShowUpdate(false);
-            setPassword(""); // on n'efface le mot de passe qu'à la fermeture
-          }}
-          userName={userName}
-          password={password}
-        />
+        onClose={() => { setShowUpdate(false); setToken(""); }}
+        userName={userName}
+        token={token}
+      />
       )}
 
   </div>
