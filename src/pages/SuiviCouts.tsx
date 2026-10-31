@@ -1994,19 +1994,25 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
     {/* LOGIN */}
       {showLogin && (
         <LoginModal
-        onClose={() => setShowLogin(false)}
-        onSuccess={(name, pwd) => {
-          setUserName(name);
-          setPassword(pwd);
-          setShowLogin(false);
-          setShowUpdate(true);
-        }}
-      />
+          onClose={() => setShowLogin(false)}
+          onSuccess={(name, pwd) => {
+            setUserName(name);
+            setPassword(pwd);
+            setShowLogin(false);
+            setShowUpdate(true);
+          }}
+        />
       )}
-
-      {/* MISE À JOUR */}
+      
       {showUpdate && (
-        <UpdateModal onClose={() => setShowUpdate(false)} userName={userName} password={password} />
+        <UpdateModal
+          onClose={() => {
+            setShowUpdate(false);
+            setPassword(""); // on n'efface le mot de passe qu'à la fermeture
+          }}
+          userName={userName}
+          password={password}
+        />
       )}
 
   </div>
