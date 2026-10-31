@@ -2,7 +2,7 @@ import React, { useState } from "react";
 
 interface LoginModalProps {
   onClose: () => void;
-  onSuccess: (userName: string) => void;
+  onSuccess: (userName: string, password: string) => void;
 }
 
 export default function LoginModal({
@@ -41,7 +41,7 @@ export default function LoginModal({
       setError("");
 
       // Envoie le prénom de l'utilisateur au composant parent
-      onSuccess(USERS[normalizedEmail]);
+      onSuccess(USERS[normalizedEmail], password);
 
     } else {
       setError("Email ou mot de passe incorrect.");
