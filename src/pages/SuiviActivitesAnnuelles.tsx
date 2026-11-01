@@ -511,7 +511,7 @@ useEffect(() => {
   const composantes = [
   {
     label: t.componentC1,
-    percent: Number(coutActuel["TAC  C1"] || 0) * 100,
+    percent: Number(coutActuel["TAC C1"] || 0) * 100,
     icon: Leaf,
   },
   {
@@ -521,7 +521,7 @@ useEffect(() => {
   },
   {
     label: t.componentC3,
-    percent: Number(coutActuel["TAC  C3"] || 0) * 100,
+    percent: Number(coutActuel["TAC C3"] || 0) * 100,
     icon: Mountain,
   },
   {
