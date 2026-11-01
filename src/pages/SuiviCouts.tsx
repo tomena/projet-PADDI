@@ -9,6 +9,7 @@ import { MdPayments, MdAccountBalanceWallet } from 'react-icons/md';
 import { GiPayMoney } from 'react-icons/gi';
 import {ResponsiveContainer,PieChart,Pie,Cell,BarChart,Bar,XAxis,YAxis,LabelList,Label,CartesianGrid,Tooltip,
       } from 'recharts';
+import IconeSuiviCouts from "../components/IconeSuiviCouts";
 
 interface CoutActivite {
   Année:number;
@@ -802,7 +803,9 @@ useEffect(() => {
       {/* HEADER */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <div style={styles.logoWrap}></div>
+          <div style={styles.logoWrap}>
+              <IconeSuiviCouts size={44} />
+            </div>
 
           <div>
             <div style={styles.title}>{t.title}</div>
