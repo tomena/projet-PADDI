@@ -6,10 +6,10 @@ import {  analyserFichierCouts,  UC_PAR_ONGLET,  ONGLET_PAR_UTILISATEUR,  UTILIS
 interface UpdateModalProps {
   onClose: () => void;
   userName?: string;
-  password?: string;
+  token?: string;
 }
 
-export default function UpdateModal({ onClose, userName, password }: UpdateModalProps) {
+export default function UpdateModal({ onClose, userName, token }: UpdateModalProps) {
 
   const [anneeImport, setAnneeImport] = useState<string>("2026");
   const anneesDisponibles = [ 2024,2025,2026,2027,2028,2029,2030,];
@@ -166,10 +166,10 @@ const peutImporter =
       return;
     }
 
-    if (!password) {
+    if (!token) {
       setErreur("Session expirée : fermez cette fenêtre et reconnectez-vous.");
       return;
-    }
+        }
   
   if (!peutImporter) {
       setErreur("Vous n'êtes pas autorisé à importer ces données.");
