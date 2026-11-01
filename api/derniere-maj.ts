@@ -1,7 +1,11 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createHmac, timingSafeEqual } from "crypto";
 
-/* api/derniere-maj.ts : date de la dernière mise à jour faite par l'utilisateur connecté.
+/* api/derniere-maj.ts
+ *  - GET  (sans jeton) : date de la dernière mise à jour, tous utilisateurs confondus
+ *                        -> affichée dans l'en-tête de la page « Suivi des coûts ».
+ *  - POST { token }    : date de la dernière mise à jour de l'utilisateur connecté
+ *                        -> affichée dans la fenêtre « Mise à jour des données ».
  * Lit historique-mises-a-jour.json (alimenté par api/import-couts.ts).
  * Variables : GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, AUTH_SECRET,
  * et optionnellement HISTORY_PATH. */
@@ -23,8 +27,28 @@ function lireJeton(jeton: unknown, secret: string): string | null {
   }
 }
 
+/* Secours : date du dernier enregistrement du GeoJSON dans GitHub (utilisée seulement
+ * si l'historique des imports n'existe pas encore ou ne contient aucune entrée). */
+async function dateDernierCommit(owner: string, repo: string, branch: string, token: string): Promise<number | null> {
+  const chemin = process.env.GEOJSON_PATH;
+  if (!chemin) return null;
+  const r = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(branch)}&path=${encodeURIComponent(chemin)}&per_page=1`,
+    {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" },
+      cache: "no-store",
+    }
+  );
+  if (!r.ok) return null;
+  const liste = await r.json();
+  const t = Date.parse(liste?.[0]?.commit?.committer?.date);
+  return Number.isFinite(t) ? t : null;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée." });
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ error: "Méthode non autorisée." });
+  }
 
   const token = process.env.GITHUB_TOKEN;
   const owner = process.env.GITHUB_OWNER;
@@ -35,8 +59,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(500).json({ error: "Configuration serveur incomplète." });
   }
 
-  const nom = lireJeton(req.body?.token, authSecret);
-  if (!nom) return res.status(401).json({ error: "Session expirée ou invalide." });
+  // POST : l'utilisateur doit être connecté. GET : date globale, publique.
+  let nom: string | null = null;
+  if (req.method === "POST") {
+    nom = lireJeton(req.body?.token, authSecret);
+    if (!nom) return res.status(401).json({ error: "Session expirée ou invalide." });
+  }
 
   const chemin = process.env.HISTORY_PATH || "historique-mises-a-jour.json";
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/` + chemin.split("/").map(encodeURIComponent).join("/");
@@ -51,20 +79,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
       cache: "no-store",
     });
-    if (r.status === 404) return res.status(200).json({ date: null }); // aucun historique encore
-    if (!r.ok) throw new Error(`Lecture de l'historique impossible (${r.status}).`);
-
-    const parsed = JSON.parse(await r.text());
-    const entries: any[] = Array.isArray(parsed.entries) ? parsed.entries : [];
-
-    // La plus récente parmi les entrées de cet utilisateur.
     let derniere: number | null = null;
-    for (const e of entries) {
-      if (e?.utilisateur !== nom && e?.identifiant !== nom) continue;
-      const t = Date.parse(e?.date);
-      if (Number.isFinite(t) && (derniere === null || t > derniere)) derniere = t;
+
+    if (r.status !== 404) { // 404 = aucun historique encore
+      if (!r.ok) throw new Error(`Lecture de l'historique impossible (${r.status}).`);
+      const parsed = JSON.parse(await r.text());
+      const entries: any[] = Array.isArray(parsed.entries) ? parsed.entries : [];
+      for (const e of entries) {
+        if (nom && e?.utilisateur !== nom && e?.identifiant !== nom) continue; // GET : toutes les entrées
+        const t = Date.parse(e?.date);
+        if (Number.isFinite(t) && (derniere === null || t > derniere)) derniere = t;
+      }
     }
 
+    // En-tête de la page : à défaut d'historique, on prend le dernier enregistrement du GeoJSON.
+    if (derniere === null && req.method === "GET") derniere = await dateDernierCommit(owner, repo, branch, token);
+
+    if (req.method === "GET") {
+      // Court cache : évite d'appeler GitHub à chaque visite, tout en restant à jour à la minute près.
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
+    }
     return res.status(200).json({ date: derniere === null ? null : new Date(derniere).toISOString() });
   } catch (e: any) {
     console.error("Erreur dernière mise à jour :", e);
