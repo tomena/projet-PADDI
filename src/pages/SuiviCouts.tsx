@@ -492,8 +492,6 @@ const formaterDateMaj = (iso: string) =>
           : [...lignesProgramme].reverse().find(d => n(d[`BD ${annee} (EUR)`]) > 0) ?? {};
       
       const ligneGraph = ligneProg; // le graphique annuel utilise la même ligne
-      
-      const budgetTotalProjet = 34_500_000;
 
     // Cumul programme = années précédentes + année choisie (janvier -> mois choisi)
       const decaissementCumule =
