@@ -123,8 +123,13 @@ async function appendHistory(owner: string, repo: string, branch: string, path: 
   if (response.ok) {
     const metadata = await response.json();
     sha = metadata.sha;
-    const content = Buffer.from(String(metadata.content).replace(/\n/g, ""), "base64").toString("utf8");
-    const parsed = JSON.parse(content);
+    // Lecture « raw » : l'API classique ne renvoie plus le contenu au-delà de 1 Mo.
+    const raw = await fetch(`${url}?ref=${encodeURIComponent(branch)}`, {
+      headers: { ...headers, Accept: "application/vnd.github.raw+json" },
+      cache: "no-store",
+    });
+    if (!raw.ok) throw new Error("Impossible de lire l'historique des mises à jour.");
+    const parsed = JSON.parse(await raw.text());
     entries = Array.isArray(parsed.entries) ? parsed.entries : [];
   } else if (response.status !== 404) {
     throw new Error("Impossible de lire l'historique des mises à jour.");
