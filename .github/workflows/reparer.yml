@@ -1,0 +1,38 @@
+name: Réparer colonnes programme
+
+on:
+  workflow_dispatch:
+    inputs:
+      appliquer:
+        description: "Cocher pour APPLIQUER la réparation (décoché = simulation, rien n'est modifié)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  reparer:
+    runs-on: ubuntu-latest
+    env:
+      # Doit être identique à la variable GEOJSON_PATH de Vercel
+      FICHIER: public/data/Base_Cout_Activite.geojson
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Simulation (rien n'est modifié)
+        if: ${{ !inputs.appliquer }}
+        run: node scripts/reparer-colonnes-programme.mjs "$FICHIER"
+
+      - name: Réparation et enregistrement
+        if: ${{ inputs.appliquer }}
+        run: |
+          node scripts/reparer-colonnes-programme.mjs "$FICHIER" --remplacer
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add "$FICHIER"
+          git diff --cached --quiet && echo "Rien à enregistrer." || (git commit -m "Réparation des colonnes programme" && git push)
