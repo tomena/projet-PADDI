@@ -395,6 +395,19 @@ export default function SuiviCouts() {
   const [password, setPassword] = useState("");
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
+  const [dateMaj, setDateMaj] = useState<string | null>(null);
+      useEffect(() => {
+        fetch("/api/derniere-maj")
+          .then(r => r.json())
+          .then(d => setDateMaj(d.date ?? null))
+          .catch(() => setDateMaj(null));
+      }, []);
+
+const formaterDateMaj = (iso: string) =>
+  new Date(iso).toLocaleDateString(
+    ({ fr: "fr-FR", en: "en-GB", de: "de-DE" } as Record<string, string>)[lang] ?? "fr-FR",
+    { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }
+  );
   const [userName, setUserName] = useState("");
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
@@ -446,23 +459,41 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
     data.map(d=>d.UC)
      )
     );
-  const dataFiltre = data.filter((d)=>{
-      const filtreAnnee = d.Année === annee;    
-      const filtreMois = mois === "Tous" || d.Mois === mois;    
-      const filtreUC = uc === "Tous" || d.UC === uc;   
-    
-      return filtreAnnee && filtreMois && filtreUC;    
-  });
 
-        const ucCible = uc === "Tous" ? "Tous" : uc;
-        const lignesUC = data
-          .filter(d => d.Année === annee && d.UC === ucCible)
-          .sort((a, b) => ordreMois.indexOf(a.Mois) - ordreMois.indexOf(b.Mois));
+      const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+      const clamp = (p: number) => Math.min(100, Math.max(0, p));
+      const parMois = (a: any, b: any) => ordreMois.indexOf(a.Mois) - ordreMois.indexOf(b.Mois);
       
-        const coutActuel: any =
+      const budgetTotalProjet = 34_500_000;
+      const anneesProgramme = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
+      
+      // ----- Lignes de l'UC choisie : suivi des coûts (points 4 et 5) -----
+      const ucCible = uc === "Tous" ? "Tous" : uc;
+      const lignesUC = data
+        .filter(d => d.Année === annee && d.UC === ucCible)
+        .sort(parMois);
+      
+      // Valeurs cumulées de janvier au mois choisi. Si « Tous » : dernier mois ayant des données.
+      const coutActuel: any =
         mois !== "Tous"
           ? lignesUC.find(d => d.Mois === mois) ?? {}
-          : [...lignesUC].reverse().find(d => n(d["PA (EUR)"]) > 0) ?? {};
+          : [...lignesUC].reverse().find(d => n(d["D (EUR)"]) > 0) ?? {};
+      
+      // Budget planifié de l'année pour l'UC (identique tous les mois : on prend le maximum)
+      const planAnnuel = (champ: string) =>
+        lignesUC.reduce((m, d) => Math.max(m, n(d[champ])), 0);
+      
+      // ----- Ligne programme : ne dépend PAS du filtre UC (points 2 et 3) -----
+      const lignesProgramme = data
+        .filter(d => d.Année === annee && d.UC === "Tous")
+        .sort(parMois);
+      
+      const ligneProg: any =
+        mois !== "Tous"
+          ? lignesProgramme.find(d => d.Mois === mois) ?? {}
+          : [...lignesProgramme].reverse().find(d => n(d[`BD ${annee} (EUR)`]) > 0) ?? {};
+      
+      const ligneGraph = ligneProg; // le graphique annuel utilise la même ligne
       
       const budgetTotalProjet = 34_500_000;
       // =====================================================
@@ -518,24 +549,17 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
         ligneGraph = data[0];
       }
 
-    const budgetTotal =
-      Number(ligneGraph?.["BT"]) || 34_500_000;
-    
-    const decaissementCumule =
-      Number(
-        ligneGraph?.[`BD ${annee} (EUR)`] || 0
-      );
-    
-    const tauxDecaissement =
-      budgetTotal > 0
-        ? (decaissementCumule / budgetTotal) * 100
-        : 0;
-    
-    const decaisse =
-      Number(coutActuel["D (EUR)"]) || 0;
-    
-    const planification =
-      Number(coutActuel["PA (EUR)"]) || 0;
+    // Cumul programme = années précédentes + année choisie (janvier -> mois choisi)
+      const decaissementCumule =
+        anneesProgramme.filter(a => a < annee).reduce((s, a) => s + n(ligneProg[`BD ${a} (EUR)`]), 0)
+        + n(ligneProg[`BD ${annee} (EUR)`]);
+      
+      // Donut du point 3 : cumul / budget total fixe de 34 500 000
+      const tauxDecaissement = (decaissementCumule / budgetTotalProjet) * 100;
+      
+      // Point 4 (onglet Résumé_Budget) : « Budget dépensé » / « Budget prévu »
+      const decaisse = n(coutActuel["D (EUR)"]);
+      const planification = planAnnuel("PA (EUR)");
     
   const tauxAvancement =
       planification > 0
@@ -764,103 +788,32 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
       console.log("UC sélectionnée :", uc);
       console.log("Ligne utilisée :", ligneGraph);
       console.log("YearlyData :", yearlyData);
+      
       const tauxComposantes = [
-        {
-          title: t.componentC1,
-          percent:
-            Number(coutActuel["PA C1 (EUR)"]) > 0
-              ? (Number(coutActuel["D C1 (EUR)"]) || 0) /
-                Number(coutActuel["PA C1 (EUR)"]) *
-                100
-              : 0,
-          dec: Number(coutActuel["D C1 (EUR)"]) || 0,
-          plan: Number(coutActuel["PA C1 (EUR)"]) || 0,
-          color: "#2563eb",
-        },
-        {
-          title: t.componentC2,
-          percent:
-            Number(coutActuel["PA C2 (EUR)"]) > 0
-              ? (Number(coutActuel["D C2 (EUR)"]) || 0) /
-                Number(coutActuel["PA C2 (EUR)"]) *
-                100
-              : 0,
-          dec: Number(coutActuel["D C2 (EUR)"]) || 0,
-          plan: Number(coutActuel["PA C2 (EUR)"]) || 0,
-          color: "#2563eb",
-        },
-        {
-          title: t.componentC3,
-          percent:
-            Number(coutActuel["PA C3 (EUR)"]) > 0
-              ? (Number(coutActuel["D C3 (EUR)"]) || 0) /
-                Number(coutActuel["PA C3 (EUR)"]) *
-                100
-              : 0,
-          dec: Number(coutActuel["D C3 (EUR)"]) || 0,
-          plan: Number(coutActuel["PA C3 (EUR)"]) || 0,
-          color: "#16a34a",
-        },
-        {
-          title: t.componentC4,
-          percent:
-            Number(coutActuel["PA C4 (EUR)"]) > 0
-              ? (Number(coutActuel["D C4 (EUR)"]) || 0) /
-                Number(coutActuel["PA C4 (EUR)"]) *
-                100
-              : 0,
-          dec: Number(coutActuel["D C4 (EUR)"]) || 0,
-          plan: Number(coutActuel["PA C4 (EUR)"]) || 0,
-          color: "#16a34a",
-        },
-      ];
+        ["C1", t.componentC1, "#2563eb"],
+        ["C2", t.componentC2, "#2563eb"],
+        ["C3", t.componentC3, "#16a34a"],
+        ["C4", t.componentC4, "#16a34a"],
+      ].map(([code, title, color]) => {
+        const dec = n(coutActuel[`D ${code} (EUR)`]);          // cumul janvier -> mois choisi
+        const plan = planAnnuel(`PA ${code} (EUR)`);           // planifié de l'année
+        return { title, color, dec, plan, percent: plan > 0 ? clamp((dec / plan) * 100) : 0 };
+      });
+      
   const [bailleur, setBailleur] = useState<string>("BMZ");
-  const tauxInstruments = [
-    {
-      title: t.financements,
-      icon: Handshake,
-      percent: Number(coutActuel["TAC F"] || 0) * 100,
-      dec: coutActuel["DF (EUR)"] || 0,
-      plan: coutActuel["PAF (EUR)"] || 0,
-      color:"#2563eb",
-    },
-  
-    {
-      title: t.achats,
-      icon: FaShoppingCart,
-      percent:Number(coutActuel["TAC A"] || 0) * 100,
-      dec:coutActuel["DA (EUR)"] || 0,
-      plan:coutActuel["PAA (EUR)"] || 0,
-      color:"#16a34a",
-    },
-  
-    {
-      title: t.contrats,
-      icon:FaFileContract,
-      percent:Number(coutActuel["TAC C"] || 0) * 100,
-      dec:coutActuel["DC (EUR)"] || 0,
-      plan:coutActuel["PAC (EUR)"] || 0,
-      color:"#f59e0b",
-    },
-  
-    {
-      title: t.missionsInterne,
-      icon:Plane,
-      percent:Number(coutActuel["TAC MI"] || 0) * 100,
-      dec:coutActuel["DMI (EUR)"] || 0,
-      plan:coutActuel["PAMI (EUR)"] || 0,
-      color:"#f97316",
-    },
-  
-    {
-      title: t.missionsPartenaires,
-      icon:Users,
-      percent:Number(coutActuel["TAC MP"] || 0) * 100,
-      dec:coutActuel["DMP (EUR)"] || 0,
-      plan:coutActuel["PAMP (EUR)"] || 0,
-      color:"#f97316",
-    },
-  ];
+
+      const tauxInstruments = [
+        { title: t.financements, icon: Handshake, d: "DF (EUR)", pa: "PAF (EUR)", color: "#2563eb" },
+        { title: t.achats, icon: FaShoppingCart, d: "DA (EUR)", pa: "PAA (EUR)", color: "#16a34a" },
+        { title: t.contrats, icon: FaFileContract, d: "DC (EUR)", pa: "PAC (EUR)", color: "#f59e0b" },
+        { title: t.missionsInterne, icon: Plane, d: "DMI (EUR)", pa: "PAMI (EUR)", color: "#f97316" },
+        { title: t.missionsPartenaires, icon: Users, d: "DMP (EUR)", pa: "PAMP (EUR)", color: "#f97316" },
+      ].map(({ title, icon, d, pa, color }) => {
+        const dec = n(coutActuel[d]);
+        const plan = planAnnuel(pa);
+        return { title, icon, color, dec, plan, percent: plan > 0 ? clamp((dec / plan) * 100) : 0 };
+      });
+      
     console.log(data);
     console.log(annees);
     console.log(moisListe);
@@ -921,7 +874,7 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
           <div>
             <div style={styles.dateLabel}>{t.updated}</div>
 
-            <div style={styles.dateValue}>30 septembre 2026</div>
+            <div style={styles.dateValue}>{dateMaj ? formaterDateMaj(dateMaj) : "—"}</div>
           </div>
         </div>
       </div>
