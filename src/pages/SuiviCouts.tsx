@@ -496,58 +496,6 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
       const ligneGraph = ligneProg; // le graphique annuel utilise la même ligne
       
       const budgetTotalProjet = 34_500_000;
-      // =====================================================
-      // LIGNE DE RÉFÉRENCE POUR LE KPI ET LE GRAPHE
-      // =====================================================
-
-      let ligneGraph: CoutActivite | undefined;
-      // -----------------------------------------------------
-      // 1. MOIS PRÉCIS
-      // -----------------------------------------------------
-      if (mois !== "Tous") {
-        ligneGraph = data.find(
-          d =>
-            d.Année === annee &&
-            d.Mois === mois &&
-            d.UC === ucCible
-        );
-      }
-      // -----------------------------------------------------
-      // 2. TOUS LES MOIS
-      // → prendre la dernière ligne de l'année
-      // → avec une vraie valeur de décaissement
-      // -----------------------------------------------------
-      if (mois === "Tous" || !ligneGraph) {
-
-        const lignesAnnee = data
-          .filter(
-            d =>
-              d.Année === annee &&
-              d.UC === ucCible
-          )
-          .sort(
-            (a, b) =>
-              ordreMois.indexOf(b.Mois) -
-              ordreMois.indexOf(a.Mois)
-          );
-
-        // Cherche le dernier mois ayant une valeur BD
-        ligneGraph = lignesAnnee.find(
-          d => Number(d[`BD ${annee} (EUR)`]) > 0
-        );
-
-        // Si aucune valeur BD n'est trouvée,
-        // prendre simplement la dernière ligne
-        if (!ligneGraph) {
-          ligneGraph = lignesAnnee[0];
-        }
-      }
-      // -----------------------------------------------------
-      // 3. SÉCURITÉ
-      // -----------------------------------------------------
-      if (!ligneGraph) {
-        ligneGraph = data[0];
-      }
 
     // Cumul programme = années précédentes + année choisie (janvier -> mois choisi)
       const decaissementCumule =
