@@ -2006,10 +2006,10 @@ const clamp = (p: number) => Math.min(100, Math.max(0, p));
       
       {showUpdate && (
         <UpdateModal
-        onClose={() => { setShowUpdate(false); setToken(""); }}
-        userName={userName}
-        token={token}
-      />
+              onClose={() => { setShowUpdate(false); setToken(""); }}
+              userName={userName}
+              token={token}
+            />
       )}
 
   </div>
