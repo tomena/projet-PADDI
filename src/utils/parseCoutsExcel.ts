@@ -102,16 +102,18 @@ function sansAccent(s: string): string {
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 }
 
-/* Lit une cellule (colonne et ligne 1-based).
- * Une cellule en erreur Excel (#VALUE!, #DIV/0!...) stoppe l'import :
- * SheetJS stocke alors un code numérique (ex. 15) qui serait lu comme un montant. */
+/* Cellules en erreur Excel (#VALUE!, #DIV/0!...) rencontrées dans l'onglet en cours.
+ * Elles sont lues comme VIDES (0) et n'empêchent pas l'import. */
+let erreursIgnorees: string[] = [];
+
+/* Lit une cellule (colonne et ligne 1-based). */
 function valeurColonne(feuille: XLSX.WorkSheet, colonne: number, ligne: number): number {
   const adresse = XLSX.utils.encode_cell({ r: ligne - 1, c: colonne - 1 });
   const cell = feuille[adresse];
   if (cell?.t === "e") {
-    throw new Error(
-      `Cellule en erreur Excel (${cell.w ?? "#ERREUR"}) en ${adresse} : corrigez le fichier avant l'import.`
-    );
+    // SheetJS stocke un code numérique (ex. 15) : on l'ignore pour ne pas le lire comme un montant.
+    erreursIgnorees.push(`${cell.w ?? "#ERREUR"} en ${adresse}`);
+    return 0;
   }
   return nombre(cell?.v);
 }
@@ -243,7 +245,7 @@ function extraireBudget(
   }
 
   const sommeComposantes = budget.PAC1 + budget.PAC2 + budget.PAC3 + budget.PAC4;
-  if (Math.abs(sommeComposantes - budget.PA) > TOLERANCE) {
+  if (erreursIgnorees.length === 0 && Math.abs(sommeComposantes - budget.PA) > TOLERANCE) {
     throw new Error(
       `Onglet « ${nomFeuille} » : les budgets des composantes (${Math.round(sommeComposantes)}) ` +
         `ne correspondent pas au budget total (${Math.round(budget.PA)}).`
@@ -297,7 +299,7 @@ function extraireMois(
   // Contrôle d'intégrité : la somme des mois doit égaler le cumul annuel de l'Excel.
   const cumulExcel = valeurColonne(feuille, dispo.colCumul + OFFSET_TOTAL, LIGNE_TOTAL);
   const sommeMois = resultats.reduce((s, m) => s + m.D, 0);
-  if (Math.abs(sommeMois - cumulExcel) > TOLERANCE) {
+  if (erreursIgnorees.length === 0 && Math.abs(sommeMois - cumulExcel) > TOLERANCE) {
     throw new Error(
       `Onglet « ${nomFeuille} » : la somme des mois (${Math.round(sommeMois)}) ` +
         `diffère du cumul annuel de l'Excel (${Math.round(cumulExcel)}).`
@@ -307,7 +309,7 @@ function extraireMois(
   // Contrôle d'intégrité : pour chaque mois, composantes = total.
   for (const m of resultats) {
     const sommeC = m.DC1 + m.DC2 + m.DC3 + m.DC4;
-    if (Math.abs(sommeC - m.D) > TOLERANCE) {
+    if (erreursIgnorees.length === 0 && Math.abs(sommeC - m.D) > TOLERANCE) {
       throw new Error(
         `Onglet « ${nomFeuille} », ${m.mois} : la somme des composantes (${Math.round(sommeC)}) ` +
           `diffère du total (${Math.round(m.D)}).`
@@ -350,10 +352,14 @@ export async function parseCoutsExcelFeuilles(
       throw new Error(`Aucune correspondance UC définie pour la feuille « ${nomFeuille} ».`);
     }
 
+    erreursIgnorees = [];
     const annee = trouverAnnee(feuille);
     const dispo = detecterDisposition(feuille, nomFeuille);
     const budget = extraireBudget(feuille, annee, uc, nomFeuille, dispo);
     const mois = extraireMois(feuille, annee, uc, nomFeuille, dispo);
+    if (erreursIgnorees.length > 0) {
+      console.warn(`Onglet « ${nomFeuille} » : ${erreursIgnorees.length} cellule(s) en erreur lue(s) comme vides :`, erreursIgnorees);
+    }
 
     resultats.push({ uc, feuille: nomFeuille, annee, budget, mois });
   }
