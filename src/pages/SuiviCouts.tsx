@@ -437,8 +437,6 @@ const formaterDateMaj = (iso: string) =>
       });  
   }, []);
 
-const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
-const clamp = (p: number) => Math.min(100, Math.max(0, p));
       
   const composantesConfig = [
     { code: "C1", icon: Leaf, title: t.componentC1Short },
