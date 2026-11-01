@@ -221,10 +221,9 @@ const peutImporter =
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          userName,
-          password,
-          imports,
-        }),
+            token,
+            imports,
+          }),
       });
   
       const resultatAPI = await reponse.json();
