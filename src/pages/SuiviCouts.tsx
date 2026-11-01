@@ -396,13 +396,6 @@ export default function SuiviCouts() {
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
   const [dateMaj, setDateMaj] = useState<string | null>(null);
-      useEffect(() => {
-        fetch("/api/derniere-maj")
-          .then(r => r.json())
-          .then(d => setDateMaj(d.date ?? null))
-          .catch(() => setDateMaj(null));
-      }, []);
-
 const formaterDateMaj = (iso: string) =>
   new Date(iso).toLocaleDateString(
     ({ fr: "fr-FR", en: "en-GB", de: "de-DE" } as Record<string, string>)[lang] ?? "fr-FR",
@@ -436,7 +429,12 @@ const formaterDateMaj = (iso: string) =>
         console.error("Erreur chargement Base Cout :", err);
       });  
   }, []);
-
+useEffect(() => {
+        fetch("/api/derniere-maj")
+          .then(r => r.json())
+          .then(d => setDateMaj(d.date ?? null))
+          .catch(() => setDateMaj(null));
+      }, []);
       
   const composantesConfig = [
     { code: "C1", icon: Leaf, title: t.componentC1Short },
