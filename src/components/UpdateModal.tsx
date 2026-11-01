@@ -85,6 +85,31 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [importEnCours, setImportEnCours] = useState(false);
+  // undefined = chargement, null = jamais de mise à jour, sinon la date ISO
+  const [derniereMaj, setDerniereMaj] = useState<string | null | undefined>(undefined);
+  
+  useEffect(() => {
+    if (!token) return;
+    let annule = false;
+  
+    fetch("/api/derniere-maj", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    })
+      .then((r) => r.json())
+      .then((d) => { if (!annule) setDerniereMaj(d.date ?? null); })
+      .catch(() => { if (!annule) setDerniereMaj(undefined); }); // erreur : on n'affiche rien
+  
+    return () => { annule = true; };
+  }, [token]);
+  
+  const formaterDate = (iso: string) =>
+    new Date(iso).toLocaleString("fr-FR", {
+      dateStyle: "long",
+      timeStyle: "short",
+      timeZone: "Indian/Antananarivo",
+    });
 
   /* =========================
      SÉLECTION DU FICHIER
@@ -196,8 +221,7 @@ const peutImporter =
         "Aucun onglet Excel autorisé ne correspond à votre unité de coordination."
       );
       return;
-    }
-  
+    }  
     setImportEnCours(true);
   
     try {
@@ -240,6 +264,7 @@ const peutImporter =
         resultatAPI.message ||
           "Importation et mise à jour effectuées avec succès."
       );
+      setDerniereMaj(new Date().toISOString());
   
       console.log("Résultat de l'importation :", resultatAPI);
     } catch (error) {
@@ -254,8 +279,6 @@ const peutImporter =
       setImportEnCours(false);
     }
   };
-
-
   /* =========================
      RESET DU MODAL
   ========================= */
@@ -304,9 +327,17 @@ const peutImporter =
                   Importer et actualiser les données financières
                 </div>
                 {userName && (
-                <div style={styles.welcome}>
-                  Bienvenue {userName} !
-                </div>
+                  <div style={styles.welcome}>
+                    Bienvenue {userName} !
+                  </div>
+                )}
+                
+                {derniereMaj !== undefined && (
+                  <div style={styles.lastUpdate}>
+                    {derniereMaj
+                      ? `Ta dernière mise à jour était: ${formaterDate(derniereMaj)}`
+                      : "Tu n'as pas encore fait de mise à jour."}
+                  </div>
                 )}
               </div>
             </div>
@@ -1030,5 +1061,12 @@ const styles: {
   width: "100%",
   minWidth: 0,
   boxSizing: "border-box",
+},
+
+  lastUpdate: {
+  marginTop: 5,
+  fontSize: 10,
+  color: "#64748b",
+  fontWeight: 600,
 },
 };
