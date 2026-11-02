@@ -855,8 +855,12 @@ return (
               <div style={styles.dateValue}>{dateMaj ? new Date(dateMaj).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }) : "—"}</div>
             </div>
           </div>
-
+          <button onClick={() => setShowLogin(true)}>
+            <RefreshCw size={16} />
+            Mettre à jour
+          </button>
         </div>
+        
       </div>
       {/* ================== GLOBAL LAYOUT ================== */}
       <div style={styles.layout}>
@@ -1032,17 +1036,7 @@ return (
           </div>
         </div>
       </div>
-        {showLogin && (
-            <LoginModal onClose={() => setShowLogin(false)}
-              onSuccess={(name, jeton) => { setUserName(name); setToken(jeton); setShowLogin(false); setShowUpdate(true); }} />
-          )}
-          {showUpdate && (
-            <UpdateIndicateursModal
-              onClose={() => { setShowUpdate(false); setToken(""); }}
-              userName={userName} token={token} base={base}
-              anneeParDefaut={annee} antenneParDefaut={selectedAntenne}
-              onImported={chargerDate} />
-          )}
+        
     </div>
 
         {/* COLONNE DROITE */}
@@ -1099,9 +1093,21 @@ return (
                 protectedAreaText={t.protectedArea}
               />
             </MapContainer>
-          </div>
-        </div>
-      </div>      
+          </div> {/* ferme mapCard */}
+        </div>   {/* ferme rightBlock */}
+      </div>     {/* ferme layout */}
+
+      {showLogin && (
+        <LoginModal onClose={() => setShowLogin(false)}
+          onSuccess={(name, jeton) => { setUserName(name); setToken(jeton); setShowLogin(false); setShowUpdate(true); }} />
+      )}
+      {showUpdate && (
+        <UpdateIndicateursModal
+          onClose={() => { setShowUpdate(false); setToken(""); }}
+          userName={userName} token={token} base={base}
+          anneeParDefaut={annee} antenneParDefaut={selectedAntenne}
+          onImported={chargerDate} />
+      )}
     </div>    
   );  
 }
