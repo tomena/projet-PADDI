@@ -3,8 +3,12 @@ import { MapContainer, TileLayer, ScaleControl, useMap, GeoJSON } from "react-le
 import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
 import {PieChart,Pie,Cell,LineChart,Line,XAxis,YAxis,Tooltip,Legend,ResponsiveContainer } from 'recharts';
-import {Flame,Monitor,Home,MapPinned,TrendingUp,FileText,Leaf,Tractor,Trees,Users,Cog, CalendarDays } from 'lucide-react';
+import {Flame,Monitor,Home,MapPinned,TrendingUp,FileText,Leaf,Tractor,Trees,Users,Cog, CalendarDays, RefreshCw } from 'lucide-react';
 import { useLanguage } from "../context/LanguageContext";
+import { calculerTableau, couleurPct, fmtNombre, type Base, type Code, type FiltreSemestre } from "../utils/indicateurs";
+import IconeTableauBord from "../components/IconeTableauBord";
+import LoginModal from "../components/LoginModal";
+import UpdateIndicateursModal from "../components/UpdateIndicateursModal";
 
 const dashboardTxt = {
   fr: {
@@ -675,20 +679,48 @@ export default function Dashboard({ data }: any) {
 
     const [aireProtegeeData, setAireProtegeeData] = useState(null);
 
-useEffect(() => {
-  fetch("/data/aire_protegee_paddi.geojson")
-    .then((r) => r.json())
-    .then(setAireProtegeeData)
-    .catch(console.error);
-}, []);
+    useEffect(() => {
+      fetch("/data/aire_protegee_paddi.geojson")
+        .then((r) => r.json())
+        .then(setAireProtegeeData)
+        .catch(console.error);
+    }, []);
 
 
-  const dashboard = useMemo(
-    () => ({
-      progression: 22,
-    }),
-    [data]
-  );
+  const UC_PAR_ANTENNE: Record<string, string> = {
+      "Tanà": "UCT", "Amoron'i Mania": "UCR-A", "Boeny": "UCR-B",
+      "Diana": "UCR-D", "Atsimo-Atsinanana": "UCR-F", "Anosy": "UCR-FD",
+    };
+    
+    const [base, setBase] = useState<Base | null>(null);
+    const [annee, setAnnee] = useState<number>(2026);
+    const [semestre, setSemestre] = useState<FiltreSemestre>("Tous");
+    const [dateMaj, setDateMaj] = useState<string | null>(null);
+    const [showLogin, setShowLogin] = useState(false);
+    const [showUpdate, setShowUpdate] = useState(false);
+    const [userName, setUserName] = useState("");
+    const [token, setToken] = useState("");
+    
+    const chargerDate = () =>
+      fetch("/api/derniere-maj?source=indicateurs")
+        .then((r) => r.json()).then((d) => setDateMaj(d.date ?? null)).catch(() => setDateMaj(null));
+    
+    useEffect(() => {
+      fetch("/data/Base_Indicateurs.geojson").then((r) => r.json()).then(setBase).catch(console.error);
+      chargerDate();
+    }, []);
+    
+    const tab = useMemo(
+      () => calculerTableau(base, annee, semestre, selectedAntenne || "Toutes"),
+      [base, annee, semestre, selectedAntenne]
+    );
+    const ind = tab.indicateurs;
+    
+    const cibleTexte = (code: Code, unite: string) =>
+      `${t.targetLabel} : ${fmtNombre(ind[code].cible)}${ind[code].sur ? ` / ${ind[code].sur}` : ""} ${unite}`.trim();
+    const kpi = (code: Code, unite: string) => ({
+      percent: ind[code].pct, color: couleurPct(ind[code].pct), target: cibleTexte(code, unite),
+    });
 
   const regionsFiltrees = useMemo(() => {
     if (!regionsData?.features) return [];
@@ -769,7 +801,10 @@ return (
     <div style={styles.page}>
       {/* HEADER */}
       <div style={styles.header}>
-      <h1 style={styles.title}>{t.title}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <IconeTableauBord size={40} />
+          <h1 style={{ ...styles.title, margin: 0 }}>{t.title}</h1>
+        </div>
 
         <div style={styles.headerFilters}>
           <div style={styles.filterGroup}>
@@ -785,7 +820,7 @@ return (
               {antennes?.length > 0 &&
                 antennes.map((antenne) => (
                   <option key={antenne} value={antenne}>
-                    {antenne}
+                    {antenne} ({UC_PAR_ANTENNE[antenne]})
                   </option>
                 ))}
             </select>
@@ -794,15 +829,18 @@ return (
           {/* ANNEE */}
           <div style={styles.filterGroup}>
           <label style={styles.filterLabel}>{t.year}</label>
+            
+           <select style={styles.select} value={annee} onChange={(e) => setAnnee(Number(e.target.value))}>
+              {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
 
-            <select style={styles.select}>
-              <option>2024</option>
-              <option>2025</option>
-              <option>2026</option>
-              <option>2027</option>
-              <option>2028</option>
-              <option>2029</option>
-              <option>2030</option>
+          <div style={styles.filterGroup}>
+            <label style={styles.filterLabel}>{t.semester}</label>
+            <select style={styles.select} value={semestre} onChange={(e) => setSemestre(e.target.value as FiltreSemestre)}>
+              <option value="Tous">{t.allSemesters}</option>
+              <option value="S1">{t.semester1}</option>
+              <option value="S2">{t.semester2}</option>
             </select>
           </div>
 
@@ -811,7 +849,7 @@ return (
           <div>
             <div style={styles.dateLabel}>{t.dateOfLastUpdate}</div>
 
-            <div style={styles.dateValue}>24 septembre 2026</div>
+            <div style={styles.dateValue}>{dateMaj ? new Date(dateMaj).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }) : "—"}</div>
           </div>
         </div>
 
