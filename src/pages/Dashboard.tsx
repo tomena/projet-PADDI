@@ -1003,6 +1003,7 @@ return (
                     { name: t.under_18, value: tab.ages[0], color: '#ef4444' }, { name: t.between_18_35, value: tab.ages[1], color: '#22c55e' },
                     { name: t.between_36_59, value: tab.ages[2], color: '#2563eb' }, { name: t.more_60, value: tab.ages[3], color: '#f97316' },
                   ]}
+                  centerText={fmtNombre(tab.beneficiaires)}
                   centerLabel={t.producers}
                 />
             </div>
