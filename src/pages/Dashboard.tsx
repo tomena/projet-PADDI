@@ -855,10 +855,7 @@ return (
               <div style={styles.dateValue}>{dateMaj ? new Date(dateMaj).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }) : "—"}</div>
             </div>
           </div>
-          <button onClick={() => setShowLogin(true)}>
-            <RefreshCw size={16} />
-            Mettre à jour
-          </button>
+          
         </div>
         
       </div>
@@ -1044,6 +1041,10 @@ return (
           <div style={styles.sectionTitle}>
             <MapPinned size={28} />
             <span>{t.interventionZone}</span>
+            <button onClick={() => setShowLogin(true)}>
+              <RefreshCw size={16} />
+              Mettre à jour
+            </button>
           </div>
 
           <div style={styles.mapCard}>
