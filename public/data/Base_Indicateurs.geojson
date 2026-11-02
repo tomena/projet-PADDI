@@ -1,0 +1,98 @@
+{
+  "type": "FeatureCollection",
+  "name": "Base_Indicateurs",
+  "cibles": {
+    "R1.1": {
+      "libelle": "Communes avec budget communal ≥5% pour SECO",
+      "unite": "communes",
+      "cible": 16,
+      "sur": 30
+    },
+    "R1.2": {
+      "libelle": "Superficies brûlées autour des 7 aires protégées",
+      "unite": "%",
+      "cible": -25
+    },
+    "R2.1": {
+      "libelle": "Superficies aménagées durablement",
+      "unite": "ha",
+      "cible": 110000
+    },
+    "R2.2": {
+      "libelle": "Petits exploitants appuyés",
+      "unite": "bénéficiaires",
+      "cible": 25000
+    },
+    "R1.1.1": {
+      "libelle": "Régions avec système de suivi",
+      "unite": "régions",
+      "cible": 5
+    },
+    "R1.1.2": {
+      "libelle": "Mesures communales adoptées",
+      "unite": "mesures",
+      "cible": 24,
+      "sur": 30
+    },
+    "R1.2.1": {
+      "libelle": "Décisions des COSAP",
+      "unite": "décisions",
+      "cible": 21
+    },
+    "R1.2.2": {
+      "libelle": "Mesures régionales (paquets)",
+      "unite": "paquets",
+      "cible": 5
+    },
+    "R2.1.1": {
+      "libelle": "Surfaces agropastorales durables",
+      "unite": "ha",
+      "cible": 40000
+    },
+    "R2.1.2": {
+      "libelle": "Surfaces forestières durables",
+      "unite": "ha",
+      "cible": 70000
+    },
+    "R2.2.1": {
+      "libelle": "Producteurs avec revenus améliorés",
+      "unite": "producteurs",
+      "cible": 7000
+    },
+    "R2.2.2": {
+      "libelle": "Micro-entreprises",
+      "unite": "entreprises",
+      "cible": 50
+    }
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "Année": 2026,
+        "Semestre": "S1",
+        "Antenne": "Toutes",
+        "R1.1": 0,
+        "R1.2": -22.5,
+        "R2.1": 15100,
+        "R2.2": 5242,
+        "R1.1.1": 1,
+        "R1.1.2": 15,
+        "R1.2.1": 0,
+        "R1.2.2": 1,
+        "R2.1.1": 4734,
+        "R2.1.2": 10346,
+        "R2.2.1": 2580,
+        "R2.2.2": 0,
+        "Hommes": 3460,
+        "Femmes": 1782,
+        "Age <18": 105,
+        "Age 18-35": 1468,
+        "Age 36-59": 2621,
+        "Age >60": 1048,
+        "Avancement global (%)": 22
+      },
+      "geometry": null
+    }
+  ]
+}
