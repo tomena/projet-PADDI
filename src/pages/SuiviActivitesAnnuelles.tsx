@@ -662,9 +662,9 @@ useEffect(() => {
         { titre: "R1.SG", champ: "TAR 1" },
         { titre: "R2.AT", champ: "TAR 2" },
     
-        { titre: "C1.GSE", champ: "TAC  C1" },
+        { titre: "C1.GSE", champ: "TAC C1" },
         { titre: "C2.GED", champ: "TAC C2" },
-        { titre: "C3.DPP", champ: "TAC  C3" },
+        { titre: "C3.DPP", champ: "TAC C3" },
         { titre: "C4.CEV", champ: "TAC C4" },
     
         { titre: "1.1.1 AD", champ: "TAA 1.1.1" },
