@@ -1041,10 +1041,15 @@ return (
           <div style={styles.sectionTitle}>
             <MapPinned size={28} />
             <span>{t.interventionZone}</span>
-            <button onClick={() => setShowLogin(true)}>
-              <RefreshCw size={16} />
-              Mettre à jour
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowLogin(true)}
+                style={styles.updateButton}
+              >
+                <RefreshCw size={16} />
+                <span>Mettre à jour</span>
+              </button>
+
           </div>
 
           <div style={styles.mapCard}>
@@ -2169,7 +2174,25 @@ const styles: any = {
   dateValue: {
     fontSize: 12,
     fontWeight: 700,
-  }
+  },
+
+  updateButton: {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
+  padding: "10px 14px",
+  border: "none",
+  borderRadius: 8,
+  background: "#14532d",
+  color: "#fff",
+  fontSize: 12,
+  fontWeight: 700,
+  cursor: "pointer",
+  whiteSpace: "nowrap",
+  boxShadow: "0 2px 5px rgba(20, 83, 45, 0.2)",
+},
+
 };
 
 
