@@ -7,6 +7,8 @@ import { createHmac, timingSafeEqual } from "crypto";
  *  - POST { token }    : date de la dernière mise à jour de l'utilisateur connecté
  *                        -> affichée dans la fenêtre « Mise à jour des données ».
  * Lit historique-mises-a-jour.json (alimenté par api/import-couts.ts).
+ * Avec ?source=indicateurs (GET) ou { source: "indicateurs" } (POST) : lit à la place
+ * historique-indicateurs.json (alimenté par api/import-indicateurs.ts).
  * Variables : GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, AUTH_SECRET,
  * et optionnellement HISTORY_PATH. */
 
@@ -29,8 +31,7 @@ function lireJeton(jeton: unknown, secret: string): string | null {
 
 /* Secours : date du dernier enregistrement du GeoJSON dans GitHub (utilisée seulement
  * si l'historique des imports n'existe pas encore ou ne contient aucune entrée). */
-async function dateDernierCommit(owner: string, repo: string, branch: string, token: string): Promise<number | null> {
-  const chemin = process.env.GEOJSON_PATH;
+async function dateDernierCommit(owner: string, repo: string, branch: string, token: string, chemin: string | undefined): Promise<number | null> {
   if (!chemin) return null;
   const r = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/commits?sha=${encodeURIComponent(branch)}&path=${encodeURIComponent(chemin)}&per_page=1`,
@@ -66,7 +67,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!nom) return res.status(401).json({ error: "Session expirée ou invalide." });
   }
 
-  const chemin = process.env.HISTORY_PATH || "historique-mises-a-jour.json";
+  const indicateurs = (req.query?.source ?? req.body?.source) === "indicateurs";
+  const chemin = indicateurs
+    ? process.env.HISTORY_INDICATEURS_PATH || "historique-indicateurs.json"
+    : process.env.HISTORY_PATH || "historique-mises-a-jour.json";
+  const cheminDonnees = indicateurs
+    ? process.env.GEOJSON_INDICATEURS_PATH || "public/data/Base_Indicateurs.geojson"
+    : process.env.GEOJSON_PATH;
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/` + chemin.split("/").map(encodeURIComponent).join("/");
 
   try {
@@ -93,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // En-tête de la page : à défaut d'historique, on prend le dernier enregistrement du GeoJSON.
-    if (derniere === null && req.method === "GET") derniere = await dateDernierCommit(owner, repo, branch, token);
+    if (derniere === null && req.method === "GET") derniere = await dateDernierCommit(owner, repo, branch, token, cheminDonnees);
 
     if (req.method === "GET") {
       // Court cache : évite d'appeler GitHub à chaque visite, tout en restant à jour à la minute près.
