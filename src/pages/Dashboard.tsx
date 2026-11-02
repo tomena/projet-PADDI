@@ -76,7 +76,7 @@ const dashboardTxt = {
     between_18_35: "18-35",
     between_36_59: "36-59",
     more_60: ">60",
-
+    semester: "Semestre", allSemesters: "Tous", semester1: "S1 (janv. – juin)", semester2: "S2 (juil. – déc.)", producers: "producteurs",
 
     indicatorStatus: "Statut des indicateurs (par rapport aux cibles)",
     // reached: "Atteint",
@@ -200,6 +200,7 @@ const dashboardTxt = {
     targetProducers: "Tanjona : 10 000",
     targetCompanies: "Tanjona : 70",
 
+      semester: "Enim-bolana", allSemesters: "Rehetra", semester1: "S1 (Janoary – Jona)", semester2: "S2 (Jolay – Desambra)",
     km: "km",
   },
 
@@ -295,6 +296,8 @@ const dashboardTxt = {
     targetProducers: "Target: 10,000",
     targetCompanies: "Target: 70",
 
+    semester: "Semester", allSemesters: "All", semester1: "S1 (Jan – Jun)", semester2: "S2 (Jul – Dec)",
+
     km: "km",
   },
 
@@ -385,7 +388,7 @@ const dashboardTxt = {
     targetForest: "Ziel: 100.000 ha",
     targetProducers: "Ziel: 10.000",
     targetCompanies: "Ziel: 70",
-
+    semester: "Halbjahr", allSemesters: "Alle", semester1: "H1 (Jan – Jun)", semester2: "H2 (Jul – Dez)",
     km: "km",
   },
 };
@@ -846,12 +849,12 @@ return (
 
           <div style={styles.dateBox}>
             <CalendarDays size={18} />
-          <div>
-            <div style={styles.dateLabel}>{t.dateOfLastUpdate}</div>
-
-            <div style={styles.dateValue}>{dateMaj ? new Date(dateMaj).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }) : "—"}</div>
+            <div>
+              <div style={styles.dateLabel}>{t.dateOfLastUpdate}</div>
+  
+              <div style={styles.dateValue}>{dateMaj ? new Date(dateMaj).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }) : "—"}</div>
+            </div>
           </div>
-        </div>
 
         </div>
       </div>
@@ -868,44 +871,36 @@ return (
 
             <div style={styles.kpiGrid}>
             <KpiCard
-                title={t.municipalBudgets}
-                value="0"
-                unit={t.communes}
-                percent={0}
-                target={t.targetCommunes}
-                color="#ef4444"
-                type="circle"
-              />
-
-              <KpiCard
-                title={t.reductionBurnedAreas}
-                value="- 22,5 %"
-                unit={t.reduction}
-                percent={90}
-                target={t.targetReduction}
-                color="#2563eb"
-                icon={<Flame size={42} />}
-              />
-
-              <KpiCard
-                title={t.ecosystems}
-                value="15100"
-                unit={t.ha}
-                percent={14}
-                target={t.targetEcosystems}
-                color="#ef4444"
-                icon={<Trees size={42} />}
-              />
-
-              <KpiCard
-                title={t.smallholders}
-                value="5242"
-                unit={t.beneficiaries}
-                percent={21}
-                target={t.targetBeneficiaries}
-                color="#ef4444"
-                icon={<Users size={42} />}
-              />
+              title={t.municipalBudgets}
+              value={fmtNombre(ind["R1.1"].valeur)}
+              unit={t.communes}
+              {...kpi("R1.1", t.communes)}
+              type="circle"
+            />
+            
+            <KpiCard
+              title={t.reductionBurnedAreas}
+              value={`${fmtNombre(ind["R1.2"].valeur)} %`}
+              unit={t.reduction}
+              {...kpi("R1.2", "%")}
+              icon={<Flame size={42} />}
+            />
+            
+            <KpiCard
+              title={t.ecosystems}
+              value={fmtNombre(ind["R2.1"].valeur)}
+              unit={t.ha}
+              {...kpi("R2.1", t.ha)}
+              icon={<Trees size={42} />}
+            />
+            
+            <KpiCard
+              title={t.smallholders}
+              value={fmtNombre(ind["R2.2"].valeur)}
+              unit={t.beneficiaries}
+              {...kpi("R2.2", t.beneficiaries)}
+              icon={<Users size={42} />}
+            />
             </div>
           </div>
 
@@ -917,106 +912,87 @@ return (
             </div>
 
             <div style={styles.resultGrid}>
-
                <ResultCard
-               
-              icon={<Monitor size={20} />}
-              title={t.regionsMonitoring}
-              value="1"
-              unit={t.regions}
-              percent={20}
-              target={t.targetRegions}
-            />
-            <ResultCard
-              icon={<Home size={20} />}
-              title={t.adoptedMeasures}
-              value="15"
-              unit={t.measures}
-              percent={63}
-              target={t.targetCommunes80}
-            />
-
-            <ResultCard
-              icon={<FileText size={20} />}
-              title={t.cosapDecisions}
-              value="0"
-              unit={t.decisions}
-              percent={0}
-              target={t.targetDecisions}
-            />
-
-            <ResultCard
-              icon={<Leaf size={20} />}
-              title={t.regionalPackages}
-              value="1"
-              unit={t.packages}
-              percent={20}
-              target={t.targetPackages}
-            />
-
-           
+                  icon={<Monitor size={20} />}
+                  title={t.regionsMonitoring}
+                  value={fmtNombre(ind["R1.1.1"].valeur)}
+                  unit={t.regions}
+                  {...kpi("R1.1.1", t.regions)}
+                />
+                
+                <ResultCard
+                  icon={<Home size={20} />}
+                  title={t.adoptedMeasures}
+                  value={fmtNombre(ind["R1.1.2"].valeur)}
+                  unit={t.measures}
+                  {...kpi("R1.1.2", t.communes)}
+                />
+                
+                <ResultCard
+                  icon={<FileText size={20} />}
+                  title={t.cosapDecisions}
+                  value={fmtNombre(ind["R1.2.1"].valeur)}
+                  unit={t.decisions}
+                  {...kpi("R1.2.1", t.decisions)}
+                />
+                
+                <ResultCard
+                  icon={<Leaf size={20} />}
+                  title={t.regionalPackages}
+                  value={fmtNombre(ind["R1.2.2"].valeur)}
+                  unit={t.packages}
+                  {...kpi("R1.2.2", t.packages)}
+                />           
             </div>
           </div>
         
           <div style={styles.realisationSection}>
             {/* LIGNE KPI + GAUGE */}
             <div style={styles.kpiGroup}>
-            <div style={styles.realisationGrid}>
-            <RealKpi
-              title={t.sustainableAgropastoral}
-              value="4734"
-              unit={t.ha}
-              target={t.targetAgro}
-              percent={12}
-              color="#ef4444"
-              icon={<Tractor size={30} />}
-            />
-
-            <RealKpi
-              title={t.sustainableForest}
-              value="10346"
-              unit={t.ha}
-              target={t.targetForest}
-              percent={15}
-              color="#ef4444"
-              icon={<Trees size={30} />}
-            />
-
-            <RealKpi
-              title={t.improvedProducers}
-              value="2580"
-              unit={t.producers}
-              target={t.targetProducers}
-              percent={37}
-              color="#f59e0b"
-              icon={<Users size={30} />}
-            />
-
-              <RealKpi
-                title={t.agrMicroBusinesses}
-                value="0"
-                unit={t.companies}
-                target={t.targetCompanies}
-                percent={0}
-                color="#ef4444"
-                icon={<Cog size={30} />}
-              />             
-            </div>
+              <div style={styles.realisationGrid}>
+                  <RealKpi
+                    title={t.sustainableAgropastoral}
+                    value={fmtNombre(ind["R2.1.1"].valeur)}
+                    unit={t.ha}
+                    {...kpi("R2.1.1", t.ha)}
+                    icon={<Tractor size={30} />}
+                  />
+                  
+                  <RealKpi
+                    title={t.sustainableForest}
+                    value={fmtNombre(ind["R2.1.2"].valeur)}
+                    unit={t.ha}
+                    {...kpi("R2.1.2", t.ha)}
+                    icon={<Trees size={30} />}
+                  />
+                  
+                  <RealKpi
+                    title={t.improvedProducers}
+                    value={fmtNombre(ind["R2.2.1"].valeur)}
+                    unit={t.producers}
+                    {...kpi("R2.2.1", t.producers)}
+                    icon={<Users size={30} />}
+                  />
+                  
+                  <RealKpi
+                    title={t.agrMicroBusinesses}
+                    value={fmtNombre(ind["R2.2.2"].valeur)}
+                    unit={t.companies}
+                    {...kpi("R2.2.2", t.companies)}
+                    icon={<Cog size={30} />}
+                  />      
+              </div>
             </div>
 
             <div style={styles.analyticsGroup}>
           <div style={styles.analyticsGrid}>
 
-          <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
-          
+          <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>          
               <DonutChart
                   title={t.beneficiariesByGender}
-                  data={[
-                    { name: t.men, value: 66, color: '#16a34a' },
-                    { name: t.women, value: 34, color: '#eab308' },
-                  ]}
-                  centerText="5242"
-                  centerLabel={t.producers}
+                    data={[{ name: t.men, value: tab.genre.hommes, color: '#16a34a' }, { name: t.women, value: tab.genre.femmes, color: '#eab308' }]}
+                    centerText={fmtNombre(tab.beneficiaires)}
+                    centerLabel={t.producers}
                 />
             </div>
 
@@ -1024,14 +1000,9 @@ return (
                 <DonutChart
                   title={t.youngBeneficiaries}
                   data={[
-                    // { name: t.youngPeople, value: 65, color: '#2563eb' },
-                    // { name: t.adults, value: 35, color: '#f97316' },
-                    { name: t.under_18, value: 2, color: '#ef4444' },
-                    { name: t.between_18_35, value: 28, color: '#22c55e' },
-                    { name: t.between_36_59, value: 50, color: '#2563eb' },
-                    { name: t.more_60, value: 20, color: '#f97316' },
+                    { name: t.under_18, value: tab.ages[0], color: '#ef4444' }, { name: t.between_18_35, value: tab.ages[1], color: '#22c55e' },
+                    { name: t.between_36_59, value: tab.ages[2], color: '#2563eb' }, { name: t.more_60, value: tab.ages[3], color: '#f97316' },
                   ]}
-                  centerText="5242"
                   centerLabel={t.producers}
                 />
             </div>
@@ -1042,31 +1013,36 @@ return (
                   title={t.indicatorStatus}
                   showPercentage={false}
                   data={[
-                    { name: t.under25, value: 9, color: '#ef4444' },
-                    { name: t.between25_50, value: 1, color: '#f59e0b' },
-                    { name: t.between50_75, value: 1, color: '#16a34a' },
-                    { name: t.over75, value: 1, color: '#2563eb' },
-
+                    { name: t.under25, value: tab.statuts[0], color: '#ef4444' }, { name: t.between25_50, value: tab.statuts[1], color: '#f59e0b' },
+                    { name: t.between50_75, value: tab.statuts[2], color: '#16a34a' }, { name: t.over75, value: tab.statuts[3], color: '#2563eb' },
                   ]}
-                  centerText="12"
+                  centerText={String(tab.nbIndicateurs)}
                 />
             </div>
 
             <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
               
                 <GaugeKpi
-                  value={dashboard.progression}
+                  value={tab.avancementGlobal}
                   title={t.globalProjectProgress}
                   label={t.globalProgress}
                 />
             </div>
-
           </div>
-
-          </div>
-
-         </div>
         </div>
+      </div>
+        {showLogin && (
+            <LoginModal onClose={() => setShowLogin(false)}
+              onSuccess={(name, jeton) => { setUserName(name); setToken(jeton); setShowLogin(false); setShowUpdate(true); }} />
+          )}
+          {showUpdate && (
+            <UpdateIndicateursModal
+              onClose={() => { setShowUpdate(false); setToken(""); }}
+              userName={userName} token={token} base={base}
+              anneeParDefaut={annee} antenneParDefaut={selectedAntenne}
+              onImported={chargerDate} />
+          )}
+    </div>
 
         {/* COLONNE DROITE */}
         <div style={styles.rightBlock}>
