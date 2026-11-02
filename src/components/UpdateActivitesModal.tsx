@@ -259,9 +259,9 @@ useEffect(() => {
         r1: "TAR 1",
         r2: "TAR 2",
 
-        c1: "TAC  C1",
+        c1: "TAC C1",
         c2: "TAC C2",
-        c3: "TAC  C3",
+        c3: "TAC C3",
         c4: "TAC C4",
 
         a111: "TAA 1.1.1",
@@ -443,9 +443,9 @@ const handleValueChange = (
       r1: "TAR 1",
       r2: "TAR 2",
   
-      c1: "TAC  C1",
+      c1: "TAC C1",
       c2: "TAC C2",
-      c3: "TAC  C3",
+      c3: "TAC C3",
       c4: "TAC C4",
   
       a111: "TAA 1.1.1",
