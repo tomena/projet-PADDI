@@ -1,6 +1,82 @@
 {
   "entries": [
     {
+      "id": "1793596975804-5yj7fj",
+      "date": "2026-11-02T05:22:55.804Z",
+      "utilisateur": "Toky",
+      "identifiant": "Toky",
+      "annee": 2026,
+      "mois": "Import annuel (janvier-décembre)",
+      "uc": "UCT, UCR-B, UCR-D, UCR-A, UCR-F, UCR-FD",
+      "nombreColonnesModifiees": 8,
+      "changements": [
+        {
+          "colonne": "Septembre — DMI (EUR)",
+          "ancienneValeur": 12344.190510148332,
+          "nouvelleValeur": 10613.261245238484,
+          "uc": "UCR-B",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC MI",
+          "ancienneValeur": 0.6383894532525969,
+          "nouvelleValeur": 0.5488730944329339,
+          "uc": "UCR-B",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Octobre — DMI (EUR)",
+          "ancienneValeur": 12575.075368350557,
+          "nouvelleValeur": 10844.146103440708,
+          "uc": "UCR-B",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC MI",
+          "ancienneValeur": 0.65032984401948,
+          "nouvelleValeur": 0.5608134851998169,
+          "uc": "UCR-B",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Septembre — DMI (EUR)",
+          "ancienneValeur": 36943.02020412755,
+          "nouvelleValeur": 35212.090939217705,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre — TAC MI",
+          "ancienneValeur": 0.24849469434680654,
+          "nouvelleValeur": 0.23685171723656862,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Octobre — DMI (EUR)",
+          "ancienneValeur": 43017.97736917911,
+          "nouvelleValeur": 41287.04810426926,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre — TAC MI",
+          "ancienneValeur": 0.28935747750742014,
+          "nouvelleValeur": 0.27771450039718215,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Octobre"
+        }
+      ]
+    },
+    {
       "id": "1793547526037-yzdjyl",
       "date": "2026-11-01T15:38:46.037Z",
       "utilisateur": "Toky",
