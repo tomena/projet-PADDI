@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -54,6 +54,93 @@ const filtrerFeuxDepuis = (
     );
   });
 };
+
+/* ================= COUCHE DES FEUX ================= */
+
+function CoucheFeux({ features }: { features: any[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    // Calcul de l'ancienneté de chaque détection
+    const obtenirAgeHeures = (feature: any) => {
+      const { acq_date, acq_time } = feature.properties;
+
+      if (!acq_date || acq_time == null) return null;
+
+      const heure = String(acq_time).padStart(4, '0');
+
+      const dateFeu = new Date(
+        `${acq_date}T${heure.slice(0, 2)}:${heure.slice(2, 4)}:00Z`
+      ).getTime();
+
+      if (!Number.isFinite(dateFeu)) return null;
+
+      return (Date.now() - dateFeu) / (1000 * 60 * 60);
+    };
+
+    // Couleur selon l'ancienneté
+    const obtenirCouleur = (age: number | null) => {
+      if (age === null || age < 0 || age > 72) {
+        return '#9ca3af';
+      }
+
+      if (age <= 24) return '#ef2929'; // Rouge
+      if (age <= 48) return '#f97316'; // Orange
+
+      return '#facc15'; // Jaune
+    };
+
+    // Taille des points selon le niveau de zoom
+    const obtenirRayon = (zoom: number) => {
+      return Math.max(
+        2,
+        Math.min(8, 2 + (zoom - 5) * 0.65)
+      );
+    };
+
+    // Utilisation du moteur Canvas pour les nombreux points
+    const renderer = L.canvas({ padding: 0.5 });
+
+    const couche = L.geoJSON(features as any, {
+      pointToLayer: (feature, latlng) => {
+        const age = obtenirAgeHeures(feature);
+
+        return L.circleMarker(latlng, {
+          radius: obtenirRayon(map.getZoom()),
+          fillColor: obtenirCouleur(age),
+          color: '#ffffff',
+          weight: 0.6,
+          opacity: 1,
+          fillOpacity: 0.9,
+          renderer,
+        });
+      },
+    });
+
+    couche.addTo(map);
+
+    // Adapter la taille des points à chaque changement de zoom
+    const actualiserTaille = () => {
+      const nouveauRayon = obtenirRayon(map.getZoom());
+
+      couche.eachLayer((layer) => {
+        if (layer instanceof L.CircleMarker) {
+          layer.setRadius(nouveauRayon);
+        }
+      });
+    };
+
+    map.on('zoomend', actualiserTaille);
+
+    return () => {
+      map.off('zoomend', actualiserTaille);
+      map.removeLayer(couche);
+    };
+  }, [features, map]);
+
+  return null;
+}
+
 /* ================= DATA ================= */
 
 const zones = {
@@ -114,11 +201,6 @@ export default function Pression() {
 
   const feuxRecents = filtrerFeuxDepuis(feux, 72);
 
-const feuxGeoJSON = {
-  type: 'FeatureCollection' as const,
-  features: feuxRecents,
-};
-
   const getBaseLayer = () => {
     switch (basemap) {
       case 'osm':
@@ -178,20 +260,7 @@ const feuxGeoJSON = {
             <GeoJSON data={zones} />
             
             {/* Détections de feux NASA FIRMS */}
-            <GeoJSON
-              key={feuxRecents.length}
-              data={feuxGeoJSON}
-              pointToLayer={(_feature, latlng) =>
-                L.circleMarker(latlng, {
-                  radius: 5,
-                  fillColor: '#ff0000',
-                  color: '#ffffff',
-                  weight: 1,
-                  opacity: 1,
-                  fillOpacity: 1,
-                })
-              }
-            />
+            <CoucheFeux features={feuxRecents} />
         </MapContainer>
         {/* ================= TEST DONNÉES FIRMS ================= */}
 <div
@@ -271,8 +340,24 @@ const feuxGeoJSON = {
           <div style={styles.panelTitle}>Couches</div>
 
           <div>✔ Zones de pression</div>
-          <div>🔥 Feux</div>
-          <div>🌳 Déforestation</div>
+          <div style={{ fontWeight: 700, marginTop: 10 }}>
+            🔥 Détections de feux
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#ef2929' }} />
+            <span>Dernières 24 heures</span>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#f97316' }} />
+            <span>24 à 48 heures</span>
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+            <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#facc15' }} />
+            <span>48 à 72 heures</span>
+          </div>
 
           <hr style={{ opacity: 0.2 }} />
 
