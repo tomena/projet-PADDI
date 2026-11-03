@@ -2,6 +2,7 @@ import { Routes, Route } from "react-router-dom";
 
 import Home from "./pages/Home";
 import DashboardLayout from "./pages/DashboardLayout";
+import Carte from "./pages/Carte";
 
 import Dashboard from "./pages/Dashboard";
 import Analyse from "./pages/Analyse";
@@ -40,11 +41,16 @@ export default function App() {
 
       {/* ================= ESPACE PADDI ================= */}
       <Route path="/dashboard" element={<DashboardLayout />}>
+      
         {/* Tableau de bord */}
         <Route index element={<Dashboard data={data} />} />
+      
+        {/* Intervention de PADDI+ */}
+        <Route path="carte" element={<Carte />} />
+      
         <Route path="analyse-feux" element={<AnalyseFeux />} />
         <Route path="deforestation" element={<Deforestation />} />
-
+      
         {/* Analyses */}
         <Route path="analyse" element={<Analyse />} />
         <Route
