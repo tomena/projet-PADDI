@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState,} from "react";
 import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle,} from "lucide-react";
 import {  analyserFichierCouts,  UC_PAR_ONGLET,  ONGLET_PAR_UTILISATEUR,  UTILISATEURS_ADMIN,} from "../utils/parseCoutsExcel";
+import { analyserFichierDecaissement } from "../utils/parseDecaissementExcel";
 
 
 interface UpdateModalProps {
@@ -177,6 +178,28 @@ const peutImporter =
       ? peutImporterAvancement
       : false;
 
+  const importerDecaissement = async () => {
+      setImportEnCours(true);
+      try {
+        const niveauApi = niveau === "Par instrument" ? "instrument" : "composante";
+        const lu = await analyserFichierDecaissement(fichier as File, niveauApi);
+    
+        const reponse = await fetch("/api/import-decaissement", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token, niveau: niveauApi, budgets: lu.budgets, lignes: lu.lignes }),
+        });
+        const resultat = await reponse.json().catch(() => ({}));
+        if (!reponse.ok || !resultat.success) throw new Error(resultat.error || "Échec de la mise à jour du décaissement.");
+    
+        setMessage(resultat.message + (lu.avertissements.length ? ` Attention : ${lu.avertissements[0]}` : ""));
+      } catch (error) {
+        setErreur(error instanceof Error ? error.message : "Une erreur inattendue est survenue.");
+      } finally {
+        setImportEnCours(false);
+      }
+    };
+
   const handleImport = async () => {
     setErreur(null);
     setMessage(null);
@@ -200,6 +223,11 @@ const peutImporter =
       setErreur("Vous n'êtes pas autorisé à importer ces données.");
       return;
     }
+
+  if (typeMiseAJour === "decaissement") {
+    await importerDecaissement();
+    return;
+  }
   
     let ongletsAImporter: string[] = [];
   
