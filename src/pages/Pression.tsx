@@ -141,6 +141,76 @@ function CoucheFeux({ features }: { features: any[] }) {
   return null;
 }
 
+function RegionPressionLayer({ data }: { data: any }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!data?.features) return;
+
+    const layer = L.geoJSON(data, {
+      style: {
+        color: '#ffffff',
+        weight: 1,
+        fillColor: '#64748b',
+        fillOpacity: 0.12,
+      },
+      onEachFeature: (feature, layer) => {
+        const nom = feature.properties?.nom_reg;
+
+        if (nom) {
+          layer.bindTooltip(nom, {
+            sticky: true,
+            direction: 'center',
+          });
+        }
+      },
+    });
+
+    layer.addTo(map);
+
+    return () => {
+      map.removeLayer(layer);
+    };
+  }, [data, map]);
+
+  return null;
+}
+
+function AireProtegeePressionLayer({ data }: { data: any }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!data?.features) return;
+
+    const layer = L.geoJSON(data, {
+      style: {
+        color: '#ffffff',
+        weight: 1,
+        fillColor: '#22c55e',
+        fillOpacity: 0.25,
+      },
+      onEachFeature: (feature, layer) => {
+        const nom = feature.properties?.nom_ap;
+
+        if (nom) {
+          layer.bindTooltip(nom, {
+            sticky: true,
+            direction: 'center',
+          });
+        }
+      },
+    });
+
+    layer.addTo(map);
+
+    return () => {
+      map.removeLayer(layer);
+    };
+  }, [data, map]);
+
+  return null;
+}
+
 /* ================= DATA ================= */
 
 const zones = {
@@ -152,6 +222,57 @@ const zones = {
 
 export default function Pression() {
   const [basemap, setBasemap] = useState('satellite');
+
+  // ================= COUCHES GÉOGRAPHIQUES =================
+
+const [regionsData, setRegionsData] = useState<any>(null);
+const [aireProtegeeData, setAireProtegeeData] = useState<any>(null);
+const [communesData, setCommunesData] = useState<any>(null);
+const [peripherieData, setPeripherieData] = useState<any>(null);
+
+// Chargement des régions
+useEffect(() => {
+  fetch('/data/madagascar_24_region.geojson')
+    .then(res => {
+      if (!res.ok) throw new Error('GeoJSON régions introuvable');
+      return res.json();
+    })
+    .then(setRegionsData)
+    .catch(err => console.error('Erreur régions :', err));
+}, []);
+
+// Chargement des aires protégées
+useEffect(() => {
+  fetch('/data/aire_protegee_paddi.geojson')
+    .then(res => {
+      if (!res.ok) throw new Error('GeoJSON aires protégées introuvable');
+      return res.json();
+    })
+    .then(setAireProtegeeData)
+    .catch(err => console.error('Erreur aires protégées :', err));
+}, []);
+
+// Chargement des communes
+useEffect(() => {
+  fetch('/data/madagascar_communes.json')
+    .then(res => {
+      if (!res.ok) throw new Error('GeoJSON communes introuvable');
+      return res.json();
+    })
+    .then(setCommunesData)
+    .catch(err => console.error('Erreur communes :', err));
+}, []);
+
+// Chargement des périphéries de 5 km
+useEffect(() => {
+  fetch('/data/peripherie_5km_paddi.geojson')
+    .then(res => {
+      if (!res.ok) throw new Error('GeoJSON périphéries introuvable');
+      return res.json();
+    })
+    .then(setPeripherieData)
+    .catch(err => console.error('Erreur périphéries :', err));
+}, []);
 
   // Données des feux NASA FIRMS
   const [feux, setFeux] = useState<any[]>([]);
@@ -259,8 +380,14 @@ export default function Pression() {
             {/* Zones de pression */}
             <GeoJSON data={zones} />
             
-            {/* Détections de feux NASA FIRMS */}
-            <CoucheFeux features={feuxRecents} />
+            {/* Limites des régions */}
+              <RegionPressionLayer data={regionsData} />
+              
+              {/* Aires protégées */}
+              <AireProtegeePressionLayer data={aireProtegeeData} />
+              
+              {/* Détections NASA FIRMS */}
+              <CoucheFeux features={feuxRecents} />
         </MapContainer>
         {/* ================= TEST DONNÉES FIRMS ================= */}
 <div
