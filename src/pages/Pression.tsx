@@ -179,15 +179,16 @@ const feuxGeoJSON = {
             
             {/* Détections de feux NASA FIRMS */}
             <GeoJSON
+              key={feuxRecents.length}
               data={feuxGeoJSON}
               pointToLayer={(_feature, latlng) =>
                 L.circleMarker(latlng, {
-                  radius: 4,
-                  fillColor: '#ef2929',
+                  radius: 5,
+                  fillColor: '#ff0000',
                   color: '#ffffff',
-                  weight: 0.8,
+                  weight: 1,
                   opacity: 1,
-                  fillOpacity: 0.85,
+                  fillOpacity: 1,
                 })
               }
             />
