@@ -1336,16 +1336,16 @@ const CSS = `
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
+  padding: 10px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  color: #172b24;
+  color: #111827;
 }
 
 .pr-check:hover {
-  background: rgba(8, 127, 99, 0.10);
+  background: #eef4f0;
 }
 
 .pr-check input {
