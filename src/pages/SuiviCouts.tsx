@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { calculerDecaissement, type BaseDecaissement } from "../utils/decaissement";
 import { useLanguage } from "../context/LanguageContext";
 import LoginModal from "../components/LoginModal";
 import UpdateModal from "../components/UpdateModal";
-import {CalendarDays,RotateCcw,RefreshCw,Building2,Building,Target,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText
+import {CalendarDays,RotateCcw,RefreshCw,Building2,Building,Target,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText, HardHat, Landmark, Cog, Receipt
       } from 'lucide-react';
 import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
 import { MdPayments, MdAccountBalanceWallet } from 'react-icons/md';
@@ -37,6 +38,10 @@ interface CoutActivite {
       
           byComponent: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE",
           byInstrument: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT",
+
+            allocatedShare: "% DU BUDGET ALLOUÉ", instExperts: "EXPERTS", instMission: "FRAIS DE MISSION", instContrats: "CONTRATS",
+            instAchats: "ACHATS PAR LE PROJET", instConstruction: "CONSTRUCTION (LP 005)", instFinancements: "FINANCEMENTS",
+            instCharges: "CHARGES DE FONCTIONNEMENT ET DIVERS", instFraisGeneraux: "FRAIS GÉNÉRAUX + TVA GER",
       
           component: "COMPOSANTE",
           instrument: "INSTRUMENT",
@@ -128,6 +133,10 @@ interface CoutActivite {
       
           byComponent: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY SINGA",
           byInstrument: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY FITAOVANA",
+
+            allocatedShare: "%-N'NY TETIBOLA VOATOMBOKA", instExperts: "MANAM-PAHAIZANA", instMission: "SARAN'NY IRAKA", instContrats: "FIFANEKENA",
+            instAchats: "FIVIDIANA ATAON'NY TETIKASA", instConstruction: "FANORENANA (LP 005)", instFinancements: "FAMATSIAM-BOLA",
+            instCharges: "SARAN'NY FIASANA SY HAFA", instFraisGeneraux: "SARAN'NY ANKAPOBENY + TVA GER",
       
           component: "SINGA",
           instrument: "FITAOVANA",
@@ -218,6 +227,10 @@ interface CoutActivite {
       
           byComponent: "ANNUAL DISBURSEMENT BY COMPONENT",
           byInstrument: "ANNUAL DISBURSEMENT BY INSTRUMENT",
+
+            allocatedShare: "% OF ALLOCATED BUDGET", instExperts: "EXPERTS", instMission: "MISSION COSTS", instContrats: "CONTRACTS",
+            instAchats: "PURCHASES BY THE PROJECT", instConstruction: "CONSTRUCTION (LP 005)", instFinancements: "FINANCING",
+            instCharges: "OPERATING COSTS AND MISCELLANEOUS", instFraisGeneraux: "OVERHEADS + VAT GER",
       
           component: "COMPONENT",
           instrument: "INSTRUMENT",
@@ -322,6 +335,10 @@ interface CoutActivite {
       
           progressComponent: "FORTSCHRITT NACH KOMPONENTE",
           progressInstrument: "FORTSCHRITT NACH INSTRUMENT",
+
+            allocatedShare: "% DES ZUGEWIESENEN BUDGETS", instExperts: "EXPERTEN", instMission: "MISSIONSKOSTEN", instContrats: "VERTRÄGE",
+            instAchats: "EINKÄUFE DES PROJEKTS", instConstruction: "BAU (LP 005)", instFinancements: "FINANZIERUNGEN",
+            instCharges: "BETRIEBSKOSTEN UND SONSTIGES", instFraisGeneraux: "GEMEINKOSTEN + MWST GER",
       
           planned: "GEPLANT",
       
@@ -409,6 +426,14 @@ const formaterDateMaj = (iso: string) =>
   const [annee,setAnnee] = useState<number>(2026);
   const [mois,setMois] = useState<string>("Tous");
   const [uc,setUc] = useState<string>("Tous");
+  const [baseDec, setBaseDec] = useState<BaseDecaissement | null>(null);
+useEffect(() => {
+  fetch("/data/Base_Decaissement.geojson")
+    .then(r => { if (!r.ok) throw new Error("Base_Decaissement.geojson introuvable"); return r.json(); })
+    .then(setBaseDec)
+    .catch(err => console.error("Erreur chargement Base Décaissement :", err));
+}, []);
+  const dec = useMemo(() => calculerDecaissement(baseDec, annee, mois), [baseDec, annee, mois]);
   const handleReset = () => {
         setAnnee(2026);
         setMois("Tous");
@@ -493,11 +518,7 @@ useEffect(() => {
       const ligneGraph = ligneProg; // le graphique annuel utilise la même ligne
 
     // Cumul programme = années précédentes + année choisie (janvier -> mois choisi)
-      const decaissementCumule =
-        anneesProgramme.filter(a => a < annee).reduce((s, a) => s + n(ligneProg[`BD ${a} (EUR)`]), 0)
-        + n(ligneProg[`BD ${annee} (EUR)`]);
-      
-      // Donut du point 3 : cumul / budget total fixe de 34 500 000
+      const decaissementCumule = dec.cumulTotal;
       const tauxDecaissement = (decaissementCumule / budgetTotalProjet) * 100;
       
       // Point 4 (onglet Résumé_Budget) : « Budget dépensé » / « Budget prévu »
@@ -527,204 +548,40 @@ useEffect(() => {
       ? "#22c55e"
       : "#2563eb";    
 
-      const output0 = Number(coutActuel["BD O0 (EUR)"]) || 0;
-      const output1 = Number(coutActuel["BD O1 (EUR)"]) || 0;
-      const output2 = Number(coutActuel["BD O2 (EUR)"]) || 0;
-      const output3 = Number(coutActuel["BD O3 (EUR)"]) || 0;
-      const output4 = Number(coutActuel["BD O4 (EUR)"]) || 0;
-
-      const totalOutputs =
-        output0 +
-        output1 +
-        output2 +
-        output3 +
-        output4;
-        const composantes = [
-          {
-            icon: Target,
-            title: "Output 0",
-            amount: output0,
-            percent:
-              budgetTotalProjet > 0
-                ? (output0 / budgetTotalProjet) * 100
-                : 0,
-            color: "#2563eb",
-          },        
-          {
-            icon: Leaf,
-            title: "Output 1",
-            amount: output1,
-            percent:
-              budgetTotalProjet > 0
-                ? (output1 / budgetTotalProjet) * 100
-                : 0,
-            color: "#16a34a",
-          },        
-          {
-            icon: Building,
-            title: "Output 2",
-            amount: output2,
-            percent:
-              budgetTotalProjet > 0
-                ? (output2 / budgetTotalProjet) * 100
-                : 0,
-            color: "#7c3aed",
-          },        
-          {
-            icon: Map,
-            title: "Output 3",
-            amount: output3,
-            percent:
-              budgetTotalProjet > 0
-                ? (output3 / budgetTotalProjet) * 100
-                : 0,
-            color: "#f59e0b",
-          },        
-          {
-            icon: Briefcase,
-            title: "Output 4",
-            amount: output4,
-            percent:
-              budgetTotalProjet > 0
-                ? (output4 / budgetTotalProjet) * 100
-                : 0,
-            color: "#f97316",
-          },
-        ];
-        const totalInstruments =
-          (Number(coutActuel["1. S (EUR)"]) || 0) +
-          (Number(coutActuel["1.6 L (EUR)"]) || 0) +
-          (Number(coutActuel["1.7 S (EUR)"]) || 0) +
-          (Number(coutActuel["1.8 P (EUR)"]) || 0) +
-          (Number(coutActuel["1.9 R (EUR)"]) || 0) +
-          (Number(coutActuel["2.1 S (EUR)"]) || 0) +
-          (Number(coutActuel["2.2 S (EUR)"]) || 0) +
-          (Number(coutActuel["3.2 F (EUR)"]) || 0) +
-          (Number(coutActuel["3.4 G (EUR)"]) || 0) +
-          (Number(coutActuel["4 S (EUR)"]) || 0);
-
-        const instruments = [
-          {
-            icon: User,
-            title: t.experts,
-            amount: Number(coutActuel["1. S (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["1. S (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#f59e0b",
-          },        
-          {
-            icon: Building2,
-            title: t.prestationsSiege,
-            amount: Number(coutActuel["1.6 L (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["1.6 L (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#f59e0b",
-          },        
-          {
-            icon: Building,
-            title: t.prestationsBureaux,
-            amount: Number(coutActuel["1.7 S (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["1.7 S (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#f59e0b",
-          },        
-          {
-            icon: UserRound,
-            title: t.servicesRessourcesHumaines,
-            amount: Number(coutActuel["1.8 P (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["1.8 P (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#f59e0b",
-          },        
-          {
-            icon: Plane,
-            title: t.fraisDeplacement,
-            amount: Number(coutActuel["1.9 R (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["1.9 R (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#f97316",
-          },        
-          {
-            icon: ShoppingCart,
-            title: t.achats,
-            amount: Number(coutActuel["2.1 S (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["2.1 S (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#2563eb",
-          },        
-          {
-            icon: Briefcase,
-            title: t.approvisionnementConstruction,
-            amount: Number(coutActuel["2.2 S (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["2.2 S (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#7c3aed",
-          },        
-          {
-            icon: Wallet,
-            title: t.sl,
-            amount: Number(coutActuel["3.2 F (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["3.2 F (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#2563eb",
-          },        
-          {
-            icon: Coins,
-            title: t.grants,
-            amount: Number(coutActuel["3.4 G (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["3.4 G (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#2563eb",
-          },        
-          {
-            icon: Coins,
-            title: t.autres,
-            amount: Number(coutActuel["4 S (EUR)"]) || 0,
-            percent:
-              budgetTotalProjet > 0
-                ? ((Number(coutActuel["4 S (EUR)"]) || 0) / budgetTotalProjet) * 100
-                : 0,
-            color: "#64748b",
-          },
-        ];
-        const anneesGraph = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
-
-      // =====================================================
-      // GRAPHIQUE ANNUEL
-      // =====================================================
-
-      const yearlyData = anneesGraph.map((anneeGraph) => {
-        const valeur = Number(
-          ligneGraph?.[`BD ${anneeGraph} (EUR)`] || 0
-        );
-        const pourcentage =
-          budgetTotalProjet > 0
-            ? (valeur / budgetTotalProjet) * 100
-            : 0;
-        return {
-          year: String(anneeGraph),
-          value: valeur / 1_000_000,
-          percent: pourcentage.toFixed(1),
-        };
-      });
+      // ===== Carte « par composante » : onglet « Pour Céline » =====
+      const totalOutputs = dec.totalOutputs;
+      const composantes = dec.outputs.map((o, i) => ({
+        icon: [Target, Leaf, Building, Map, Briefcase][i],
+        title: `Output ${i}`,
+        amount: o.montant,
+        percent: o.pct,                       // % du budget total (34 500 000)
+        color: ["#2563eb", "#16a34a", "#7c3aed", "#f59e0b", "#f97316"][i],
+      }));
+      
+      // ===== Carte « par instrument » : onglet « CL-Dépenses » =====
+      const infosInstruments: Record<string, { icon: any; title: string; color: string }> = {
+        "Experts": { icon: User, title: t.instExperts, color: "#2563eb" },
+        "Frais de mission": { icon: Plane, title: t.instMission, color: "#f97316" },
+        "Contrats": { icon: FileText, title: t.instContrats, color: "#7c3aed" },
+        "Achats par le projet": { icon: ShoppingCart, title: t.instAchats, color: "#16a34a" },
+        "Construction (LP 005)": { icon: HardHat, title: t.instConstruction, color: "#b45309" },
+        "Financements": { icon: Landmark, title: t.instFinancements, color: "#0891b2" },
+        "Charges de fonctionnement et divers": { icon: Cog, title: t.instCharges, color: "#64748b" },
+        "Frais généraux + TVA GER": { icon: Receipt, title: t.instFraisGeneraux, color: "#db2777" },
+      };
+      const totalInstruments = dec.totalInstruments;
+      const instruments = dec.instruments.map((i) => ({
+        ...infosInstruments[i.cle],
+        amount: i.montant,
+        percent: i.pct,                       // % du budget alloué à CET instrument (non affiché)
+      }));
+      
+      // ===== Graphique annuel : somme de chaque année, % du budget total =====
+      const yearlyData = dec.parAnnee.map((a) => ({
+        year: String(a.annee),
+        value: a.valeur / 1_000_000,
+        percent: a.pct.toFixed(1),
+      }));
       console.log("========== GRAPHE ANNUEL ==========");
       console.log("Année sélectionnée :", annee);
       console.log("Mois sélectionné :", mois);
@@ -1226,7 +1083,7 @@ useEffect(() => {
           <div style={styles.tableHeaderRow}>
             <span>{t.instrument}</span>
             <span>{t.disbursed}</span>
-            <span>{t.budgetShare}</span>
+            <span>{t.allocatedShare}</span>
           </div>
 
           <div
