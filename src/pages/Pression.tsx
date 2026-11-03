@@ -66,11 +66,12 @@ const FONDS: Record<
     apercu: 'linear-gradient(135deg,#f1f3f4,#d9dee2)',
   },
   osm: {
-    label: 'OpenStreetMap',
-    url : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-    attribution: '© OpenStreetMap',
-    apercu: 'linear-gradient(135deg,#e9e2cf,#b7d1a0)',
-  },
+     label: 'OpenStreetMap',
+     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+     attribution: '© OpenStreetMap',
+     apercu: 'linear-gradient(135deg,#e9e2cf,#b7d1a0)',
+   },
+
 };
 
 const nf = (n: number) => n.toLocaleString('fr-FR');
@@ -397,7 +398,8 @@ export default function Pression() {
   const [confiance, setConfiance] = useState<'l' | 'n' | 'h'>('l');
 
   // ---- Interface
-  const [fond, setFond] = useState('sombre');
+  const [fond, setFond] = useState('clair');
+
   const [menu, setMenu] = useState<null | 'fond' | 'couches' | 'export'>(null);
   const [couches, setCouches] = useState({
     regions: true,
@@ -1009,7 +1011,12 @@ export default function Pression() {
                       <input
                         type="checkbox"
                         checked={couches[id]}
-                        onChange={() => setCouches({ ...couches, [id]: !couches[id] })}
+                           onChange={() =>
+                             setCouches((precedentes) => ({
+                               ...precedentes,
+                               [id]: !precedentes[id],
+                             }))
+                           }
                       />
                       <span>{label}</span>
                     </label>
@@ -1049,7 +1056,7 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
 .pr{
-  --bg:#0c1a19; --panel:#102320; --carte:#173029; --carte2:#1d3a33;
+  --bg:#f7f7f8;--panel:#ffffff;--carte:#ffffff;--carte2:#f3f4f6;--ligne:#e5e7eb;--txt:#1f2937;--mut:#6b7280;--lagon:#10a37f;--braise:#f97316;
   --ligne:rgba(190,230,215,.11); --txt:#e4efe9; --mut:#8fa9a0;
   --lagon:#52d6b8; --braise:#ff7a45;
   --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
@@ -1191,4 +1198,72 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){
   .pr *{transition:none !important}
 }
+/* Thème clair */
+.pr-hero{
+  background:linear-gradient(180deg,#ffffff,#f3f4f6);
+  border-color:var(--ligne);
+}
+
+.pr-barre{
+  background:#e5e7eb;
+}
+
+.pr-cliquable:hover,
+.pr-pop-item:hover:not(:disabled),
+.pr-check:hover{
+  background:rgba(15,23,42,.06);
+}
+
+.pr-cliquable.on,
+.pr-pop-fond.on{
+  background:rgba(16,163,127,.12);
+}
+
+.pr-outil{
+  background:rgba(255,255,255,.96);
+  border-color:#d1d5db;
+  color:var(--txt);
+  box-shadow:0 2px 8px rgba(15,23,42,.08);
+}
+
+.pr-outil:hover{
+  background:#f3f4f6;
+}
+
+.pr-pop{
+  background:#ffffff;
+  border-color:var(--ligne);
+  box-shadow:0 14px 40px rgba(15,23,42,.16);
+}
+
+.pr-legende{
+  background:rgba(255,255,255,.96);
+  border-color:var(--ligne);
+  box-shadow:0 2px 8px rgba(15,23,42,.08);
+}
+
+.pr .leaflet-container{
+  background:#f7f7f8;
+}
+
+.pr .leaflet-tooltip{
+  background:#ffffff;
+  color:var(--txt);
+  border-color:var(--ligne);
+}
+
+/* Le voile reste derrière les boutons et les menus */
+.pr-voile{
+  z-index:1005;
+}
+
+.pr-outils{
+  z-index:1010;
+}
+
+.pr-outils .pr-pop{
+  z-index:1020;
+}
+
+
 `;
