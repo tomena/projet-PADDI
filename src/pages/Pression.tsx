@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -38,6 +38,52 @@ const zones = {
 
 export default function Pression() {
   const [basemap, setBasemap] = useState('satellite');
+
+  // Données des feux NASA FIRMS
+  const [feux, setFeux] = useState<any[]>([]);
+  const [chargementFeux, setChargementFeux] = useState(true);
+  const [erreurFeux, setErreurFeux] = useState('');
+
+  // Récupération des détections sur les 3 derniers jours
+  useEffect(() => {
+    const chargerFeux = async () => {
+      try {
+        setChargementFeux(true);
+        setErreurFeux('');
+
+        const response = await fetch('/api/firms');
+
+        if (!response.ok) {
+          throw new Error('Impossible de récupérer les données FIRMS.');
+        }
+
+        const geojson = await response.json();
+
+        setFeux(
+          Array.isArray(geojson.features)
+            ? geojson.features
+            : []
+        );
+      } catch (error) {
+        console.error('Erreur chargement FIRMS :', error);
+
+        setErreurFeux(
+          error instanceof Error
+            ? error.message
+            : 'Erreur inconnue'
+        );
+      } finally {
+        setChargementFeux(false);
+      }
+    };
+
+    chargerFeux();
+  }, []);
+
+  // Nombre de détections selon la période
+  const feux24h = compterFeuxDepuis(feux, 24);
+  const feux48h = compterFeuxDepuis(feux, 48);
+  const feux72h = compterFeuxDepuis(feux, 72);
 
   const getBaseLayer = () => {
     switch (basemap) {
@@ -95,6 +141,45 @@ export default function Pression() {
 
           <GeoJSON data={zones} />
         </MapContainer>
+        {/* ================= TEST DONNÉES FIRMS ================= */}
+<div
+  style={{
+    position: 'absolute',
+    bottom: 20,
+    left: 12,
+    zIndex: 999,
+    background: 'rgba(255,255,255,0.95)',
+    padding: 15,
+    borderRadius: 12,
+    boxShadow: '0 4px 15px rgba(0,0,0,0.12)',
+    color: '#111827',
+    minWidth: 220,
+  }}
+>
+  <div style={{ fontWeight: 700, marginBottom: 8 }}>
+    Détections NASA FIRMS
+  </div>
+
+  {chargementFeux ? (
+    <div>Chargement des données...</div>
+        ) : erreurFeux ? (
+          <div style={{ color: '#dc2626' }}>
+            {erreurFeux}
+          </div>
+        ) : (
+          <>
+            <div>Depuis 24 h : <strong>{feux24h}</strong></div>
+            <div>Depuis 48 h : <strong>{feux48h}</strong></div>
+            <div>Depuis 72 h : <strong>{feux72h}</strong></div>
+      
+            <hr />
+      
+            <div>
+              Total récupéré : <strong>{feux.length}</strong> points
+            </div>
+          </>
+        )}
+      </div>
 
         {/* ================= LEFT PANEL (BASEMAP) ================= */}
         <div style={styles.leftPanel}>
