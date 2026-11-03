@@ -222,6 +222,7 @@ const zones = {
 
 export default function Pression() {
   const [basemap, setBasemap] = useState('satellite');
+  const [selectedRegion, setSelectedRegion] = useState("Toutes les régions");
 
   // ================= COUCHES GÉOGRAPHIQUES =================
 
@@ -240,6 +241,14 @@ useEffect(() => {
     .then(setRegionsData)
     .catch(err => console.error('Erreur régions :', err));
 }, []);
+
+  const regionsDisponibles = Array.from(
+  new Set(
+    (regionsData?.features || [])
+      .map((feature: any) => feature.properties?.nom_reg)
+      .filter(Boolean)
+  )
+).sort((a: any, b: any) => a.localeCompare(b, "fr"));
 
 // Chargement des aires protégées
 useEffect(() => {
@@ -358,12 +367,27 @@ useEffect(() => {
         </div>
 
         <div style={styles.actions}>
-          <input type="date" style={styles.input} />
 
-          <button style={styles.btn}>Filtres</button>
+  <select
+    value={selectedRegion}
+    onChange={(e) => setSelectedRegion(e.target.value)}
+    style={styles.selectRegion}
+  >
+    <option value="Toutes les régions">
+      Toutes les régions
+    </option>
 
-          <button style={styles.btnExport}>Exporter</button>
-        </div>
+    {regionsDisponibles.map((region: any) => (
+      <option key={region} value={region}>
+        {region}
+      </option>
+    ))}
+  </select>
+
+  <button style={styles.btnExport}>
+    Exporter
+  </button>
+</div>
       </div>
 
       {/* ================= MAP ================= */}
@@ -485,16 +509,6 @@ useEffect(() => {
             <span style={{ width: 11, height: 11, borderRadius: '50%', background: '#facc15' }} />
             <span>48 à 72 heures</span>
           </div>
-
-          <hr style={{ opacity: 0.2 }} />
-
-          <div style={styles.panelTitle}>Légende</div>
-
-          <div style={{ color: '#2ecc71' }}>Très faible</div>
-          <div style={{ color: '#a3e635' }}>Faible</div>
-          <div style={{ color: '#facc15' }}>Modéré</div>
-          <div style={{ color: '#f97316' }}>Élevé</div>
-          <div style={{ color: '#dc2626' }}>Très élevé</div>
         </div>
       </div>
     </div>
@@ -624,6 +638,18 @@ const styles: any = {
     marginBottom: 8,
     color: '#1f2937',
   },
+
+  selectRegion: {
+  padding: '8px 12px',
+  borderRadius: 8,
+  border: '1px solid #d1d5db',
+  background: '#ffffff',
+  color: '#111827',
+  fontSize: 13,
+  minWidth: 190,
+  cursor: 'pointer',
+  outline: 'none',
+},
 
   item: (active: boolean) => ({
     padding: 8,
