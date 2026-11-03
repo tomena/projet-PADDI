@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 const compterFeuxDepuis = (
@@ -26,6 +27,32 @@ const compterFeuxDepuis = (
       dateFeu <= maintenant
     );
   }).length;
+};
+
+const filtrerFeuxDepuis = (
+  features: any[],
+  heures: number
+) => {
+  const maintenant = Date.now();
+  const limite = maintenant - heures * 60 * 60 * 1000;
+
+  return features.filter((feature) => {
+    const { acq_date, acq_time } = feature.properties;
+
+    if (!acq_date || acq_time == null) return false;
+
+    const heure = String(acq_time).padStart(4, '0');
+
+    const dateFeu = new Date(
+      `${acq_date}T${heure.slice(0, 2)}:${heure.slice(2, 4)}:00Z`
+    ).getTime();
+
+    return (
+      Number.isFinite(dateFeu) &&
+      dateFeu >= limite &&
+      dateFeu <= maintenant
+    );
+  });
 };
 /* ================= DATA ================= */
 
@@ -85,6 +112,13 @@ export default function Pression() {
   const feux48h = compterFeuxDepuis(feux, 48);
   const feux72h = compterFeuxDepuis(feux, 72);
 
+  const feuxRecents = filtrerFeuxDepuis(feux, 72);
+
+const feuxGeoJSON = {
+  type: 'FeatureCollection' as const,
+  features: feuxRecents,
+};
+
   const getBaseLayer = () => {
     switch (basemap) {
       case 'osm':
@@ -136,10 +170,27 @@ export default function Pression() {
           zoom={6}
           style={styles.map}
           zoomControl={false}
+          preferCanvas={true}
         >
           {getBaseLayer()}
 
-          <GeoJSON data={zones} />
+            {/* Zones de pression */}
+            <GeoJSON data={zones} />
+            
+            {/* Détections de feux NASA FIRMS */}
+            <GeoJSON
+              data={feuxGeoJSON}
+              pointToLayer={(_feature, latlng) =>
+                L.circleMarker(latlng, {
+                  radius: 4,
+                  fillColor: '#ef2929',
+                  color: '#ffffff',
+                  weight: 0.8,
+                  opacity: 1,
+                  fillOpacity: 0.85,
+                })
+              }
+            />
         </MapContainer>
         {/* ================= TEST DONNÉES FIRMS ================= */}
 <div
