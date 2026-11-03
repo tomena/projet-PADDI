@@ -1405,59 +1405,6 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){
   .pr *{transition:none !important}
 }
-/* Thème clair */
-.pr-hero{
-  background:linear-gradient(180deg,#ffffff,#f3f4f6);
-  border-color:var(--ligne);
-}
-
-.pr-barre{
-  background:#e5e7eb;
-}
-
-.pr-cliquable:hover,
-.pr-pop-item:hover:not(:disabled),
-.pr-check:hover{
-  background:rgba(15,23,42,.06);
-}
-
-.pr-cliquable.on,
-.pr-pop-fond.on{
-  background:rgba(16,163,127,.12);
-}
-
-.pr-outil{
-  background:rgba(255,255,255,.96);
-  border-color:#d1d5db;
-  color:var(--txt);
-  box-shadow:0 2px 8px rgba(15,23,42,.08);
-}
-
-.pr-outil:hover{
-  background:#f3f4f6;
-}
-
-.pr-pop{
-  background:#ffffff;
-  border-color:var(--ligne);
-  box-shadow:0 14px 40px rgba(15,23,42,.16);
-}
-
-.pr-legende{
-  background:rgba(255,255,255,.96);
-  border-color:var(--ligne);
-  box-shadow:0 2px 8px rgba(15,23,42,.08);
-}
-
-.pr .leaflet-container{
-  background:#f7f7f8;
-}
-
-.pr .leaflet-tooltip{
-  background:#ffffff;
-  color:var(--txt);
-  border-color:var(--ligne);
-}
 
 /* Le voile reste derrière les boutons et les menus */
 .pr-voile{
