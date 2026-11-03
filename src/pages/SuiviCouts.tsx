@@ -39,7 +39,7 @@ interface CoutActivite {
           byComponent: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE",
           byInstrument: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT",
 
-            allocatedShare: "% DU BUDGET ALLOUÉ", instExperts: "EXPERTS", instMission: "FRAIS DE MISSION", instContrats: "CONTRATS",
+            allocatedShare: "% AU BUDGET", instExperts: "EXPERTS", instMission: "FRAIS DE MISSION", instContrats: "CONTRATS",
             instAchats: "ACHATS PAR LE PROJET", instConstruction: "CONSTRUCTION (LP 005)", instFinancements: "FINANCEMENTS",
             instCharges: "CHARGES DE FONCTIONNEMENT ET DIVERS", instFraisGeneraux: "FRAIS GÉNÉRAUX + TVA GER",
       
@@ -228,7 +228,7 @@ interface CoutActivite {
           byComponent: "ANNUAL DISBURSEMENT BY COMPONENT",
           byInstrument: "ANNUAL DISBURSEMENT BY INSTRUMENT",
 
-            allocatedShare: "% OF ALLOCATED BUDGET", instExperts: "EXPERTS", instMission: "MISSION COSTS", instContrats: "CONTRACTS",
+            allocatedShare: "% OF BUDGET", instExperts: "EXPERTS", instMission: "MISSION COSTS", instContrats: "CONTRACTS",
             instAchats: "PURCHASES BY THE PROJECT", instConstruction: "CONSTRUCTION (LP 005)", instFinancements: "FINANCING",
             instCharges: "OPERATING COSTS AND MISCELLANEOUS", instFraisGeneraux: "OVERHEADS + VAT GER",
       
@@ -336,7 +336,7 @@ interface CoutActivite {
           progressComponent: "FORTSCHRITT NACH KOMPONENTE",
           progressInstrument: "FORTSCHRITT NACH INSTRUMENT",
 
-            allocatedShare: "% DES ZUGEWIESENEN BUDGETS", instExperts: "EXPERTEN", instMission: "MISSIONSKOSTEN", instContrats: "VERTRÄGE",
+            allocatedShare: "% DES BUDGETS", instExperts: "EXPERTEN", instMission: "MISSIONSKOSTEN", instContrats: "VERTRÄGE",
             instAchats: "EINKÄUFE DES PROJEKTS", instConstruction: "BAU (LP 005)", instFinancements: "FINANZIERUNGEN",
             instCharges: "BETRIEBSKOSTEN UND SONSTIGES", instFraisGeneraux: "GEMEINKOSTEN + MWST GER",
       
