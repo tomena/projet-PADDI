@@ -25,7 +25,7 @@ const UTILISATEURS: Record<string, string> = {
   "mmichael.raharifidinarivo@giz.de": "Michael",
   "tsinjoharinosy.rahaingoarivelo@giz.de": "Tsinjo",
   // Céline : met à jour le décaissement (instruments et composantes). REMPLACEZ par son vrai email.
-  "prenom.nom@giz.de": "Celine",
+  "celine.limbaka@giz.de": "Celine",
 };
 
 const LONGUEUR_MIN = 10;
