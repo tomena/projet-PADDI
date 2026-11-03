@@ -2,6 +2,31 @@ import { useState } from 'react';
 import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 
+const compterFeuxDepuis = (
+  features: any[],
+  heures: number
+) => {
+  const maintenant = Date.now();
+  const limite = maintenant - heures * 60 * 60 * 1000;
+
+  return features.filter((feature) => {
+    const { acq_date, acq_time } = feature.properties;
+
+    if (!acq_date || acq_time == null) return false;
+
+    const heure = String(acq_time).padStart(4, "0");
+
+    const dateFeu = new Date(
+      `${acq_date}T${heure.slice(0, 2)}:${heure.slice(2, 4)}:00Z`
+    ).getTime();
+
+    return (
+      Number.isFinite(dateFeu) &&
+      dateFeu >= limite &&
+      dateFeu <= maintenant
+    );
+  }).length;
+};
 /* ================= DATA ================= */
 
 const zones = {
