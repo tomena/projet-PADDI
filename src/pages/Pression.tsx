@@ -970,24 +970,33 @@ export default function Pression() {
                 {FONDS[fond].label}
               </button>
               {menu === 'fond' && (
-              <div className="pr-pop">
-                {(Object.entries(FONDS) as [keyof typeof FONDS, typeof FONDS.topo][]).map(
-                  ([key, item]) => (
-                    <button
-                      key={key}
-                      className={`pr-pop-item ${fond === key ? 'actif' : ''}`}
-                      onClick={() => {
-                        setFond(key);
-                        setMenu(null);
-                      }}
-                    >
-                      <span>{item.nom}</span>
-                      {fond === key && <span>✓</span>}
-                    </button>
-                  )
-                )}
-              </div>
-            )}
+                 <div className="pr-pop pr-pop-fonds">
+                   {(Object.entries(FONDS) as [keyof typeof FONDS, (typeof FONDS)['topo']][]).map(
+                     ([key, item]) => (
+                       <button
+                         key={key}
+                         type="button"
+                         className={`pr-pop-item pr-pop-fond ${fond === key ? 'on' : ''}`}
+                         onClick={() => {
+                           setFond(key);
+                           setMenu(null);
+                         }}
+                       >
+                         <span
+                           className="pr-apercu grand"
+                           style={{ background: item.apercu }}
+                         />
+               
+                         <strong>{item.label}</strong>
+               
+                         {fond === key && (
+                           <span className="pr-fond-check">✓</span>
+                         )}
+                       </button>
+                     )
+                   )}
+                 </div>
+               )}
             </div>
 
             <div className="pr-menu-wrap">
@@ -1045,36 +1054,49 @@ export default function Pression() {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
-.pr{
-  --bg:#f5f7f6;
-  --panel:#ffffff;
-  --carte:#ffffff;
-  --carte2:#eef2f0;
-  --ligne:#d9e1dd;
-  --txt:#172b24;
-  --mut:#52645c;
-  --lagon:#087f63;
-  --braise:#e85d24;
+.pr {
+  --bg: transparent;
+  --panel: transparent;
+  --carte: rgba(255, 255, 255, 0.82);
+  --carte2: rgba(243, 246, 244, 0.95);
+  --ligne: rgba(0, 0, 0, 0.08);
+  --txt: #111827;
+  --mut: #4b5563;
+  --lagon: #087f63;
+  --braise: #e85d24;
 
-  --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
-  --corps:'Figtree','Segoe UI',system-ui,sans-serif;
+  --titre: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
+  --corps: 'Figtree', 'Segoe UI', system-ui, sans-serif;
 
-  height:100%;
-  width:100%;
-  display:flex;
-  flex-direction:column;
-  background:var(--bg);
-  color:var(--txt);
-  font-family:var(--corps);
-  font-size:14px;
-  overflow:hidden;
-  box-sizing:border-box;
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+  color: #111827;
+  font-family: var(--corps);
+  font-size: 14px;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 .pr *{box-sizing:border-box}
 .pr button,.pr select,.pr input{font-family:inherit}
 
 /* ---- En-tête ---- */
-.pr-top{background:var(--panel);border-bottom:1px solid var(--ligne);padding:12px 18px;position:relative;z-index:20}
+.pr-top {
+  background: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  padding: 12px 18px;
+  position: relative;
+  z-index: 20;
+}
+
+.pr-panel {
+  overflow-y: auto;
+  padding: 16px;
+  background: transparent;
+  border-right: 1px solid rgba(0, 0, 0, 0.06);
+}
 .pr-top-ligne{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .pr-marque{display:flex;align-items:center;gap:12px;min-width:0}
 .pr-logo{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:#fff;
@@ -1112,16 +1134,44 @@ const CSS = `
 .pr-map{position:relative;min-height:0;min-width:0;isolation:isolate}
 
 /* ---- Hero ---- */
-.pr-hero{background:linear-gradient(180deg,#1b3a31,#143027);border:1px solid var(--ligne);border-radius:18px;padding:18px;margin-bottom:14px}
+.pr-hero {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 18px;
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
 .pr-hero-haut{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
-.pr-hero-nb{font-family:var(--titre);font-weight:800;font-size:clamp(44px,6vw,68px);line-height:.9;color:var(--braise);letter-spacing:-.03em}
+.pr-hero-nb {
+  font-family: var(--titre);
+  font-weight: 800;
+  font-size: clamp(44px, 6vw, 68px);
+  line-height: .9;
+  color: var(--braise);
+  letter-spacing: -.03em;
+}
 .pr-hero-txt{display:flex;flex-direction:column;gap:2px;padding-bottom:4px;min-width:0}
-.pr-hero-txt strong{font-family:var(--titre);font-size:17px}
-.pr-hero-txt span{color:var(--mut);font-size:12.5px}
+.pr-hero-txt strong {
+  font-family: var(--titre);
+  font-size: 17px;
+  color: #111827;
+}
+
+.pr-hero-txt span {
+  color: #4b5563;
+  font-size: 12.5px;
+}
 .pr-chrono{display:flex;align-items:flex-end;gap:5px;height:68px;margin-top:16px}
 .pr-chrono-col{flex:1;height:100%;display:flex;align-items:flex-end}
 .pr-chrono-barre{width:100%;border-radius:4px 4px 2px 2px;transition:height .3s,opacity .2s}
-.pr-chrono-legende{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:6px}
+.pr-chrono-legende {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #4b5563;
+  margin-top: 6px;
+}
 
 /* ---- Grille 2 colonnes × 3 lignes ---- */
 .pr-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
@@ -1199,15 +1249,13 @@ const CSS = `
 .pr-pop {
   position: absolute;
   top: calc(100% + 8px);
-  z-index: 1010;
-  min-width: 230px;
-  background: rgba(255, 255, 255, 0.90);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(35, 65, 52, 0.22);
+  z-index: 1020;
+  min-width: 245px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 12px;
-  padding: 6px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+  padding: 7px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
 }
 
 .pr-pop-droite {
@@ -1217,28 +1265,26 @@ const CSS = `
 /* Options des menus */
 .pr-pop-item {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 11px;
   width: 100%;
   text-align: left;
   padding: 10px;
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #172b24;
+  color: #111827;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .pr-pop-item span {
-  font-size: 11.5px;
-  color: #52645c;
-  font-weight: 500;
+  color: #374151;
 }
 
 .pr-pop-item:hover:not(:disabled) {
-  background: rgba(8, 127, 99, 0.10);
+  background: #eef4f0;
 }
 
 .pr-pop-item:disabled {
@@ -1246,18 +1292,45 @@ const CSS = `
   cursor: default;
 }
 
-/* Options des fonds de carte */
+/* Liste des fonds */
+.pr-pop-fonds {
+  min-width: 245px;
+  background: rgba(255, 255, 255, 0.96);
+}
+
 .pr-pop-fond {
   flex-direction: row;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+  min-height: 55px;
 }
 
 .pr-pop-fond.on {
-  background: rgba(8, 127, 99, 0.15);
-  border: 1px solid rgba(8, 127, 99, 0.25);
+  background: #e7f3ed;
+  border: 1px solid rgba(8, 127, 99, 0.28);
 }
 
+.pr-fond-check {
+  margin-left: auto;
+  color: #087f63 !important;
+  font-size: 17px !important;
+  font-weight: 800;
+}
+
+/* Aperçus des fonds */
+.pr-apercu {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  flex: none;
+}
+
+.pr-apercu.grand {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+}
 /* Cases à cocher des couches */
 .pr-check {
   display: flex;
