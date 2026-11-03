@@ -141,18 +141,30 @@ function CoucheFeux({ features }: { features: any[] }) {
   return null;
 }
 
-function RegionPressionLayer({ data }: { data: any }) {
+function RegionPressionLayer({
+  data,
+  selectedRegion,
+}: {
+  data: any;
+  selectedRegion: string;
+}) {
   const map = useMap();
 
   useEffect(() => {
     if (!data?.features) return;
 
     const layer = L.geoJSON(data, {
-      style: {
-        color: '#ffffff',
-        weight: 1,
-        fillColor: '#64748b',
-        fillOpacity: 0.12,
+      style: (feature: any) => {
+        const selectionnee =
+          selectedRegion !== "Toutes les régions" &&
+          feature.properties?.nom_reg === selectedRegion;
+      
+        return {
+          color: selectionnee ? "#0284c7" : "#ffffff",
+          weight: selectionnee ? 2.5 : 1,
+          fillColor: selectionnee ? "#38bdf8" : "#64748b",
+          fillOpacity: selectionnee ? 0.35 : 0.12,
+        };
       },
       onEachFeature: (feature, layer) => {
         const nom = feature.properties?.nom_reg;
@@ -171,7 +183,7 @@ function RegionPressionLayer({ data }: { data: any }) {
     return () => {
       map.removeLayer(layer);
     };
-  }, [data, map]);
+  }, [data, map, selectedRegion]);
 
   return null;
 }
@@ -211,12 +223,119 @@ function AireProtegeePressionLayer({ data }: { data: any }) {
   return null;
 }
 
+function ZoomRegion({
+  data,
+  selectedRegion,
+}: {
+  data: any;
+  selectedRegion: string;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!data?.features?.length) return;
+
+    if (selectedRegion === "Toutes les régions") {
+      map.setView([-18.8, 47.5], 6);
+      return;
+    }
+
+    const region = data.features.find(
+      (feature: any) =>
+        feature.properties?.nom_reg === selectedRegion
+    );
+
+    if (!region) return;
+
+    const bounds = L.geoJSON(region).getBounds();
+
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [30, 30],
+        maxZoom: 9,
+      });
+    }
+  }, [data, selectedRegion, map]);
+
+  return null;
+}
 /* ================= DATA ================= */
 
 const zones = {
   type: 'FeatureCollection',
   features: [],
 };
+function pointDansAnneau(
+  longitude: number,
+  latitude: number,
+  anneau: number[][]
+) {
+  let dedans = false;
+
+  for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
+    const xi = anneau[i][0];
+    const yi = anneau[i][1];
+    const xj = anneau[j][0];
+    const yj = anneau[j][1];
+
+    const intersecte =
+      yi > latitude !== yj > latitude &&
+      longitude < ((xj - xi) * (latitude - yi)) / (yj - yi) + xi;
+
+    if (intersecte) dedans = !dedans;
+  }
+
+  return dedans;
+}
+
+function pointDansPolygone(
+  longitude: number,
+  latitude: number,
+  geometry: any
+): boolean {
+  if (!geometry) return false;
+
+  const verifierPolygone = (polygone: number[][][]) => {
+    const exterieur = polygone[0];
+
+    if (!pointDansAnneau(longitude, latitude, exterieur)) {
+      return false;
+    }
+
+    // Exclure les éventuels trous du polygone
+    for (let i = 1; i < polygone.length; i++) {
+      if (pointDansAnneau(longitude, latitude, polygone[i])) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  if (geometry.type === "Polygon") {
+    return verifierPolygone(geometry.coordinates);
+  }
+
+  if (geometry.type === "MultiPolygon") {
+    return geometry.coordinates.some(verifierPolygone);
+  }
+
+  return false;
+}
+
+function compterFeuxDansZone(feux: any[], feature: any) {
+  return feux.filter((feu) => {
+    const coordinates = feu.geometry?.coordinates;
+
+    if (!coordinates) return false;
+
+    return pointDansPolygone(
+      coordinates[0],
+      coordinates[1],
+      feature.geometry
+    );
+  }).length;
+}
 
 /* ================= COMPONENT ================= */
 
@@ -330,6 +449,83 @@ useEffect(() => {
   const feux72h = compterFeuxDepuis(feux, 72);
 
   const feuxRecents = filtrerFeuxDepuis(feux, 72);
+  // ================= FILTRE RÉGION =================
+
+const regionSelectionnee =
+  selectedRegion === "Toutes les régions"
+    ? null
+    : regionsData?.features?.find(
+        (f: any) => f.properties?.nom_reg === selectedRegion
+      );
+
+const feuxRegion = regionSelectionnee
+  ? feuxRecents.filter((feu) => {
+      const coordinates = feu.geometry?.coordinates;
+
+      if (!coordinates) return false;
+
+      return pointDansPolygone(
+        coordinates[0],
+        coordinates[1],
+        regionSelectionnee.geometry
+      );
+    })
+  : feuxRecents;
+
+// ================= CARTE 1 : RÉGION =================
+
+const statistiquesRegion = {
+  h24: compterFeuxDepuis(feuxRegion, 24),
+  h48: compterFeuxDepuis(feuxRegion, 48),
+  h72: feuxRegion.length,
+};
+
+// ================= CARTE 2 : AIRES PROTÉGÉES =================
+
+const statistiquesAP = (aireProtegeeData?.features || [])
+  .map((ap: any) => ({
+    nom: ap.properties?.nom_ap || "Aire protégée sans nom",
+    nombre: compterFeuxDansZone(feuxRegion, ap),
+  }))
+  .sort((a: any, b: any) => b.nombre - a.nombre);
+
+// ================= CARTE 3 : PAYSAGES =================
+
+// Couche géographique non encore disponible
+const statistiquesPaysages: any[] = [];
+
+// ================= CARTE 4 : MICRO-BASSINS =================
+
+// Couche géographique non encore disponible
+const statistiquesMicroBassins: any[] = [];
+
+// ================= CARTE 5 : PÉRIPHÉRIE 5 KM =================
+
+const peripheries = peripherieData?.features || [];
+
+const feuxPeripherie = feuxRegion.filter((feu) => {
+  const coordinates = feu.geometry?.coordinates;
+
+  if (!coordinates) return false;
+
+  return peripheries.some((zone: any) =>
+    pointDansPolygone(
+      coordinates[0],
+      coordinates[1],
+      zone.geometry
+    )
+  );
+});
+
+// ================= CARTE 6 : TOP 3 COMMUNES =================
+
+const statistiquesCommunes = (communesData?.features || [])
+  .map((commune: any) => ({
+    nom: commune.properties?.NAME_4 || "Commune sans nom",
+    nombre: compterFeuxDansZone(feuxRegion, commune),
+  }))
+  .sort((a: any, b: any) => b.nombre - a.nombre)
+  .slice(0, 3);
 
   const getBaseLayer = () => {
     switch (basemap) {
@@ -367,28 +563,147 @@ useEffect(() => {
         </div>
 
         <div style={styles.actions}>
-
-  <select
-    value={selectedRegion}
-    onChange={(e) => setSelectedRegion(e.target.value)}
-    style={styles.selectRegion}
-  >
-    <option value="Toutes les régions">
-      Toutes les régions
-    </option>
-
-    {regionsDisponibles.map((region: any) => (
-      <option key={region} value={region}>
-        {region}
-      </option>
-    ))}
-  </select>
-
-  <button style={styles.btnExport}>
-    Exporter
-  </button>
-</div>
+          <select
+            value={selectedRegion}
+            onChange={(e) => setSelectedRegion(e.target.value)}
+            style={styles.selectRegion}
+          >
+            <option value="Toutes les régions">
+              Toutes les régions
+            </option>        
+            {regionsDisponibles.map((region: any) => (
+              <option key={region} value={region}>
+                {region}
+              </option>
+            ))}
+          </select>        
+          <button style={styles.btnExport}>
+            Exporter
+          </button>
+        </div>
       </div>
+      {/* ================= PANNEAU STATISTIQUES ================= */}
+
+<div style={styles.statsPanel}>
+
+  {/* CARTE 1 */}
+  <div style={styles.statCard}>
+    <div style={styles.statTitle}>
+      Feux détectés par région
+    </div>
+
+    <div style={styles.statSubtitle}>
+      {selectedRegion}
+    </div>
+
+    <div style={styles.statLine}>
+      <span>Dernières 24 heures</span>
+      <strong>{statistiquesRegion.h24.toLocaleString("fr-FR")}</strong>
+    </div>
+
+    <div style={styles.statLine}>
+      <span>Dernières 48 heures</span>
+      <strong>{statistiquesRegion.h48.toLocaleString("fr-FR")}</strong>
+    </div>
+
+    <div style={styles.statLine}>
+      <span>Dernières 72 heures</span>
+      <strong>{statistiquesRegion.h72.toLocaleString("fr-FR")}</strong>
+    </div>
+  </div>
+
+  {/* CARTE 2 */}
+  <div style={styles.statCard}>
+    <div style={styles.statTitle}>
+      Feux par aire protégée
+    </div>
+
+    <div style={styles.statSubtitle}>
+      Détections sur les dernières 72 heures
+    </div>
+
+    {statistiquesAP.length > 0 ? (
+      statistiquesAP.map((ap: any, index: number) => (
+        <div style={styles.statLine} key={index}>
+          <span>{ap.nom}</span>
+          <strong>{ap.nombre.toLocaleString("fr-FR")}</strong>
+        </div>
+      ))
+    ) : (
+      <div style={styles.emptyStat}>Aucune donnée disponible</div>
+    )}
+  </div>
+
+  {/* CARTE 3 */}
+  <div style={styles.statCard}>
+    <div style={styles.statTitle}>
+      Feux par paysage
+    </div>
+
+    <div style={styles.statSubtitle}>
+      Détections sur les dernières 72 heures
+    </div>
+
+    <div style={styles.emptyStat}>
+      Couche des paysages à intégrer
+    </div>
+  </div>
+
+  {/* CARTE 4 */}
+  <div style={styles.statCard}>
+    <div style={styles.statTitle}>
+      Feux par micro-bassin
+    </div>
+
+    <div style={styles.statSubtitle}>
+      Détections sur les dernières 72 heures
+    </div>
+
+    <div style={styles.emptyStat}>
+      Couche des micro-bassins à intégrer
+    </div>
+  </div>
+
+  {/* CARTE 5 */}
+  <div style={styles.statCard}>
+    <div style={styles.statTitle}>
+      Feux dans les périphéries de 5 km
+    </div>
+
+    <div style={styles.statSubtitle}>
+      Autour des aires protégées · 72 heures
+    </div>
+
+    <div style={styles.bigNumber}>
+      {feuxPeripherie.length.toLocaleString("fr-FR")}
+    </div>
+
+    <div style={styles.statSubtitle}>
+      Détections dans les périphéries
+    </div>
+  </div>
+
+  {/* CARTE 6 */}
+  <div style={styles.statCard}>
+    <div style={styles.statTitle}>
+      Top 3 des communes
+    </div>
+
+    <div style={styles.statSubtitle}>
+      Selon le nombre de feux · 72 heures
+    </div>
+
+    {statistiquesCommunes.map((commune: any, index: number) => (
+      <div style={styles.statLine} key={index}>
+        <span>
+          {index + 1}. {commune.nom}
+        </span>
+        <strong>{commune.nombre.toLocaleString("fr-FR")}</strong>
+      </div>
+    ))}
+  </div>
+
+</div>
 
       {/* ================= MAP ================= */}
       <div style={styles.mapContainer}>
@@ -405,7 +720,15 @@ useEffect(() => {
             <GeoJSON data={zones} />
             
             {/* Limites des régions */}
-              <RegionPressionLayer data={regionsData} />
+              <RegionPressionLayer
+                data={regionsData}
+                selectedRegion={selectedRegion}
+              />
+              
+              <ZoomRegion
+                data={regionsData}
+                selectedRegion={selectedRegion}
+              />
               
               {/* Aires protégées */}
               <AireProtegeePressionLayer data={aireProtegeeData} />
@@ -586,14 +909,78 @@ const styles: any = {
 
   /* MAP */
   mapContainer: {
-    height: '100%',
-    width: '100%',
+    position: 'absolute',
+    top: 76,
+    right: 0,
+    bottom: 0,
+    left: '33.333%',
+    width: '66.667%',
   },
 
   map: {
     height: '100%',
     width: '100%',
   },
+
+  statsPanel: {
+  position: 'absolute',
+  top: 76,
+  left: 0,
+  bottom: 0,
+  width: '33.333%',
+  overflowY: 'auto',
+  padding: 12,
+  boxSizing: 'border-box',
+  background: '#f1f5f9',
+  zIndex: 900,
+},
+
+statCard: {
+  background: '#ffffff',
+  borderRadius: 12,
+  padding: 14,
+  marginBottom: 12,
+  border: '1px solid #e2e8f0',
+  boxShadow: '0 2px 6px rgba(0,0,0,0.05)',
+},
+
+statTitle: {
+  fontSize: 14,
+  fontWeight: 700,
+  color: '#1e293b',
+  marginBottom: 6,
+},
+
+statSubtitle: {
+  fontSize: 11,
+  color: '#64748b',
+  marginBottom: 10,
+},
+
+statLine: {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  gap: 8,
+  padding: '7px 0',
+  borderBottom: '1px solid #f1f5f9',
+  fontSize: 12,
+  color: '#334155',
+},
+
+bigNumber: {
+  fontSize: 30,
+  fontWeight: 800,
+  color: '#ea580c',
+  marginTop: 8,
+},
+
+emptyStat: {
+  padding: '10px 0',
+  fontSize: 12,
+  color: '#94a3b8',
+  fontStyle: 'italic',
+},
 
   /* LEFT PANEL */
   leftPanel: {
