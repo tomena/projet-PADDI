@@ -131,11 +131,11 @@ export default async function handler(
       });
     }
 
-    const daysParam = Number(req.query.days || 1);
+    const daysParam = Number(req.query.days || 3);
 
     const days = Math.min(
-      Math.max(Number.isFinite(daysParam) ? daysParam : 1, 1),
-      5
+      Math.max(Number.isFinite(daysParam) ? daysParam : 3, 1),
+      3
     );
 
     const results = await Promise.all(
