@@ -67,7 +67,7 @@ const FONDS: Record<
   },
   osm: {
     label: 'OpenStreetMap',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    url : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
     attribution: '© OpenStreetMap',
     apercu: 'linear-gradient(135deg,#e9e2cf,#b7d1a0)',
   },
