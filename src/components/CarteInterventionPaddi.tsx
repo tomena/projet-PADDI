@@ -282,3 +282,241 @@ function LegendControl({
 
   return null;
 }
+
+export default function CarteInterventionPaddi() {
+  const [selectedAntenne, setSelectedAntenne] =
+    useState("");
+
+  const [regionsData, setRegionsData] =
+    useState<any>(null);
+
+  const [bureauData, setBureauData] =
+    useState<any>(null);
+
+  const [aireProtegeeData, setAireProtegeeData] =
+    useState<any>(null);
+
+  useEffect(() => {
+    fetch("/data/madagascar_24_region.geojson")
+      .then((res) => res.json())
+      .then(setRegionsData)
+      .catch(console.error);
+
+    fetch("/data/localisation_bureau_paddi.geojson")
+      .then((res) => res.json())
+      .then(setBureauData)
+      .catch(console.error);
+
+    fetch("/data/aire_protegee_paddi.geojson")
+      .then((res) => res.json())
+      .then(setAireProtegeeData)
+      .catch(console.error);
+  }, []);
+
+  const antennes = useMemo(() => {
+    if (!regionsData?.features) return [];
+
+    return VALID_ANTENNES.filter((a) =>
+      regionsData.features.some(
+        (f: any) =>
+          f.properties?.antenne === a
+      )
+    );
+  }, [regionsData]);
+
+  const geoFiltered = useMemo(() => {
+    if (!regionsData?.features) return null;
+
+    const features =
+      regionsData.features.filter((f: any) => {
+        if (!f.properties?.actif) return false;
+
+        if (!selectedAntenne) return true;
+
+        return (
+          f.properties?.antenne ===
+          selectedAntenne
+        );
+      });
+
+    return {
+      type: "FeatureCollection",
+      features,
+    };
+  }, [regionsData, selectedAntenne]);
+
+  const bureauFiltered = useMemo(() => {
+    if (!bureauData?.features) return null;
+
+    return {
+      type: "FeatureCollection",
+      features: bureauData.features.filter(
+        (f: any) =>
+          !selectedAntenne ||
+          f.properties?.antenne ===
+            selectedAntenne
+      ),
+    };
+  }, [bureauData, selectedAntenne]);
+
+  const aireProtegeeFiltered = useMemo(() => {
+    if (!aireProtegeeData?.features) return null;
+
+    return {
+      type: "FeatureCollection",
+      features:
+        aireProtegeeData.features.filter(
+          (f: any) =>
+            !selectedAntenne ||
+            f.properties?.antenne ===
+              selectedAntenne
+        ),
+    };
+  }, [
+    aireProtegeeData,
+    selectedAntenne,
+  ]);
+
+  const getColorByAntenne = (antenne: string) => {
+    switch (antenne) {
+      case "Tanà":
+        return "#16a34a";
+
+      case "Boeny":
+        return "#2563eb";
+
+      case "Atsimo-Atsinanana":
+        return "#f59e0b";
+
+      case "Diana":
+        return "#ef4444";
+
+      case "Anosy":
+        return "#8b5cf6";
+
+      default:
+        return "#64748b";
+    }
+  };
+
+  return (
+    <div
+      style={{
+        width: "100%",
+        height: "100vh",
+        padding: "20px",
+        boxSizing: "border-box",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          marginBottom: "15px",
+        }}
+      >
+        <MapPinned size={28} />
+
+        <h1 style={{ margin: 0 }}>
+          Intervention de PADDI+
+        </h1>
+
+        <select
+          value={selectedAntenne}
+          onChange={(e) =>
+            setSelectedAntenne(e.target.value)
+          }
+          style={{
+            marginLeft: "auto",
+            padding: "8px 12px",
+            borderRadius: "6px",
+            border: "1px solid #ddd",
+          }}
+        >
+          <option value="">
+            Toutes les antennes
+          </option>
+
+          {antennes.map((a) => (
+            <option key={a} value={a}>
+              {a}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div
+        style={{
+          width: "100%",
+          height: "calc(100vh - 100px)",
+          minHeight: "500px",
+          borderRadius: "12px",
+          overflow: "hidden",
+        }}
+      >
+        <MapContainer
+          center={[-18.8792, 47.5079]}
+          zoom={6}
+          style={{
+            width: "100%",
+            height: "100%",
+          }}
+        >
+          <TileLayer
+            attribution="© ESRI"
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
+          />
+
+          <ScaleControl
+            position="bottomleft"
+            imperial={false}
+          />
+
+          {geoFiltered?.features?.length > 0 && (
+            <>
+              <RegionLayer
+                data={geoFiltered}
+                getColorByAntenne={
+                  getColorByAntenne
+                }
+              />
+
+              {aireProtegeeFiltered?.features
+                ?.length > 0 && (
+                <AireProtegeeLayer
+                  data={aireProtegeeFiltered}
+                  selectedAntenne={
+                    selectedAntenne
+                  }
+                />
+              )}
+
+              {bureauFiltered?.features?.length >
+                0 && (
+                <BureauLayer
+                  data={bureauFiltered}
+                />
+              )}
+
+              <AutoZoom
+                geoData={geoFiltered}
+              />
+            </>
+          )}
+
+          <LegendControl
+            antennes={antennes}
+            getColorByAntenne={
+              getColorByAntenne
+            }
+            legendText="Légende"
+            officeText="Bureau"
+            protectedAreaText="Aire protégée"
+          />
+        </MapContainer>
+      </div>
+    </div>
+  );
+}
+
