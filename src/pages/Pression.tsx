@@ -41,12 +41,6 @@ const FONDS: Record<
   string,
   { label: string; url: string; attribution: string; apercu: string }
 > = {
-  sombre: {
-    label: 'Sombre',
-    url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    attribution: '© OpenStreetMap · © CARTO',
-    apercu: 'linear-gradient(135deg,#0f1a22,#25364a)',
-  },
   satellite: {
     label: 'Satellite',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
@@ -58,12 +52,6 @@ const FONDS: Record<
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles © Esri',
     apercu: 'linear-gradient(135deg,#cfe3c0,#e8d9b0)',
-  },
-  clair: {
-    label: 'Clair',
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-    attribution: '© OpenStreetMap · © CARTO',
-    apercu: 'linear-gradient(135deg,#f1f3f4,#d9dee2)',
   },
   osm: {
      label: 'OpenStreetMap',
@@ -398,7 +386,7 @@ export default function Pression() {
   const [confiance, setConfiance] = useState<'l' | 'n' | 'h'>('l');
 
   // ---- Interface
-  const [fond, setFond] = useState('clair');
+  const [fond, setFond] = useState('topo');
 
   const [menu, setMenu] = useState<null | 'fond' | 'couches' | 'export'>(null);
   const [couches, setCouches] = useState({
@@ -982,22 +970,24 @@ export default function Pression() {
                 {FONDS[fond].label}
               </button>
               {menu === 'fond' && (
-                <div className="pr-pop pr-pop-droite">
-                  {Object.entries(FONDS).map(([id, f]) => (
+              <div className="pr-pop">
+                {(Object.entries(FONDS) as [keyof typeof FONDS, typeof FONDS.topo][]).map(
+                  ([key, item]) => (
                     <button
-                      key={id}
-                      className={`pr-pop-item pr-pop-fond ${fond === id ? 'on' : ''}`}
+                      key={key}
+                      className={`pr-pop-item ${fond === key ? 'actif' : ''}`}
                       onClick={() => {
-                        setFond(id);
+                        setFond(key);
                         setMenu(null);
                       }}
                     >
-                      <span className="pr-apercu grand" style={{ background: f.apercu }} />
-                      <strong>{f.label}</strong>
+                      <span>{item.nom}</span>
+                      {fond === key && <span>✓</span>}
                     </button>
-                  ))}
-                </div>
-              )}
+                  )
+                )}
+              </div>
+            )}
             </div>
 
             <div className="pr-menu-wrap">
@@ -1056,14 +1046,29 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
 .pr{
-  --bg:#f7f7f8;--panel:#ffffff;--carte:#ffffff;--carte2:#f3f4f6;--ligne:#e5e7eb;--txt:#1f2937;--mut:#6b7280;--lagon:#10a37f;--braise:#f97316;
-  --ligne:rgba(190,230,215,.11); --txt:#e4efe9; --mut:#8fa9a0;
-  --lagon:#52d6b8; --braise:#ff7a45;
+  --bg:#f5f7f6;
+  --panel:#ffffff;
+  --carte:#ffffff;
+  --carte2:#eef2f0;
+  --ligne:#d9e1dd;
+  --txt:#172b24;
+  --mut:#52645c;
+  --lagon:#087f63;
+  --braise:#e85d24;
+
   --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --corps:'Figtree','Segoe UI',system-ui,sans-serif;
-  height:100%; width:100%; display:flex; flex-direction:column;
-  background:var(--bg); color:var(--txt); font-family:var(--corps);
-  font-size:14px; overflow:hidden; box-sizing:border-box;
+
+  height:100%;
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  background:var(--bg);
+  color:var(--txt);
+  font-family:var(--corps);
+  font-size:14px;
+  overflow:hidden;
+  box-sizing:border-box;
 }
 .pr *{box-sizing:border-box}
 .pr button,.pr select,.pr input{font-family:inherit}
@@ -1139,41 +1144,243 @@ const CSS = `
 .pr-cliquable.on{background:rgba(82,214,184,.16);outline:1px solid rgba(82,214,184,.5)}
 
 /* ---- Outils sur la carte ---- */
-.pr-outils{position:absolute;top:12px;right:12px;z-index:1000;display:flex;gap:8px}
-.pr-menu-wrap{position:relative}
-.pr-outil{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);
-  background:rgba(12,26,25,.88);backdrop-filter:blur(8px);color:var(--txt);font-size:13px;font-weight:500;cursor:pointer}
-.pr-outil:hover{background:rgba(23,48,41,.95)}
-.pr-apercu{width:18px;height:18px;border-radius:5px;border:1px solid rgba(255,255,255,.25);flex:none}
-.pr-apercu.grand{width:34px;height:34px;border-radius:8px}
-.pr-pop{position:absolute;top:calc(100% + 8px);z-index:1010;min-width:230px;background:#112722;border:1px solid var(--ligne);
-  border-radius:12px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.45)}
-.pr-pop-droite{right:0}
-.pr-pop-item{display:flex;flex-direction:column;gap:2px;width:100%;text-align:left;padding:10px;border:0;border-radius:8px;
-  background:transparent;color:var(--txt);cursor:pointer;font-size:13px}
-.pr-pop-item span{font-size:11.5px;color:var(--mut)}
-.pr-pop-item:hover:not(:disabled){background:rgba(255,255,255,.07)}
-.pr-pop-item:disabled{opacity:.5;cursor:default}
-.pr-pop-fond{flex-direction:row;align-items:center;gap:10px}
-.pr-pop-fond.on{background:rgba(82,214,184,.16)}
-.pr-check{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:13px}
-.pr-check:hover{background:rgba(255,255,255,.07)}
-.pr-check input{accent-color:var(--lagon);width:16px;height:16px}
-.pr-voile{position:absolute;inset:0;z-index:1005;background:transparent}
-.pr-top .pr-pop{z-index:1010}
+.pr-outils {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 1000;
+  display: flex;
+  gap: 8px;
+}
 
-.pr-legende{position:absolute;left:12px;bottom:12px;z-index:1000;padding:10px 12px;border-radius:12px;
-  background:rgba(12,26,25,.88);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.12);font-size:12px;
-  display:flex;flex-direction:column;gap:5px}
-.pr-legende div{display:flex;align-items:center;gap:8px;color:var(--mut)}
-.pr-legende i{width:11px;height:11px;border-radius:50%;border:1px solid #fff}
-.pr-alerte{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1000;display:flex;gap:10px;align-items:center;
-  padding:8px 12px;border-radius:10px;background:#4a1717;color:#fecaca;font-size:12.5px;border:1px solid #7f1d1d}
-.pr-alerte button{border:0;background:#fecaca;color:#450a0a;border-radius:6px;padding:4px 8px;cursor:pointer;font-weight:600}
+.pr-menu-wrap {
+  position: relative;
+}
 
-.pr .leaflet-container{background:#0c1a19;font-family:var(--corps)}
-.pr .leaflet-tooltip{background:#102320;color:#e4efe9;border:1px solid rgba(255,255,255,.15);box-shadow:none}
-.pr .leaflet-tooltip-top:before,.pr .leaflet-tooltip-bottom:before{display:none}
+/* Boutons des outils */
+.pr-outil {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-radius: 10px;
+  border: 1px solid rgba(35, 65, 52, 0.25);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #172b24;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: background 0.2s ease;
+}
+
+.pr-outil:hover {
+  background: rgba(255, 255, 255, 0.98);
+}
+
+/* Aperçus des fonds */
+.pr-apercu {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(35, 65, 52, 0.3);
+  flex: none;
+}
+
+.pr-apercu.grand {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+}
+
+/* Menus déroulants */
+.pr-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  z-index: 1010;
+  min-width: 230px;
+  background: rgba(255, 255, 255, 0.90);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(35, 65, 52, 0.22);
+  border-radius: 12px;
+  padding: 6px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+
+.pr-pop-droite {
+  right: 0;
+}
+
+/* Options des menus */
+.pr-pop-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #172b24;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pr-pop-item span {
+  font-size: 11.5px;
+  color: #52645c;
+  font-weight: 500;
+}
+
+.pr-pop-item:hover:not(:disabled) {
+  background: rgba(8, 127, 99, 0.10);
+}
+
+.pr-pop-item:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Options des fonds de carte */
+.pr-pop-fond {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+}
+
+.pr-pop-fond.on {
+  background: rgba(8, 127, 99, 0.15);
+  border: 1px solid rgba(8, 127, 99, 0.25);
+}
+
+/* Cases à cocher des couches */
+.pr-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: #172b24;
+}
+
+.pr-check:hover {
+  background: rgba(8, 127, 99, 0.10);
+}
+
+.pr-check input {
+  accent-color: #087f63;
+  width: 16px;
+  height: 16px;
+}
+
+/* Voile de fermeture des menus */
+.pr-voile {
+  position: absolute;
+  inset: 0;
+  z-index: 1005;
+  background: transparent;
+}
+
+.pr-top .pr-pop {
+  z-index: 1010;
+}
+
+/* ---- Légende de la carte ---- */
+.pr-legende {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 1000;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(35, 65, 52, 0.22);
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+}
+
+.pr-legende div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #263b31;
+}
+
+.pr-legende i {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 1px solid #52645c;
+  flex: none;
+}
+
+/* ---- Message d'alerte ---- */
+.pr-alerte {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 13px;
+  border-radius: 10px;
+  background: rgba(255, 245, 245, 0.96);
+  color: #991b1b;
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1px solid #fca5a5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.pr-alerte button {
+  border: 0;
+  background: #fee2e2;
+  color: #7f1d1d;
+  border-radius: 6px;
+  padding: 5px 9px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* ---- Conteneur Leaflet ---- */
+.pr .leaflet-container {
+  background: transparent;
+  font-family: var(--corps);
+}
+
+/* ---- Étiquettes et infobulles ---- */
+.pr .leaflet-tooltip {
+  background: rgba(255, 255, 255, 0.96);
+  color: #10271d;
+  border: 1px solid #64796c;
+  border-radius: 5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
+  font-size: 13px;
+  font-weight: 800;
+  padding: 5px 8px;
+  text-shadow: none;
+}
+
+.pr .leaflet-tooltip-top:before,
+.pr .leaflet-tooltip-bottom:before {
+  display: none;
+}
 
 /* ---- Tablette & mobile : la carte passe au-dessus, la page défile ---- */
 @media (max-width:1023px){
