@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 const MADAGASCAR_BBOX = "43,-26.5,51,-11";
