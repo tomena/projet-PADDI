@@ -1,5 +1,4 @@
 /// <reference types="node" />
-import type { NextApiRequest, NextApiResponse } from "next";
 import { createHmac, timingSafeEqual } from "crypto";
 
 /* =====================================================================
@@ -175,7 +174,7 @@ function recalcTous(features: any[], annee: number, mois: string, historique: Ch
 }
 
 /* ---------- Handler ---------- */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée." });
 
   const token = process.env.GITHUB_TOKEN;
