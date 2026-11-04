@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // api/gfw.ts — Fonction serverless Vercel
 // Alertes de perte de couvert forestier (GFW, "Integrated Deforestation Alerts")
 // Appel : /api/gfw?region=Analamanga&jours=90   (region=all pour tout Madagascar)
