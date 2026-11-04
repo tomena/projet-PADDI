@@ -37,6 +37,13 @@ const MADAGASCAR: L.LatLngBoundsExpression = [
 const CLE_HISTO = 'pression_historique_feux_v1';
 const RANG = { l: 1, n: 2, h: 3 } as const;
 
+const THEMES = [
+  { id: 'feux', label: 'Points de feux actifs' },
+  { id: 'deforestation', label: 'Déforestation' },
+  { id: 'erosion', label: 'Zones à risque d’érosion' },
+] as const;
+type Theme = (typeof THEMES)[number]['id'];
+
 const FONDS: Record<
   string,
   { label: string; url: string; attribution: string; apercu: string }
@@ -54,18 +61,17 @@ const FONDS: Record<
     apercu: 'linear-gradient(135deg,#cfe3c0,#e8d9b0)',
   },
   osm: {
-     label: 'OpenStreetMap',
-     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-     attribution: '© OpenStreetMap',
-     apercu: 'linear-gradient(135deg,#e9e2cf,#b7d1a0)',
-   },
-
+    label: 'OpenStreetMap',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap',
+    apercu: 'linear-gradient(135deg,#e9e2cf,#b7d1a0)',
+  },
 };
 
 const nf = (n: number) => n.toLocaleString('fr-FR');
 
 const couleurAge = (age: number) =>
-  age <= 24 ? '#ef4a2b' : age <= 48 ? '#f97316' : '#facc15';
+  age <= 24 ? 'rgb(200,15,15)' : age <= 48 ? '#f97316' : '#facc15';
 
 /* =====================================================================
    GÉOMÉTRIE
@@ -384,10 +390,10 @@ export default function Pression() {
   const [ap, setAp] = useState(TOUS);
   const [periode, setPeriode] = useState<24 | 48 | 72>(72);
   const [confiance, setConfiance] = useState<'l' | 'n' | 'h'>('l');
+  const [theme, setTheme] = useState<Theme>('feux');
 
   // ---- Interface
   const [fond, setFond] = useState('topo');
-
   const [menu, setMenu] = useState<null | 'fond' | 'couches' | 'export'>(null);
   const [couches, setCouches] = useState({
     regions: true,
@@ -651,26 +657,26 @@ export default function Pression() {
   const styleRegion = (z: Zone): L.PathOptions => {
     const sel = region !== TOUS && z.nom === region;
     return {
-      color: sel ? '#52d6b8' : 'rgba(255,255,255,0.55)',
+      color: sel ? '#0f766e' : '#475569',
       weight: sel ? 2.5 : region !== TOUS ? 0.6 : 1,
-      fillColor: '#52d6b8',
+      fillColor: '#0f766e',
       fillOpacity: sel ? 0.14 : region !== TOUS ? 0 : 0.05,
     };
   };
   const styleAP = (z: Zone): L.PathOptions => {
     const sel = ap !== TOUS && z.nom === ap;
     return {
-      color: sel ? '#ffffff' : '#b7f7c9',
+      color: sel ? '#052e16' : '#166534',
       weight: sel ? 2.5 : 1,
-      fillColor: '#4ade80',
+      fillColor: '#22c55e',
       fillOpacity: sel ? 0.36 : 0.2,
     };
   };
   const stylePeriph = (): L.PathOptions => ({
-    color: '#fbbf24',
+    color: '#b45309',
     weight: 1,
     dashArray: '4 4',
-    fillColor: '#fbbf24',
+    fillColor: '#d97706',
     fillOpacity: 0.07,
   });
 
@@ -738,6 +744,17 @@ export default function Pression() {
 
         <div className="pr-filtres">
           <label className="pr-champ">
+            <span>Thème d’analyse</span>
+            <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
+              {THEMES.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="pr-champ">
             <span>Région</span>
             <select value={region} onChange={(e) => choisirRegion(e.target.value)}>
               <option value={TOUS}>Toutes les régions</option>
@@ -767,7 +784,7 @@ export default function Pression() {
             <span>Période</span>
             <div className="pr-seg" role="group" aria-label="Période">
               {([24, 48, 72] as const).map((h) => (
-                <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
+                <button key={h} disabled={theme !== 'feux'} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
                   {h} h
                 </button>
               ))}
@@ -776,7 +793,7 @@ export default function Pression() {
 
           <label className="pr-champ">
             <span>Fiabilité</span>
-            <select value={confiance} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
+            <select value={confiance} disabled={theme !== 'feux'} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
               <option value="l">Toutes les détections</option>
               <option value="n">Nominale et plus</option>
               <option value="h">Élevée seulement</option>
@@ -795,6 +812,17 @@ export default function Pression() {
       <div className="pr-body">
         {/* ---------- PANNEAU DE STATISTIQUES ---------- */}
         <aside className="pr-panel">
+          {theme !== 'feux' && (
+            <section className="pr-attente-theme">
+              <h2>{THEMES.find((t) => t.id === theme)?.label}</h2>
+              <p>
+                Cette couche n’est pas encore intégrée. Les statistiques et la carte
+                s’afficheront ici dès que les données seront ajoutées.
+              </p>
+            </section>
+          )}
+          {theme === 'feux' && (
+          <>
           <section className="pr-hero">
             <div className="pr-hero-haut">
               <div className="pr-hero-nb">{nf(feuxAffiches.length)}</div>
@@ -831,11 +859,11 @@ export default function Pression() {
 
           <div className="pr-grille">
             {/* CARTE 1 : par période */}
-            <article className="pr-carte">
+            <article className="pr-carte c1">
               <h2>Feux par période</h2>
               <p className="pr-note">{portee}</p>
               {[
-                ['24 dernières heures', stats24, '#ef4a2b'],
+                ['24 dernières heures', stats24, 'rgb(200,15,15)'],
                 ['48 dernières heures', stats48, '#f97316'],
                 ['72 dernières heures', stats72, '#facc15'],
               ].map(([label, val, col]) => (
@@ -852,8 +880,8 @@ export default function Pression() {
             </article>
 
             {/* CARTE 2 : aires protégées */}
-            <article className="pr-carte">
-              <h2>Feux par aire protégée</h2>
+            <article className="pr-carte c2">
+              <h2>Feux à l’intérieur de l’aire protégée</h2>
               <p className="pr-note">
                 {region === TOUS ? 'Toutes les régions' : region} · {periode} h
               </p>
@@ -878,21 +906,21 @@ export default function Pression() {
             </article>
 
             {/* CARTE 3 : paysages (à intégrer) */}
-            <article className="pr-carte pr-carte-attente">
+            <article className="pr-carte pr-carte-attente c3">
               <h2>Feux par paysage</h2>
               <p className="pr-note">{periode} dernières heures</p>
               <p className="pr-vide">Couche des paysages à intégrer</p>
             </article>
 
             {/* CARTE 4 : micro-bassins (à intégrer) */}
-            <article className="pr-carte pr-carte-attente">
+            <article className="pr-carte pr-carte-attente c4">
               <h2>Feux par micro-bassin</h2>
               <p className="pr-note">{periode} dernières heures</p>
               <p className="pr-vide">Couche des micro-bassins à intégrer</p>
             </article>
 
             {/* CARTE 5 : périphéries */}
-            <article className="pr-carte">
+            <article className="pr-carte c5">
               <h2>Périphéries de 5 km</h2>
               <p className="pr-note">Autour des aires protégées · {periode} h</p>
               <div className="pr-grand">{nf(feuxPeriph.length)}</div>
@@ -904,7 +932,7 @@ export default function Pression() {
             </article>
 
             {/* CARTE 6 : communes */}
-            <article className="pr-carte">
+            <article className="pr-carte c6">
               <h2>Top 3 des communes</h2>
               <p className="pr-note">Nombre de feux · {periode} h</p>
               {topCommunes.length ? (
@@ -928,6 +956,8 @@ export default function Pression() {
               )}
             </article>
           </div>
+          </>
+          )}
         </aside>
 
         {/* ---------- CARTE ---------- */}
@@ -959,7 +989,7 @@ export default function Pression() {
                 onClick={(z) => setAp(z.nom === ap ? TOUS : z.nom)}
               />
             )}
-            {couches.feux && <CoucheFeux feux={feuxAffiches} />}
+            {theme === 'feux' && couches.feux && <CoucheFeux feux={feuxAffiches} />}
           </MapContainer>
 
           {/* Barre d'outils : fond de carte + couches */}
@@ -970,33 +1000,23 @@ export default function Pression() {
                 {FONDS[fond].label}
               </button>
               {menu === 'fond' && (
-                 <div className="pr-pop pr-pop-fonds">
-                   {(Object.entries(FONDS) as [keyof typeof FONDS, (typeof FONDS)['topo']][]).map(
-                     ([key, item]) => (
-                       <button
-                         key={key}
-                         type="button"
-                         className={`pr-pop-item pr-pop-fond ${fond === key ? 'on' : ''}`}
-                         onClick={() => {
-                           setFond(key);
-                           setMenu(null);
-                         }}
-                       >
-                         <span
-                           className="pr-apercu grand"
-                           style={{ background: item.apercu }}
-                         />
-               
-                         <strong>{item.label}</strong>
-               
-                         {fond === key && (
-                           <span className="pr-fond-check">✓</span>
-                         )}
-                       </button>
-                     )
-                   )}
-                 </div>
-               )}
+                <div className="pr-pop pr-pop-droite">
+                  {Object.entries(FONDS).map(([id, f]) => (
+                    <button
+                      key={id}
+                      className={`pr-pop-item pr-pop-fond ${fond === id ? 'on' : ''}`}
+                      onClick={() => {
+                        setFond(id);
+                        setMenu(null);
+                      }}
+                    >
+                      <span className="pr-apercu grand" style={{ background: f.apercu }} />
+                      <strong>{f.label}</strong>
+                      {fond === id && <span className="pr-fond-check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="pr-menu-wrap">
@@ -1010,12 +1030,7 @@ export default function Pression() {
                       <input
                         type="checkbox"
                         checked={couches[id]}
-                           onChange={() =>
-                             setCouches((precedentes) => ({
-                               ...precedentes,
-                               [id]: !precedentes[id],
-                             }))
-                           }
+                        onChange={() => setCouches((c) => ({ ...c, [id]: !c[id] }))}
                       />
                       <span>{label}</span>
                     </label>
@@ -1028,12 +1043,18 @@ export default function Pression() {
           {menu && <div className="pr-voile" onClick={() => setMenu(null)} />}
 
           {/* Légende */}
-          <div className="pr-legende">
+          <div className={`pr-legende ${theme !== 'feux' ? 'cache' : ''}`}>
             <strong>Ancienneté des feux</strong>
-            <div><i style={{ background: '#ef4a2b' }} />Moins de 24 h</div>
+            <div><i style={{ background: 'rgb(200,15,15)' }} />Moins de 24 h</div>
             <div><i style={{ background: '#f97316' }} />24 à 48 h</div>
             <div><i style={{ background: '#facc15' }} />48 à 72 h</div>
           </div>
+
+          {theme !== 'feux' && (
+            <div className="pr-alerte pr-info">
+              {THEMES.find((t) => t.id === theme)?.label} : couche à intégrer
+            </div>
+          )}
 
           {erreur && (
             <div className="pr-alerte">
@@ -1054,406 +1075,163 @@ export default function Pression() {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
-.pr {
-  --bg: transparent;
-  --panel: transparent;
-  --carte: rgba(255, 255, 255, 0.82);
-  --carte2: rgba(243, 246, 244, 0.95);
-  --ligne: rgba(0, 0, 0, 0.08);
-  --txt: #111827;
-  --mut: #4b5563;
-  --lagon: #087f63;
-  --braise: #e85d24;
+/* =====================================================================
+   PALETTE — pour changer l'ambiance, modifier uniquement ce bloc
+   ===================================================================== */
+.pr{
+  --fond-panneau:#f1f4f7;               /* mettre "transparent" pour reprendre le fond de l'application */
+  --fond-entete:rgba(255,255,255,.95);
+  --carte:#ffffff;
+  --ligne:#e2e8f0;
+  --txt:#0f172a;
+  --mut:#64748b;
+  --rouge:rgb(200,15,15);
+  --vert:#166534;
+  --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --corps:'Figtree','Segoe UI',system-ui,sans-serif;
 
-  --titre: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
-  --corps: 'Figtree', 'Segoe UI', system-ui, sans-serif;
-
-  height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  background: transparent;
-  color: #111827;
-  font-family: var(--corps);
-  font-size: 14px;
-  overflow: hidden;
-  box-sizing: border-box;
+  height:100%;width:100%;display:flex;flex-direction:column;
+  background:transparent;color:var(--txt);font-family:var(--corps);
+  font-size:14px;overflow:hidden;box-sizing:border-box;
 }
 .pr *{box-sizing:border-box}
 .pr button,.pr select,.pr input{font-family:inherit}
+.pr button:focus-visible,.pr select:focus-visible,.pr input:focus-visible{outline:2px solid var(--rouge);outline-offset:2px}
 
 /* ---- En-tête ---- */
-.pr-top {
-  background: transparent;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-  padding: 12px 18px;
-  position: relative;
-  z-index: 20;
-}
-
-.pr-panel {
-  overflow-y: auto;
-  padding: 16px;
-  background: transparent;
-  border-right: 1px solid rgba(0, 0, 0, 0.06);
-}
+.pr-top{background:var(--fond-entete);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--ligne);padding:12px 18px;position:relative;z-index:20}
 .pr-top-ligne{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .pr-marque{display:flex;align-items:center;gap:12px;min-width:0}
 .pr-logo{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;color:#fff;
-  background:linear-gradient(160deg,#ff5a2c,#ffb02e);flex:none}
+  background:linear-gradient(160deg,rgb(200,15,15),#e8601c);flex:none}
 .pr-titre{margin:0;font-family:var(--titre);font-size:21px;font-weight:700;letter-spacing:-.01em;line-height:1.1}
 .pr-sous{margin:2px 0 0;font-size:12px;color:var(--mut)}
 .pr-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .pr-etat{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--mut);margin-right:4px}
-.pr-etat i{width:8px;height:8px;border-radius:50%;background:var(--lagon);box-shadow:0 0 0 3px rgba(82,214,184,.18)}
-.pr-etat.err i{background:#ef4444;box-shadow:0 0 0 3px rgba(239,68,68,.2)}
-.pr-btn{padding:8px 14px;border-radius:9px;border:1px solid var(--ligne);background:var(--carte);color:var(--txt);
-  font-size:13px;font-weight:500;cursor:pointer;transition:background .15s}
-.pr-btn:hover:not(:disabled){background:var(--carte2)}
+.pr-etat i{width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.18)}
+.pr-etat.err i{background:var(--rouge);box-shadow:0 0 0 3px rgba(200,15,15,.2)}
+.pr-btn{padding:8px 14px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
+  font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.pr-btn:hover:not(:disabled){background:#f1f5f9}
 .pr-btn:disabled{opacity:.55;cursor:default}
-.pr-btn-plein{background:var(--lagon);color:#07201b;border-color:transparent;font-weight:600}
-.pr-btn-plein:hover:not(:disabled){background:#7ae6cd}
-.pr button:focus-visible,.pr select:focus-visible,.pr input:focus-visible{outline:2px solid var(--lagon);outline-offset:2px}
+.pr-btn-plein{background:#0f172a;color:#fff;border-color:#0f172a}
+.pr-btn-plein:hover:not(:disabled){background:#1e293b}
 
 .pr-filtres{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
 .pr-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
-.pr-champ>span{font-size:12px;color:var(--mut)}
-.pr-champ select{padding:8px 10px;border-radius:9px;border:1px solid var(--ligne);background:var(--carte);
+.pr-champ>span{font-size:12px;color:var(--mut);font-weight:500}
+.pr-champ select{padding:8px 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;
   color:var(--txt);font-size:13px;min-width:170px;max-width:260px;cursor:pointer}
-.pr-seg{display:flex;border:1px solid var(--ligne);border-radius:9px;overflow:hidden;background:var(--carte)}
-.pr-seg button{padding:8px 14px;border:0;background:transparent;color:var(--mut);font-size:13px;cursor:pointer;font-weight:500}
-.pr-seg button+button{border-left:1px solid var(--ligne)}
-.pr-seg button.on{background:var(--braise);color:#2a1004;font-weight:700}
-.pr-reset{padding:8px 12px;border-radius:9px;border:1px dashed var(--mut);background:transparent;color:var(--txt);
-  font-size:13px;cursor:pointer}
-.pr-reset:hover{border-color:var(--lagon);color:var(--lagon)}
+.pr-champ select:disabled{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}
+.pr-seg{display:flex;border:1px solid #cbd5e1;border-radius:9px;overflow:hidden;background:#fff}
+.pr-seg button{padding:8px 14px;border:0;background:transparent;color:#475569;font-size:13px;cursor:pointer;font-weight:600}
+.pr-seg button+button{border-left:1px solid #cbd5e1}
+.pr-seg button.on{background:var(--rouge);color:#fff}
+.pr-seg button:disabled{color:#94a3b8;background:#f1f5f9;cursor:not-allowed}
+.pr-reset{padding:8px 12px;border-radius:9px;border:1px dashed #94a3b8;background:transparent;color:var(--txt);
+  font-size:13px;font-weight:600;cursor:pointer}
+.pr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
 /* ---- Corps ---- */
 .pr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(400px,46%) 1fr}
-.pr-panel{overflow-y:auto;padding:16px;background:var(--bg);border-right:1px solid var(--ligne)}
+.pr-panel{overflow-y:auto;padding:16px;background:var(--fond-panneau);border-right:1px solid var(--ligne)}
 .pr-map{position:relative;min-height:0;min-width:0;isolation:isolate}
 
-/* ---- Hero ---- */
-.pr-hero {
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 18px;
-  padding: 18px;
-  margin-bottom: 14px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-}
+/* ---- Résumé principal ---- */
+.pr-hero{background:var(--carte);border:1px solid var(--ligne);border-left:5px solid var(--rouge);
+  border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
 .pr-hero-haut{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
-.pr-hero-nb {
-  font-family: var(--titre);
-  font-weight: 800;
-  font-size: clamp(44px, 6vw, 68px);
-  line-height: .9;
-  color: var(--braise);
-  letter-spacing: -.03em;
-}
+.pr-hero-nb{font-family:var(--titre);font-weight:800;font-size:clamp(44px,6vw,68px);line-height:.9;
+  color:var(--rouge);letter-spacing:-.03em}
 .pr-hero-txt{display:flex;flex-direction:column;gap:2px;padding-bottom:4px;min-width:0}
-.pr-hero-txt strong {
-  font-family: var(--titre);
-  font-size: 17px;
-  color: #111827;
-}
-
-.pr-hero-txt span {
-  color: #4b5563;
-  font-size: 12.5px;
-}
+.pr-hero-txt strong{font-family:var(--titre);font-size:17px;color:var(--txt)}
+.pr-hero-txt span{color:var(--mut);font-size:12.5px}
 .pr-chrono{display:flex;align-items:flex-end;gap:5px;height:68px;margin-top:16px}
 .pr-chrono-col{flex:1;height:100%;display:flex;align-items:flex-end}
 .pr-chrono-barre{width:100%;border-radius:4px 4px 2px 2px;transition:height .3s,opacity .2s}
-.pr-chrono-legende {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #4b5563;
-  margin-top: 6px;
-}
+.pr-chrono-legende{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:6px}
 
-/* ---- Grille 2 colonnes × 3 lignes ---- */
+.pr-attente-theme{background:var(--carte);border:1px dashed #94a3b8;border-radius:14px;padding:22px}
+.pr-attente-theme h2{margin:0 0 8px;font-family:var(--titre);font-size:18px}
+.pr-attente-theme p{margin:0;color:var(--mut);line-height:1.5}
+
+/* ---- Grille 2 colonnes × 3 lignes : une couleur par carte ---- */
 .pr-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
-.pr-carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:14px;min-width:0;display:flex;flex-direction:column}
-.pr-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700}
+.pr-carte{--accent:#475569;background:var(--carte);border:1px solid var(--ligne);border-top:4px solid var(--accent);
+  border-radius:12px;padding:14px;min-width:0;display:flex;flex-direction:column;
+  box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.pr-carte.c1{--accent:rgb(200,15,15)}   /* pression directe : rouge */
+.pr-carte.c2{--accent:#166534}          /* aires protégées : vert forêt */
+.pr-carte.c3{--accent:#0f766e}          /* paysages : vert d'eau */
+.pr-carte.c4{--accent:#1d4ed8}          /* micro-bassins : bleu */
+.pr-carte.c5{--accent:#b45309}          /* périphéries : ocre */
+.pr-carte.c6{--accent:#475569}          /* communes : ardoise */
+.pr-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;color:var(--txt);line-height:1.25}
 .pr-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
-.pr-carte-attente{background:transparent;border-style:dashed}
+.pr-carte-attente{background:#f8fafc;border-style:dashed;border-top-style:solid}
 .pr-vide{margin:auto 0;padding:8px 0;font-size:12.5px;color:var(--mut);font-style:italic}
-.pr-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;padding:5px 0}
+.pr-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;padding:5px 0;color:#334155}
 .pr-ligne span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pr-ligne strong{font-variant-numeric:tabular-nums}
+.pr-ligne strong{font-variant-numeric:tabular-nums;color:var(--txt)}
 .pr-ligne-barre{margin-bottom:8px}
-.pr-barre{height:5px;border-radius:3px;background:rgba(255,255,255,.07);overflow:hidden}
-.pr-barre i{display:block;height:100%;border-radius:3px;background:var(--braise);transition:width .3s}
-.pr-grand{font-family:var(--titre);font-weight:800;font-size:40px;color:#fbbf24;line-height:1.05}
+.pr-barre{height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden}
+.pr-barre i{display:block;height:100%;border-radius:3px;background:var(--accent);transition:width .3s}
+.pr-grand{font-family:var(--titre);font-weight:800;font-size:40px;color:var(--accent);line-height:1.05}
 .pr-liste{max-height:220px;overflow-y:auto;margin:0 -6px;padding:0 6px}
-.pr-cliquable{width:100%;border:0;background:transparent;color:var(--txt);cursor:pointer;text-align:left;
-  padding:6px 8px;margin:1px 0;border-radius:8px;border-bottom:0}
-.pr-cliquable:hover{background:rgba(255,255,255,.06)}
-.pr-cliquable.on{background:rgba(82,214,184,.16);outline:1px solid rgba(82,214,184,.5)}
+.pr-cliquable{width:100%;border:0;background:transparent;color:#334155;cursor:pointer;text-align:left;
+  padding:6px 8px;margin:1px 0;border-radius:8px}
+.pr-cliquable:hover{background:#f1f5f9}
+.pr-cliquable.on{background:#dcfce7;outline:1px solid var(--accent)}
 
 /* ---- Outils sur la carte ---- */
-.pr-outils {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  z-index: 1000;
-  display: flex;
-  gap: 8px;
-}
+.pr-outils{position:absolute;top:12px;right:12px;z-index:1010;display:flex;gap:8px}
+.pr-menu-wrap{position:relative}
+.pr-outil{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;
+  border:1px solid rgba(15,23,42,.18);background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);color:var(--txt);font-size:13px;font-weight:700;cursor:pointer;
+  box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.pr-outil:hover{background:#fff}
+.pr-apercu{width:18px;height:18px;border-radius:5px;border:1px solid rgba(15,23,42,.25);flex:none}
+.pr-apercu.grand{width:36px;height:36px;border-radius:8px}
+.pr-pop{position:absolute;top:calc(100% + 8px);z-index:1020;min-width:245px;background:#fff;
+  border:1px solid rgba(15,23,42,.12);border-radius:12px;padding:7px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.pr-pop-droite{right:0}
+.pr-pop-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px;border:0;
+  border-radius:8px;background:transparent;color:var(--txt);cursor:pointer;font-size:13px;font-weight:600}
+.pr-pop-item span{color:var(--mut);font-weight:500}
+.pr-pop-item:hover:not(:disabled){background:#f1f5f9}
+.pr-pop-item:disabled{opacity:.5;cursor:default}
+.pr-top .pr-pop-item{flex-direction:column;align-items:flex-start;gap:2px}
+.pr-pop-fond{min-height:55px}
+.pr-top .pr-pop-fond{flex-direction:row;align-items:center}
+.pr-pop-fond.on{background:#fee2e2;outline:1px solid var(--rouge)}
+.pr-pop .pr-fond-check{margin-left:auto;color:var(--rouge);font-size:17px;font-weight:800}
+.pr-check{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;
+  font-size:13px;font-weight:600;color:var(--txt)}
+.pr-check:hover{background:#f1f5f9}
+.pr-check input{accent-color:var(--rouge);width:16px;height:16px}
+.pr-voile{position:absolute;inset:0;z-index:1005;background:transparent}
 
-.pr-menu-wrap {
-  position: relative;
-}
+/* ---- Légende & messages sur la carte ---- */
+.pr-legende{position:absolute;left:12px;bottom:12px;z-index:1000;padding:11px 14px;border-radius:12px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(15,23,42,.15);font-size:12px;font-weight:600;display:flex;flex-direction:column;
+  gap:7px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
+.pr-legende.cache{display:none}
+.pr-legende div{display:flex;align-items:center;gap:8px;color:#334155}
+.pr-legende strong{color:var(--txt)}
+.pr-legende i{width:11px;height:11px;border-radius:50%;border:1px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.35);flex:none}
+.pr-alerte{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1000;display:flex;gap:10px;
+  align-items:center;padding:9px 13px;border-radius:10px;background:#fff1f1;color:rgb(160,10,10);
+  font-size:12.5px;font-weight:700;border:1px solid #f5b5b5;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.pr-alerte.pr-info{background:#fff;color:#334155;border-color:#cbd5e1;top:auto;bottom:12px}
+.pr-alerte button{border:0;background:rgb(200,15,15);color:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font-weight:700}
 
-/* Boutons des outils */
-.pr-outil {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 13px;
-  border-radius: 10px;
-  border: 1px solid rgba(35, 65, 52, 0.25);
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #172b24;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: background 0.2s ease;
-}
-
-.pr-outil:hover {
-  background: rgba(255, 255, 255, 0.98);
-}
-
-/* Aperçus des fonds */
-.pr-apercu {
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 1px solid rgba(35, 65, 52, 0.3);
-  flex: none;
-}
-
-.pr-apercu.grand {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-}
-
-/* Menus déroulants */
-.pr-pop {
-  position: absolute;
-  top: calc(100% + 8px);
-  z-index: 1020;
-  min-width: 245px;
-  background: rgba(255, 255, 255, 0.96);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
-  padding: 7px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
-}
-
-.pr-pop-droite {
-  right: 0;
-}
-
-/* Options des menus */
-.pr-pop-item {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  text-align: left;
-  padding: 10px;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  color: #111827;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.pr-pop-item span {
-  color: #374151;
-}
-
-.pr-pop-item:hover:not(:disabled) {
-  background: #eef4f0;
-}
-
-.pr-pop-item:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-/* Liste des fonds */
-.pr-pop-fonds {
-  min-width: 245px;
-  background: rgba(255, 255, 255, 0.96);
-}
-
-.pr-pop-fond {
-  flex-direction: row;
-  align-items: center;
-  gap: 11px;
-  min-height: 55px;
-}
-
-.pr-pop-fond.on {
-  background: #e7f3ed;
-  border: 1px solid rgba(8, 127, 99, 0.28);
-}
-
-.pr-fond-check {
-  margin-left: auto;
-  color: #087f63 !important;
-  font-size: 17px !important;
-  font-weight: 800;
-}
-
-/* Aperçus des fonds */
-.pr-apercu {
-  width: 20px;
-  height: 20px;
-  border-radius: 5px;
-  border: 1px solid rgba(0, 0, 0, 0.18);
-  flex: none;
-}
-
-.pr-apercu.grand {
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-}
-/* Cases à cocher des couches */
-.pr-check {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: #111827;
-}
-
-.pr-check:hover {
-  background: #eef4f0;
-}
-
-.pr-check input {
-  accent-color: #087f63;
-  width: 16px;
-  height: 16px;
-}
-
-/* Voile de fermeture des menus */
-.pr-voile {
-  position: absolute;
-  inset: 0;
-  z-index: 1005;
-  background: transparent;
-}
-
-.pr-top .pr-pop {
-  z-index: 1010;
-}
-
-/* ---- Légende de la carte ---- */
-.pr-legende {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 1000;
-  padding: 11px 14px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.86);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(35, 65, 52, 0.22);
-  font-size: 12px;
-  font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
-}
-
-.pr-legende div {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #263b31;
-}
-
-.pr-legende i {
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  border: 1px solid #52645c;
-  flex: none;
-}
-
-/* ---- Message d'alerte ---- */
-.pr-alerte {
-  position: absolute;
-  left: 50%;
-  top: 12px;
-  transform: translateX(-50%);
-  z-index: 1000;
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  padding: 9px 13px;
-  border-radius: 10px;
-  background: rgba(255, 245, 245, 0.96);
-  color: #991b1b;
-  font-size: 12.5px;
-  font-weight: 700;
-  border: 1px solid #fca5a5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-
-.pr-alerte button {
-  border: 0;
-  background: #fee2e2;
-  color: #7f1d1d;
-  border-radius: 6px;
-  padding: 5px 9px;
-  cursor: pointer;
-  font-weight: 700;
-}
-
-/* ---- Conteneur Leaflet ---- */
-.pr .leaflet-container {
-  background: transparent;
-  font-family: var(--corps);
-}
-
-/* ---- Étiquettes et infobulles ---- */
-.pr .leaflet-tooltip {
-  background: rgba(255, 255, 255, 0.96);
-  color: #10271d;
-  border: 1px solid #64796c;
-  border-radius: 5px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.20);
-  font-size: 13px;
-  font-weight: 800;
-  padding: 5px 8px;
-  text-shadow: none;
-}
-
-.pr .leaflet-tooltip-top:before,
-.pr .leaflet-tooltip-bottom:before {
-  display: none;
-}
+.pr .leaflet-container{background:#e5e7eb;font-family:var(--corps)}
+.pr .leaflet-tooltip{background:#fff;color:var(--txt);border:1px solid #94a3b8;border-radius:5px;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:13px;font-weight:700;padding:5px 8px}
+.pr .leaflet-tooltip-top:before,.pr .leaflet-tooltip-bottom:before{display:none}
 
 /* ---- Tablette & mobile : la carte passe au-dessus, la page défile ---- */
 @media (max-width:1023px){
@@ -1478,19 +1256,5 @@ const CSS = `
 @media (prefers-reduced-motion:reduce){
   .pr *{transition:none !important}
 }
-
-/* Le voile reste derrière les boutons et les menus */
-.pr-voile{
-  z-index:1005;
-}
-
-.pr-outils{
-  z-index:1010;
-}
-
-.pr-outils .pr-pop{
-  z-index:1020;
-}
-
 
 `;
