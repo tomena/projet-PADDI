@@ -52,6 +52,16 @@ const ANNEE_MAX = 2025; // à mettre à jour quand GFW publie l'année suivante
 const ANNEES = Array.from({ length: ANNEE_MAX - ANNEE_MIN + 1 }, (_, i) => ANNEE_MIN + i);
 type PerteAn = { annee: number; ha: number };
 
+// Au-delà de ce nombre de zones, on ne calcule pas les hectares une par une (trop de requêtes GFW)
+const MAX_ZONES = 12;
+
+// Champ « nom » dans tes fichiers : paddi_paysage.geojson → "Paysage", paddi_mbv.geojson → "Nom"
+// (mettre les mêmes valeurs dans api/gfw-perte.ts)
+const CLE_NOM_PAYSAGE: string | null = 'Paysage';
+const CLE_NOM_MBV: string | null = 'Nom';
+const CANDIDATS_PAYSAGE = ['paysage', 'nom_paysage', 'nom', 'name'];
+const CANDIDATS_MBV = ['nom', 'nom_mbv', 'mbv', 'name'];
+
 const FONDS: Record<
   string,
   { label: string; url: string; attribution: string; apercu: string }
@@ -162,6 +172,11 @@ function zoneDansRegion(z: Zone, region: Zone) {
   return dansZone(cx, cy, region);
 }
 
+// Deux zones s'emboîtent ou se chevauchent (dans un sens ou dans l'autre)
+function zoneAutour(z: Zone, conteneur: Zone) {
+  return zoneDansRegion(z, conteneur) || zoneDansRegion(conteneur, z);
+}
+
 function compterParZone(feux: Feu[], zones: Zone[], unique = false) {
   const compte = new Array(zones.length).fill(0);
   for (const f of feux) {
@@ -188,6 +203,32 @@ function preparerZones(data: any, cle: string, defaut: string): Zone[] {
 /* =====================================================================
    DONNÉES FEUX
    ===================================================================== */
+
+function trouverCleNom(features: any[], candidats: string[], force: string | null) {
+  if (force) return force;
+  const props = features.find((f) => f?.properties)?.properties || {};
+  const cles = Object.keys(props);
+  for (const c of candidats) {
+    const k = cles.find((x) => x.toLowerCase() === c);
+    if (k) return k;
+  }
+  return cles.find((k) => typeof props[k] === 'string') || '';
+}
+
+// Même logique côté serveur (api/gfw-perte.ts) : champ du nom + noms rendus uniques
+function preparerZonesAuto(data: any, candidats: string[], force: string | null, defaut: string): Zone[] {
+  const features = (data?.features || []).filter((f: any) => f?.geometry);
+  const cle = trouverCleNom(features, candidats, force);
+  const bruts: string[] = features.map((f: any) => String(f.properties?.[cle] ?? '').trim() || defaut);
+  const total: Record<string, number> = {};
+  bruts.forEach((n) => (total[n] = (total[n] || 0) + 1));
+  const vus: Record<string, number> = {};
+  return features.map((f: any, i: number) => {
+    const n = bruts[i];
+    vus[n] = (vus[n] || 0) + 1;
+    return { nom: total[n] > 1 ? `${n} (${vus[n]})` : n, feature: f, bbox: bboxDe(f.geometry) };
+  });
+}
 
 function niveauConfiance(c: any): 'l' | 'n' | 'h' | null {
   if (c == null || c === '') return null;
@@ -425,6 +466,20 @@ function MasqueZone({ zone }: { zone: Zone }) {
   return null;
 }
 
+function ListeZones({ items, vide }: { items: { nom: string; texte: string }[]; vide: string }) {
+  if (!items.length) return <p className="pr-vide">{vide}</p>;
+  return (
+    <div className="pr-liste">
+      {items.map((i) => (
+        <div key={i.nom} className="pr-ligne">
+          <span>{i.nom}</span>
+          <strong>{i.texte}</strong>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Redimension() {
   const map = useMap();
   useEffect(() => {
@@ -461,6 +516,8 @@ export default function Pression() {
     peripheries: false,
     feux: true,
     perte: true,
+    paysages: true,
+    mbv: false,
   });
 
   // ---- Données géographiques
@@ -468,6 +525,8 @@ export default function Pression() {
   const apData = useGeoJSON('/data/aire_protegee_paddi.geojson');
   const communesData = useGeoJSON('/data/madagascar_communes.json');
   const periphData = useGeoJSON('/data/peripherie_5km_paddi.geojson');
+  const paysageData = useGeoJSON('/data/paddi_paysage.geojson');
+  const mbvData = useGeoJSON('/data/paddi_mbv.geojson');
 
   const regionsZ = useMemo(() => preparerZones(regionsData, 'nom_reg', 'Région'), [regionsData]);
   const apZ = useMemo(() => preparerZones(apData, 'nom_ap', 'Aire protégée sans nom'), [apData]);
@@ -475,6 +534,15 @@ export default function Pression() {
   const communesZ = useMemo(
     () => preparerZones(communesData, 'NAME_4', 'Commune sans nom'),
     [communesData]
+  );
+
+  const paysagesZ = useMemo(
+    () => preparerZonesAuto(paysageData, CANDIDATS_PAYSAGE, CLE_NOM_PAYSAGE, 'Paysage sans nom'),
+    [paysageData]
+  );
+  const mbvZ = useMemo(
+    () => preparerZonesAuto(mbvData, CANDIDATS_MBV, CLE_NOM_MBV, 'Micro-bassin sans nom'),
+    [mbvData]
   );
 
   // ---- Feux NASA FIRMS
@@ -572,6 +640,17 @@ export default function Pression() {
     [feuxRegion, apZone, periphSel]
   );
 
+  // paysages et micro-bassins de la zone choisie (aire protégée si choisie, sinon région)
+  const conteneurZone = apZone || regionZone;
+  const paysagesVisibles = useMemo(
+    () => (conteneurZone ? paysagesZ.filter((z) => zoneAutour(z, conteneurZone)) : paysagesZ),
+    [paysagesZ, conteneurZone]
+  );
+  const mbvVisibles = useMemo(
+    () => (conteneurZone ? mbvZ.filter((z) => zoneAutour(z, conteneurZone)) : mbvZ),
+    [mbvZ, conteneurZone]
+  );
+
   // 4. période → ce qui est affiché sur la carte
   const feuxAffiches = useMemo(() => feuxZone.filter((f) => f.age <= periode), [feuxZone, periode]);
   const feuxRegionPeriode = useMemo(
@@ -590,6 +669,22 @@ export default function Pression() {
       .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
       .sort((a, b) => b.nombre - a.nombre);
   }, [feuxRegionPeriode, apsVisibles]);
+
+  const statsPaysages = useMemo(() => {
+    const c = compterParZone(feuxAffiches, paysagesVisibles);
+    return paysagesVisibles
+      .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
+      .filter((x) => x.nombre > 0)
+      .sort((a, b) => b.nombre - a.nombre);
+  }, [feuxAffiches, paysagesVisibles]);
+
+  const statsMbv = useMemo(() => {
+    const c = compterParZone(feuxAffiches, mbvVisibles);
+    return mbvVisibles
+      .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
+      .filter((x) => x.nombre > 0)
+      .sort((a, b) => b.nombre - a.nombre);
+  }, [feuxAffiches, mbvVisibles]);
 
   const feuxPeriph = useMemo(
     () => feuxAffiches.filter((f) => periphSel.some((p) => dansZone(f.lon, f.lat, p))),
@@ -792,6 +887,12 @@ export default function Pression() {
       region === TOUS ? ['all', 'all', ''] : [`region:${region}`, 'region', region],
     ];
     apsVisibles.forEach((a) => besoins.push([`ap:${a.nom}`, 'ap', a.nom]));
+    if (paysagesVisibles.length <= MAX_ZONES) {
+      paysagesVisibles.forEach((z) => besoins.push([`paysage:${z.nom}`, 'paysage', z.nom]));
+    }
+    if (mbvVisibles.length <= MAX_ZONES) {
+      mbvVisibles.forEach((z) => besoins.push([`mbv:${z.nom}`, 'mbv', z.nom]));
+    }
 
     besoins.forEach(([cle, type, nom]) => {
       if (perte[cle] || enCours.current.has(cle)) return;
@@ -806,7 +907,7 @@ export default function Pression() {
         .finally(() => enCours.current.delete(cle));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme, region, apsVisibles]);
+  }, [theme, region, apsVisibles, paysagesVisibles, mbvVisibles]);
 
   const defPerte = useMemo(() => {
     const lire = (cle: string) => (Array.isArray(perte[cle]) ? (perte[cle] as PerteAn[]) : null);
@@ -830,7 +931,24 @@ export default function Pression() {
       })
       .sort((a, b) => (b.ha ?? -1) - (a.ha ?? -1));
 
+    const liste = (zones: Zone[], pre: string) => ({
+      trop: zones.length > MAX_ZONES,
+      items: zones
+        .map((z) => {
+          const cle = `${pre}:${z.nom}`;
+          const ha = somme(lire(cle));
+          return {
+            nom: z.nom,
+            ha,
+            texte: perte[cle] === 'err' ? 'n/d' : ha == null ? '…' : `${nf(Math.round(ha))} ha`,
+          };
+        })
+        .sort((a, b) => (b.ha ?? -1) - (a.ha ?? -1)),
+    });
+
     return {
+      paysages: liste(paysagesVisibles, 'paysage'),
+      mbvs: liste(mbvVisibles, 'mbv'),
       erreur: perte[cleScope] === 'err',
       total: somme(scope),
       parAnnee,
@@ -838,7 +956,7 @@ export default function Pression() {
       nbAnnees: anneeFin - anneeDebut + 1,
       aires,
     };
-  }, [perte, anneeDebut, anneeFin, apZone, region, apsVisibles]);
+  }, [perte, anneeDebut, anneeFin, apZone, region, apsVisibles, paysagesVisibles, mbvVisibles]);
 
   // ---- Styles des zones sur la carte ------------------------------------
   const styleRegion = (z: Zone): L.PathOptions => {
@@ -867,9 +985,24 @@ export default function Pression() {
     fillOpacity: 0.07,
   });
 
+  const stylePaysage = (): L.PathOptions => ({
+    color: '#6d28d9',
+    weight: 1.5,
+    fillColor: '#8b5cf6',
+    fillOpacity: 0.05,
+  });
+  const styleMbv = (): L.PathOptions => ({
+    color: '#1d4ed8',
+    weight: 1,
+    fillColor: '#3b82f6',
+    fillOpacity: 0.07,
+  });
+
   const optionsCouches: [keyof typeof couches, string][] = [
     ['feux', 'Détections de feux'],
     ['perte', 'Perte de couvert forestier'],
+    ['paysages', 'Paysages'],
+    ['mbv', 'Micro-bassins'],
     ['regions', 'Limites des régions'],
     ['aires', 'Aires protégées'],
     ['peripheries', 'Périphéries de 5 km'],
@@ -1138,20 +1271,32 @@ export default function Pression() {
                   )}
                 </article>
 
-                <article className="pr-carte pr-carte-attente c3">
+                <article className="pr-carte c3">
                   <h2>Superficie déboisée par paysage</h2>
                   <p className="pr-note">
-                    {anneeDebut} – {anneeFin}
+                    {anneeDebut} – {anneeFin} · hectares
                   </p>
-                  <p className="pr-vide">Couche des paysages à intégrer</p>
+                  {defPerte.paysages.trop ? (
+                    <p className="pr-vide">
+                      Trop de paysages ({defPerte.paysages.items.length}) : choisissez d’abord une région
+                    </p>
+                  ) : (
+                    <ListeZones items={defPerte.paysages.items} vide="Aucun paysage dans cette zone" />
+                  )}
                 </article>
 
-                <article className="pr-carte pr-carte-attente c4">
+                <article className="pr-carte c4">
                   <h2>Superficie déboisée par micro-bassin</h2>
                   <p className="pr-note">
-                    {anneeDebut} – {anneeFin}
+                    {anneeDebut} – {anneeFin} · hectares
                   </p>
-                  <p className="pr-vide">Couche des micro-bassins à intégrer</p>
+                  {defPerte.mbvs.trop ? (
+                    <p className="pr-vide">
+                      Trop de micro-bassins ({defPerte.mbvs.items.length}) : choisissez d’abord une région ou une aire protégée
+                    </p>
+                  ) : (
+                    <ListeZones items={defPerte.mbvs.items} vide="Aucun micro-bassin dans cette zone" />
+                  )}
                 </article>
 
                 <article className="pr-carte c5">
@@ -1276,17 +1421,27 @@ export default function Pression() {
             </article>
 
             {/* CARTE 3 : paysages (à intégrer) */}
-            <article className="pr-carte pr-carte-attente c3">
+            <article className="pr-carte c3">
               <h2>Feux par paysage</h2>
-              <p className="pr-note">{periode} dernières heures</p>
-              <p className="pr-vide">Couche des paysages à intégrer</p>
+              <p className="pr-note">
+                {portee} · {periode} h
+              </p>
+              <ListeZones
+                items={statsPaysages.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
+                vide={paysagesZ.length ? 'Aucun feu dans les paysages de cette zone' : 'Chargement…'}
+              />
             </article>
 
             {/* CARTE 4 : micro-bassins (à intégrer) */}
-            <article className="pr-carte pr-carte-attente c4">
+            <article className="pr-carte c4">
               <h2>Feux par micro-bassin</h2>
-              <p className="pr-note">{periode} dernières heures</p>
-              <p className="pr-vide">Couche des micro-bassins à intégrer</p>
+              <p className="pr-note">
+                {portee} · {periode} h
+              </p>
+              <ListeZones
+                items={statsMbv.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
+                vide={mbvZ.length ? 'Aucun feu dans les micro-bassins de cette zone' : 'Chargement…'}
+              />
             </article>
 
             {/* CARTE 5 : périphéries */}
@@ -1354,6 +1509,8 @@ export default function Pression() {
             {couches.regions && (
               <CoucheZones zones={regionsZ} style={styleRegion} cle={region} onClick={(z) => choisirRegion(z.nom)} />
             )}
+            {couches.paysages && <CoucheZones zones={paysagesVisibles} style={stylePaysage} cle="paysages" />}
+            {couches.mbv && <CoucheZones zones={mbvVisibles} style={styleMbv} cle="mbv" />}
             {couches.peripheries && <CoucheZones zones={periphSel} style={stylePeriph} cle="p" />}
             {couches.aires && (
               <CoucheZones
