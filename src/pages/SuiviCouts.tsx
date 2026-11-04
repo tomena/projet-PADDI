@@ -3,2519 +3,1020 @@ import { calculerDecaissement, type BaseDecaissement } from "../utils/decaisseme
 import { useLanguage } from "../context/LanguageContext";
 import LoginModal from "../components/LoginModal";
 import UpdateModal from "../components/UpdateModal";
-import {CalendarDays,RotateCcw,RefreshCw,Building2,Building,Target,Plane,Wallet,Users,User,Info,Coins,Briefcase,UserRound,Handshake,Leaf,Map,ShoppingCart, FileText, HardHat, Landmark, Cog, Receipt
-      } from 'lucide-react';
-import { FaShoppingCart, FaFileContract } from 'react-icons/fa';
-import { MdPayments, MdAccountBalanceWallet } from 'react-icons/md';
-import { GiPayMoney } from 'react-icons/gi';
-import {ResponsiveContainer,PieChart,Pie,Cell,BarChart,Bar,XAxis,YAxis,LabelList,Label,CartesianGrid,Tooltip,
-      } from 'recharts';
+import {
+  CalendarDays, RotateCcw, RefreshCw, Building2, Target, Plane, Users, User, Info, Coins,
+  Briefcase, Handshake, Leaf, Map as MapIcon, ShoppingCart, FileText, HardHat, Landmark, Cog, Receipt,
+  Building,
+} from "lucide-react";
+import { FaShoppingCart, FaFileContract } from "react-icons/fa";
+import { GiPayMoney } from "react-icons/gi";
+import {
+  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, LabelList, CartesianGrid,
+} from "recharts";
 import IconeSuiviCouts from "../components/IconeSuiviCouts";
 
 interface CoutActivite {
-  Année:number;
-  Mois:string;
-  UC:string;      
-  [key:string]: any;
-      }
+  Année: number;
+  Mois: string;
+  UC: string;
+  [key: string]: any;
+}
 
-      const TEXT = {
-        fr: {
-          title: "SUIVI DES COÛTS",
-          subtitle: "Plan Stratégique 2024 - 2030",      
-          updated: "Données mises à jour le :",      
-          year: "ANNÉE",
-          month: "MOIS",
-          unit: "UNITÉ DE COORDINATION",      
-          all: "Tous",
-          reset: "Réinitialiser les filtres",
-      
-          annual: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT (PROGRAMME)",
-          cumulative: "DÉCAISSÉ CUMULÉ",
-          totalBudget: "SUR UN BUDGET TOTAL DE",
-          disbursementRate: "TAUX DE DÉCAISSEMENT",
-          annualEvolution: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT",
-      
-          byComponent: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE",
-          byInstrument: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT",
+/* ================= TRADUCTIONS =================
+   `fr` sert de modèle : TypeScript impose les mêmes clés dans mg / en / de. */
 
-            allocatedShare: "% AU BUDGET", instExperts: "EXPERTS", instMission: "FRAIS DE MISSION", instContrats: "CONTRATS",
-            instAchats: "ACHATS PAR LE PROJET", instConstruction: "CONSTRUCTION (LP 005)", instFinancements: "FINANCEMENTS",
-            instCharges: "CHARGES DE FONCTIONNEMENT ET DIVERS", instFraisGeneraux: "FRAIS GÉNÉRAUX + TVA GER",
-      
-          component: "COMPOSANTE",
-          instrument: "INSTRUMENT",
-          disbursed: "DÉCAISSÉ",
-          budgetShare: "% DU BUDGET TOTAL",
-          total: "TOTAL",
-      
-          globalProgress:
-            "TAUX D’AVANCEMENT GLOBAL DES COÛTS (PAR RAPPORT À LA PLANIFICATION ANNUELLE)",
-          annualPlanning: "PLANIFICATION ANNUELLE",
-      
-          progressComponent: "TAUX D’AVANCEMENT PAR COMPOSANTE",
-          progressInstrument: "TAUX D’AVANCEMENT PAR INSTRUMENT",
-      
-          planned: "PLANIFIÉ",      
-          legend: "LÉGENDE (TAUX D'AVANCEMENT)",
-          info:
-            "Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.",
-      
-          access: "ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE",
-          accessDesc:
-            "Consultez le détail des coûts, engagements et décaissements",
-          accessBtn: "Accéder au suivi des coûts ↗",
-      
-          millionEuro: "Million €",
-          millionsEuro: "Millions €",
+const fr = {
+  title: "SUIVI DES COÛTS",
+  subtitle: "Plan Stratégique 2024 - 2030",
+  updated: "Données mises à jour le :",
+  update: "Mettre à jour",
+  year: "ANNÉE",
+  month: "MOIS",
+  unit: "UNITÉ DE COORDINATION",
+  all: "Tous",
+  reset: "Réinitialiser les filtres",
 
-          componentC1: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
-          componentC2: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
-          componentC3: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
-          componentC4: "C4. CRÉATION D’EMPLOIS VERTS",
+  annual: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT (PROGRAMME)",
+  cumulative: "DÉCAISSÉ CUMULÉ",
+  totalBudget: "SUR UN BUDGET TOTAL DE",
+  disbursementRate: "TAUX DE DÉCAISSEMENT",
+  annualEvolution: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT",
 
-          sl: "SL",
-          grants: "GRANTS",
-          achats: "ACHATS",
-          prestationsSiege: "PRESTATIONS - SIÈGE SOCIAL",
-          prestationsBureaux: "PRESTATIONS DES BUREAUX RÉGIONAUX",
-          servicesRessourcesHumaines: "SERVICES LIÉS AUX RESSOURCES HUMAINES",
-          fraisDeplacement: "FRAIS DE DÉPLACEMENT",
-          experts: "EXPERTS",
-          approvisionnementConstruction: "APPROVISIONNEMENT, CONSTRUCTION ET CONTRATS DE CONSTRUCTION",
-          autres: "AUTRES",
+  byComponent: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE",
+  byInstrument: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT",
 
-          financements: "FINANCEMENTS",
-          contrats: "CONTRATS",
-          missionsInterne: "MISSIONS INTERNES",
-          missionsPartenaires: "MISSIONS PARTENAIRES",
+  allocatedShare: "% AU BUDGET",
+  instExperts: "EXPERTS",
+  instMission: "FRAIS DE MISSION",
+  instContrats: "CONTRATS",
+  instAchats: "ACHATS PAR LE PROJET",
+  instConstruction: "CONSTRUCTION (LP 005)",
+  instFinancements: "FINANCEMENTS",
+  instCharges: "CHARGES DE FONCTIONNEMENT ET DIVERS",
+  instFraisGeneraux: "FRAIS GÉNÉRAUX + TVA GER",
 
-          componentC1Short: "Gestion des services écosystémiques",
-          componentC2Short: "Gouvernance environnementale",
-          componentC3Short: "Développement des paysages",
-          componentC4Short: "Création d’emplois verts",
+  component: "COMPOSANTE",
+  instrument: "INSTRUMENT",
+  disbursed: "DÉCAISSÉ",
+  budgetShare: "% DU BUDGET TOTAL",
+  total: "TOTAL",
 
-          months: {
-            Janvier: "Janvier",
-            Février: "Février",
-            Mars: "Mars",
-            Avril: "Avril",
-            Mai: "Mai",
-            Juin: "Juin",
-            Juillet: "Juillet",
-            Août: "Août",
-            Septembre: "Septembre",
-            Octobre: "Octobre",
-            Novembre: "Novembre",
-            Décembre: "Décembre",
-          },
-        },
-      
-        mg: {
-          title: "FANARAHA-MASO NY VIDIM-PANATANTERAHANA",
-          subtitle: "Drafitra Stratejika 2024 - 2030",
-      
-          updated: "Nohavaozina farany :",
-      
-      
-          year: "TAONA",
-          month: "VOLANA",
-          unit: "VONDROM-PANDRINDRANA",
-      
-          all: "Rehetra",
-          reset: "Avereno ny sivana",
-      
-          annual: "FIVOARAN'NY FAMOAHAM-BOLA ISAN-TAONA",
-          cumulative: "FITAMBARAN'NY VOLA VOAVOAKA",
-          totalBudget: "AMIN'NY TETIBOLA MANONTOLO",
-          disbursementRate: "TAHAN'NY FAMOAHAM-BOLA",
-          annualEvolution: "FIVOARAN'NY FAMOAHAM-BOLA ISAN-TAONA",
-      
-          byComponent: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY SINGA",
-          byInstrument: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY FITAOVANA",
+  globalProgress: "TAUX D’AVANCEMENT GLOBAL DES COÛTS (PAR RAPPORT À LA PLANIFICATION ANNUELLE)",
+  annualPlanning: "PLANIFICATION ANNUELLE",
+  progressComponent: "TAUX D’AVANCEMENT PAR COMPOSANTE",
+  progressInstrument: "TAUX D’AVANCEMENT PAR INSTRUMENT",
+  planned: "PLANIFIÉ",
+  legend: "LÉGENDE (TAUX D'AVANCEMENT)",
+  info: "Le taux d’avancement des coûts est calculé par rapport à la planification annuelle de l’année sélectionnée.",
 
-            allocatedShare: "%-N'NY TETIBOLA VOATOMBOKA", instExperts: "MANAM-PAHAIZANA", instMission: "SARAN'NY IRAKA", instContrats: "FIFANEKENA",
-            instAchats: "FIVIDIANA ATAON'NY TETIKASA", instConstruction: "FANORENANA (LP 005)", instFinancements: "FAMATSIAM-BOLA",
-            instCharges: "SARAN'NY FIASANA SY HAFA", instFraisGeneraux: "SARAN'NY ANKAPOBENY + TVA GER",
-      
-          component: "SINGA",
-          instrument: "FITAOVANA",
-          disbursed: "VOAVOAKA",
-          budgetShare: "%-N'NY TETIBOLA",
-          total: "FITAMBARANY",
-      
-          globalProgress:
-            "TAHAN'NY FIVOARAN'NY VIDIM-PANATANTERAHANA (RAHA OHARINA AMIN'NY DRAFITRA ISAN-TAONA)",
-          annualPlanning: "DRAFITRA ISAN-TAONA",
-      
-          progressComponent: "TAHAN'NY FIVOARANA ISAKY NY SINGA",
-          progressInstrument: "TAHAN'NY FIVOARANA ISAKY NY FITAOVANA",
-      
-          planned: "VOALAMINA",
-      
-          legend: "FANAZAVANA (TAHAN'NY FIVOARANA)",
-          info:
-            "Ny tahan'ny fivoaran'ny vidim-panatanterahana dia kajiana raha oharina amin'ny drafitra isan-taona voafantina.",
-      
-          access: "HIDITRA AMIN'NY FANARAHA-MASO NY VIDIM-PANATANTERAHANA",
-          accessDesc:
-            "Jereo ny antsipirian'ny vola, fifanekena ary famoaham-bola",
-          accessBtn: "Hiditra ↗",
-      
-          millionEuro: "Tapitrisa €",
-          millionsEuro: "Tapitrisa €",
+  access: "ACCÉDER AU SUIVI DES COÛTS DE L’ANNÉE",
+  accessDesc: "Consultez le détail des coûts, engagements et décaissements",
+  accessBtn: "Accéder au suivi des coûts ↗",
 
-          componentC1: "C1. FITANTANANA NY SERIVISY ARA-TONTOLON'AINA",
-          componentC2: "C2. FITANTANANA NY TONTOLON'AINA IFOTONY",
-          componentC3: "C3. FAMPANDROSOANA NY TONTOLON-TANY MPAMOKATRA",
-          componentC4: "C4. FAMORONANA ASA MAITSO",
+  millionsEuro: "Million €",
 
-          sl: "SL",
-          grants: "GRANTS",
-          achats: "FIVIDIANA",
-          prestationsSiege: "SERVISY - FOIBE",
-          prestationsBureaux: "SERVISY AMIN'NY BIRAON'NY FARITRA",
-          servicesRessourcesHumaines: "SERVISY MIFANDRAY AMIN'NY LOHARANON-KARENA OLONA",
-          fraisDeplacement: "SARAN'NY FIVEZIVEZENA",
-          experts: "MANAM-PAHAIZANA",
-          approvisionnementConstruction: "FAMATSIAHANA, FANORENANA ARY FIFANEKENA AMIN'NY FANORENANA",
-          autres: "HAFA",
-          financements: "FAMATSIAM-BOLA",
-          contrats: "FIFANEKENA",
-          missionsInterne: "IRAKA ANATINY",
-          missionsPartenaires: "IRAKA MIARAKA AMIN'NY MPIARA-MIASA",
+  componentC1: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+  componentC2: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
+  componentC3: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+  componentC4: "C4. CRÉATION D’EMPLOIS VERTS",
 
-          componentC1Short: "Fitantanana ny serivisy ara-tontolo iainana",
-          componentC2Short: "Fitantanana ny tontolo iainana",
-          componentC3Short: "Fampandrosoana ny tontolo-tany",
-          componentC4Short: "Famoronana asa maitso",
+  achats: "ACHATS",
+  financements: "FINANCEMENTS",
+  contrats: "CONTRATS",
+  missionsInterne: "MISSIONS INTERNES",
+  missionsPartenaires: "MISSIONS PARTENAIRES",
 
-          months: {
-            Janvier: "Janoary",
-            Février: "Febroary",
-            Mars: "Martsa",
-            Avril: "Aprily",
-            Mai: "Mey",
-            Juin: "Jona",
-            Juillet: "Jolay",
-            Août: "Aogositra",
-            Septembre: "Septambra",
-            Octobre: "Oktobra",
-            Novembre: "Novambra",
-            Décembre: "Desambra",
-          },
-        },
-      
-        en: {
-          title: "COST MONITORING",
-          subtitle: "Strategic Plan 2024 - 2030",
-      
-          updated: "Data updated on:",
-      
-          year: "YEAR",
-          month: "MONTH",
-          unit: "COORDINATION UNIT",
-      
-          all: "All",
-          reset: "Reset filters",
-      
-          annual: "ANNUAL DISBURSEMENT EVOLUTION (PROGRAMME)",
-          cumulative: "CUMULATIVE DISBURSEMENT",
-          totalBudget: "OUT OF A TOTAL BUDGET OF",
-          disbursementRate: "DISBURSEMENT RATE",
-          annualEvolution: "ANNUAL DISBURSEMENT EVOLUTION",
-      
-          byComponent: "ANNUAL DISBURSEMENT BY COMPONENT",
-          byInstrument: "ANNUAL DISBURSEMENT BY INSTRUMENT",
-
-            allocatedShare: "% OF BUDGET", instExperts: "EXPERTS", instMission: "MISSION COSTS", instContrats: "CONTRACTS",
-            instAchats: "PURCHASES BY THE PROJECT", instConstruction: "CONSTRUCTION (LP 005)", instFinancements: "FINANCING",
-            instCharges: "OPERATING COSTS AND MISCELLANEOUS", instFraisGeneraux: "OVERHEADS + VAT GER",
-      
-          component: "COMPONENT",
-          instrument: "INSTRUMENT",
-          disbursed: "DISBURSED",
-          budgetShare: "% OF TOTAL BUDGET",
-          total: "TOTAL",
-      
-          globalProgress:
-            "OVERALL COST PROGRESS (COMPARED TO ANNUAL PLANNING)",
-          annualPlanning: "ANNUAL PLANNING",
-      
-          progressComponent: "PROGRESS BY COMPONENT",
-          progressInstrument: "PROGRESS BY INSTRUMENT",
-      
-          planned: "PLANNED",
-      
-          legend: "LEGEND (PROGRESS RATE)",
-          info:
-            "The cost progress rate is calculated against the annual plan for the selected year.",
-      
-          access: "OPEN ANNUAL COST MONITORING",
-          accessDesc:
-            "View detailed costs, commitments and disbursements",
-          accessBtn: "Open cost monitoring ↗",
-      
-          millionEuro: "Million €",
-          millionsEuro: "Million €",
-
-          componentC1: "C1. ECOSYSTEM SERVICES MANAGEMENT",
-          componentC2: "C2. DECENTRALIZED ENVIRONMENTAL GOVERNANCE",
-          componentC3: "C3. DEVELOPMENT OF PRODUCTIVE LANDSCAPES",
-          componentC4: "C4. CREATION OF GREEN JOBS",
-
-          sl: "SL",
-          grants: "GRANTS",
-          achats: "PURCHASES",
-          prestationsSiege: "SERVICES - HEAD OFFICE",
-          prestationsBureaux: "REGIONAL OFFICE SERVICES",
-          servicesRessourcesHumaines: "HUMAN RESOURCES SERVICES",
-          fraisDeplacement: "TRAVEL EXPENSES",
-          experts: "EXPERTS",
-          approvisionnementConstruction: "SUPPLIES, CONSTRUCTION AND CONSTRUCTION CONTRACTS",
-          autres: "OTHER",
-
-          financements: "FUNDING",
-          contrats: "CONTRACTS",
-          missionsInterne: "INTERNAL MISSIONS",
-          missionsPartenaires: "PARTNER MISSIONS",
-
-          componentC1Short: "Ecosystem services management",
-          componentC2Short: "Environmental governance",
-          componentC3Short: "Landscape development",
-          componentC4Short: "Green job creation",
-
-          months: {
-            Janvier: "January",
-            Février: "February",
-            Mars: "March",
-            Avril: "April",
-            Mai: "May",
-            Juin: "June",
-            Juillet: "July",
-            Août: "August",
-            Septembre: "September",
-            Octobre: "October",
-            Novembre: "November",
-            Décembre: "December",
-          },
-        },
-      
-        de: {
-          title: "KOSTENMONITORING",
-          subtitle: "Strategischer Plan 2024 - 2030",
-      
-          updated: "Daten aktualisiert am:",
-      
-          year: "JAHR",
-          month: "MONAT",
-          unit: "KOORDINATIONSEINHEIT",
-      
-          all: "Alle",
-          reset: "Filter zurücksetzen",
-      
-          annual: "JÄHRLICHE ENTWICKLUNG DER AUSZAHLUNGEN",
-          cumulative: "KUMULIERTE AUSZAHLUNG",
-          totalBudget: "VON EINEM GESAMTBUDGET VON",
-          disbursementRate: "AUSZAHLUNGSRATE",
-          annualEvolution: "JÄHRLICHE ENTWICKLUNG DER AUSZAHLUNGEN",
-      
-          byComponent: "JÄHRLICHE AUSZAHLUNG NACH KOMPONENTE",
-          byInstrument: "JÄHRLICHE AUSZAHLUNG NACH INSTRUMENT",
-      
-          component: "KOMPONENTE",
-          instrument: "INSTRUMENT",
-          disbursed: "AUSGEZAHLT",
-          budgetShare: "% DES GESAMTBUDGETS",
-          total: "GESAMT",
-      
-          globalProgress:
-            "GESAMTFORTSCHRITT DER KOSTEN (IM VERGLEICH ZUR JAHRESPLANUNG)",
-          annualPlanning: "JAHRESPLANUNG",
-      
-          progressComponent: "FORTSCHRITT NACH KOMPONENTE",
-          progressInstrument: "FORTSCHRITT NACH INSTRUMENT",
-
-            allocatedShare: "% DES BUDGETS", instExperts: "EXPERTEN", instMission: "MISSIONSKOSTEN", instContrats: "VERTRÄGE",
-            instAchats: "EINKÄUFE DES PROJEKTS", instConstruction: "BAU (LP 005)", instFinancements: "FINANZIERUNGEN",
-            instCharges: "BETRIEBSKOSTEN UND SONSTIGES", instFraisGeneraux: "GEMEINKOSTEN + MWST GER",
-      
-          planned: "GEPLANT",
-      
-          legend: "LEGENDE (FORTSCHRITTSRATE)",
-          info:
-            "Die Kostenfortschrittsrate wird anhand der Jahresplanung des ausgewählten Jahres berechnet.",
-      
-          access: "JÄHRLICHES KOSTENMONITORING ÖFFNEN",
-          accessDesc:
-            "Details zu Kosten, Verpflichtungen und Auszahlungen anzeigen",
-          accessBtn: "Kostenmonitoring öffnen ↗",
-      
-          millionEuro: "Mio. €",
-          millionsEuro: "Mio. €",
-
-          componentC1: "C1. MANAGEMENT VON ÖKOSYSTEMDIENSTLEISTUNGEN",
-          componentC2: "C2. DEZENTRALISIERTE UMWELTGOVERNANCE",
-          componentC3: "C3. ENTWICKLUNG PRODUKTIVER LANDSCHAFTEN",
-          componentC4: "C4. SCHAFFUNG GRÜNER ARBEITSPLÄTZE",
-
-          sl: "SL",
-          grants: "GRANTS",
-          achats: "EINKÄUFE",
-          prestationsSiege: "DIENSTLEISTUNGEN - HAUPTSITZ",
-          prestationsBureaux: "DIENSTLEISTUNGEN DER REGIONALBÜROS",
-          servicesRessourcesHumaines: "DIENSTLEISTUNGEN IM BEREICH HUMANRESSOURCEN",
-          fraisDeplacement: "REISEKOSTEN",
-          experts: "EXPERTEN",
-          approvisionnementConstruction: "BESCHAFFUNG, BAU UND BAUVERTRÄGE",
-          autres: "SONSTIGE",
-
-          financements: "FINANZIERUNGEN",
-          contrats: "VERTRÄGE",
-          missionsInterne: "INTERNE MISSIONEN",
-          missionsPartenaires: "PARTNER-MISSIONEN",
-
-          componentC1Short: "Management von Ökosystemdienstleistungen",
-          componentC2Short: "Umweltgovernance",
-          componentC3Short: "Landschaftsentwicklung",
-          componentC4Short: "Schaffung grüner Arbeitsplätze",
-
-          months: {
-            Janvier: "Januar",
-            Février: "Februar",
-            Mars: "März",
-            Avril: "April",
-            Mai: "Mai",
-            Juin: "Juni",
-            Juillet: "Juli",
-            Août: "August",
-            Septembre: "September",
-            Octobre: "Oktober",
-            Novembre: "November",
-            Décembre: "Dezember",
-          },
-        },
-      };
-
-const getProgressColor = (percent) => {
-  if (percent < 25) return '#ef4444'; // rouge
-  if (percent < 50) return '#f59e0b'; // jaune
-  if (percent < 75) return '#22c55e'; // vert
-  return '#2563eb'; // bleu
+  months: {
+    Janvier: "Janvier", Février: "Février", Mars: "Mars", Avril: "Avril", Mai: "Mai", Juin: "Juin",
+    Juillet: "Juillet", Août: "Août", Septembre: "Septembre", Octobre: "Octobre", Novembre: "Novembre", Décembre: "Décembre",
+  } as Record<string, string>,
 };
-const ordreMois = [ "Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"
-];
 
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: "FANARAHA-MASO NY VIDIM-PANATANTERAHANA",
+  subtitle: "Drafitra Stratejika 2024 - 2030",
+  updated: "Nohavaozina farany :",
+  update: "Havaozina",
+  year: "TAONA",
+  month: "VOLANA",
+  unit: "VONDROM-PANDRINDRANA",
+  all: "Rehetra",
+  reset: "Avereno ny sivana",
+
+  annual: "FIVOARAN'NY FAMOAHAM-BOLA ISAN-TAONA",
+  cumulative: "FITAMBARAN'NY VOLA VOAVOAKA",
+  totalBudget: "AMIN'NY TETIBOLA MANONTOLO",
+  disbursementRate: "TAHAN'NY FAMOAHAM-BOLA",
+  annualEvolution: "FIVOARAN'NY FAMOAHAM-BOLA ISAN-TAONA",
+
+  byComponent: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY SINGA",
+  byInstrument: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY FITAOVANA",
+
+  allocatedShare: "%-N'NY TETIBOLA VOATOMBOKA",
+  instExperts: "MANAM-PAHAIZANA",
+  instMission: "SARAN'NY IRAKA",
+  instContrats: "FIFANEKENA",
+  instAchats: "FIVIDIANA ATAON'NY TETIKASA",
+  instConstruction: "FANORENANA (LP 005)",
+  instFinancements: "FAMATSIAM-BOLA",
+  instCharges: "SARAN'NY FIASANA SY HAFA",
+  instFraisGeneraux: "SARAN'NY ANKAPOBENY + TVA GER",
+
+  component: "SINGA",
+  instrument: "FITAOVANA",
+  disbursed: "VOAVOAKA",
+  budgetShare: "%-N'NY TETIBOLA",
+  total: "FITAMBARANY",
+
+  globalProgress: "TAHAN'NY FIVOARAN'NY VIDIM-PANATANTERAHANA (RAHA OHARINA AMIN'NY DRAFITRA ISAN-TAONA)",
+  annualPlanning: "DRAFITRA ISAN-TAONA",
+  progressComponent: "TAHAN'NY FIVOARANA ISAKY NY SINGA",
+  progressInstrument: "TAHAN'NY FIVOARANA ISAKY NY FITAOVANA",
+  planned: "VOALAMINA",
+  legend: "FANAZAVANA (TAHAN'NY FIVOARANA)",
+  info: "Ny tahan'ny fivoaran'ny vidim-panatanterahana dia kajiana raha oharina amin'ny drafitra isan-taona voafantina.",
+
+  access: "HIDITRA AMIN'NY FANARAHA-MASO NY VIDIM-PANATANTERAHANA",
+  accessDesc: "Jereo ny antsipirian'ny vola, fifanekena ary famoaham-bola",
+  accessBtn: "Hiditra ↗",
+
+  millionsEuro: "Tapitrisa €",
+
+  componentC1: "C1. FITANTANANA NY SERIVISY ARA-TONTOLON'AINA",
+  componentC2: "C2. FITANTANANA NY TONTOLON'AINA IFOTONY",
+  componentC3: "C3. FAMPANDROSOANA NY TONTOLON-TANY MPAMOKATRA",
+  componentC4: "C4. FAMORONANA ASA MAITSO",
+
+  achats: "FIVIDIANA",
+  financements: "FAMATSIAM-BOLA",
+  contrats: "FIFANEKENA",
+  missionsInterne: "IRAKA ANATINY",
+  missionsPartenaires: "IRAKA MIARAKA AMIN'NY MPIARA-MIASA",
+
+  months: {
+    Janvier: "Janoary", Février: "Febroary", Mars: "Martsa", Avril: "Aprily", Mai: "Mey", Juin: "Jona",
+    Juillet: "Jolay", Août: "Aogositra", Septembre: "Septambra", Octobre: "Oktobra", Novembre: "Novambra", Décembre: "Desambra",
+  },
+};
+
+const en: Txt = {
+  title: "COST MONITORING",
+  subtitle: "Strategic Plan 2024 - 2030",
+  updated: "Data updated on:",
+  update: "Update",
+  year: "YEAR",
+  month: "MONTH",
+  unit: "COORDINATION UNIT",
+  all: "All",
+  reset: "Reset filters",
+
+  annual: "ANNUAL DISBURSEMENT EVOLUTION (PROGRAMME)",
+  cumulative: "CUMULATIVE DISBURSEMENT",
+  totalBudget: "OUT OF A TOTAL BUDGET OF",
+  disbursementRate: "DISBURSEMENT RATE",
+  annualEvolution: "ANNUAL DISBURSEMENT EVOLUTION",
+
+  byComponent: "ANNUAL DISBURSEMENT BY COMPONENT",
+  byInstrument: "ANNUAL DISBURSEMENT BY INSTRUMENT",
+
+  allocatedShare: "% OF BUDGET",
+  instExperts: "EXPERTS",
+  instMission: "MISSION COSTS",
+  instContrats: "CONTRACTS",
+  instAchats: "PURCHASES BY THE PROJECT",
+  instConstruction: "CONSTRUCTION (LP 005)",
+  instFinancements: "FINANCING",
+  instCharges: "OPERATING COSTS AND MISCELLANEOUS",
+  instFraisGeneraux: "OVERHEADS + VAT GER",
+
+  component: "COMPONENT",
+  instrument: "INSTRUMENT",
+  disbursed: "DISBURSED",
+  budgetShare: "% OF TOTAL BUDGET",
+  total: "TOTAL",
+
+  globalProgress: "OVERALL COST PROGRESS (COMPARED TO ANNUAL PLANNING)",
+  annualPlanning: "ANNUAL PLANNING",
+  progressComponent: "PROGRESS BY COMPONENT",
+  progressInstrument: "PROGRESS BY INSTRUMENT",
+  planned: "PLANNED",
+  legend: "LEGEND (PROGRESS RATE)",
+  info: "The cost progress rate is calculated against the annual plan for the selected year.",
+
+  access: "OPEN ANNUAL COST MONITORING",
+  accessDesc: "View detailed costs, commitments and disbursements",
+  accessBtn: "Open cost monitoring ↗",
+
+  millionsEuro: "Million €",
+
+  componentC1: "C1. ECOSYSTEM SERVICES MANAGEMENT",
+  componentC2: "C2. DECENTRALIZED ENVIRONMENTAL GOVERNANCE",
+  componentC3: "C3. DEVELOPMENT OF PRODUCTIVE LANDSCAPES",
+  componentC4: "C4. CREATION OF GREEN JOBS",
+
+  achats: "PURCHASES",
+  financements: "FUNDING",
+  contrats: "CONTRACTS",
+  missionsInterne: "INTERNAL MISSIONS",
+  missionsPartenaires: "PARTNER MISSIONS",
+
+  months: {
+    Janvier: "January", Février: "February", Mars: "March", Avril: "April", Mai: "May", Juin: "June",
+    Juillet: "July", Août: "August", Septembre: "September", Octobre: "October", Novembre: "November", Décembre: "December",
+  },
+};
+
+const de: Txt = {
+  title: "KOSTENMONITORING",
+  subtitle: "Strategischer Plan 2024 - 2030",
+  updated: "Daten aktualisiert am:",
+  update: "Aktualisieren",
+  year: "JAHR",
+  month: "MONAT",
+  unit: "KOORDINATIONSEINHEIT",
+  all: "Alle",
+  reset: "Filter zurücksetzen",
+
+  annual: "JÄHRLICHE ENTWICKLUNG DER AUSZAHLUNGEN",
+  cumulative: "KUMULIERTE AUSZAHLUNG",
+  totalBudget: "VON EINEM GESAMTBUDGET VON",
+  disbursementRate: "AUSZAHLUNGSRATE",
+  annualEvolution: "JÄHRLICHE ENTWICKLUNG DER AUSZAHLUNGEN",
+
+  byComponent: "JÄHRLICHE AUSZAHLUNG NACH KOMPONENTE",
+  byInstrument: "JÄHRLICHE AUSZAHLUNG NACH INSTRUMENT",
+
+  allocatedShare: "% DES BUDGETS",
+  instExperts: "EXPERTEN",
+  instMission: "MISSIONSKOSTEN",
+  instContrats: "VERTRÄGE",
+  instAchats: "EINKÄUFE DES PROJEKTS",
+  instConstruction: "BAU (LP 005)",
+  instFinancements: "FINANZIERUNGEN",
+  instCharges: "BETRIEBSKOSTEN UND SONSTIGES",
+  instFraisGeneraux: "GEMEINKOSTEN + MWST GER",
+
+  component: "KOMPONENTE",
+  instrument: "INSTRUMENT",
+  disbursed: "AUSGEZAHLT",
+  budgetShare: "% DES GESAMTBUDGETS",
+  total: "GESAMT",
+
+  globalProgress: "GESAMTFORTSCHRITT DER KOSTEN (IM VERGLEICH ZUR JAHRESPLANUNG)",
+  annualPlanning: "JAHRESPLANUNG",
+  progressComponent: "FORTSCHRITT NACH KOMPONENTE",
+  progressInstrument: "FORTSCHRITT NACH INSTRUMENT",
+  planned: "GEPLANT",
+  legend: "LEGENDE (FORTSCHRITTSRATE)",
+  info: "Die Kostenfortschrittsrate wird anhand der Jahresplanung des ausgewählten Jahres berechnet.",
+
+  access: "JÄHRLICHES KOSTENMONITORING ÖFFNEN",
+  accessDesc: "Details zu Kosten, Verpflichtungen und Auszahlungen anzeigen",
+  accessBtn: "Kostenmonitoring öffnen ↗",
+
+  millionsEuro: "Mio. €",
+
+  componentC1: "C1. MANAGEMENT VON ÖKOSYSTEMDIENSTLEISTUNGEN",
+  componentC2: "C2. DEZENTRALISIERTE UMWELTGOVERNANCE",
+  componentC3: "C3. ENTWICKLUNG PRODUKTIVER LANDSCHAFTEN",
+  componentC4: "C4. SCHAFFUNG GRÜNER ARBEITSPLÄTZE",
+
+  achats: "EINKÄUFE",
+  financements: "FINANZIERUNGEN",
+  contrats: "VERTRÄGE",
+  missionsInterne: "INTERNE MISSIONEN",
+  missionsPartenaires: "PARTNER-MISSIONEN",
+
+  months: {
+    Janvier: "Januar", Février: "Februar", Mars: "März", Avril: "April", Mai: "Mai", Juin: "Juni",
+    Juillet: "Juli", Août: "August", Septembre: "September", Octobre: "Oktober", Novembre: "November", Décembre: "Dezember",
+  },
+};
+
+const TEXT: Record<string, Txt> = { fr, mg, en, de };
+const LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
+
+/* ================= CONSTANTES & OUTILS ================= */
+
+const ordreMois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
+const budgetTotalProjet = 34_500_000;
+
+const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
+const clampPct = (p: number) => Math.min(100, Math.max(0, Number.isFinite(p) ? p : 0));
+const parMois = (a: any, b: any) => ordreMois.indexOf(a.Mois) - ordreMois.indexOf(b.Mois);
+
+// Rouge < 25 · Orange < 50 · Vert < 75 · Bleu ≥ 75 (même échelle que la légende)
+const getProgressColor = (percent: number) =>
+  percent < 25 ? "#ef4444" : percent < 50 ? "#f59e0b" : percent < 75 ? "#22c55e" : "#2563eb";
+
+const formatCompactEuro = (value: number | string) => {
+  const num = Number(value) || 0;
+  if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1).replace(".", ",")} M€`;
+  if (num >= 1000) return `${Math.round(num / 1000)} k€`;
+  return `${Math.round(num)} €`;
+};
+
+function useGeoJSON(url: string) {
+  const [data, setData] = useState<any>(null);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url)
+      .then((r) => { if (!r.ok) throw new Error(`${url} introuvable`); return r.json(); })
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch((err) => console.error("Erreur chargement", url, err));
+    return () => { cancelled = true; };
+  }, [url]);
+  return data;
+}
+
+/* ================= CSS RESPONSIVE =================
+   - les grilles de page réagissent à la largeur réelle de la page (container query « sc »)
+   - les grilles de donuts réagissent à la largeur de leur carte
+   - sur grands écrans (≥1920 px) toute la page est agrandie (zoom) pour rester lisible. */
+
+const RESPONSIVE_CSS = `
+.sc-page{container-type:inline-size;container-name:sc;width:100%;font-family:Inter,system-ui,sans-serif}
+.sc-zoom{display:flex;flex-direction:column;gap:10px;padding:10px;box-sizing:border-box;min-width:0}
+@media (min-width:1920px){.sc-zoom{zoom:1.2}}
+@media (min-width:2560px){.sc-zoom{zoom:1.5}}
+@media (min-width:3200px){.sc-zoom{zoom:1.9}}
+@media (min-width:3840px){.sc-zoom{zoom:2.3}}
+
+.sc-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 240px;gap:16px;align-items:stretch;padding:16px;
+  background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;box-sizing:border-box}
+.sc-actions{display:flex;flex-direction:column;justify-content:center;gap:9px}
+.sc-btn{width:100%;height:38px;padding:0 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;
+  justify-content:center;gap:7px;cursor:pointer;transition:background .2s ease}
+.sc-btn-primary{border:1px solid #2563eb;background:#2563eb;color:#fff;font-weight:700;box-shadow:0 2px 5px rgba(37,99,235,.16)}
+.sc-btn-primary:hover{background:#1d4ed8}
+.sc-btn-ghost{border:1px solid #cbd5e1;background:#fff;color:#475569;font-weight:600}
+.sc-btn-ghost:hover{background:#f1f5f9}
+.sc-select{font-size:13px}
+
+.sc-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,.9fr);gap:8px;align-items:stretch}
+.sc-bottom{display:grid;grid-template-columns:minmax(0,.55fr) minmax(0,1.15fr) minmax(0,1.9fr);gap:8px;align-items:stretch}
+.sc-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.2fr);gap:8px 12px;align-items:center;
+  padding:8px 12px;background:#fff;border:1px solid #dbe4f0;border-radius:10px}
+.sc-footer-head{grid-column:1/-1}
+
+.sc-card{container-type:inline-size;background:#fff;border-radius:12px;border:1px solid #dbe4f0;display:flex;flex-direction:column;
+  min-width:0;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.sc-kpirow{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px}
+
+/* tableaux : une SEULE définition de colonnes => en-tête, lignes et total bien alignés */
+.sc-cols{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.5fr) minmax(0,1.6fr);align-items:center;gap:6px}
+
+.sc-d4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px}
+.sc-d5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:4px}
+.sc-donut{container-type:inline-size}
+.sc-two{display:flex;justify-content:space-between;align-items:stretch;gap:6px;width:100%;margin-top:auto;padding-top:8px}
+.sc-two>div{flex:1;min-width:0;text-align:center}
+.sc-sep{width:1px;background:#e2e8f0;flex:none}
+
+@container (max-width:639px){.sc-d5{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (max-width:519px){.sc-d4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:379px){.sc-d5{grid-template-columns:repeat(2,minmax(0,1fr))}.sc-amount{font-size:10px !important}}
+@container (max-width:139px){.sc-two{flex-direction:column;gap:4px}.sc-sep{width:100%;height:1px}}
+
+@container sc (max-width:1279px){
+  .sc-top{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sc-top>:first-child{grid-column:1/-1}
+  .sc-bottom{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+  .sc-bottom>:last-child{grid-column:1/-1}
+}
+@container sc (max-width:899px){
+  .sc-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sc-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap}
+  .sc-actions .sc-btn{flex:1 1 180px;width:auto}
+  .sc-footer{grid-template-columns:minmax(0,1fr)}
+}
+@container sc (max-width:699px){
+  .sc-top,.sc-bottom{grid-template-columns:minmax(0,1fr)}
+  .sc-top>:first-child,.sc-bottom>:last-child{grid-column:auto}
+}
+@container sc (max-width:479px){
+  .sc-filters{grid-template-columns:minmax(0,1fr);padding:10px}
+}
+@media (max-width:640px){.sc-select{font-size:16px}}
+`;
+
+/* ================= COMPOSANTS ================= */
+
+function Ring({ percent, color, size = 72, inner = 18, outer = 30, font = 11 }: any) {
+  const p = clampPct(percent);
+  return (
+    <div style={{ position: "relative", width: size, height: size, margin: "0 auto", flexShrink: 0 }}>
+      <PieChart width={size} height={size}>
+        <Pie data={[{ value: p }, { value: 100 - p }]} innerRadius={inner} outerRadius={outer}
+          startAngle={90} endAngle={-270} dataKey="value">
+          <Cell fill={color} />
+          <Cell fill="#e5e7eb" />
+        </Pie>
+      </PieChart>
+      <div style={{
+        position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+        fontWeight: 900, fontSize: font, color, lineHeight: 1, pointerEvents: "none",
+      }}>
+        {Number(percent).toFixed(1)}%
+      </div>
+    </div>
+  );
+}
+
+function TableRow({ icon: Icon, color, title, amount, percent, index }: any) {
+  const p = clampPct(percent);
+  const c = getProgressColor(p);
+  return (
+    <div className="sc-cols" style={{ ...styles.row, background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
+      <div style={styles.cellFlex}>
+        <Icon size={18} color={color} style={{ flexShrink: 0 }} />
+        <div style={styles.rowTitle}>{title}</div>
+      </div>
+      <div className="sc-amount" style={styles.amount}>{amount}</div>
+      <div style={styles.progressCell}>
+        <span style={{ ...styles.percentLeft, color: c }}>{p.toFixed(1)}%</span>
+        <div style={styles.progress}>
+          <div style={{ ...styles.progressFill, width: `${p}%`, background: c }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TotalRow({ label, amount, percent, color }: any) {
+  return (
+    <div className="sc-cols" style={styles.totalRow}>
+      <div style={{ fontWeight: 900, fontSize: 12, color: "#1d4ed8" }}>{label}</div>
+      <div style={{ fontWeight: 800, fontSize: 12, color: "#1d4ed8", whiteSpace: "nowrap" }}>{amount}</div>
+      <div style={{ fontSize: 12, fontWeight: 800, color, textAlign: "center" }}>{percent.toFixed(1)}%</div>
+    </div>
+  );
+}
+
+function RateCard({ title, color, percent, dec, plan, icon: Icon, tinted, labels }: any) {
+  const c = getProgressColor(percent);
+  return (
+    <div
+      className="sc-donut"
+      style={{
+        ...styles.donutCard,
+        border: `1.5px solid ${color}${tinted ? "40" : "33"}`,
+        background: tinted ? `${color}10` : "#f8fafc",
+        borderTop: tinted ? undefined : `2px solid ${color}`,
+      }}
+    >
+      <div style={{ ...styles.donutTitle, color }}>{title}</div>
+
+      {/* l'emplacement de l'icône est toujours réservé : les anneaux restent alignés */}
+      <div style={{ height: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "4px 0" }}>
+        {Icon && <Icon size={14} color={color} />}
+      </div>
+
+      <Ring percent={percent} color={c} />
+
+      <div className="sc-two">
+        <div>
+          <div style={styles.smallLabel}>{labels.disbursed}</div>
+          <div style={{ ...styles.money, color: tinted ? "#0f172a" : color }}>{formatCompactEuro(dec)}</div>
+        </div>
+        <div className="sc-sep" />
+        <div>
+          <div style={styles.smallLabel}>{labels.planned}</div>
+          <div style={styles.money}>{formatCompactEuro(plan)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================= PAGE ================= */
 
 export default function SuiviCouts() {
-      
-  const [token, setToken] = useState("");
-  const [password, setPassword] = useState("");
+  const { lang } = useLanguage();
+  const t = TEXT[lang as string] ?? TEXT.fr;
+  const locale = LOCALES[lang as string] ?? "fr-FR";
+  const nf = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const eur = (v: number) => `${nf.format(v)} €`;
+
+  const [annee, setAnnee] = useState<number>(2026);
+  const [mois, setMois] = useState<string>("Tous");
+  const [uc, setUc] = useState<string>("Tous");
+  const [bailleur, setBailleur] = useState<string>("BMZ");
+  const [dateMaj, setDateMaj] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
-  const [dateMaj, setDateMaj] = useState<string | null>(null);
-const formaterDateMaj = (iso: string) =>
-  new Date(iso).toLocaleDateString(
-    ({ fr: "fr-FR", en: "en-GB", de: "de-DE" } as Record<string, string>)[lang] ?? "fr-FR",
-    { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }
-  );
   const [userName, setUserName] = useState("");
-  const { lang } = useLanguage();
-  const t = TEXT[lang] || TEXT.fr;
-  const [data,setData] = useState<CoutActivite[]>([]);
-  const [annee,setAnnee] = useState<number>(2026);
-  const [mois,setMois] = useState<string>("Tous");
-  const [uc,setUc] = useState<string>("Tous");
-  const [baseDec, setBaseDec] = useState<BaseDecaissement | null>(null);
-useEffect(() => {
-  fetch("/data/Base_Decaissement.geojson")
-    .then(r => { if (!r.ok) throw new Error("Base_Decaissement.geojson introuvable"); return r.json(); })
-    .then(setBaseDec)
-    .catch(err => console.error("Erreur chargement Base Décaissement :", err));
-}, []);
-  const dec = useMemo(() => calculerDecaissement(baseDec, annee, mois), [baseDec, annee, mois]);
-  const handleReset = () => {
-        setAnnee(2026);
-        setMois("Tous");
-        setUc("Tous");
-      };
+  const [token, setToken] = useState("");
+
+  const coutJson = useGeoJSON("/data/Base_Cout_Activite.geojson");
+  const baseDec = useGeoJSON("/data/Base_Decaissement.geojson") as BaseDecaissement | null;
+
+  const data: CoutActivite[] = useMemo(
+    () => coutJson?.features?.map((f: any) => f.properties) ?? [],
+    [coutJson]
+  );
+
   useEffect(() => {
-    fetch("/data/Base_Cout_Activite.geojson")
-      .then(res => {
-        if (!res.ok) {
-          throw new Error("Base_Cout_Activite.geojson introuvable");
-        }  
-        return res.json();
-      })
-      .then(json => {  
-        const table = json.features.map((f:any)=>f.properties);  
-        setData(table);  
-      })
-      .catch(err => {
-        console.error("Erreur chargement Base Cout :", err);
-      });  
+    fetch("/api/derniere-maj")
+      .then((r) => r.json())
+      .then((d) => setDateMaj(d.date ?? null))
+      .catch(() => setDateMaj(null));
   }, []);
-useEffect(() => {
-        fetch("/api/derniere-maj")
-          .then(r => r.json())
-          .then(d => setDateMaj(d.date ?? null))
-          .catch(() => setDateMaj(null));
-      }, []);
-      
-  const composantesConfig = [
-    { code: "C1", icon: Leaf, title: t.componentC1Short },
-    { code: "C2", icon: Building, title: t.componentC2Short },
-    { code: "C3", icon: Map, title: t.componentC3Short },
-    { code: "C4", icon: Briefcase, title: t.componentC4Short },
-  ];
-  const annees = Array.from(
-    new Set(
-    data.map(d=>d.Année)
-    )
-    ).sort();
-  const moisListe = ordreMois.filter(m =>
-      data.some(d => d.Mois === m)
-    );
-  const ucListe = Array.from(
-    new Set(
-    data.map(d=>d.UC)
-     )
-    );
 
-      const n = (v: any) => { const x = Number(v); return Number.isFinite(x) ? x : 0; };
-      const clamp = (p: number) => Math.min(100, Math.max(0, p));
-      const parMois = (a: any, b: any) => ordreMois.indexOf(a.Mois) - ordreMois.indexOf(b.Mois);
-      
-      const budgetTotalProjet = 34_500_000;
-      const anneesProgramme = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
-      
-      // ----- Lignes de l'UC choisie : suivi des coûts (points 4 et 5) -----
-      const ucCible = uc === "Tous" ? "Tous" : uc;
-      const lignesUC = data
-        .filter(d => d.Année === annee && d.UC === ucCible)
-        .sort(parMois);
-      
-      // Valeurs cumulées de janvier au mois choisi. Si « Tous » : dernier mois ayant des données.
-      const coutActuel: any =
-        mois !== "Tous"
-          ? lignesUC.find(d => d.Mois === mois) ?? {}
-          : [...lignesUC].reverse().find(d => n(d["D (EUR)"]) > 0) ?? {};
-      
-      // Budget planifié de l'année pour l'UC (identique tous les mois : on prend le maximum)
-      const planAnnuel = (champ: string) =>
-        lignesUC.reduce((m, d) => Math.max(m, n(d[champ])), 0);
-      
-      // ----- Ligne programme : ne dépend PAS du filtre UC (points 2 et 3) -----
-      const lignesProgramme = data
-        .filter(d => d.Année === annee && d.UC === "Tous")
-        .sort(parMois);
-      
-      const ligneProg: any =
-        mois !== "Tous"
-          ? lignesProgramme.find(d => d.Mois === mois) ?? {}
-          : [...lignesProgramme].reverse().find(d => n(d[`BD ${annee} (EUR)`]) > 0) ?? {};
-      
-      const ligneGraph = ligneProg; // le graphique annuel utilise la même ligne
+  const dateAffichee = (() => {
+    if (!dateMaj) return "—";
+    const d = new Date(dateMaj);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" });
+  })();
 
-    // Cumul programme = années précédentes + année choisie (janvier -> mois choisi)
-      const decaissementCumule = dec.cumulTotal;
-      const tauxDecaissement = (decaissementCumule / budgetTotalProjet) * 100;
-      
-      // Point 4 (onglet Résumé_Budget) : « Budget dépensé » / « Budget prévu »
-      const decaisse = n(coutActuel["D (EUR)"]);
-      const planification = planAnnuel("PA (EUR)");
-    
-  const tauxAvancement =
-      planification > 0
-        ? (decaisse / planification) * 100
-        : 0;
+  const handleReset = () => { setAnnee(2026); setMois("Tous"); setUc("Tous"); };
 
-  const couleurDonut =
-  tauxDecaissement < 25
-    ? "#ef4444"   // Rouge
-    : tauxDecaissement < 50
-    ? "#f59e0b"   // Orange
-    : tauxDecaissement < 75
-    ? "#22c55e"   // Vert
-    : "#2563eb";  // Bleu
+  const annees = useMemo(() => Array.from(new Set(data.map((d) => d.Année))).sort((a, b) => a - b), [data]);
+  const moisListe = useMemo(() => ordreMois.filter((m) => data.some((d) => d.Mois === m)), [data]);
+  const ucListe = useMemo(() => Array.from(new Set(data.map((d) => d.UC))), [data]);
 
-    const couleurAvancement =
-    tauxAvancement < 25
-      ? "#ef4444"
-      : tauxAvancement < 50
-      ? "#f59e0b"
-      : tauxAvancement < 75
-      ? "#22c55e"
-      : "#2563eb";    
+  /* ----- Décaissement du programme (ne dépend pas du filtre UC) ----- */
+  const dec = useMemo(() => calculerDecaissement(baseDec, annee, mois), [baseDec, annee, mois]);
+  const decaissementCumule = dec.cumulTotal;
+  const tauxDecaissement = (decaissementCumule / budgetTotalProjet) * 100;
 
-      // ===== Carte « par composante » : onglet « Pour Céline » =====
-      const totalOutputs = dec.totalOutputs;
-      const composantes = dec.outputs.map((o, i) => ({
-        icon: [Target, Leaf, Building, Map, Briefcase][i],
-        title: `Output ${i}`,
-        amount: o.montant,
-        percent: o.pct,                       // % du budget total (34 500 000)
-        color: ["#2563eb", "#16a34a", "#7c3aed", "#f59e0b", "#f97316"][i],
-      }));
-      
-      // ===== Carte « par instrument » : onglet « CL-Dépenses » =====
-      const infosInstruments: Record<string, { icon: any; title: string; color: string }> = {
-        "Experts": { icon: User, title: t.instExperts, color: "#2563eb" },
-        "Frais de mission": { icon: Plane, title: t.instMission, color: "#f97316" },
-        "Contrats": { icon: FileText, title: t.instContrats, color: "#7c3aed" },
-        "Achats par le projet": { icon: ShoppingCart, title: t.instAchats, color: "#16a34a" },
-        "Construction (LP 005)": { icon: HardHat, title: t.instConstruction, color: "#b45309" },
-        "Financements": { icon: Landmark, title: t.instFinancements, color: "#0891b2" },
-        "Charges de fonctionnement et divers": { icon: Cog, title: t.instCharges, color: "#64748b" },
-        "Frais généraux + TVA GER": { icon: Receipt, title: t.instFraisGeneraux, color: "#db2777" },
-      };
-      const totalInstruments = dec.totalInstruments;
-      const instruments = dec.instruments.map((i) => ({
-        ...infosInstruments[i.cle],
-        amount: i.montant,
-        percent: i.pct,                       // % du budget alloué à CET instrument (non affiché)
-      }));
-      
-      // ===== Graphique annuel : somme de chaque année, % du budget total =====
-      const yearlyData = dec.parAnnee.map((a) => ({
-        year: String(a.annee),
-        value: a.valeur / 1_000_000,
-        percent: a.pct.toFixed(1),
-      }));
-      console.log("========== GRAPHE ANNUEL ==========");
-      console.log("Année sélectionnée :", annee);
-      console.log("Mois sélectionné :", mois);
-      console.log("UC sélectionnée :", uc);
-      console.log("Ligne utilisée :", ligneGraph);
-      console.log("YearlyData :", yearlyData);
-      
-      const tauxComposantes = [
-        ["C1", t.componentC1, "#2563eb"],
-        ["C2", t.componentC2, "#2563eb"],
-        ["C3", t.componentC3, "#16a34a"],
-        ["C4", t.componentC4, "#16a34a"],
-      ].map(([code, title, color]) => {
-        const dec = n(coutActuel[`D ${code} (EUR)`]);          // cumul janvier -> mois choisi
-        const plan = planAnnuel(`PA ${code} (EUR)`);           // planifié de l'année
-        return { title, color, dec, plan, percent: plan > 0 ? clamp((dec / plan) * 100) : 0 };
-      });
-      
-  const [bailleur, setBailleur] = useState<string>("BMZ");
+  /* ----- Suivi des coûts de l'UC choisie ----- */
+  const { coutActuel, planAnnuel } = useMemo(() => {
+    const lignes = data.filter((d) => d.Année === annee && d.UC === uc).sort(parMois);
+    // Cumul de janvier au mois choisi ; si « Tous » : dernier mois ayant des données
+    const actuel: any =
+      mois !== "Tous"
+        ? lignes.find((d) => d.Mois === mois) ?? {}
+        : [...lignes].reverse().find((d) => n(d["D (EUR)"]) > 0) ?? {};
+    // Budget planifié de l'année (identique tous les mois : on prend le maximum)
+    const plan = (champ: string) => lignes.reduce((m, d) => Math.max(m, n(d[champ])), 0);
+    return { coutActuel: actuel, planAnnuel: plan };
+  }, [data, annee, mois, uc]);
 
-      const tauxInstruments = [
-        { title: t.financements, icon: Handshake, d: "DF (EUR)", pa: "PAF (EUR)", color: "#2563eb" },
-        { title: t.achats, icon: FaShoppingCart, d: "DA (EUR)", pa: "PAA (EUR)", color: "#16a34a" },
-        { title: t.contrats, icon: FaFileContract, d: "DC (EUR)", pa: "PAC (EUR)", color: "#f59e0b" },
-        { title: t.missionsInterne, icon: Plane, d: "DMI (EUR)", pa: "PAMI (EUR)", color: "#f97316" },
-        { title: t.missionsPartenaires, icon: Users, d: "DMP (EUR)", pa: "PAMP (EUR)", color: "#f97316" },
-      ].map(({ title, icon, d, pa, color }) => {
-        const dec = n(coutActuel[d]);
-        const plan = planAnnuel(pa);
-        return { title, icon, color, dec, plan, percent: plan > 0 ? clamp((dec / plan) * 100) : 0 };
-      });
-      
-    console.log(data);
-    console.log(annees);
-    console.log(moisListe);
-    console.log(ucListe);
-    console.log("coutActuel :", coutActuel);
-    console.log("Clés disponibles :", Object.keys(coutActuel));
-    console.log("coutActuel complet :", JSON.stringify(coutActuel, null, 2));
-    console.log("D :", coutActuel["D"]);
-    console.log("PA :", coutActuel["PA"]);
-    console.log("Taux :", tauxAvancement);
+  const decaisse = n(coutActuel["D (EUR)"]);
+  const planification = planAnnuel("PA (EUR)");
+  const tauxAvancement = planification > 0 ? (decaisse / planification) * 100 : 0;
 
-    console.log("========== DC PAR ANNÉE ==========");
+  /* ----- Carte « par composante » ----- */
+  const composantes = dec.outputs.map((o, i) => ({
+    icon: [Target, Leaf, Building, MapIcon, Briefcase][i] ?? Coins,
+    title: `Output ${i}`,
+    amount: o.montant,
+    percent: o.pct,
+    color: ["#2563eb", "#16a34a", "#7c3aed", "#f59e0b", "#f97316"][i] ?? "#64748b",
+  }));
 
-      console.table(
-        data
-          .filter(d => d.UC === "Tous")
-          .map(d => ({
-            Année: d.Année,
-            Mois: d.Mois,
-            D: d["D (EUR)"],
-            DC: d["DC"],
-            TD: d["TD"],
-            BT: d["BT"],
-          }))
-      );
-  const getPercent = (p: string) =>
-    Math.min(parseFloat(p.replace(',', '.')) || 0, 100);
+  /* ----- Carte « par instrument » ----- */
+  const infosInstruments: Record<string, { icon: any; title: string; color: string }> = {
+    "Experts": { icon: User, title: t.instExperts, color: "#2563eb" },
+    "Frais de mission": { icon: Plane, title: t.instMission, color: "#f97316" },
+    "Contrats": { icon: FileText, title: t.instContrats, color: "#7c3aed" },
+    "Achats par le projet": { icon: ShoppingCart, title: t.instAchats, color: "#16a34a" },
+    "Construction (LP 005)": { icon: HardHat, title: t.instConstruction, color: "#b45309" },
+    "Financements": { icon: Landmark, title: t.instFinancements, color: "#0891b2" },
+    "Charges de fonctionnement et divers": { icon: Cog, title: t.instCharges, color: "#64748b" },
+    "Frais généraux + TVA GER": { icon: Receipt, title: t.instFraisGeneraux, color: "#db2777" },
+  };
+  const instruments = dec.instruments.map((i) => ({
+    ...(infosInstruments[i.cle] ?? { icon: Coins, title: i.cle, color: "#64748b" }),
+    amount: i.montant,
+    percent: i.pct,
+  }));
 
-    const formatCompactEuro = (value: number | string) => {
-      const num = Number(value) || 0;
-    
-      if (num >= 1000000) {
-        return `${(num / 1000000)
-          .toFixed(1)
-          .replace('.', ',')} M€`;
-      }    
-      if (num >= 1000) {
-        return `${Math.round(num / 1000)} k€`;
-      }    
-      return `${Math.round(num)} €`;
-    };
+  /* ----- Graphique annuel ----- */
+  const yearlyData = dec.parAnnee.map((a) => ({
+    year: String(a.annee),
+    value: a.valeur / 1_000_000,
+    percent: a.pct.toFixed(1),
+  }));
+  const maxYear = Math.max(0, ...yearlyData.map((d) => d.value));
+
+  /* ----- Taux d'avancement par composante / par instrument ----- */
+  const tauxComposantes = ([
+    ["C1", t.componentC1, "#2563eb"],
+    ["C2", t.componentC2, "#2563eb"],
+    ["C3", t.componentC3, "#16a34a"],
+    ["C4", t.componentC4, "#16a34a"],
+  ] as const).map(([code, title, color]) => {
+    const d = n(coutActuel[`D ${code} (EUR)`]);
+    const plan = planAnnuel(`PA ${code} (EUR)`);
+    return { title, color, dec: d, plan, percent: plan > 0 ? clampPct((d / plan) * 100) : 0 };
+  });
+
+  const tauxInstruments = [
+    { title: t.financements, icon: Handshake, d: "DF (EUR)", pa: "PAF (EUR)", color: "#2563eb" },
+    { title: t.achats, icon: FaShoppingCart, d: "DA (EUR)", pa: "PAA (EUR)", color: "#16a34a" },
+    { title: t.contrats, icon: FaFileContract, d: "DC (EUR)", pa: "PAC (EUR)", color: "#f59e0b" },
+    { title: t.missionsInterne, icon: Plane, d: "DMI (EUR)", pa: "PAMI (EUR)", color: "#f97316" },
+    { title: t.missionsPartenaires, icon: Users, d: "DMP (EUR)", pa: "PAMP (EUR)", color: "#f97316" },
+  ].map(({ title, icon, d, pa, color }) => {
+    const dv = n(coutActuel[d]);
+    const plan = planAnnuel(pa);
+    return { title, icon, color, dec: dv, plan, percent: plan > 0 ? clampPct((dv / plan) * 100) : 0 };
+  });
+
+  const rateLabels = { disbursed: t.disbursed, planned: t.planned };
+
+  /* ----- Sous-titres des filtres (dynamiques, plus de texte en dur) ----- */
+  const subAnnee = annees.length ? `${annees[0]} - ${annees[annees.length - 1]}` : "";
+  const subMois = moisListe.length
+    ? `${t.months[moisListe[0]] ?? moisListe[0]} - ${t.months[moisListe[moisListe.length - 1]] ?? moisListe[moisListe.length - 1]}`
+    : "";
+  const subUC = ucListe.filter((u) => u !== "Tous").join(", ");
+
+  const totalInstrPct = budgetTotalProjet > 0 ? (dec.totalInstruments / budgetTotalProjet) * 100 : 0;
+  const totalOutPct = budgetTotalProjet > 0 ? (dec.totalOutputs / budgetTotalProjet) * 100 : 0;
+
   return (
-    <div style={styles.page}>
-      {/* HEADER */}
-      <div style={styles.header}>
-        <div style={styles.headerLeft}>
-          <div style={styles.logoWrap}>
-              <IconeSuiviCouts size={44} />
+    <div className="sc-page">
+      <style>{RESPONSIVE_CSS}</style>
+      <div className="sc-zoom">
+        {/* ============ HEADER ============ */}
+        <div style={styles.header}>
+          <div style={styles.headerLeft}>
+            <div style={styles.logoWrap}><IconeSuiviCouts size={44} /></div>
+            <div>
+              <div style={styles.title}>{t.title}</div>
+              <div style={styles.subtitle}>{t.subtitle}</div>
             </div>
-
-          <div>
-            <div style={styles.title}>{t.title}</div>
-
-            <div style={styles.subtitle}>{t.subtitle}</div>
-          </div>
-        </div>   
-
-        <div style={styles.dateBox}>
-          <CalendarDays size={18} />
-          <div>
-            <div style={styles.dateLabel}>{t.updated}</div>
-
-            <div style={styles.dateValue}>{dateMaj ? formaterDateMaj(dateMaj) : "—"}</div>
-          </div>
-        </div>
-      </div>
-      {/* FILTERS */}
-      <div style={styles.filtersContainer}>        
-        {/* ANNÉE */}
-        <div style={styles.bigFilter}>
-          <div style={styles.filterIcon}>
-            <CalendarDays size={28} color="#1d4ed8" />
           </div>
 
-          <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>{t.year}</div>
-
-            <select
-              style={styles.bigSelect}
-              value={annee}
-              onChange={(e)=>setAnnee(Number(e.target.value))}
-            >
-              {
-              annees.map(a=>
-              <option key={a} value={a}>
-              {a}
-              </option>
-              )
-              }
-            </select>
-            <div style={styles.filterSub}>2025 - 2030</div>
-          </div>
-        </div>
-
-        {/* MOIS */}
-        <div style={styles.bigFilter}>
-          <div style={styles.filterIcon}>
-            <CalendarDays size={28} color="#1d4ed8" />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>{t.month}</div>
-            <select
-              style={styles.bigSelect}
-              value={mois}
-              onChange={(e) => setMois(e.target.value)}
-            >
-              <option value="Tous">{t.all}</option>
-              {moisListe.map((m) => (
-                <option key={m} value={m}>
-                  {t.months[m] || m}
-                </option>
-              ))}
-            </select>
-
-            <div style={styles.filterSub}>Janvier - Décembre</div>
-          </div>
-        </div>    
-
-        {/* UNITÉ */}
-        <div style={styles.bigFilter}>
-          <div style={styles.filterIcon}>
-            <Building2 size={28} color="#1d4ed8" />
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <div style={styles.filterLabel}>{t.unit}</div>
-
-            <select
-                style={styles.bigSelect}
-                value={uc}
-                onChange={(e)=>setUc(e.target.value)}
-              >
-              {
-              ucListe.map(u=>
-              <option key={u}>
-              {u}
-              </option>
-              )
-              }
-            </select>
-
-            <div style={styles.filterSub}>
-              DIANA, BOENY, ANTANANARIVO, FORT-DAUPHIN...
+          <div style={styles.dateBox}>
+            <CalendarDays size={18} />
+            <div>
+              <div style={styles.dateLabel}>{t.updated}</div>
+              <div style={styles.dateValue}>{dateAffichee}</div>
             </div>
           </div>
         </div>
 
-        {/* ================= ACTIONS ================= */}
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                gap: 9,
-                paddingLeft: 4,
-              }}
-            >
-              {/* METTRE À JOUR */}
-              <button
-                onClick={() => setShowLogin(true)}
-                style={{
-                  width: "100%",
-                  height: 38,
-                  padding: "0 12px",
-                  borderRadius: 8,
-                  border: "1px solid #2563eb",
-                  background: "#2563eb",
-                  color: "#ffffff",
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 7,
-                  boxShadow: "0 2px 5px rgba(37, 99, 235, 0.16)",
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#1d4ed8";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "#2563eb";
-                }}
-              >
-                <RefreshCw size={15} />
-                Mettre à jour
-              </button>
-
-              {/* RÉINITIALISER */}
-              <button
-                onClick={handleReset}
-                style={{
-                  width: "100%",
-                  height: 38,
-                  padding: "0 12px",
-                  borderRadius: 8,
-                  border: "1px solid #cbd5e1",
-                  background: "#ffffff",
-                  color: "#475569",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 7,
-                  transition: "all 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "#f1f5f9";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "#ffffff";
-                }}
-              >
-                <RotateCcw size={15} />
-                {t.reset}
-              </button>
-            </div>
-      </div>
-      {/* TOP GRID */}
-      <div style={styles.topGrid}>
-        {/* LEFT */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                {t.annual}
-              <Info size={18} />
+        {/* ============ FILTRES ============ */}
+        <div className="sc-filters">
+          <div style={styles.bigFilter}>
+            <div style={styles.filterIcon}><CalendarDays size={28} color="#1d4ed8" /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label htmlFor="sc-annee" style={styles.filterLabel}>{t.year}</label>
+              <select id="sc-annee" className="sc-select" style={styles.bigSelect} value={annee}
+                onChange={(e) => setAnnee(Number(e.target.value))}>
+                {annees.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <div style={styles.filterSub}>{subAnnee}</div>
             </div>
           </div>
 
-          <div style={styles.kpiRow}>
-            {/* LEFT KPI */}
-            <div style={styles.kpiLeftBlock}>
+          <div style={styles.bigFilter}>
+            <div style={styles.filterIcon}><CalendarDays size={28} color="#1d4ed8" /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label htmlFor="sc-mois" style={styles.filterLabel}>{t.month}</label>
+              <select id="sc-mois" className="sc-select" style={styles.bigSelect} value={mois}
+                onChange={(e) => setMois(e.target.value)}>
+                <option value="Tous">{t.all}</option>
+                {moisListe.map((m) => <option key={m} value={m}>{t.months[m] || m}</option>)}
+              </select>
+              <div style={styles.filterSub}>{subMois}</div>
+            </div>
+          </div>
+
+          <div style={styles.bigFilter}>
+            <div style={styles.filterIcon}><Building2 size={28} color="#1d4ed8" /></div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label htmlFor="sc-uc" style={styles.filterLabel}>{t.unit}</label>
+              <select id="sc-uc" className="sc-select" style={styles.bigSelect} value={uc}
+                onChange={(e) => setUc(e.target.value)}>
+                {ucListe.map((u) => <option key={u} value={u}>{u === "Tous" ? t.all : u}</option>)}
+              </select>
+              <div style={styles.filterSub} title={subUC}>{subUC}</div>
+            </div>
+          </div>
+
+          <div className="sc-actions">
+            <button type="button" className="sc-btn sc-btn-primary" onClick={() => setShowLogin(true)}>
+              <RefreshCw size={15} />{t.update}
+            </button>
+            <button type="button" className="sc-btn sc-btn-ghost" onClick={handleReset}>
+              <RotateCcw size={15} />{t.reset}
+            </button>
+          </div>
+        </div>
+
+        {/* ============ LIGNE DU HAUT ============ */}
+        <div className="sc-top">
+          {/* Évolution annuelle (programme) */}
+          <div className="sc-card">
+            <div style={styles.cardHeader}>
+              <span>{t.annual}</span>
+              <Info size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+            </div>
+
+            <div className="sc-kpirow">
               <div style={styles.kpiTile}>
-                {/* ICON */}
-                <div style={styles.kpiIconWrap}>
-                  <GiPayMoney size={26} color="#2563eb" />
-                </div>
-
-                {/* CONTENT */}
+                <div style={styles.kpiIconWrap}><GiPayMoney size={26} color="#2563eb" /></div>
                 <div style={styles.kpiContent}>
-                <div style={styles.kpiTopLabel}>{t.cumulative}</div>
-
-                <div style={styles.kpiMainValue}>
-                  {new Intl.NumberFormat("fr-FR").format(decaissementCumule)} €
-                </div>
-
+                  <div style={styles.kpiTopLabel}>{t.cumulative}</div>
+                  <div style={styles.kpiMainValue}>{eur(decaissementCumule)}</div>
                   <div style={styles.kpiDivider} />
-
-                  <div style={styles.kpiSubOverlay}>
-                    <span style={styles.kpiSubLabel}>
-                      {t.totalBudget}
-                    </span>
-                    <span style={styles.kpiSubValue}>
-                    <span style={styles.kpiSubValue}>
-                      {new Intl.NumberFormat("fr-FR").format(budgetTotalProjet)} €
-                    </span>
-                    </span>
-                  </div>
+                  <div style={styles.kpiSubLabel}>{t.totalBudget}</div>
+                  <div style={styles.kpiSubValue}>{eur(budgetTotalProjet)}</div>
                 </div>
               </div>
-            </div>
 
-            {/* RIGHT PIE */}
-            <div style={{ textAlign: 'center' }}>
-            <div style={styles.kpiLabel}>{t.disbursementRate}</div>
-              <div style={styles.pieWrapper}>
-              <ResponsiveContainer width="100%" height={100}>
-                    <PieChart>
-                    <Pie
-                      data={[
-                        {
-                          value: Math.min(100, Math.max(0, tauxDecaissement))
-                        },
-                        {
-                          value: Math.max(0, 100 - tauxDecaissement)
-                        }
-                      ]}
-                        dataKey="value"
-                        innerRadius={27}
-                        outerRadius={50}
-                        startAngle={90}
-                        endAngle={-270}
-                      >
-                        <Cell fill={couleurDonut} />
-                        <Cell fill="#e5e7eb" />
-                      </Pie>
-                    </PieChart>
-              </ResponsiveContainer>
-
-              <div
-                style={{
-                  ...styles.pieCenter,
-                  color: couleurDonut,
-                }}
-              >
-                {tauxDecaissement.toFixed(1)}%
-              </div>
+              <div style={{ textAlign: "center", margin: "0 auto" }}>
+                <div style={styles.kpiLabel}>{t.disbursementRate}</div>
+                <Ring percent={tauxDecaissement} color={getProgressColor(tauxDecaissement)} size={100} inner={27} outer={50} font={18} />
               </div>
             </div>
-          </div>
-          <div
-            style={{
-              textAlign: 'center',
-              color: '#2563eb',
-              fontWeight: 900,
-              fontSize: 10,
-              marginTop: 0,
-              marginBottom: 5,
-              letterSpacing: 0.5,
-            }}
-          >
-            {t.annualEvolution}
-          </div>
-          <div
-            style={{
-              textAlign: 'left',
-              color: '#64748b',
-              fontSize: 10,
-              fontWeight: 800,
-              marginBottom: 4,
-              marginLeft: 18,
-            }}
-          >
-            Million €
-          </div>
-          <ResponsiveContainer width="100%" height={120}>
-            <BarChart
-              data={yearlyData}
-              margin={{
-                top: 10,
-                right: 25,
-                left: 0,
-                bottom: 5,
-              }}
-            >
-              {/* LIGNES HORIZONTALES */}
-              <CartesianGrid
-                strokeDasharray="3 3"
-                vertical={false}
-                stroke="#dbeafe"
-              />
 
-              {/* AXE X */}
-              <XAxis
-                dataKey="year"
-                tick={{
-                  fontSize: 10,
-                  fill: '#64748b',
-                  fontWeight: 600,
-                }}
-                axisLine={false}
-                tickLine={false}
-              />
+            <div style={styles.chartTitle}>{t.annualEvolution}</div>
+            <div style={styles.chartUnit}>{t.millionsEuro}</div>
 
-              {/* AXE Y */}
-              <YAxis
-                domain={[0, 'auto']}
-                tickFormatter={(v) => (v === 0 ? '0' : `${v}M`)}
-                tick={{
-                  fontSize: 10,
-                  fill: '#64748b',
-                  fontWeight: 700,
-                }}
-                axisLine={false}
-                tickLine={false}
-              >
-                {/* TEXTE Millions € */}
-                <Label
-                  value={t.millionsEuro}
-                  angle={0}
-                  position="top"
-                  offset={10}
-                  style={{
-                    fill: '#2563eb',
-                    fontSize: 4,
-                    fontWeight: 600,
-                    textAnchor: 'end',
-                  }}
+            <ResponsiveContainer width="100%" height={170}>
+              <BarChart data={yearlyData} margin={{ top: 30, right: 16, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dbeafe" />
+                <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 600 }} axisLine={false} tickLine={false} />
+                <YAxis
+                  width={38}
+                  domain={[0, "auto"]}
+                  tickFormatter={(v) => (v === 0 ? "0" : `${v}M`)}
+                  tick={{ fontSize: 10, fill: "#64748b", fontWeight: 700 }}
+                  axisLine={false}
+                  tickLine={false}
                 />
-              </YAxis>
-
-              {/* BARRES */}
-              <Bar dataKey="value" radius={[3, 3, 0, 0]} barSize={22}>
-                {yearlyData.map((entry, index) => {
-                  const max = Math.max(...yearlyData.map((d) => d.value));
-                  return (
-                    <Cell
-                      key={index}
-                      fill={
-                        entry.value === max
-                          ? '#1e3a8a'
-                          : '#94a3b8'
-                      }
-                    />
-                  );
-                })}
-                {/* POURCENTAGE EN DESSOUS */}
-                <LabelList
-                  position="top"
-                  content={(props: any) => {
-                    const { x, y, width, value, index } = props;
-                    const percent = yearlyData[index]?.percent || 0;
-                    return (
-                      <g>
-                        {/* VALEUR */}
-                        <text
-                          x={x + width / 2}
-                          y={y - 16}
-                          textAnchor="middle"
-                          fill="#1d4ed8"
-                          fontSize="10"
-                          fontWeight="700"
-                        >
-                          {value.toFixed(2)}M
-                        </text>
-
-                        {/* POURCENTAGE */}
-                        <text
-                          x={x + width / 2}
-                          y={y - 3}
-                          textAnchor="middle"
-                          fill="#64748b"
-                          fontSize="9"
-                          fontWeight="700"
-                        >
-                          {percent}%
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-{/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT  */}
-<div style={styles.card}>
-          <div style={styles.cardHeader}>
-             {t.byInstrument}
-             <select
-              value={bailleur}
-              onChange={(e) => setBailleur(e.target.value)}
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                width: 70,
-                minWidth: 70,
-                height: 25,
-                padding: '5px 15px 5px 8px',
-                borderRadius: 8,
-                border: '1px solid #cbd5e1',
-                backgroundColor: bailleur === 'BMZ' ? '#eff6ff' : '#fefce8',
-                color: bailleur === 'BMZ' ? '#1d4ed8' : '#854d0e',
-                cursor: 'pointer',
-                outline: 'none',
-                boxSizing: 'border-box',
-                flexShrink: 0,
-              }}
-            >
-              <option value="BMZ">BMZ</option>
-              <option value="UE">UE</option>
-            </select>
-          </div>
-          <div style={styles.tableHeaderRow}>
-            <span>{t.instrument}</span>
-            <span>{t.disbursed}</span>
-            <span>{t.allocatedShare}</span>
-          </div>
-
-          <div
-            style={{
-              maxHeight: 324,
-              overflowY: "auto",
-              overflowX: "hidden",
-            }}
-          >
-            {instruments.map((item, i) => {
-              const Icon = item.icon;
-
-              const percent = Math.min(
-                Number(item.percent) || 0,
-                100
-              );
-              return (
-                <div
-                  key={i}
-                  style={{
-                    ...styles.instrumentRow,
-                    background: i % 2 === 0 ? "#fff" : "#f8fafc",
-                  }}
-                >
-                  {/* COL 1 */}
-                  <div style={styles.cellFlex}>
-                    <div
-                      style={{
-                        ...styles.badge,
-                        background: "transparent",
-                      }}
-                    >
-                      <Icon size={18} color={item.color} />
-                    </div>
-
-                    <div style={styles.rowTitle}>
-                      {item.title}
-                    </div>
-                  </div>
-
-                  {/* COL 2 */}
-                  <div style={styles.amount}>
-                    {new Intl.NumberFormat("fr-FR").format(item.amount)} €
-                  </div>
-
-                  {/* COL 3 */}
-                  <div style={styles.progressCell}>
-                  <span
-                    style={{
-                      ...styles.percentLeft,
-                      color: getProgressColor(percent),
-                      fontWeight: 700,
+                <Bar dataKey="value" radius={[3, 3, 0, 0]} barSize={22}>
+                  {yearlyData.map((entry, index) => (
+                    <Cell key={index} fill={entry.value === maxYear ? "#1e3a8a" : "#94a3b8"} />
+                  ))}
+                  <LabelList
+                    position="top"
+                    content={(props: any) => {
+                      const { x, y, width, value, index } = props;
+                      return (
+                        <g>
+                          <text x={x + width / 2} y={y - 16} textAnchor="middle" fill="#1d4ed8" fontSize="10" fontWeight="700">
+                            {(Number(value) || 0).toFixed(2)}M
+                          </text>
+                          <text x={x + width / 2} y={y - 3} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="700">
+                            {yearlyData[index]?.percent ?? 0}%
+                          </text>
+                        </g>
+                      );
                     }}
-                  >
-                    {percent.toFixed(1)}%
-                  </span>
-
-                    <div style={styles.progress}>
-                      <div
-                        style={{
-                          ...styles.progressBarAnimated,
-                          width: `${percent}%`,
-                          background: getProgressColor(percent),
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
 
-      <div style={styles.totalRow}>
-          <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
-            {t.total}
-          </div>
-          <div
-            style={{
-              fontWeight: 800,
-              textAlign: 'left',
-              fontSize: 12,
-              color: '#1d4ed8',
-            }}
-          >
-            {new Intl.NumberFormat("fr-FR").format(totalInstruments)} €
-          </div>
-
-          <div
-            style={{
-              textAlign: 'center',
-              fontSize: 12,
-              color: getProgressColor(
-                budgetTotalProjet > 0
-                  ? (totalInstruments / budgetTotalProjet) * 100
-                  : 0
-              ),
-              fontWeight: 800,
-            }}
-          >
-            {budgetTotalProjet > 0
-              ? ((totalInstruments / budgetTotalProjet) * 100).toFixed(1)
-              : "0.0"
-            }%
-          </div>
-          </div>
-        </div>{' '}
-        {/* ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE  */}
-        <div style={styles.card}>
-          <div style={styles.cardHeader}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                minWidth: 0,
-              }}
-            >
-              <span
+          {/* Par instrument */}
+          <div className="sc-card">
+            <div style={styles.cardHeader}>
+              <span>{t.byInstrument}</span>
+              {/* NB : ce sélecteur ne filtre encore aucune donnée (voir note) */}
+              <select
+                aria-label="Bailleur"
+                value={bailleur}
+                onChange={(e) => setBailleur(e.target.value)}
                 style={{
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
+                  fontSize: 12, fontWeight: 700, width: 70, height: 25, padding: "0 8px", borderRadius: 8,
+                  border: "1px solid #cbd5e1", cursor: "pointer", outline: "none", flexShrink: 0,
+                  backgroundColor: bailleur === "BMZ" ? "#eff6ff" : "#fefce8",
+                  color: bailleur === "BMZ" ? "#1d4ed8" : "#854d0e",
                 }}
               >
-                {t.byComponent}
-              </span>
-              <Info size={18} />
+                <option value="BMZ">BMZ</option>
+                <option value="UE">UE</option>
+              </select>
             </div>
+
+            <div className="sc-cols" style={styles.tableHeader}>
+              <span>{t.instrument}</span>
+              <span>{t.disbursed}</span>
+              <span>{t.allocatedShare}</span>
+            </div>
+
+            <div style={{ maxHeight: 340, overflowY: "auto", overflowX: "hidden" }}>
+              {instruments.map((item, i) => (
+                <TableRow key={i} index={i} icon={item.icon} color={item.color} title={item.title}
+                  amount={eur(item.amount)} percent={Number(item.percent) || 0} />
+              ))}
+            </div>
+
+            <TotalRow label={t.total} amount={eur(dec.totalInstruments)} percent={totalInstrPct}
+              color={getProgressColor(totalInstrPct)} />
           </div>
 
-          {/* HEADER STICKY */}
-            <div style={styles.stickyHeader}>
+          {/* Par composante */}
+          <div className="sc-card">
+            <div style={styles.cardHeader}>
+              <span>{t.byComponent}</span>
+              <Info size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+            </div>
+
+            <div className="sc-cols" style={styles.tableHeader}>
               <span>{t.component}</span>
               <span>{t.disbursed}</span>
               <span>{t.budgetShare}</span>
             </div>
 
-          {composantes.map((item, i) => {
-            const Icon = item.icon;
-            const percent = Math.min(
-                Number(item.percent) || 0,
-                100
-              );
-            return (
-              <div
-                key={i}
-                style={{
-                  ...styles.saasRow,
-                  gridTemplateColumns: '2.2fr 1.5fr 2fr',
-                  background: i % 2 === 0 ? '#ffffff' : 'transparent',
-                }}
-              >
-                {/* COL 1 */}
-                <div style={styles.cellFlex}>
-                  <div
-                    style={{
-                      ...styles.badge,
-                      background: 'transparent',
-                    }}
-                  >
-                    <Icon size={18} color={item.color} />
-                  </div>
+            {composantes.map((item, i) => (
+              <TableRow key={i} index={i} icon={item.icon} color={item.color} title={item.title}
+                amount={eur(item.amount)} percent={Number(item.percent) || 0} />
+            ))}
 
-                  <div style={styles.rowTitle}>{item.title}</div>
+            <TotalRow label={t.total} amount={eur(dec.totalOutputs)} percent={totalOutPct} color="#1d4ed8" />
+          </div>
+        </div>
+
+        {/* ============ LIGNE DU BAS ============ */}
+        <div className="sc-bottom">
+          {/* Avancement global */}
+          <div className="sc-card">
+            <div style={{ ...styles.subHead, color: "#1d4ed8" }}>{t.globalProgress}</div>
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, paddingBottom: 6 }}>
+              <Ring percent={tauxAvancement} color={getProgressColor(tauxAvancement)} size={100} inner={25} outer={42} font={16} />
+
+              <div style={{ width: "100%" }}>
+                <div style={{ ...styles.summaryRow, borderBottom: "1px solid #e5e7eb" }}>
+                  <span style={styles.summaryLabel}>{t.disbursed}</span>
+                  <span style={{ fontWeight: 900, color: "#2563eb" }}>{eur(decaisse)}</span>
                 </div>
-
-                {/* AMOUNT */}
-                <div style={styles.amount}>{new Intl.NumberFormat("fr-FR").format(item.amount)} €</div>
-
-                {/* PROGRESS + % INLINE */}
-                <div style={styles.progressCell}>
-                <span
-                  style={{
-                    ...styles.percentLeft,
-                    color: getProgressColor(percent),
-                    fontWeight: 700,
-                  }}
-                >
-                  {percent.toFixed(1)}%
-                </span>
-
-                <div style={styles.progress}>
-                  <div
-                    style={{
-                      ...styles.progressBarAnimated,
-                      width: `${percent}%`,
-                      background: getProgressColor(percent),
-                    }}
-                  />
-                </div>
+                <div style={styles.summaryRow}>
+                  <span style={styles.summaryLabel}>{t.annualPlanning}</span>
+                  <span style={{ fontWeight: 800, color: "#2563eb" }}>{eur(planification)}</span>
                 </div>
               </div>
-            );
-          })}
-          <div style={styles.totalRow}>
-            <div style={{ fontWeight: 900, fontSize: 12, color: '#1d4ed8' }}>
-            {t.total}
-            </div>
-
-            <div
-              style={{
-                fontWeight: 800,
-                textAlign: 'left',
-                fontSize: 12,
-                color: '#1d4ed8',
-              }}
-            >
-              {new Intl.NumberFormat("fr-FR").format(totalOutputs)} €
-            </div>
-
-            <div
-              style={{
-                textAlign: 'center',
-                fontSize: 12,
-                color: '#1d4ed8',
-                fontWeight: 800,
-              }}
-            >
-              {budgetTotalProjet > 0
-                ? ((totalOutputs / budgetTotalProjet) * 100).toFixed(1)
-                : "0.0"
-              }%
             </div>
           </div>
-        </div>      
-      </div>{' '}
 
-      {/* ===================== NEW BOTTOM GRIDS ===================== */}
-      <div style={styles.bottomGrid}>
-        <div style={styles.card}>
-          <div
-            style={{
-              background: 'transparent',
-              color: '#1d4ed8',
-              padding: '6px 10px',
-              fontWeight: 900,
-              fontSize: 8,
-              letterSpacing: 0.5,
-              textAlign: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderBottom: 'none',
-              marginBottom: 5,
+          {/* Par composante */}
+          <div className="sc-card">
+            <div style={{ ...styles.subHead, color: "#1d4ed8" }}>{t.progressComponent}</div>
+            <div className="sc-d4">
+              {tauxComposantes.map((item, i) => (
+                <RateCard key={i} tinted {...item} labels={rateLabels} />
+              ))}
+            </div>
+          </div>
+
+          {/* Par instrument */}
+          <div className="sc-card">
+            <div style={{ ...styles.subHead, color: "#15803d" }}>{t.progressInstrument}</div>
+            <div className="sc-d5">
+              {tauxInstruments.map((item, i) => (
+                <RateCard key={i} {...item} labels={rateLabels} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ============ LÉGENDE ============ */}
+        <div className="sc-footer">
+          <div className="sc-footer-head" style={styles.footerHeader}>{t.legend}</div>
+
+          <div style={styles.footerLegend}>
+            {[["#ef4444", "0 – 25%"], ["#f59e0b", "25 – 50%"], ["#22c55e", "50 – 75%"], ["#2563eb", "75 – 100%"]].map(([c, label]) => (
+              <div key={label} style={styles.legendItem}>
+                <span style={{ ...styles.dot, background: c }} />
+                {label}
+              </div>
+            ))}
+          </div>
+
+          <div style={styles.footerInfo}>
+            <Info size={16} color="#16a34a" style={{ flexShrink: 0 }} aria-hidden="true" />
+            <span>{t.info}</span>
+          </div>
+
+          <div style={styles.footerCTA}>
+            <div style={styles.ctaIcon}><FileText size={18} color="#16a34a" /></div>
+            <div style={{ flex: 1, minWidth: 120 }}>
+              <div style={{ fontWeight: 900, fontSize: 11 }}>{t.access}</div>
+              <div style={{ fontSize: 10, opacity: 0.8 }}>{t.accessDesc}</div>
+            </div>
+            <button type="button" style={styles.ctaButton}>{t.accessBtn}</button>
+          </div>
+        </div>
+
+        {/* ============ MODALES ============ */}
+        {showLogin && (
+          <LoginModal
+            onClose={() => setShowLogin(false)}
+            onSuccess={(name: string, jeton: string) => {
+              setUserName(name);
+              setToken(jeton);
+              setShowLogin(false);
+              setShowUpdate(true);
             }}
-          >
-            {t.globalProgress}
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 2,
-            }}
-          >
-            {/* DONUT EN HAUT */}
-            <div
-              style={{
-                position:"relative",
-                width:100,
-                height:100,
-              }}
-            >
-              <PieChart width={100} height={100}>
-                <Pie
-                  data={[
-                    {value:tauxAvancement},
-                    {value:100-tauxAvancement}
-                  ]}
-                  innerRadius={25}
-                  outerRadius={42}
-                  startAngle={90}
-                  endAngle={-270}
-                  dataKey="value"
-                >
-                  <Cell fill={couleurAvancement}/>
-                  <Cell fill="#e5e7eb"/>
-                </Pie>
-              </PieChart>
-              <div
-                style={{
-                  position:"absolute",
-                  top:"50%",
-                  left:"50%",
-                  transform:"translate(-50%,-50%)",
-                  fontSize:16,
-                  fontWeight:900,
-                  color:couleurAvancement,
-                }}
-              >
-                {tauxAvancement.toFixed(1)}%
-              </div>
-            </div>
-            {/* TABLEAU EN DESSOUS */}
-            <div
-              style={{
-                width:"100%",
-                marginTop:1,
-              }}
-            >
-              {/* DECAISSE */}
-              <div
-                style={{
-                  display:"grid",
-                  gridTemplateColumns:"1fr auto",
-                  padding:"8px 10px",
-                  borderBottom:"1px solid #e5e7eb",
-                  fontSize:8,
-                }}
-              >
-                <span
-                  style={{
-                    fontWeight:700,
-                    color:"#475569",
-                  }}
-                >
-                  {t.disbursed}
-                </span>
-                <span
-                  style={{
-                    fontWeight:900,
-                    color:"#2563eb",
-                  }}
-                >
-                  {
-                    new Intl.NumberFormat("fr-FR")
-                    .format(decaisse)
-                  } €
-                </span>
-              </div>
-              {/* PLANIFICATION */}
-              <div
-                style={{
-                  display:"grid",
-                  gridTemplateColumns:"1fr auto",
-                  padding:"8px 10px",
-                  fontSize:8,
-                }}
-              >
-                <span
-                  style={{
-                    fontWeight:700,
-                    color:"#475569",
-                  }}
-                >
-                  {t.annualPlanning}
-                </span>
-                <span
-                  style={{
-                    fontWeight:800,
-                    color:"#2563eb",
-                  }}
-                >
-                  {
-                    new Intl.NumberFormat("fr-FR")
-                    .format(planification)
-                  } €
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div style={styles.card}>
-          <div
-            style={{
-              background: 'transparent',
-              color: '#1d4ed8',
-              padding: '6px 10px',
-              fontWeight: 900,
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textAlign: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderBottom: 'none',
-            }}
-          >
-            {t.progressComponent}
-          </div>
-
-          <div style={styles.donutGrid4}>
-          {tauxComposantes.map((item,i)=>{
-            const couleur = getProgressColor(item.percent);
-            return (
-              
-              <div
-                key={i}
-                style={{
-                  ...styles.donutCard,
-                  border: `1.5px solid ${item.color}40`,
-                  background: `${item.color}10`,
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.04)',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 7,
-                    fontWeight: 900,
-                    color: item.color,
-                    textAlign: 'center',
-                    lineHeight: 1.1,
-                    letterSpacing: 0.2,
-                    marginBottom: 4,
-                  }}
-                >
-                  {item.title}
-                </div>
-
-                {/* SLOT ICON FIX (ALIGNEMENT GRID6) */}
-                <div
-                  style={{
-                    height: 18,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: 4,
-                    opacity: 0, // invisible mais prend espace
-                  }}
-                >
-                  <GiPayMoney size={14} />
-                </div>
-
-                <div style={styles.donutWrapper}>
-                  <PieChart width={72} height={72}>
-                    <Pie
-                      data={[
-                        { value: item.percent },
-                        { value: 100 - item.percent },
-                      ]}
-                      innerRadius={18}
-                      outerRadius={30}
-                      startAngle={90}
-                      endAngle={-270}
-                      dataKey="value"
-                    >
-                      <Cell fill={couleur} />
-                      <Cell fill="#e5e7eb" />
-                    </Pie>
-                  </PieChart>
-
-                  {/*CENTRAGE PARFAIT ABSOLU */}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: '50%',
-                      left: '50%',
-                      transform: 'translate(-50%, -50%)',
-                      fontWeight: 900,
-                      fontSize: 11,
-                      color: couleur,
-                      pointerEvents: 'none',
-                      lineHeight: 1,
-                    }}
-                  >
-                    {item.percent.toFixed(1)}%
-                  </div>
-                </div>
-
-                <div style={styles.twoCols}>
-                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div style={styles.smallLabel}>{t.disbursed}</div>
-                    <div style={styles.money}>
-                      {formatCompactEuro(item.dec)}
-                    </div>
-                  </div>
-
-                  <div style={styles.verticalSeparator} />
-
-                  <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                    <div style={styles.smallLabel}>{t.planned}</div>
-                    <div style={styles.money}>
-                      {formatCompactEuro(item.plan)}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-          </div>
-        </div>
-
-        <div style={styles.card}>
-          <div
-            style={{
-              background: 'transparent',
-              color: '#15803d',
-              padding: '6px 10px',
-              fontWeight: 900,
-              fontSize: 10,
-              letterSpacing: 0.3,
-              textAlign: 'center',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderBottom: 'none',
-            }}
-          >
-            {t.progressInstrument}
-          </div>
-
-          <div style={styles.donutGrid6}>
-          {tauxInstruments.map((item,i)=>{
-            const couleur = getProgressColor(item.percent);
-            const Icon = item.icon;
-
-          return (
-                <div
-                  key={i}
-                  style={{
-                    ...styles.donutCard,
-                    border: `1.5px solid ${item.color}33`,
-                    boxShadow: `0 2px 6px rgba(0,0,0,0.04)`,
-                    borderTop: `2px solid ${item.color}`,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 8,
-                      fontWeight: 900,
-                      lineHeight: 1.2,
-                      minHeight: 24,
-                      textAlign: 'center',
-                      color: item.color,
-                      letterSpacing: 0.3,
-                    }}
-                  >
-                    {item.title}
-                  </div>
-
-                  <div
-                    style={{
-                      marginTop: 4,
-                      marginBottom: 4,
-                    }}
-                  >
-                    <Icon size={14} color={item.color} />
-                  </div>
-
-                  <div style={styles.donutWrapper}>
-                    <PieChart width={72} height={72}>
-                      <Pie
-                        data={[
-                          { value: item.percent },
-                          { value: 100 - item.percent },
-                        ]}
-                        innerRadius={18}
-                        outerRadius={30}
-                        startAngle={90}
-                        endAngle={-270}
-                        dataKey="value"
-                      >
-                        <Cell fill={couleur}/>
-                        <Cell fill="#e5e7eb" />
-                      </Pie>
-                    </PieChart>
-
-                    {/*CENTRAGE PARFAIT ABSOLU */}
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '50%',
-                        left: '50%',
-                        transform: 'translate(-50%, -50%)',
-                        fontWeight: 900,
-                        fontSize: 11,
-                        color:couleur,
-                        pointerEvents: 'none',
-                        lineHeight: 1,
-                      }}
-                    >
-                      {item.percent.toFixed(1)}%
-                    </div>
-                  </div>
-
-                  <div style={styles.twoCols}>
-                    <div style={styles.colBox}>
-                      <div style={styles.smallLabel}>{t.disbursed}</div>
-                      <div style={{ ...styles.money, color: item.color }}>
-                        {formatCompactEuro(item.dec)}
-                      </div>
-                    </div>
-
-                    <div style={styles.verticalSeparator} />
-
-                    <div style={styles.colBox}>
-                      <div style={styles.smallLabel}>{t.planned}</div>
-                      <div style={styles.money}>
-                        {formatCompactEuro(item.plan)}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>        
-      </div>
-
-      {/* ================= FOOTER LEGEND ================= */}      
-      <div style={styles.footer}>
-            <div style={styles.footerHeader}>
-               {t.legend}
-            </div>
-  
-      {/* LEFT : LEGEND */}
-        <div style={styles.footerLegend}>
-          <div style={styles.legendItem}>
-            <span style={{ ...styles.dot, background: '#ef4444' }} />
-            0 à 25%
-          </div>
-
-          <div style={styles.legendItem}>
-            <span style={{ ...styles.dot, background: '#f59e0b' }} />
-            25% à 50%
-          </div>
-
-          <div style={styles.legendItem}>
-            <span style={{ ...styles.dot, background: '#22c55e' }} />
-            50% à 75%
-          </div>
-
-          <div style={styles.legendItem}>
-            <span style={{ ...styles.dot, background: '#2563eb' }} />
-            75% à 100%
-          </div>
-        </div>
-
-        {/* CENTER : INFO TEXT */}
-        <div style={styles.footerInfo}>
-          <Info size={16} color="#16a34a" />
-          <span>
-          {t.info}
-          </span>
-        </div>
-
-              {/* RIGHT : CTA */}
-      <div style={styles.footerCTA}>
-        <div style={styles.ctaIcon}>
-          📄
-        </div>
-
-        <div>
-          <div style={{ fontWeight: 900, fontSize: 10 }}>
-            {t.access}
-          </div>
-
-          <div style={{ fontSize: 9, opacity: 0.8 }}>
-            {t.accessDesc}
-          </div>
-        </div>
-
-        <button style={styles.ctaButton}>
-          {t.accessBtn} ↗
-        </button>
+          />
+        )}
+        {showUpdate && (
+          <UpdateModal onClose={() => { setShowUpdate(false); setToken(""); }} userName={userName} token={token} />
+        )}
       </div>
     </div>
-
-    {/* ================= LOGIN MODAL ================= */}
-    {/* LOGIN */}
-      {showLogin && (
-        <LoginModal
-        onClose={() => setShowLogin(false)}
-        onSuccess={(name, jeton) => {
-          setUserName(name);
-          setToken(jeton);
-          setShowLogin(false);
-          setShowUpdate(true);
-        }}
-      />
-      )}
-      
-      {showUpdate && (
-        <UpdateModal
-              onClose={() => { setShowUpdate(false); setToken(""); }}
-              userName={userName}
-              token={token}
-            />
-      )}
-
-  </div>
   );
 }
-const styles: any = {
-  page: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-    width: '100%',
-    background: 'none',
-    padding: 10,
-    minHeight: '100vh',
-    boxSizing: 'border-box',
-    fontFamily: 'Inter, system-ui, sans-serif',
-  },
 
+/* ================= STYLES (la mise en page est dans RESPONSIVE_CSS) ================= */
+
+const styles: Record<string, React.CSSProperties> = {
   header: {
-    background: 'linear-gradient(135deg,#0f2d6b,#0a4cb3)',
+    background: "linear-gradient(135deg,#0f2d6b,#0a4cb3)",
     borderRadius: 8,
-    padding: '14px 18px',
-    color: '#fff',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+    padding: "14px 18px",
+    color: "#fff",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
     gap: 10,
   },
+  headerLeft: { display: "flex", alignItems: "center", gap: 12, minWidth: 0 },
+  logoWrap: { width: 52, height: 52, borderRadius: 14, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  title: { fontSize: "clamp(15px, 1.2vw + 9px, 22px)", fontWeight: 900, letterSpacing: -0.4, overflowWrap: "anywhere" },
+  subtitle: { marginTop: 4, opacity: 0.9, fontWeight: 500, fontSize: 13 },
+  dateBox: { display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,0.12)", padding: "12px 14px", borderRadius: 10 },
+  dateLabel: { fontSize: 11, opacity: 0.8 },
+  dateValue: { fontSize: 12, fontWeight: 700 },
 
-  title: {
-    fontSize: 22,
-    fontWeight: 900,
-    letterSpacing: -0.4,
-  },
-
-  percentLeft: {
-    fontSize: 10,
-    fontWeight: 800,
-    color: '#374151',
-    textAlign: 'right',
-    marginRight: 2,
-    minWidth: 36,
-  },
-
-  subtitle: {
-    marginTop: 12,
-    opacity: 0.9,
-    fontWeight: 500,
-    fontSize: 13,
-  },
-
-  dateBox: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    background: 'rgba(255,255,255,0.12)',
-    padding: '14px 14px',
-    borderRadius: 10,
-  },
-
-  dateLabel: {
-    fontSize: 11,
-    opacity: 0.8,
-  },
-
-  dateValue: {
-    fontSize: 12,
-    fontWeight: 700,
-  },
-
-  topGrid: {
-    display: 'grid',
-    gridTemplateColumns: '1.2fr 1.1fr 0.9fr',
-    gap: 5,
-    alignItems: 'start',
-    minHeight: 320,
-  },
-
-  card: {
-    background: '#fff',
-    borderRadius: 12,
-    border: '1px solid #dbe4f0',
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    minHeight: 0,
-    maxHeight: 340,
-    overflow: 'hidden',
-    boxShadow: '0 1px 2px rgba(15,23,42,0.04)',
-  },
-
-  cardHeader: {
-    background: 'linear-gradient(90deg,#0a4cb3,#1d4ed8)',
-    color: '#fff',
-    padding: '8px 12px',
-    fontWeight: 900,
-    fontSize: 9,
-    letterSpacing: 0.2,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    whiteSpace: 'nowrap',
-    flexWrap: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-
-  kpiRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'stretch',
-    padding: '6px 10px',
-    flex: 1,
-    gap: 10,
-  },
-
-  bigValue: {
-    fontSize: 34,
-    fontWeight: 800,
-    color: '#111827',
-  },
-
-  pieCenter: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    fontWeight: 900,
-    fontSize: 18,
-    textAlign: 'center',
-    pointerEvents: 'none',
-  },
-
-  rowTitle: {
-    fontSize: 10,
-    fontWeight: 600,
-    color: '#111827',
-    lineHeight: 1.1,
-    display: '-webkit-box',
-    WebkitLineClamp: 2,
-    WebkitBoxOrient: 'vertical',
-    overflow: 'hidden',
-    whiteSpace: 'normal',
-    wordBreak: 'break-word',
-  },
-
-  amount: {
-    fontSize: 10,
-    fontWeight: 700,
-    whiteSpace: 'nowrap',
-    lineHeight: 1,
-  },
-
-  filtersContainer: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 240px",
-    gap: 16,
-    alignItems: "stretch",
-    padding: "16px",
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
-    borderRadius: 14,
-    marginBottom: 20,
-    boxSizing: "border-box",
-  },
-
+  /* filtres */
   bigFilter: {
-    display: "flex",
-    alignItems: "center",
-    gap: 13,
-    padding: "13px 15px",
-    background: "#ffffff",
-    border: "1px solid #e2e8f0",
-    borderRadius: 11,
-    minHeight: 78,
-    boxSizing: "border-box",
-    transition: "all 0.2s ease",
+    display: "flex", alignItems: "center", gap: 13, padding: "13px 15px", background: "#fff",
+    border: "1px solid #e2e8f0", borderRadius: 11, minHeight: 78, boxSizing: "border-box", minWidth: 0,
   },
-
-  filterIcon: {
-    width: 42,
-    height: 42,
-    minWidth: 42,
-    borderRadius: 10,
-    background: "#eff6ff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  filterLabel: {
-    fontSize: 10,
-    fontWeight: 800,
-    color: "#64748b",
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-    marginBottom: 4,
-  },
-
+  filterIcon: { width: 42, height: 42, minWidth: 42, borderRadius: 10, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" },
+  filterLabel: { display: "block", fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 },
   bigSelect: {
-    width: "100%",
-    height: 32,
-    padding: "0 28px 0 10px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 7,
-    background: "#ffffff",
-    color: "#0f172a",
-    fontSize: 13,
-    fontWeight: 700,
-    outline: "none",
-    cursor: "pointer",
-    boxSizing: "border-box",
+    width: "100%", height: 32, padding: "0 28px 0 10px", border: "1px solid #cbd5e1", borderRadius: 7,
+    background: "#fff", color: "#0f172a", fontWeight: 700, outline: "none", cursor: "pointer", boxSizing: "border-box",
   },
+  filterSub: { fontSize: 10, color: "#94a3b8", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
 
-  filterSub: {
-    fontSize: 9,
-    color: "#94a3b8",
-    marginTop: 3,
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
+  /* cartes */
+  cardHeader: {
+    background: "linear-gradient(90deg,#0a4cb3,#1d4ed8)", color: "#fff", padding: "8px 12px", fontWeight: 900,
+    fontSize: 10, lineHeight: 1.25, letterSpacing: 0.2, display: "flex", alignItems: "center",
+    justifyContent: "space-between", gap: 8, minHeight: 34,
   },
+  subHead: { padding: "8px 10px", fontWeight: 900, fontSize: 10, lineHeight: 1.25, letterSpacing: 0.3, textAlign: "center" },
 
-  resetContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  kpiTile: { display: "flex", alignItems: "center", gap: 10, flex: "1 1 220px", minWidth: 0, padding: "6px 0 6px 6px" },
+  kpiIconWrap: { width: 44, height: 44, borderRadius: 12, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  kpiContent: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, textAlign: "left", minWidth: 0 },
+  kpiTopLabel: { fontSize: 11, fontWeight: 700, color: "#2563eb", letterSpacing: 0.5, textTransform: "uppercase" },
+  kpiMainValue: { fontSize: "clamp(16px, 1vw + 10px, 20px)", fontWeight: 800, color: "#2563eb", lineHeight: 1.1 },
+  kpiDivider: { height: 1, background: "#e5e7eb", margin: "6px 0", width: "100%" },
+  kpiSubLabel: { fontSize: 10, color: "#94a3b8", fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" },
+  kpiSubValue: { fontSize: 13, fontWeight: 800, color: "#0f172a", marginTop: 2 },
+  kpiLabel: { fontSize: 11, fontWeight: 800, color: "#2563eb", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 },
 
-  resetBigBtn: {
-    width: '100%',
-    height: 60,
-    borderRadius: 10,
-    border: '2px solid #bfdbfe',
-    background: '#fff',
-    color: '#1d4ed8',
-    fontWeight: 800,
-    fontSize: 12,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    lineHeight: 1.1,
-  },
+  chartTitle: { textAlign: "center", color: "#2563eb", fontWeight: 900, fontSize: 10, marginBottom: 5, letterSpacing: 0.5, padding: "0 8px" },
+  chartUnit: { color: "#64748b", fontSize: 10, fontWeight: 800, marginBottom: 4, marginLeft: 18 },
 
-  kpiLabel: {
-    fontSize: 11,
-    fontWeight: 800,
-    color: '#2563eb',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
+  /* tableaux */
+  tableHeader: {
+    padding: "9px 12px", fontSize: 10, fontWeight: 800, color: "#475569", background: "#f1f5f9",
+    borderBottom: "2px solid #cbd5e1", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
   },
+  row: { minHeight: 42, padding: "4px 12px", borderBottom: "1px solid #eef2f7" },
+  totalRow: { padding: "8px 12px", borderTop: "1px solid black", marginTop: "auto" },
+  cellFlex: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
+  rowTitle: {
+    fontSize: 11, fontWeight: 600, color: "#111827", lineHeight: 1.15, display: "-webkit-box",
+    WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word",
+  },
+  amount: { fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" },
+  progressCell: { display: "flex", alignItems: "center", gap: 4, minWidth: 0 },
+  percentLeft: { fontSize: 10, fontWeight: 700, textAlign: "right", minWidth: 36 },
+  progress: { flex: 1, minWidth: 20, height: 8, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" },
+  progressFill: { height: "100%", borderRadius: 999, transition: "width 1s ease-in-out" },
 
-  pieWrapper: {
-    position: 'relative',
-    width: 120,
-    height: 120,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  /* avancement global */
+  summaryRow: { display: "grid", gridTemplateColumns: "1fr auto", gap: 8, padding: "8px 12px", fontSize: 11 },
+  summaryLabel: { fontWeight: 700, color: "#475569" },
 
-  kpiLeftBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    flex: 1,
-  },
-
-  kpiTile: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingLeft: 6,
-    gap: 10,
-    padding: '5px 0px 18px 18px',
-    width: '100%',
-    minWidth: 0,
-  },
-
-  kpiIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    background: '#eff6ff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  kpiContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'flex-start', // IMPORTANT
-    gap: 2,
-    textAlign: 'left', // IMPORTANT
-    width: '100%',
-    minWidth: 0,
-  },
-
-  kpiTopLabel: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#2563eb',
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    whiteSpace: 'nowrap', // IMPORTANT
-  },
-
-  kpiMainValue: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: '#2563eb',
-    lineHeight: 1.1,
-  },
-
-  kpiDivider: {
-    height: 1,
-    background: '#e5e7eb',
-    margin: '6px 0',
-    width: '100%',
-  },
-
-  kpiSubLabel: {
-    fontSize: 10,
-    color: '#94a3b8',
-    fontWeight: 600,
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-    position: 'relative',
-    zIndex: 2,
-  },
-
-  kpiSubValue: {
-    fontSize: 13,
-    fontWeight: 800,
-    color: '#0f172a',
-    marginTop: 4,
-    position: 'relative',
-    zIndex: 1,
-  },
-
-  kpiSubOverlay: {
-    position: 'relative',
-    display: 'flex',
-    flexDirection: 'column',
-    lineHeight: 1,
-  },
-
-  percentInline: {
-    width: 30,
-    fontSize: 9,
-    fontWeight: 800,
-    color: '#374151',
-    textAlign: 'left',
-  },
-
-  totalRow: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1.5fr 1.2fr',
-    alignItems: 'center',
-    padding: '8px 10px',
-    borderTop: '1px solid black',
-    background: 'transparent',
-  },
-
-  totalLabel: {
-    fontSize: 12,
-    fontWeight: 900,
-    color: '#1d4ed8',
-    letterSpacing: 0.5,
-  },
-
-  totalAmount: {
-    fontSize: 12,
-    fontWeight: 900,
-    color: '#1d4ed8',
-  },
-
-  totalPercent: {
-    fontSize: 12,
-    fontWeight: 900,
-    color: '#1d4ed8',
-    textAlign: 'left',
-  },
-
-  stickyHeader: {
-    display: 'grid',
-    gridTemplateColumns: '2fr 1.2fr 2.5fr', // OK
-    padding: '9px 10px',
-    fontSize: 10,
-    fontWeight: 800,
-    color: '#475569',
-    background: '#f1f5f9',
-    borderBottom: '2px solid #cbd5e1',
-    textTransform: 'uppercase',
-    whiteSpace: 'nowrap', // IMPORTANT
-    overflow: 'hidden',
-  },
-
-  cellFlex: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    minWidth: 0,
-  },
-
-  badge: {
-    width: 26,
-    height: 26,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    background: 'transparent',
-    boxShadow: 'none',
-  },
-
-  progressBarAnimated: {
-    height: '100%',
-    borderRadius: 999,
-    transition: 'width 1s ease-in-out',
-  },
-
-  progressCell: {
-    display: 'flex',
-    gridTemplateColumns: '42px 1fr',
-    alignItems: 'center',
-    gap: 4,
-  },
-
-  progress: {
-    flex: 1,
-    height: 8,
-    background: '#e5e7eb',
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-
-  tableHeaderRow: {
-    display: 'grid',
-    gridTemplateColumns: '2.4fr 1fr 1.2fr',
-    gridAutoColumns: 'minmax(0, 1fr)',
-    padding: '9px 12px',
-    fontSize: 10,
-    fontWeight: 800,
-    color: '#475569',
-    background: '#f1f5f9',
-    borderBottom: '2px solid #cbd5e1',
-    textTransform: 'uppercase',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-  },
-
-  saasRow: {
-    display: 'grid',
-    gridTemplateColumns: '2.4fr 1fr 1.2fr',
-    alignItems: 'center',
-    height: 54,
-    padding: '0 12px',
-    borderBottom: '1px solid #eef2f7',
-  },
-  
-  instrumentRow: {
-    display: 'grid',
-    gridTemplateColumns: '2.5fr 1.5fr 1.2fr',
-    alignItems: 'center',
-    height: 42,
-    padding: '0 10px',
-    borderBottom: '1px solid #eef2f7',
-  },
-
-  logoWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
-    background: '#fff',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-
-  headerLeft: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-  },
-
-  progressWrap: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-  },
-
-  bottomGrid: {
-    display: 'grid',
-    gridTemplateColumns: '0.55fr 1.15fr 1.9fr',
-    gap: 5,
-    marginTop: 10,
-    alignItems: 'stretch',
-    minHeight: 200,
-  },
-
-  globalGrid: {
-    display: 'grid',
-    gridTemplateColumns: '110px 1fr',
-    alignItems: 'center',
-    gap: 6,
-    width: '100%',
-    padding: '4px 6px',
-  },
-
-  globalIndicators: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-    justifyContent: 'center',
-  },
-
-  donutBox: {
-    position: 'relative',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  donutCenterGreen: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%,-50%)',
-    fontSize: 16,
-    fontWeight: 900,
-    color: '#16a34a',
-  },
-
-  blueValue: {
-    color: '#2563eb',
-    fontWeight: 900,
-    fontSize: 10,
-    lineHeight: 1.1,
-  },
-
-  greenValue: {
-    color: '#16a34a',
-    fontWeight: 800,
-    fontSize: 10,
-  },
-
-  donutGrid4: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-    gap: 2,
-    padding: 3,
-    alignItems: 'start',
-    gridAutoRows: '1fr',
-  },
-
-  donutGrid6: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-    gap: 2,
-    padding: 3,
-    alignItems: 'stretch',
-  },
-
+  /* cartes donuts */
   donutCard: {
-    position: 'relative',
-    background: '#f8fafc',
-    borderRadius: 8,
-    padding: '6px 4px',
-    textAlign: 'center',
-    minHeight: 170,
-    display: 'flex',
-    flexDirection: 'column',
-    width: '100%',
-    boxSizing: 'border-box',
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    borderRadius: 8, padding: "6px 4px", textAlign: "center", minHeight: 190, display: "flex", flexDirection: "column",
+    width: "100%", boxSizing: "border-box", overflow: "hidden", alignItems: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
   },
+  donutTitle: { fontSize: 9, fontWeight: 900, lineHeight: 1.15, minHeight: "3.5em", textAlign: "center", letterSpacing: 0.2 },
+  smallLabel: { fontSize: 9, fontWeight: 900, color: "#64748b", lineHeight: 1.1, whiteSpace: "nowrap" },
+  money: { fontWeight: 900, fontSize: 11, color: "#0f172a", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
 
-  donutCenterSmall: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    fontWeight: 900,
-    fontSize: 14,
-    pointerEvents: 'none',
-  },
-
-  twoCols: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gridTemplateColumns: '1fr 1px 1fr',
-    alignItems: 'stretch', // IMPORTANT
-    width: '100%',
-    marginTop: 'auto',
-    paddingTop: 10,
-    gap: 6,
-    fontSize: 5,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-
-  smallLabel: {
-    fontSize: 5.5,
-    fontWeight: 900,
-    color: '#64748b',
-    whiteSpace: 'nowrap',
-    lineHeight: 1,
-    letterSpacing: 0,
-  },
-
-  label: {
-    fontSize: 7,
-    color: '#64748b',
-    fontWeight: 700,
-    lineHeight: 1,
-  },
-
-  verticalSeparator: {
-    width: 1,
-    background: '#e2e8f0',
-    alignSelf: 'stretch', // clé
-  },
-
-  money: {
-    fontWeight: 900,
-    fontSize: 6.5,
-    color: '#0f172a',
-    whiteSpace: 'nowrap',
-    overflow: 'visible',
-    flexShrink: 0,
-    lineHeight: 1,
-  },
-
-  colBox: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    minWidth: 0,
-  },
-
-  donutWrapper: {
-    position: 'relative',
-    width: '100%',
-    height: 72,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  footer: {
-    display: 'grid',
-    gridTemplateColumns: '1fr 1.2fr 1.2fr',
-    alignItems: 'start',
-    gap: 6,
-    padding: '4px 8px',
-    background: '#ffffff',
-    border: '1px solid #dbe4f0',
-    borderRadius: 10,
-  },
-  
-  footerLegend: {
-    display: 'flex',
-    gap: 14,
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    paddingTop: 6,
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#334155',
-  },
-  
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-  
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    display: 'inline-block',
-  },
-  
-  footerInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    fontSize: 11,
-    color: '#475569',
-    fontWeight: 600,
-    transform: 'translateY(-4px)',
-    paddingTop: 2,
-  },
-  
+  /* légende */
+  footerHeader: { fontSize: 11, fontWeight: 800, color: "#1d4ed8", letterSpacing: 0.4 },
+  footerLegend: { display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 11, fontWeight: 700, color: "#334155" },
+  legendItem: { display: "flex", alignItems: "center", gap: 6 },
+  dot: { width: 12, height: 12, borderRadius: 999, display: "inline-block", flexShrink: 0 },
+  footerInfo: { display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#475569", fontWeight: 600 },
   footerCTA: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
-    paddingTop: 2,
-    background: '#ecfdf5',
-    padding: '4px 8px',
-    borderRadius: 8,
-    border: '1px solid #a7f3d0',
-    transform: 'translateY(-4px)',
+    display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
+    background: "#ecfdf5", padding: "6px 10px", borderRadius: 8, border: "1px solid #a7f3d0",
   },
-  
-  ctaIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    background: '#d1fae5',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: 14,
-  },
-  
-  ctaButton: {
-    background: '#16a34a',
-    color: '#fff',
-    border: 'none',
-    borderRadius: 8,
-    padding: '6px 10px',
-    fontSize: 10,
-    fontWeight: 800,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-  },
-
-  footerHeader: {
-    gridColumn: '1 / -1',
-    fontSize: 11,
-    fontWeight: 800,
-    marginTop: 10,
-    color: '#1d4ed8',
-    marginBottom: 0,
-    letterSpacing: 0.4,    
-  },
+  ctaIcon: { width: 32, height: 32, borderRadius: 8, background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  ctaButton: { background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" },
 };
