@@ -25,6 +25,7 @@ import MicroEntreprise from "./pages/MicroEntreprise";
 import Beneficiaires from "./pages/Beneficiaires";
 import DecisionCOSAP from "./pages/DecisionCOSAP";
 import MesureRegionale from "./pages/MesureRegionale";
+import ZonesBrulees from "./pages/ZonesBrulees";
 
 export default function App() {
   const data = {
@@ -47,7 +48,7 @@ export default function App() {
       
         {/* Intervention de PADDI+ */}
         <Route path="carte" element={<Carte />} />
-      
+        <Route path="zones-brulees" element={<ZonesBrulees />}
         <Route path="analyse-feux" element={<AnalyseFeux />} />
         <Route path="deforestation" element={<Deforestation />} />
       
