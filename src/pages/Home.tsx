@@ -32,7 +32,7 @@ export default function Home() {
   const navigate = useNavigate();
 
   // Ratio réel de l'image (lu automatiquement) : sert à garder les feuilles alignées
-  const [ratio, setRatio] = useState(16 / 9);
+  const [ratio, setRatio] = useState(3 / 2);
 
   const open = (module: string) => {
     const known = module in ROUTES;
