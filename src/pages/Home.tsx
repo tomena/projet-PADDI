@@ -51,12 +51,6 @@ export default function Home() {
 
   return (
     <div className="home-page">
-      <div
-        className="home-backdrop"
-        style={{ backgroundImage: `url(${bg})` }}
-        aria-hidden="true"
-      />
-
       <div className="stage" style={{ "--ratio": ratio } as CSSProperties}>
         <header className="home-header">
           <h1 className="home-title">
@@ -84,6 +78,7 @@ export default function Home() {
               src={bg}
               alt="PADDI"
               className="home-bg"
+              draggable={false}
               onLoad={(e) =>
                 setRatio(e.currentTarget.naturalWidth / e.currentTarget.naturalHeight)
               }
