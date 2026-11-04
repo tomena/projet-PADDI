@@ -281,7 +281,7 @@ const MENUS: Record<string, Entree[]> = {
 
   environnement: [
     lien("feux", Flame, "fireAnalysis", "analyse-feux"),
-    lien("zones-brulees", Flame,"burnedZonesMap","zones-brulees"),
+    lien("zones-brulees",  MapPinned,"burnedZonesMap","zones-brulees"),
     lien("deforestation", Trees, "deforestation", "deforestation"),
     lien("pression", ShieldAlert, "pressureZones", "pression"),
     lien("environnement", Globe2, "environment", "analyse-environnement"),
