@@ -44,6 +44,8 @@ const THEMES = [
 ] as const;
 type Theme = (typeof THEMES)[number]['id'];
 
+const rangAlerte = (c: string) => (c === 'high' ? 3 : c === 'nominal' ? 2 : 1);
+
 const FONDS: Record<
   string,
   { label: string; url: string; attribution: string; apercu: string }
@@ -391,6 +393,7 @@ export default function Pression() {
   const [periode, setPeriode] = useState<24 | 48 | 72>(72);
   const [confiance, setConfiance] = useState<'l' | 'n' | 'h'>('l');
   const [theme, setTheme] = useState<Theme>('feux');
+  const [joursDef, setJoursDef] = useState<7 | 30 | 90>(30);
 
   // ---- Interface
   const [fond, setFond] = useState('topo');
@@ -630,12 +633,13 @@ export default function Pression() {
     setAp(TOUS);
   };
   const filtresModifies =
-    region !== TOUS || ap !== TOUS || periode !== 72 || confiance !== 'l';
+    region !== TOUS || ap !== TOUS || periode !== 72 || confiance !== 'l' || joursDef !== 30;
   const reinitialiser = () => {
     setRegion(TOUS);
     setAp(TOUS);
     setPeriode(72);
     setConfiance('l');
+    setJoursDef(30);
   };
 
   const nomsRegions = useMemo(
@@ -652,6 +656,70 @@ export default function Pression() {
   const heureMaj = derniereMaj
     ? new Date(derniereMaj).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
     : '—';
+
+  // ---- Déforestation : alertes GFW (une requête par région, 90 jours) -------
+  const [alertes, setAlertes] = useState<any | null>(null);
+  const [chargAlertes, setChargAlertes] = useState(false);
+  const [erreurAlertes, setErreurAlertes] = useState('');
+
+  useEffect(() => {
+    if (theme !== 'deforestation') return;
+    const ctrl = new AbortController();
+    setAlertes(null);
+    setErreurAlertes('');
+    setChargAlertes(true);
+    fetch(`/api/gfw?region=${encodeURIComponent(region === TOUS ? 'all' : region)}&jours=90`, {
+      signal: ctrl.signal,
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error('Impossible de récupérer les alertes GFW.');
+        return r.json();
+      })
+      .then((j) => setAlertes(j))
+      .catch((e) => {
+        if (e.name !== 'AbortError') {
+          console.error(e);
+          setErreurAlertes(e instanceof Error ? e.message : 'Erreur inconnue');
+        }
+      })
+      .finally(() => {
+        if (!ctrl.signal.aborted) setChargAlertes(false);
+      });
+    return () => ctrl.abort();
+  }, [theme, region]);
+
+  const defStats = useMemo(() => {
+    const toutes: any[] = alertes?.lignes || [];
+    const lignes = toutes.filter((l) => rangAlerte(l.confiance) >= RANG[confiance]);
+    const depuis = (j: number) => new Date(Date.now() - j * 864e5).toISOString().slice(0, 10);
+    const somme = (j: number, cle: 'alertes' | 'ha') =>
+      lignes.filter((l) => l.date >= depuis(j)).reduce((t, l) => t + (l[cle] || 0), 0);
+
+    const jours: { date: string; n: number }[] = [];
+    for (let i = joursDef - 1; i >= 0; i--) {
+      const d = depuis(i);
+      jours.push({ date: d, n: lignes.filter((l) => l.date === d).reduce((t, l) => t + l.alertes, 0) });
+    }
+
+    const parConf = { high: 0, nominal: 0, low: 0 };
+    toutes
+      .filter((l) => l.date >= depuis(joursDef))
+      .forEach((l) => {
+        const k = l.confiance === 'high' ? 'high' : l.confiance === 'nominal' ? 'nominal' : 'low';
+        parConf[k] += l.alertes || 0;
+      });
+
+    return {
+      total: somme(joursDef, 'alertes'),
+      ha: somme(joursDef, 'ha'),
+      p7: somme(7, 'alertes'),
+      p30: somme(30, 'alertes'),
+      p90: somme(90, 'alertes'),
+      jours,
+      maxJour: Math.max(1, ...jours.map((j) => j.n)),
+      parConf,
+    };
+  }, [alertes, confiance, joursDef]);
 
   // ---- Styles des zones sur la carte ------------------------------------
   const styleRegion = (z: Zone): L.PathOptions => {
@@ -783,17 +851,23 @@ export default function Pression() {
           <div className="pr-champ">
             <span>Période</span>
             <div className="pr-seg" role="group" aria-label="Période">
-              {([24, 48, 72] as const).map((h) => (
-                <button key={h} disabled={theme !== 'feux'} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
-                  {h} h
-                </button>
-              ))}
+              {theme === 'deforestation'
+                ? ([7, 30, 90] as const).map((j) => (
+                    <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
+                      {j} j
+                    </button>
+                  ))
+                : ([24, 48, 72] as const).map((h) => (
+                    <button key={h} disabled={theme !== 'feux'} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
+                      {h} h
+                    </button>
+                  ))}
             </div>
           </div>
 
           <label className="pr-champ">
             <span>Fiabilité</span>
-            <select value={confiance} disabled={theme !== 'feux'} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
+            <select value={confiance} disabled={theme === 'erosion'} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
               <option value="l">Toutes les détections</option>
               <option value="n">Nominale et plus</option>
               <option value="h">Élevée seulement</option>
@@ -812,7 +886,7 @@ export default function Pression() {
       <div className="pr-body">
         {/* ---------- PANNEAU DE STATISTIQUES ---------- */}
         <aside className="pr-panel">
-          {theme !== 'feux' && (
+          {theme === 'erosion' && (
             <section className="pr-attente-theme">
               <h2>{THEMES.find((t) => t.id === theme)?.label}</h2>
               <p>
@@ -820,6 +894,117 @@ export default function Pression() {
                 s’afficheront ici dès que les données seront ajoutées.
               </p>
             </section>
+          )}
+          {theme === 'deforestation' && (
+            <>
+              <section className="pr-hero">
+                <div className="pr-hero-haut">
+                  <div className="pr-hero-nb">{chargAlertes ? '…' : nf(defStats.total)}</div>
+                  <div className="pr-hero-txt">
+                    <strong>alertes de perte de couvert forestier</strong>
+                    <span>
+                      {region !== TOUS ? region : 'Tout Madagascar'} · {joursDef} derniers jours
+                    </span>
+                  </div>
+                </div>
+
+                {erreurAlertes ? (
+                  <p className="pr-vide">{erreurAlertes}</p>
+                ) : (
+                  <>
+                    <div className="pr-chrono" role="img" aria-label="Alertes par jour">
+                      {defStats.jours.map((j) => (
+                        <div key={j.date} className="pr-chrono-col" title={`${j.n} alertes · ${j.date}`}>
+                          <div
+                            className="pr-chrono-barre"
+                            style={{
+                              height: `${Math.max(4, (j.n / defStats.maxJour) * 100)}%`,
+                              background: 'rgb(200,15,15)',
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pr-chrono-legende">
+                      <span>il y a {joursDef} jours</span>
+                      <span>aujourd’hui</span>
+                    </div>
+                  </>
+                )}
+              </section>
+
+              <div className="pr-grille">
+                <article className="pr-carte c1">
+                  <h2>Alertes par période</h2>
+                  <p className="pr-note">{region !== TOUS ? region : 'Tout Madagascar'}</p>
+                  {[
+                    ['7 derniers jours', defStats.p7, 'rgb(200,15,15)'],
+                    ['30 derniers jours', defStats.p30, '#f97316'],
+                    ['90 derniers jours', defStats.p90, '#facc15'],
+                  ].map(([label, val, col]) => (
+                    <div className="pr-ligne-barre" key={label as string}>
+                      <div className="pr-ligne">
+                        <span>{label}</span>
+                        <strong>{nf(val as number)}</strong>
+                      </div>
+                      <div className="pr-barre">
+                        <i style={{ width: `${defStats.p90 ? ((val as number) / defStats.p90) * 100 : 0}%`, background: col as string }} />
+                      </div>
+                    </div>
+                  ))}
+                </article>
+
+                <article className="pr-carte c2">
+                  <h2>Alertes à l’intérieur de l’aire protégée</h2>
+                  <p className="pr-note">{joursDef} derniers jours</p>
+                  <p className="pr-vide">Calcul par aire protégée : prochaine étape</p>
+                </article>
+
+                <article className="pr-carte pr-carte-attente c3">
+                  <h2>Alertes par paysage</h2>
+                  <p className="pr-note">{joursDef} derniers jours</p>
+                  <p className="pr-vide">Couche des paysages à intégrer</p>
+                </article>
+
+                <article className="pr-carte pr-carte-attente c4">
+                  <h2>Alertes par micro-bassin</h2>
+                  <p className="pr-note">{joursDef} derniers jours</p>
+                  <p className="pr-vide">Couche des micro-bassins à intégrer</p>
+                </article>
+
+                <article className="pr-carte c5">
+                  <h2>Surface touchée</h2>
+                  <p className="pr-note">Hectares concernés · {joursDef} jours</p>
+                  <div className="pr-grand">{chargAlertes ? '…' : `${nf(Math.round(defStats.ha))} ha`}</div>
+                  <p className="pr-note">Les alertes arrivent avec quelques jours de décalage</p>
+                </article>
+
+                <article className="pr-carte c6">
+                  <h2>Fiabilité des alertes</h2>
+                  <p className="pr-note">Toutes alertes · {joursDef} jours</p>
+                  {(
+                    [
+                      ['Élevée', defStats.parConf.high],
+                      ['Nominale', defStats.parConf.nominal],
+                      ['Faible', defStats.parConf.low],
+                    ] as [string, number][]
+                  ).map(([label, val]) => {
+                    const t = defStats.parConf.high + defStats.parConf.nominal + defStats.parConf.low;
+                    return (
+                      <div className="pr-ligne-barre" key={label}>
+                        <div className="pr-ligne">
+                          <span>{label}</span>
+                          <strong>{nf(val)}</strong>
+                        </div>
+                        <div className="pr-barre">
+                          <i style={{ width: `${t ? (val / t) * 100 : 0}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </article>
+              </div>
+            </>
           )}
           {theme === 'feux' && (
           <>
@@ -1052,7 +1237,9 @@ export default function Pression() {
 
           {theme !== 'feux' && (
             <div className="pr-alerte pr-info">
-              {THEMES.find((t) => t.id === theme)?.label} : couche à intégrer
+              {theme === 'deforestation'
+                ? 'Alertes GFW comptées par région · points sur la carte : étape suivante'
+                : 'Zones à risque d’érosion : couche à intégrer'}
             </div>
           )}
 
