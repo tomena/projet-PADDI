@@ -43,6 +43,7 @@ const sidebarTxt = {
     fireAnalysis: "Analyse de feux",
     deforestation: "Déforestation",
     environment: "Environnement",
+    burnedZonesMap: "Cartographie des zones brûlées",
 
     territorialSynthesis: "Synthèse territoriale",
 
@@ -95,6 +96,7 @@ const sidebarTxt = {
     fireAnalysis: "Fandinihana ny doro tanety",
     deforestation: "Fandripahana ala",
     environment: "Tontolo iainana",
+    burnedZonesMap: "Sarintanin'ny faritra may",
 
     territorialSynthesis: "Famintinana ny faritany",
 
@@ -147,6 +149,7 @@ const sidebarTxt = {
     fireAnalysis: "Fire Analysis",
     deforestation: "Deforestation",
     environment: "Environment",
+    burnedZonesMap: "Burned Areas Mapping",
 
     territorialSynthesis: "Territorial Overview",
 
@@ -199,6 +202,7 @@ const sidebarTxt = {
     fireAnalysis: "Brandanalyse",
     deforestation: "Entwaldung",
     environment: "Umwelt",
+    burnedZonesMap: "Kartierung verbrannter Flächen",
 
     territorialSynthesis: "Territoriale Übersicht",
 
@@ -277,6 +281,7 @@ const MENUS: Record<string, Entree[]> = {
 
   environnement: [
     lien("feux", Flame, "fireAnalysis", "analyse-feux"),
+    lien("zones-brulees", Flame,"burnedZonesMap","zones-brulees"),
     lien("deforestation", Trees, "deforestation", "deforestation"),
     lien("pression", ShieldAlert, "pressureZones", "pression"),
     lien("environnement", Globe2, "environment", "analyse-environnement"),
