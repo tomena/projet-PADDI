@@ -172,6 +172,27 @@ function zoneDansRegion(z: Zone, region: Zone) {
   return dansZone(cx, cy, region);
 }
 
+// Champs de tes fichiers : paddi_mbv.geojson → "Aire_Prot" (aire protégée) et "Paysage"
+const PROP_MBV_AIRE = 'Aire_Prot';
+const PROP_MBV_PAYSAGE = 'Paysage';
+// paddi_paysage.geojson → champ "Aires_Prot" (aire protégée du paysage)
+const PROP_PAYSAGE_AIRE = 'Aires_Prot';
+
+const normaliser = (v: unknown) =>
+  String(v ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+// Même nom, ou l'un contenu dans l'autre (ex. « Ankarana » et « Réserve spéciale d'Ankarana »)
+const memeAire = (a: unknown, b: unknown) => {
+  const x = normaliser(a);
+  const y = normaliser(b);
+  return x.length >= 4 && y.length >= 4 && (x === y || x.includes(y) || y.includes(x));
+};
+
 // Deux zones s'emboîtent ou se chevauchent (dans un sens ou dans l'autre)
 function zoneAutour(z: Zone, conteneur: Zone) {
   return zoneDansRegion(z, conteneur) || zoneDansRegion(conteneur, z);
@@ -517,7 +538,7 @@ export default function Pression() {
     feux: true,
     perte: true,
     paysages: true,
-    mbv: false,
+    mbv: true,
   });
 
   // ---- Données géographiques
@@ -640,16 +661,28 @@ export default function Pression() {
     [feuxRegion, apZone, periphSel]
   );
 
-  // paysages et micro-bassins de la zone choisie (aire protégée si choisie, sinon région)
-  const conteneurZone = apZone || regionZone;
-  const paysagesVisibles = useMemo(
-    () => (conteneurZone ? paysagesZ.filter((z) => zoneAutour(z, conteneurZone)) : paysagesZ),
-    [paysagesZ, conteneurZone]
-  );
-  const mbvVisibles = useMemo(
-    () => (conteneurZone ? mbvZ.filter((z) => zoneAutour(z, conteneurZone)) : mbvZ),
-    [mbvZ, conteneurZone]
-  );
+  // Micro-bassins et paysages : affichés seulement quand une aire protégée est choisie.
+  // Micro-bassins = ceux dont le champ "Aire_Prot" correspond à l'aire protégée
+  // (à défaut, ceux qui la touchent) ; paysages = ceux de ces micro-bassins.
+  const mbvVisibles = useMemo(() => {
+    if (!apZone) return [];
+    const parNom = mbvZ.filter((z) => memeAire(z.feature.properties?.[PROP_MBV_AIRE], apZone.nom));
+    return parNom.length ? parNom : mbvZ.filter((z) => zoneAutour(z, apZone));
+  }, [mbvZ, apZone]);
+
+  const paysagesVisibles = useMemo(() => {
+    if (!apZone) return [];
+    // tous les paysages de l'aire protégée (champ "Aires_Prot") + ceux de ses micro-bassins
+    const nomsMbv = new Set(
+      mbvVisibles.map((z) => normaliser(z.feature.properties?.[PROP_MBV_PAYSAGE])).filter(Boolean)
+    );
+    const liste = paysagesZ.filter(
+      (z) =>
+        memeAire(z.feature.properties?.[PROP_PAYSAGE_AIRE], apZone.nom) ||
+        nomsMbv.has(normaliser(z.feature.properties?.[CLE_NOM_PAYSAGE ?? 'Paysage']))
+    );
+    return liste.length ? liste : paysagesZ.filter((z) => zoneAutour(z, apZone));
+  }, [paysagesZ, mbvVisibles, apZone]);
 
   // 4. période → ce qui est affiché sur la carte
   const feuxAffiches = useMemo(() => feuxZone.filter((f) => f.age <= periode), [feuxZone, periode]);
@@ -674,7 +707,6 @@ export default function Pression() {
     const c = compterParZone(feuxAffiches, paysagesVisibles);
     return paysagesVisibles
       .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
-      .filter((x) => x.nombre > 0)
       .sort((a, b) => b.nombre - a.nombre);
   }, [feuxAffiches, paysagesVisibles]);
 
@@ -682,7 +714,6 @@ export default function Pression() {
     const c = compterParZone(feuxAffiches, mbvVisibles);
     return mbvVisibles
       .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
-      .filter((x) => x.nombre > 0)
       .sort((a, b) => b.nombre - a.nombre);
   }, [feuxAffiches, mbvVisibles]);
 
@@ -1281,7 +1312,7 @@ export default function Pression() {
                       Trop de paysages ({defPerte.paysages.items.length}) : choisissez d’abord une région
                     </p>
                   ) : (
-                    <ListeZones items={defPerte.paysages.items} vide="Aucun paysage dans cette zone" />
+                    <ListeZones items={defPerte.paysages.items} vide={apZone ? 'Aucun paysage trouvé pour cette aire protégée' : 'Choisissez une aire protégée pour voir ses paysages'} />
                   )}
                 </article>
 
@@ -1295,7 +1326,7 @@ export default function Pression() {
                       Trop de micro-bassins ({defPerte.mbvs.items.length}) : choisissez d’abord une région ou une aire protégée
                     </p>
                   ) : (
-                    <ListeZones items={defPerte.mbvs.items} vide="Aucun micro-bassin dans cette zone" />
+                    <ListeZones items={defPerte.mbvs.items} vide={apZone ? 'Aucun micro-bassin trouvé pour cette aire protégée' : 'Choisissez une aire protégée pour voir ses micro-bassins'} />
                   )}
                 </article>
 
@@ -1428,7 +1459,7 @@ export default function Pression() {
               </p>
               <ListeZones
                 items={statsPaysages.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
-                vide={paysagesZ.length ? 'Aucun feu dans les paysages de cette zone' : 'Chargement…'}
+                vide={!apZone ? 'Choisissez une aire protégée pour voir ses paysages' : paysagesZ.length ? 'Aucun paysage trouvé pour cette aire protégée' : 'Chargement…'}
               />
             </article>
 
@@ -1440,7 +1471,7 @@ export default function Pression() {
               </p>
               <ListeZones
                 items={statsMbv.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
-                vide={mbvZ.length ? 'Aucun feu dans les micro-bassins de cette zone' : 'Chargement…'}
+                vide={!apZone ? 'Choisissez une aire protégée pour voir ses micro-bassins' : mbvZ.length ? 'Aucun micro-bassin trouvé pour cette aire protégée' : 'Chargement…'}
               />
             </article>
 
