@@ -37,20 +37,7 @@ type Periode = {
 // PARAMÈTRES
 // =====================================================
 
-const MOIS = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre",
-];
+const MOIS = ["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre",];
 
 // Date locale de Madagascar
 function getDateMadagascar() {
