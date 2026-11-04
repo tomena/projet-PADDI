@@ -1,11 +1,18 @@
-import React, { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 
 import {
-  LayoutDashboard, BarChart3, Flame,Trees, Users, Globe2, Landmark, Map, MapPinned, Settings,Bot,Languages,Download, ChevronDown, ChevronRight,PanelLeftClose, PanelLeftOpen, Home, FolderKanban,
-  Database, Briefcase, DollarSign, Gavel, Wheat,Activity, ReceiptText, Store, LogOut, BrainCircuit,
+  LayoutDashboard, BarChart3, Flame, Trees, Users, Globe2, Landmark, Map, MapPinned, Settings,
+  Bot, Languages, Download, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Home,
+  FolderKanban, Database, Briefcase, DollarSign, Gavel, Wheat, Activity, ReceiptText, Store,
+  LogOut, Menu, X, ShieldAlert,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
+/* =====================================================================
+   TEXTES
+   ===================================================================== */
 
 const sidebarTxt = {
   fr: {
@@ -53,10 +60,11 @@ const sidebarTxt = {
     languages: "Langues",
     export: "Exportation",
 
-    login: "Se connecter",
-    logout: "Se déconnecter",
-    loginBadge: "Login",
-    logoutBadge: "Logout",
+    quit: "Quitter",
+    openMenu: "Ouvrir le menu",
+    closeMenu: "Fermer le menu",
+    collapse: "Réduire le menu",
+    expand: "Agrandir le menu",
   },
 
   mg: {
@@ -104,10 +112,11 @@ const sidebarTxt = {
     languages: "Fiteny",
     export: "Famoahana angona",
 
-    login: "Hiditra",
-    logout: "Hivoaka",
-    loginBadge: "Hiditra",
-    logoutBadge: "Hivoaka",
+    quit: "Hiala",
+    openMenu: "Sokafy ny menio",
+    closeMenu: "Akatony ny menio",
+    collapse: "Hahena ny menio",
+    expand: "Hanitatra ny menio",
   },
 
   en: {
@@ -155,10 +164,11 @@ const sidebarTxt = {
     languages: "Languages",
     export: "Export",
 
-    login: "Log in",
-    logout: "Log out",
-    loginBadge: "Login",
-    logoutBadge: "Logout",
+    quit: "Quit",
+    openMenu: "Open menu",
+    closeMenu: "Close menu",
+    collapse: "Collapse menu",
+    expand: "Expand menu",
   },
 
   de: {
@@ -206,1123 +216,418 @@ const sidebarTxt = {
     languages: "Sprachen",
     export: "Export",
 
-    login: "Anmelden",
-    logout: "Abmelden",
-    loginBadge: "Login",
-    logoutBadge: "Logout",
+    quit: "Beenden",
+    openMenu: "Menü öffnen",
+    closeMenu: "Menü schließen",
+    collapse: "Menü einklappen",
+    expand: "Menü ausklappen",
   },
 };
+
+type Cle = keyof typeof sidebarTxt.fr;
+
+/* =====================================================================
+   STRUCTURE DU MENU
+   Pour ajouter une page : ajouter une ligne lien(...) dans le bon module.
+   ===================================================================== */
+
+type Lien = { type: "lien"; cle: string; icone: LucideIcon; label: Cle; chemin: string };
+type Groupe = { type: "groupe"; cle: string; icone: LucideIcon; label: Cle; enfants: Entree[] };
+type Entree = Lien | Groupe;
+
+const lien = (cle: string, icone: LucideIcon, label: Cle, chemin: string): Lien => ({
+  type: "lien", cle, icone, label, chemin,
+});
+const groupe = (cle: string, icone: LucideIcon, label: Cle, enfants: Entree[]): Groupe => ({
+  type: "groupe", cle, icone, label, enfants,
+});
+
+const MENUS: Record<string, Entree[]> = {
+  paddi: [
+    lien("vue", LayoutDashboard, "generalView", ""),
+    groupe("indicateurs", FolderKanban, "paddiIndicator", [
+      groupe("systeme", Database, "managementSystem", [
+        lien("brulees", Flame, "burnedAreas", "superficie-brulee"),
+        lien("budgets", Landmark, "municipalBudgets", "budget-communal"),
+        lien("suivi", Activity, "monitoringSystem", "systeme-suivi"),
+        lien("communautaires", Users, "communityMeasures", "mesures-communales"),
+        lien("cosap", Gavel, "cosapDecision", "cosap-decision"),
+        lien("regionales", Globe2, "regionalMeasures", "mesures-regionales"),
+      ]),
+      groupe("amenagement", Briefcase, "landUsePlanning", [
+        lien("sad", MapPinned, "developedArea", "sad"),
+        lien("beneficiaire", Users, "beneficiary", "beneficiaire"),
+        lien("agro", Wheat, "agroPastoralAreas", "surface-agro"),
+        lien("forestier", Trees, "forestAreas", "surface-forestiere"),
+        lien("revenus", DollarSign, "producersWithIncome", "revenus-producteurs"),
+        lien("micro", Store, "microEnterprises", "micro-entreprises"),
+      ]),
+    ]),
+    lien("couts", ReceiptText, "costMonitoring", "suivi-couts"),
+    lien("annuel", Activity, "annualActivityMonitoring", "suivi-activites-annuelles"),
+    groupe("carto", Map, "mapping", [
+      lien("carte", MapPinned, "paddiIntervention", "carte"),
+    ]),
+    groupe("param", Settings, "configuration", [
+      lien("ia", Bot, "artificialIntelligence", "model"),
+      lien("langues", Languages, "languages", "language"),
+      lien("export", Download, "export", "export"),
+    ]),
+  ],
+
+  environnement: [
+    lien("feux", Flame, "fireAnalysis", "analyse-feux"),
+    lien("deforestation", Trees, "deforestation", "deforestation"),
+    lien("pression", ShieldAlert, "pressureZones", "pression"),
+    lien("environnement", Globe2, "environment", "analyse-environnement"),
+  ],
+
+  cadre: [lien("synthese", BarChart3, "territorialSynthesis", "analyse")],
+
+  societe: [
+    lien("social", Users, "socialIndicators", "analyse-social"),
+    lien("socio", MapPinned, "socioeconomic", "analyse-socio-economique"),
+  ],
+
+  economie: [lien("economie", Landmark, "localEconomy", "analyse-economie")],
+};
+
+/* =====================================================================
+   OUTILS
+   ===================================================================== */
+
+const CLE_PREF = "sidebar_reduite";
+
+function lirePref() {
+  try {
+    return localStorage.getItem(CLE_PREF) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function ecrirePref(v: boolean) {
+  try {
+    localStorage.setItem(CLE_PREF, v ? "1" : "0");
+  } catch {
+    /* stockage indisponible : on ignore */
+  }
+}
+
+function useLargeur() {
+  const lire = () => (typeof window === "undefined" ? 1280 : window.innerWidth);
+  const [largeur, setLargeur] = useState(lire);
+  useEffect(() => {
+    const f = () => setLargeur(lire());
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  return largeur;
+}
+
+/* =====================================================================
+   COMPOSANT
+   Ordinateur (≥ 1024 px) : menu complet, réductible, préférence mémorisée
+   Tablette (768-1023 px) : menu réduit en icônes, extensible
+   Téléphone (< 768 px)   : menu caché, ouvert par le bouton ☰
+   ===================================================================== */
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { lang } = useLanguage();
   const t = sidebarTxt[lang];
-  const handleQuit = () => {
-    navigate("/");
-  };
 
-  /*
-   * Le module est envoyé depuis Home.tsx avec :
-   *
-   * navigate("/dashboard", {
-   *   state: { module: "paddi" }
-   * })
-   *
-   * Valeur par défaut : paddi
-   */
-  const module = location.state?.module || "paddi";
+  // Module envoyé depuis Home.tsx : navigate("/dashboard", { state: { module: "paddi" } })
+  const module: string = location.state?.module || "paddi";
 
-  const [collapsed, setCollapsed] = useState(false);
+  const largeur = useLargeur();
+  const mobile = largeur < 768;
+  const tablette = !mobile && largeur < 1024;
 
-  /*
-   * Menus principaux ouverts
-   */
-  const [open, setOpen] = useState<string | null>("paddi");
+  const [prefBureau, setPrefBureau] = useState(lirePref);
+  const [prefTablette, setPrefTablette] = useState(true);
+  const [tiroir, setTiroir] = useState(false);
+  const [ouverts, setOuverts] = useState<Record<string, boolean>>({ indicateurs: true });
 
-  /*
-   * Sous-menus du PADDI+
-   */
-  const [openSub, setOpenSub] = useState<Record<string, boolean>>({
-    systeme: false,
-    amenagement: false,
-  });
+  const reduit = mobile ? false : tablette ? prefTablette : prefBureau;
 
-  /*
-   * Connexion
-   */
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const entrees = useMemo(() => MENUS[module] ?? [], [module]);
 
-  /*
-   * Ouvrir / fermer un menu
-   */
-  const toggle = (menu: string) => {
-    setOpen(open === menu ? null : menu);
-  };
+  const estActif = (chemin: string) =>
+    chemin === ""
+      ? location.pathname === "/dashboard" || location.pathname === "/dashboard/"
+      : location.pathname === `/dashboard/${chemin}`;
 
-  /*
-   * Ouvrir / fermer un sous-menu
-   */
-  const toggleSub = (menu: string) => {
-    setOpenSub((prev) => ({
-      ...prev,
-      [menu]: !prev[menu],
-    }));
-  };
+  // Le tiroir se ferme après chaque navigation et quand on quitte le mode téléphone
+  useEffect(() => {
+    setTiroir(false);
+  }, [location.pathname]);
 
-  /*
-   * Navigation vers une page du Dashboard.
-   *
-   * On conserve le module actuel dans location.state.
-   * Cela permet de garder la bonne Sidebar après navigation.
-   */
-  const go = (path: string) => {
-    navigate(`/dashboard/${path}`, {
-      state: { module },
-    });
-  };
+  useEffect(() => {
+    if (!mobile) setTiroir(false);
+  }, [mobile]);
 
-  /*
-   * Vérifie si une page est active.
-   */
-  const isActive = (path: string) => {
-    return location.pathname === `/dashboard/${path}`;
-  };
+  // Tiroir ouvert : touche Échap pour fermer + page derrière bloquée
+  useEffect(() => {
+    if (!mobile || !tiroir) return;
+    const touche = (e: KeyboardEvent) => e.key === "Escape" && setTiroir(false);
+    window.addEventListener("keydown", touche);
+    const ancien = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", touche);
+      document.body.style.overflow = ancien;
+    };
+  }, [mobile, tiroir]);
 
-  /*
-   * Connexion / déconnexion
-   */
-  const toggleAuth = () => {
-    setIsLoggedIn(!isLoggedIn);
-
-    if (isLoggedIn) {
-      navigate("/dashboard", {
-        state: { module },
+  // Ouvre automatiquement les groupes qui contiennent la page affichée
+  useEffect(() => {
+    const aOuvrir: string[] = [];
+    const parcourir = (liste: Entree[], parents: string[]) => {
+      liste.forEach((e) => {
+        if (e.type === "groupe") parcourir(e.enfants, [...parents, e.cle]);
+        else if (estActif(e.chemin)) aOuvrir.push(...parents);
       });
+    };
+    parcourir(entrees, []);
+    if (aOuvrir.length) {
+      setOuverts((o) => {
+        const n = { ...o };
+        aOuvrir.forEach((c) => (n[c] = true));
+        return n;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname, entrees]);
+
+  const aller = (chemin: string) => {
+    navigate(chemin === "" ? "/dashboard" : `/dashboard/${chemin}`, { state: { module } });
+    setTiroir(false);
+  };
+
+  const agrandir = () => {
+    if (tablette) setPrefTablette(false);
+    else {
+      setPrefBureau(false);
+      ecrirePref(false);
     }
   };
 
-  /*
-   * Retour accueil
-   */
-  const goHome = () => {
-    navigate("/");
+  const basculerReduit = () => {
+    if (tablette) setPrefTablette((v) => !v);
+    else {
+      const n = !prefBureau;
+      setPrefBureau(n);
+      ecrirePref(n);
+    }
+  };
+
+  const basculerGroupe = (cle: string) => {
+    if (reduit) {
+      // menu en icônes : on l'agrandit et on ouvre le groupe cliqué
+      agrandir();
+      setOuverts((o) => ({ ...o, [cle]: true }));
+      return;
+    }
+    setOuverts((o) => ({ ...o, [cle]: !o[cle] }));
+  };
+
+  const contientActif = (e: Entree): boolean =>
+    e.type === "lien" ? estActif(e.chemin) : e.enfants.some(contientActif);
+
+  const rendre = (e: Entree, niveau: number) => {
+    const Icone = e.icone;
+    const label = t[e.label];
+    const taille = niveau === 0 ? 18 : 16;
+
+    if (e.type === "lien") {
+      const actif = estActif(e.chemin);
+      return (
+        <button
+          key={e.cle}
+          type="button"
+          title={reduit ? label : undefined}
+          aria-label={reduit ? label : undefined}
+          aria-current={actif ? "page" : undefined}
+          className={`sb-item niveau${niveau} ${actif ? "actif" : ""}`}
+          onClick={() => aller(e.chemin)}
+        >
+          <Icone size={taille} />
+          {!reduit && <span className="sb-label">{label}</span>}
+        </button>
+      );
+    }
+
+    const ouvert = !!ouverts[e.cle];
+    return (
+      <div key={e.cle}>
+        <button
+          type="button"
+          title={reduit ? label : undefined}
+          aria-label={reduit ? label : undefined}
+          aria-expanded={reduit ? undefined : ouvert}
+          className={`sb-item sb-groupe niveau${niveau} ${contientActif(e) ? "parent" : ""}`}
+          onClick={() => basculerGroupe(e.cle)}
+        >
+          <Icone size={taille} />
+          {!reduit && (
+            <>
+              <span className="sb-label">{label}</span>
+              <span className="sb-chevron">
+                {ouvert ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              </span>
+            </>
+          )}
+        </button>
+        {ouvert && !reduit && (
+          <div className="sb-sous">{e.enfants.map((c) => rendre(c, niveau + 1))}</div>
+        )}
+      </div>
+    );
   };
 
   return (
-    <div
-      style={{
-        ...styles.sidebar,
-        width: collapsed ? 78 : 240,
-        boxShadow: "0 0 0 1px rgba(0,0,0,0.04)",
-      }}
-    >
-      {/* ======================== LOGO ======================== */}
-
-      <div style={styles.logoBox}>
-        <div
-          style={styles.collapseBtn}
-          onClick={() => setCollapsed(!collapsed)}
-        >
-          {collapsed ? (
-            <PanelLeftOpen size={18} />
-          ) : (
-            <PanelLeftClose size={18} />
-          )}
-        </div>
-
-        <div style={styles.logo}>PADDI+</div>
-
-        {!collapsed && (
-          <div style={styles.subtitle}>
-            Programme d'Appui au Développement Durable et Intégré
-          </div>
-        )}
-      </div>
-
-      <div style={styles.menuContainer}>
-
-        {/* ======================== ACCUEIL ==================== */}
-
-        <div
-          style={{
-            ...styles.menuItem,
-            ...(location.pathname === "/" ? styles.activeMenu : {}),
-          }}
-          onClick={goHome}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.background = "transparent")
-          }
-        >
-          <div style={styles.menuLeft}>
-            <Home size={18} />
-            {!collapsed && t.home}
-          </div>
-        </div>
-
-        {/* ======================== PADDI ====================== */}
-
-        {module === "paddi" && (
-          <>
-            {/* ================= VUE GENERALE ================= */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(location.pathname === "/dashboard"
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() =>
-                navigate("/dashboard", {
-                  state: { module: "paddi" },
-                })
-              }
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <LayoutDashboard size={18} />
-                {!collapsed && t.generalView}
-              </div>
-            </div>
-
-            {/* ================= INDICATEUR PADDI+ ============= */}
-
-            <div
-              style={styles.menuItem}
-              onClick={() => toggle("paddi")}
-            >
-              <div style={styles.menuLeft}>
-                <FolderKanban size={18} />
-                {!collapsed && t.paddiIndicator}
-              </div>
-
-              {!collapsed && (
-                <div style={styles.chevronBox}>
-                  {open === "paddi" ? (
-                    <ChevronDown size={16} />
-                  ) : (
-                    <ChevronRight size={16} />
-                  )}
-                </div>
-              )}
-            </div>
-
-            {open === "paddi" && !collapsed && (
-              <div style={styles.subMenu}>
-
-                {/* ================ SYSTEME ===================== */}
-
-                <div
-                  style={styles.groupMenu}
-                  onClick={() => toggleSub("systeme")}
-                >
-                  <div style={styles.menuLeft}>
-                    <Database size={16} />
-                    {t.managementSystem}
-                  </div>
-
-                  {openSub["systeme"] ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} />
-                  )}
-                </div>
-
-                {openSub["systeme"] && (
-                  <div style={styles.innerSubMenu}>
-                    {/* Superficies brûlées */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("superficie-brulee")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("superficie-brulee")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Flame size={16} />
-                      {t.burnedAreas}
-                    </div>
-
-                    {/* Budgets Communaux */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("budget-communal")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("budget-communal")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Landmark size={16} />
-                      {t.municipalBudgets}
-                    </div>
-
-                    {/* Système de suivi */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("systeme-suivi")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("systeme-suivi")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Activity size={16} />
-                      {t.monitoringSystem}
-                    </div>
-
-                    {/* Mesures Communautaires */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("mesures-communales")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("mesures-communales")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Users size={16} />
-                      {t.communityMeasures}
-                    </div>
-
-                    {/* Décision des COSAP */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("cosap-decision")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("cosap-decision")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Gavel size={16} />
-                      {t.cosapDecision}
-                    </div>
-
-                    {/* Mesures régionales */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("mesures-regionales")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("mesures-regionales")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Globe2 size={16} />
-                      {t.regionalMeasures}
-                    </div>
-                  </div>
-                )}
-
-                {/* ========== AMENAGEMENT DU TERRITOIRE ========= */}
-
-                <div
-                  style={styles.groupMenu}
-                  onClick={() => toggleSub("amenagement")}
-                >
-                  <div style={styles.menuLeft}>
-                    <Briefcase size={16} />
-                    {t.landUsePlanning}
-                  </div>
-
-                  {openSub["amenagement"] ? (
-                    <ChevronDown size={14} />
-                  ) : (
-                    <ChevronRight size={14} />
-                  )}
-                </div>
-
-                {openSub["amenagement"] && (
-                  <div style={styles.innerSubMenu}>
-                    {/* Superficie aménagée */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("sad")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("sad")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <MapPinned size={16} />
-                      {t.developedArea}
-                    </div>
-
-                    {/* Bénéficiaire */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("beneficiaire")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("beneficiaire")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Users size={16} />
-                      {t.beneficiary}
-                    </div>
-
-                    {/* Surfaces Agropastorales */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("surface-agro")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("surface-agro")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Wheat size={16} />
-                      {t.agroPastoralAreas}
-                    </div>
-
-                    {/* Surfaces Forestières */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("surface-forestiere")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("surface-forestiere")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Trees size={16} />
-                      {t.forestAreas}
-                    </div>
-
-                    {/* Producteurs avec revenus */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("revenus-producteurs")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("revenus-producteurs")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <DollarSign size={16} />
-                      {t.producersWithIncome}
-                    </div>
-
-                    {/* Micro-entreprises */}
-
-                    <div
-                      style={{
-                        ...styles.subItem,
-                        ...(isActive("micro-entreprises")
-                          ? styles.activeSubItem
-                          : {}),
-                      }}
-                      onClick={() => go("micro-entreprises")}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.background =
-                          "rgba(0,0,0,0.03)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.background = "transparent")
-                      }
-                    >
-                      <Store size={16} />
-                      {t.microEnterprises}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ================= SUIVI DES COÛTS =============== */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("suivi-couts")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("suivi-couts")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <ReceiptText size={18} />
-                {!collapsed && t.costMonitoring}
-              </div>
-            </div>
-
-            {/* ========== SUIVI ACTIVITÉS ANNUELLES ============ */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("suivi-activites-annuelles")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("suivi-activites-annuelles")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <Activity size={18} />
-                {!collapsed && t.annualActivityMonitoring}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* =================== ENVIRONNEMENT =================== */}
-
-        {module === "environnement" && (
-          <>
-            {/* Analyse de feux */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("analyse-feux")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("analyse-feux")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <Flame size={18} />
-                {!collapsed && t.fireAnalysis}
-              </div>
-            </div>
-
-            {/* Déforestation */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("deforestation")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("deforestation")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <Trees size={18} />
-                {!collapsed && t.deforestation}
-              </div>
-            </div>
-
-            {/* Environnement */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("analyse-environnement")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("analyse-environnement")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <Globe2 size={18} />
-                {!collapsed && t.environment}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ================= CADRE STRATÉGIQUE ================= */}
-
-        {module === "cadre" && (
-          <>
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("analyse")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("analyse")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <BarChart3 size={18} />
-                {!collapsed && t.territorialSynthesis}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ======================= SOCIÉTÉ ==================== */}
-
-        {module === "societe" && (
-          <>
-            {/* Indicateurs sociaux */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("analyse-social")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("analyse-social")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <Users size={18} />
-                {!collapsed && t.socialIndicators}
-              </div>
-            </div>
-
-            {/* Socio-économique */}
-
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("analyse-socio-economique")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("analyse-socio-economique")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <MapPinned size={18} />
-                {!collapsed && t.socioeconomic}
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* ======================= ÉCONOMIE =================== */}
-
-        {module === "economie" && (
-          <>
-            <div
-              style={{
-                ...styles.menuItem,
-                ...(isActive("analyse-economie")
-                  ? styles.activeMenu
-                  : {}),
-              }}
-              onClick={() => go("analyse-economie")}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "rgba(0,0,0,0.03)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "transparent")
-              }
-            >
-              <div style={styles.menuLeft}>
-                <Landmark size={18} />
-                {!collapsed && t.localEconomy}
-              </div>
-            </div>
-          </>
-        )}
-
-
-        {/* ==================== CARTOGRAPHIE ================== */}
-
-        {module === "paddi" && (
-          <>
-            <div
-              style={styles.menuItem}
-              onClick={() => toggle("carto")}
-            >
-              <div style={styles.menuLeft}>
-                <Map size={18} />
-                {!collapsed && t.mapping}
-              </div>
-
-              {!collapsed &&
-                (open === "carto" ? (
-                  <ChevronDown size={16} />
-                ) : (
-                  <ChevronRight size={16} />
-                ))}
-            </div>
-
-            {open === "carto" && !collapsed && (
-              <div style={styles.subMenu}>
-                {/* Intervention PADDI+ */}
-
-                <div
-                  style={{
-                    ...styles.subItem,
-                    ...(isActive("carte")
-                      ? styles.activeSubItem
-                      : {}),
-                  }}
-                  onClick={() => go("carte")}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "rgba(0,0,0,0.03)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <MapPinned size={16} />
-                  {t.paddiIntervention}
-                </div>
-
-                {/* Zones de pression */}
-
-                <div
-                  style={{
-                    ...styles.subItem,
-                    ...(isActive("pression")
-                      ? styles.activeSubItem
-                      : {}),
-                  }}
-                  onClick={() => go("pression")}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "rgba(0,0,0,0.03)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <Flame size={16} />
-                  {t.pressureZones}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ==================== CONFIGURATION ================= */}
-
-        {module === "paddi" && (
-          <>
-            <div
-              style={styles.menuItem}
-              onClick={() => toggle("param")}
-            >
-              <div style={styles.menuLeft}>
-                <Settings size={18} />
-                {!collapsed && t.configuration}
-              </div>
-
-              {!collapsed &&
-                (open === "param" ? (
-                  <ChevronDown size={16} />
-                ) : (
-                  <ChevronRight size={16} />
-                ))}
-            </div>
-
-            {open === "param" && !collapsed && (
-              <div style={styles.subMenu}>
-                {/* Intelligence artificielle */}
-
-                <div
-                  style={{
-                    ...styles.subItem,
-                    ...(isActive("model")
-                      ? styles.activeSubItem
-                      : {}),
-                  }}
-                  onClick={() => go("model")}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "rgba(0,0,0,0.03)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <Bot size={16} />
-                  {t.artificialIntelligence}
-                </div>
-
-                {/* Langues */}
-
-                <div
-                  style={{
-                    ...styles.subItem,
-                    ...(isActive("language")
-                      ? styles.activeSubItem
-                      : {}),
-                  }}
-                  onClick={() => go("language")}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "rgba(0,0,0,0.03)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <Languages size={16} />
-                  {t.languages}
-                </div>
-
-                {/* Exportation */}
-
-                <div
-                  style={{
-                    ...styles.subItem,
-                    ...(isActive("export")
-                      ? styles.activeSubItem
-                      : {}),
-                  }}
-                  onClick={() => go("export")}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.background =
-                      "rgba(0,0,0,0.03)")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.background = "transparent")
-                  }
-                >
-                  <Download size={16} />
-                  {t.export}
-                </div>
-              </div>
-            )}
-          </>
-        )}
-
-        {/* ====================== LOGIN ======================== */}
-
-        <div style={styles.authBox} onClick={handleQuit}>
-          <div style={styles.menuLeft}>
-            <LogOut size={18} />
-            {!collapsed && "Quitter"}
-          </div>
-
-          <div
-            style={{
-              ...styles.authBadge,
-              background: "#dc2626",
-            }}
+    <>
+      <style>{CSS}</style>
+
+      {/* Téléphone : bouton pour ouvrir le menu */}
+      {mobile && !tiroir && (
+        <button type="button" className="sb-burger" aria-label={t.openMenu} onClick={() => setTiroir(true)}>
+          <Menu size={20} />
+        </button>
+      )}
+
+      {/* Téléphone : fond sombre derrière le menu ouvert */}
+      {mobile && tiroir && <div className="sb-voile" onClick={() => setTiroir(false)} />}
+
+      <aside
+        className={`sb ${reduit ? "reduit" : ""} ${mobile ? "mobile" : ""} ${tiroir ? "ouvert" : ""}`}
+        aria-label="Menu"
+      >
+        {/* ======================== LOGO ======================== */}
+        <div className="sb-logobox">
+          <button
+            type="button"
+            className="sb-collapse"
+            title={mobile ? t.closeMenu : reduit ? t.expand : t.collapse}
+            aria-label={mobile ? t.closeMenu : reduit ? t.expand : t.collapse}
+            onClick={mobile ? () => setTiroir(false) : basculerReduit}
           >
-            {!collapsed && "Quitter"}
-          </div>
+            {mobile ? <X size={18} /> : reduit ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+
+          <div className={`sb-logo ${reduit ? "petit" : ""}`}>PADDI+</div>
+          {!reduit && <div className="sb-subtitle">{t.subtitle}</div>}
         </div>
-      </div>
-    </div>
+
+        {/* ======================== MENU ======================== */}
+        <nav className="sb-nav">
+          <button
+            type="button"
+            title={reduit ? t.home : undefined}
+            aria-label={reduit ? t.home : undefined}
+            aria-current={location.pathname === "/" ? "page" : undefined}
+            className={`sb-item niveau0 ${location.pathname === "/" ? "actif" : ""}`}
+            onClick={() => navigate("/")}
+          >
+            <Home size={18} />
+            {!reduit && <span className="sb-label">{t.home}</span>}
+          </button>
+
+          {entrees.map((e) => rendre(e, 0))}
+        </nav>
+
+        {/* ======================== QUITTER ===================== */}
+        <div className="sb-pied">
+          <button
+            type="button"
+            className="sb-quitter"
+            title={reduit ? t.quit : undefined}
+            aria-label={t.quit}
+            onClick={() => navigate("/")}
+          >
+            <LogOut size={18} />
+            {!reduit && <span className="sb-label">{t.quit}</span>}
+          </button>
+        </div>
+      </aside>
+    </>
   );
 }
 
-/* ======================= STYLES ============================== */
+/* =====================================================================
+   STYLES (feuille de style locale : les media queries sont impossibles en inline)
+   ===================================================================== */
 
-const styles: any = {
-  sidebar: {
-    width: 290,
-    height: "100vh",
-    padding: 14,
-    display: "flex",
-    flexDirection: "column",
-    background: "transparent",
-    backdropFilter: "none",
-    WebkitBackdropFilter: "none",
-    borderRight: "1px solid rgba(0,0,0,0.06)",
-    color: "#111827",
-    overflow: "hidden",
-    transition: "width 0.25s ease",
-  },
+const CSS = `
+.sb{
+  width:240px;flex:0 0 auto;height:100vh;height:100dvh;padding:14px;display:flex;flex-direction:column;
+  background:transparent;border-right:1px solid rgba(0,0,0,.06);color:#111827;overflow:hidden;
+  box-sizing:border-box;transition:width .25s ease;font-family:inherit;
+}
+.sb *{box-sizing:border-box}
+.sb.reduit{width:78px}
+.sb button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
 
-  logoBox: {
-    marginBottom: 14,
-    paddingBottom: 14,
-    borderBottom: "1px solid rgba(0,0,0,0.06)",
-  },
+/* ---- Logo ---- */
+.sb-logobox{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(0,0,0,.06)}
+.sb-collapse{width:36px;height:36px;border-radius:10px;display:flex !important;align-items:center;justify-content:center;
+  background:rgba(255,255,255,.75) !important;border:1px solid rgba(0,0,0,.08) !important;margin-bottom:10px;
+  transition:background .15s}
+.sb-collapse:hover{background:#fff !important}
+.sb-logo{font-size:20px;font-weight:800;letter-spacing:1px;color:#111827}
+.sb-logo.petit{font-size:14px;letter-spacing:.5px}
+.sb-subtitle{font-size:11px;margin-top:6px;color:#6b7280;line-height:1.4}
 
-  logo: {
-    fontSize: 20,
-    fontWeight: 800,
-    letterSpacing: 1,
-    color: "#111827",
-  },
+/* ---- Liste des pages ---- */
+.sb-nav{flex:1;min-height:0;overflow-y:auto;padding:0 4px 6px 6px;display:flex;flex-direction:column;gap:3px;
+  overscroll-behavior:contain}
+.sb-item{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;padding:9px 10px;border-radius:10px;
+  font-size:13px;font-weight:600;color:#374151;transition:background .15s,color .15s}
+.sb-item:hover{background:rgba(0,0,0,.045)}
+.sb-item:focus-visible,.sb-collapse:focus-visible,.sb-quitter:focus-visible,.sb-burger:focus-visible{
+  outline:2px solid #2563eb;outline-offset:-2px}
+.sb-item.actif{color:#2563eb;background:rgba(37,99,235,.07);box-shadow:inset 3px 0 0 #2563eb}
+.sb-item.parent{color:#1d4ed8}
+.sb-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-chevron{display:flex;opacity:.7;margin-left:auto}
+.sb.reduit .sb-item{justify-content:center;padding:9px 0}
 
-  subtitle: {
-    fontSize: 11,
-    opacity: 0.7,
-    marginTop: 6,
-    color: "#6b7280",
-    lineHeight: 1.4,
-  },
+/* sous-menus */
+.sb-sous{margin:3px 0 6px 10px;padding-left:10px;border-left:1px solid rgba(0,0,0,.08);display:flex;
+  flex-direction:column;gap:3px;animation:sbFondu .15s ease}
+.sb-item.sb-groupe.niveau1{background:#f9fafb;border:1px solid rgba(0,0,0,.05)}
+.sb-item.niveau1:not(.sb-groupe),.sb-item.niveau2{font-size:12.8px;font-weight:500;color:#4b5563;min-height:36px;padding:7px 10px}
+.sb-item.niveau1.actif,.sb-item.niveau2.actif{color:#2563eb;font-weight:600}
 
-  collapseBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    background: "rgba(255,255,255,0.7)",
-    border: "1px solid rgba(0,0,0,0.06)",
-    marginBottom: 10,
-    transition: "all 0.2s ease",
-  },
+/* ---- Bas du menu ---- */
+.sb-pied{padding-top:10px;margin-top:6px;border-top:1px solid rgba(0,0,0,.06)}
+.sb-quitter{display:flex !important;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:10px;
+  border:1px solid rgba(220,38,38,.28) !important;color:#b91c1c !important;font-size:13px;font-weight:600;
+  background:transparent !important;transition:background .15s}
+.sb-quitter:hover{background:#fef2f2 !important}
+.sb.reduit .sb-quitter{justify-content:center;padding:11px 0}
 
-  menuContainer: {
-    flex: 1,
-    overflowY: "auto",
-    paddingRight: 4,
-    paddingLeft: 6,
-  },
+/* ---- Téléphone : menu en tiroir ---- */
+.sb-burger{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:10px;z-index:1500;width:42px;height:42px;
+  border-radius:12px;border:1px solid rgba(0,0,0,.1);background:rgba(255,255,255,.96);color:#111827;cursor:pointer;
+  display:grid;place-items:center;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.sb-voile{position:fixed;inset:0;z-index:1999;background:rgba(15,23,42,.45);animation:sbFondu .2s ease}
+.sb.mobile{position:fixed;top:0;left:0;bottom:0;z-index:2000;width:min(300px,86vw);background:#fff;
+  padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
+  transform:translateX(-105%);visibility:hidden;transition:transform .25s ease,visibility 0s .25s}
+.sb.mobile.ouvert{transform:none;visibility:visible;box-shadow:0 0 40px rgba(15,23,42,.3);
+  transition:transform .25s ease,visibility 0s}
 
-  menuItem: {
-    padding: "10px 10px",
-    borderRadius: 10,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    fontWeight: 600,
-    fontSize: 13,
-    marginBottom: 5,
-    background: "transparent",
-    color: "#374151",
-    transition: "all 0.15s ease",
-  },
+/* écrans tactiles : zones de toucher plus grandes */
+@media (pointer:coarse){
+  .sb-item{min-height:44px}
+  .sb-item.niveau1:not(.sb-groupe),.sb-item.niveau2{min-height:42px}
+}
 
-  activeMenu: {
-    color: "#2563eb",
-    background: "rgba(37,99,235,0.06)",
-    borderLeft: "3px solid #2563eb",
-  },
-
-  menuLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    minWidth: 0,
-  },
-
-  subMenu: {
-    marginLeft: 0,
-    paddingLeft: 10,
-    borderLeft: "1px solid rgba(0,0,0,0.06)",
-  },
-
-  groupMenu: {
-    padding: "9px 10px",
-    borderRadius: 10,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: 10,
-    cursor: "pointer",
-    fontSize: 13,
-    fontWeight: 600,
-    marginBottom: 6,
-    background: "#f9fafb",
-    color: "#374151",
-    transition: "0.2s ease",
-    border: "1px solid rgba(0,0,0,0.05)",
-  },
-
-  innerSubMenu: {
-    marginLeft: 10,
-    paddingLeft: 10,
-    borderLeft: "1px solid rgba(0,0,0,0.08)",
-    animation: "fadeIn 0.15s ease",
-  },
-
-  subItem: {
-    padding: "8px 10px",
-    marginBottom: 4,
-    borderRadius: 8,
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    fontSize: 12.8,
-    color: "#4b5563",
-    transition: "all 0.15s ease",
-  },
-
-  activeSubItem: {
-    color: "#2563eb",
-    transform: "translateX(2px)",
-    fontWeight: 600,
-  },
-
-  authBox: {
-    marginTop: "auto",
-    padding: "11px 12px",
-    borderRadius: 10,
-    display: "flex",
-    alignItems: "center",
-    cursor: "pointer",
-    background: "transparent",
-    border: "1px solid rgba(0,0,0,0.08)",
-    transition: "all 0.2s ease",
-  },
-
-  authBadge: {
-    fontSize: 11,
-    padding: "3px 8px",
-    borderRadius: 999,
-    color: "#fff",
-    fontWeight: 600,
-  },
-
-  searchWrap: {
-    marginBottom: 12,
-  },
-
-  searchInput: {
-    width: "100%",
-    padding: "9px 10px",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.08)",
-    outline: "none",
-    fontSize: 13,
-    background: "transparent",
-    color: "#111827",
-    transition: "all 0.2s ease",
-  },
-
-  chevronBox: {
-    marginLeft: "auto",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    opacity: 0.7,
-  },
-};
+@keyframes sbFondu{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .sb,.sb *,.sb-voile{transition:none !important;animation:none !important}
+}
+`;
