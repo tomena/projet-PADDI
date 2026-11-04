@@ -1,3 +1,4 @@
+/// <reference types="node" />
 // api/gfw-perte.ts — Fonction serverless Vercel
 // Superficie de perte de couvert arboré par année (UMD/Hansen via Global Forest Watch), depuis 2020.
 // Appels :
