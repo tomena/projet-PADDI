@@ -1,564 +1,478 @@
-import React,{ useRef, useEffect, useMemo, useState } from 'react';
-import { MapContainer, TileLayer, ScaleControl, useMap, GeoJSON } from "react-leaflet";
+import React, { useEffect, useMemo, useState } from 'react';
+import { MapContainer, TileLayer, ScaleControl, useMap } from "react-leaflet";
 import L from "leaflet";
 import 'leaflet/dist/leaflet.css';
-import {PieChart,Pie,Cell,LineChart,Line,XAxis,YAxis,Tooltip,Legend,ResponsiveContainer } from 'recharts';
-import {Flame,Monitor,Home,MapPinned,TrendingUp,FileText,Leaf,Tractor,Trees,Users,Cog, CalendarDays, RefreshCw } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import {
+  Flame, Monitor, Home, MapPinned, TrendingUp, FileText, Leaf,
+  Tractor, Trees, Users, Cog, CalendarDays, RefreshCw,
+} from 'lucide-react';
 import { useLanguage } from "../context/LanguageContext";
 import { calculerTableau, couleurPct, fmtNombre, type Base, type Code, type FiltreSemestre } from "../utils/indicateurs";
 import IconeTableauBord from "../components/IconeTableauBord";
 import LoginModal from "../components/LoginModal";
 import UpdateIndicateursModal from "../components/UpdateIndicateursModal";
 
-const dashboardTxt = {
-  fr: {
-    title: "TABLEAU DE BORD PADDI+",
-    antenna: "Antenne",
-    allAntennas: "Toutes les antennes",
-    year: "Année",
-    dateOfLastUpdate: "Données mises à jour le :                   ",
+/* ================= TRADUCTIONS =================
+   `fr` sert de modèle : TypeScript impose que en / mg / de contiennent
+   exactement les mêmes clés (plus de texte `undefined` à l'écran). */
 
-    keyAchievements: "RÉALISATIONS CLÉS",
-    keyResults: "RÉSULTATS CLÉS",
-    interventionZone: "ZONE D’INTERVENTION",
+const fr = {
+  title: "TABLEAU DE BORD PADDI+",
+  antenna: "Antenne",
+  allAntennas: "Toutes les antennes",
+  year: "Année",
+  semester: "Semestre",
+  allSemesters: "Tous",
+  semester1: "S1 (janv. – juin)",
+  semester2: "S2 (juil. – déc.)",
+  dateOfLastUpdate: "Données mises à jour le :",
+  update: "Mettre à jour",
 
-    municipalBudgets:
-      "R1.1 Budgets communaux",
-    communes: "Commune(s)",
-    target: "Cible",
-    reduction: "de réduction",
-    reductionBurnedAreas:
-      "R1.2 Superficies brûlées autour des 7 aires protégées",
-    ecosystems:
-      "R2.1 Superficies aménagées durablement",
-    beneficiaries: "bénéficiaires",
-    smallholders:
-      "R2.2 Petits exploitants appuyés",
-    ha: "ha",
+  keyAchievements: "RÉALISATIONS CLÉS",
+  keyResults: "RÉSULTATS CLÉS",
+  interventionZone: "ZONE D’INTERVENTION",
 
-    adoptedMeasures:
-      "R1.1.2 Mesures communales",
-    measures: "mesure(s)",
+  municipalBudgets: "R1.1 Budgets communaux",
+  communes: "Commune(s)",
+  reduction: "de réduction",
+  reductionBurnedAreas: "R1.2 Superficies brûlées autour des 7 aires protégées",
+  ecosystems: "R2.1 Superficies aménagées durablement",
+  ha: "ha",
+  beneficiaries: "bénéficiaires",
+  smallholders: "R2.2 Petits exploitants appuyés",
 
-    cosapDecisions:
-      "R1.2.1 Décisions des COSAP",
-    decisions: "décision(s)",
+  adoptedMeasures: "R1.1.2 Mesures communales",
+  measures: "mesure(s)",
+  cosapDecisions: "R1.2.1 Décisions des COSAP",
+  decisions: "décision(s)",
+  regionalPackages: "R1.2.2 Mesures régionales",
+  packages: "paquet(s)",
+  regionsMonitoring: "R1.1.1 Système de suivi",
+  regions: "région(s)",
 
-    regionalPackages:
-      "R1.2.2 Mesures régionales",
-    packages: "paquet(s)",
+  sustainableAgropastoral: "R2.1.1 Surfaces agropastorales",
+  sustainableForest: "R2.1.2 Surfaces forestières",
+  improvedProducers: "R2.2.1 Producteurs avec revenus",
+  agrMicroBusinesses: "R2.2.2 Micro-entreprises",
+  producers: "producteurs",
+  companies: "entreprises",
 
-    regionsMonitoring:
-      "R1.1.1 Système de suivi",
-    regions: "région(s)",
+  beneficiariesByGender: "Répartition des bénéficiaires par genre",
+  men: "Hommes",
+  women: "Femmes",
+  youngBeneficiaries: "Répartition des bénéficiaires par tranche d'âge",
+  under_18: "<18",
+  between_18_35: "18-35",
+  between_36_59: "36-59",
+  more_60: ">60",
 
-    sustainableAgropastoral:
-      "R2.1.1 Surfaces agropastorales",
-    sustainableForest:
-      "R2.1.2 Surfaces forestières",
-    improvedProducers:
-      "R2.2.1 Producteurs avec revenus",
-    agrMicroBusinesses:
-      "R2.2.2 Micro-entreprises",
-    // producers: "producteurs",
-    companies: "entreprises",
+  indicatorStatus: "Statut des indicateurs (par rapport aux cibles)",
+  under25: "<=25%",
+  between25_50: ">25% à 50%",
+  between50_75: ">50% à 75%",
+  over75: ">75%",
 
-    beneficiariesByGender:
-      "Répartition des bénéficiaires par genre",
-    men: "Hommes",
-    women: "Femmes",
+  globalProjectProgress: "Avancement global du projet par rapport aux jalons dans le plan quinquenal",
+  globalProgress: "Progression globale",
 
-    youngBeneficiaries:
-      "Répartition des bénéficiaires par tranche d'âge",
-    // youngPeople: "Jeunes (JH/JF)",
-    // adults: "Adultes",
-    under_18: "<18",
-    between_18_35: "18-35",
-    between_36_59: "36-59",
-    more_60: ">60",
-    semester: "Semestre", allSemesters: "Tous", semester1: "S1 (janv. – juin)", semester2: "S2 (juil. – déc.)", producers: "producteurs",
-
-    indicatorStatus: "Statut des indicateurs (par rapport aux cibles)",
-    // reached: "Atteint",
-    // inProgress: "En cours",
-    // notReached: "Non atteint",
-    under25 : "<=25%",
-    between25_50 : ">25% à 50%",
-    between50_75 : ">50% à 75%",
-    over75 : ">75%",
-
-    globalProjectProgress:
-      "Avancement global du projet par rapport aux jalons dans le plan quinquenal",
-    globalProgress: "Progression globale",
-
-    legend: "Légende",
-    office: "Bureau",
-    protectedArea: "Aire protégée",
-
-    targetLabel: "Cible",
-    targetCommunes: "Cible : 16 / 30 communes",
-    targetReduction: "Cible : -25% d'ici 2030",
-    targetEcosystems: "Cible : 110 000 ha",
-    targetBeneficiaries: "Cible : 25 000",
-    targetCommunes80: "24 sur 30 communes",
-    targetDecisions: "Cible : 21 décisions",
-    targetPackages: "Cible : 5 paquets",
-    targetRegions: "Cible : 5 régions",
-    targetAgro: "Cible : 40 000 ha",
-    targetForest: "Cible : 70 000 ha",
-    targetProducers: "Cible : 7 000",
-    targetCompanies: "Cible : 50",
-
-    km: "km",
-  },
-
-  mg: {
-    title: "TABILAO FANARAHANA PADDI+",
-    antenna: "Antenina",
-    allAntennas: "Antenina rehetra",
-    year: "Taona",
-
-    keyAchievements: "ZAVA-BITA LEHIBE",
-    keyResults: "VOKATRA LEHIBE",
-    interventionZone: "FARITRA IASA",
-
-    municipalBudgets:
-      "Tetibolan'ny kaominina ≥5% ho an'ny SECO (anisan'izany ny 25% ho an'ny vehivavy/tanora)",
-    communes: "Kaominina",
-    target: "Tanjona",
-    reduction: "fihenana",
-    reductionBurnedAreas:
-      "Fampihenana 25% ny velaran-tany may manodidina ireo faritra arovana 7 hatramin'ny 2030",
-    ecosystems:
-      "Ekôzisteman'ny fambolena sy fiompiana mampihatra fomba maharitra (UE)",
-    beneficiaries: "mpahazo tombontsoa",
-    smallholders:
-      "Mpamboly madinika mahazo tombontsoa (famokarana, tsena, fiarovana ny fananan-tany)",
-    ha: "ha",
-
-    adoptedMeasures:
-      "Fepetra SECO noraisin'ny Kaominina",
-    measures: "fepetra",
-
-    cosapDecisions:
-      "Fanapahan-kevitry ny COSAP nampidirina tao amin'ny drafitrasa kaominina",
-    decisions: "fanapahan-kevitra",
-
-    regionalPackages:
-      "Fonosana fepetra isam-paritra SE",
-    packages: "fonosana",
-
-    regionsMonitoring:
-      "Faritra manana rafitra fanaraha-maso sy fanombanana ny SE",
-    regions: "faritra",
-
-    sustainableAgropastoral:
-      "Fomba fambolena sy fiompiana maharitra",
-    sustainableForest:
-      "Fomba fitantanana ala maharitra",
-    improvedProducers:
-      "Mpamokatra nohatsaraina",
-    agrMicroBusinesses:
-      "AGR / orinasa madinika",
-    producers: "mpamokatra",
-    companies: "orinasa",
-
-    beneficiariesByGender:
-      "Fizarana ny mpahazo tombontsoa araka ny lahy sy vavy",
-    men: "Lehilahy",
-    women: "Vehivavy",
-
-    youngBeneficiaries:
-      "Fizarana ny tanora mpahazo tombontsoa",
-    youngPeople: "Tanora (lahy/vavy)",
-    adults: "Olon-dehibe",
-
-    indicatorStatus: "Toetry ny tondro",
-    reached: "Tratra",
-    inProgress: "Eo am-panatanterahana",
-    notReached: "Tsy tratra",
-
-    globalProjectProgress:
-      "Fandrosoan'ny tetikasa amin'ny ankapobeny",
-    globalProgress: "Fandrosoana ankapobeny",
-
-    legend: "Fanazavana",
-    office: "Birao",
-    protectedArea: "Faritra arovana",
-
-    targetLabel: "Tanjona",
-    targetCommunes: "Tanjona : Kaominina 40",
-    targetReduction: "Tanjona : -25% hatramin'ny 2030",
-    targetEcosystems: "Tanjona : 110 000 ha",
-    targetBeneficiaries: "Tanjona : 25 000",
-    targetCommunes80: "Tanjona : 80% amin'ny kaominina",
-    targetDecisions: "Tanjona : fanapahan-kevitra 21",
-    targetPackages: "Tanjona : fonosana 5",
-    targetRegions: "Tanjona : faritra 5",
-    targetAgro: "Tanjona : 60 000 ha",
-    targetForest: "Tanjona : 100 000 ha",
-    targetProducers: "Tanjona : 10 000",
-    targetCompanies: "Tanjona : 70",
-
-      semester: "Enim-bolana", allSemesters: "Rehetra", semester1: "S1 (Janoary – Jona)", semester2: "S2 (Jolay – Desambra)",
-    km: "km",
-  },
-
-  en: {
-    title: "PADDI+ DASHBOARD",
-    antenna: "Office",
-    allAntennas: "All offices",
-    year: "Year",
-
-    keyAchievements: "KEY ACHIEVEMENTS",
-    keyResults: "KEY RESULTS",
-    interventionZone: "INTERVENTION AREA",
-
-    municipalBudgets:
-      "Municipal budgets ≥5% for SECO (including 25% for women/youth)",
-    communes: "Communes",
-    target: "Target",
-    reduction: "reduction",
-    reductionBurnedAreas:
-      "25% reduction of burned areas around the 7 protected areas by 2030",
-    ecosystems:
-      "Agropastoral ecosystems under sustainable practices (EU)",
-    beneficiaries: "beneficiaries",
-    smallholders:
-      "Smallholder beneficiaries (production, markets, land security)",
-    ha: "ha",
-
-    adoptedMeasures:
-      "SECO measures adopted by communes",
-    measures: "measures",
-
-    cosapDecisions:
-      "COSAP decisions integrated into municipal plans",
-    decisions: "decisions",
-
-    regionalPackages:
-      "Regional SE measure packages",
-    packages: "packages",
-
-    regionsMonitoring:
-      "Regions with an SE monitoring and evaluation system",
-    regions: "regions",
-
-    sustainableAgropastoral:
-      "Sustainable agropastoral practices",
-    sustainableForest:
-      "Sustainable forestry practices",
-    improvedProducers:
-      "Improved producers",
-    agrMicroBusinesses:
-      "IGA / micro-enterprises",
-    producers: "producers",
-    companies: "companies",
-
-    beneficiariesByGender:
-      "Beneficiaries by gender",
-    men: "Men",
-    women: "Women",
-
-    youngBeneficiaries:
-      "Young beneficiaries",
-    // youngPeople: "Young people (male/female)",
-    // adults: "Adults",
-    under_18: "Under 18",
-    between_18_35: "Between 18-35",
-    between_36_59: "Between 36-59",
-    more_60: "More than 60",
-
-    indicatorStatus: "Indicator status",
-    reached: "Achieved",
-    inProgress: "In progress",
-    notReached: "Not achieved",
-
-    globalProjectProgress:
-      "Overall project progress",
-    globalProgress: "Overall progress",
-
-    legend: "Legend",
-    office: "Office",
-    protectedArea: "Protected Area",
-
-    targetLabel: "Target",
-    targetCommunes: "Target: 16 / 30 communes",
-    targetReduction: "Target: -25% by 2030",
-    targetEcosystems: "Target: 110,000 ha",
-    targetBeneficiaries: "Target: 25,000",
-    targetCommunes80: "Target: 80% of communes",
-    targetDecisions: "Target: 21 decisions",
-    targetPackages: "Target: 5 packages",
-    targetRegions: "Target: 5 regions",
-    targetAgro: "Target: 60,000 ha",
-    targetForest: "Target: 100,000 ha",
-    targetProducers: "Target: 10,000",
-    targetCompanies: "Target: 70",
-
-    semester: "Semester", allSemesters: "All", semester1: "S1 (Jan – Jun)", semester2: "S2 (Jul – Dec)",
-
-    km: "km",
-  },
-
-  de: {
-    title: "PADDI+ DASHBOARD",
-    antenna: "Büro",
-    allAntennas: "Alle Büros",
-    year: "Jahr",
-
-    keyAchievements: "WICHTIGE ERFOLGE",
-    keyResults: "WICHTIGE ERGEBNISSE",
-    interventionZone: "INTERVENTIONSGEBIET",
-
-    municipalBudgets:
-      "Gemeindehaushalte ≥5% für SECO (davon 25% für Frauen/Jugendliche)",
-    communes: "Gemeinden",
-    target: "Ziel",
-    reduction: "Reduzierung",
-    reductionBurnedAreas:
-      "Reduzierung der verbrannten Flächen rund um die 7 Schutzgebiete um 25% bis 2030",
-    ecosystems:
-      "Agropastorale Ökosysteme mit nachhaltigen Praktiken (EU)",
-    beneficiaries: "Begünstigte",
-    smallholders:
-      "Begünstigte Kleinproduzenten (Produktion, Märkte, Landrechte)",
-    ha: "ha",
-
-    adoptedMeasures:
-      "Von den Gemeinden angenommene SECO-Maßnahmen",
-    measures: "Maßnahmen",
-
-    cosapDecisions:
-      "In Gemeindepläne integrierte COSAP-Entscheidungen",
-    decisions: "Entscheidungen",
-
-    regionalPackages:
-      "Regionale SE-Maßnahmenpakete",
-    packages: "Pakete",
-
-    regionsMonitoring:
-      "Regionen mit einem Monitoring- und Evaluierungssystem für SE",
-    regions: "Regionen",
-
-    sustainableAgropastoral:
-      "Nachhaltige agropastorale Praktiken",
-    sustainableForest:
-      "Nachhaltige forstwirtschaftliche Praktiken",
-    improvedProducers:
-      "Verbesserte Produzenten",
-    agrMicroBusinesses:
-      "Einkommensschaffende Maßnahmen / Kleinstunternehmen",
-    producers: "Produzenten",
-    companies: "Unternehmen",
-
-    beneficiariesByGender:
-      "Begünstigte nach Geschlecht",
-    men: "Männer",
-    women: "Frauen",
-
-    youngBeneficiaries:
-      "Junge Begünstigte",
-    youngPeople: "Jugendliche (männlich/weiblich)",
-    adults: "Erwachsene",
-
-    indicatorStatus: "Status der Indikatoren",
-    reached: "Erreicht",
-    inProgress: "In Bearbeitung",
-    notReached: "Nicht erreicht",
-
-    globalProjectProgress:
-      "Gesamtfortschritt des Projekts",
-    globalProgress: "Gesamtfortschritt",
-
-    legend: "Legende",
-    office: "Büro",
-    protectedArea: "Schutzgebiet",
-
-    targetLabel: "Ziel",
-    targetCommunes: "Ziel: 40 Gemeinden",
-    targetReduction: "Ziel: -25% bis 2030",
-    targetEcosystems: "Ziel: 110.000 ha",
-    targetBeneficiaries: "Ziel: 25.000",
-    targetCommunes80: "Ziel: 80% der Gemeinden",
-    targetDecisions: "Ziel: 21 Entscheidungen",
-    targetPackages: "Ziel: 5 Pakete",
-    targetRegions: "Ziel: 5 Regionen",
-    targetAgro: "Ziel: 60.000 ha",
-    targetForest: "Ziel: 100.000 ha",
-    targetProducers: "Ziel: 10.000",
-    targetCompanies: "Ziel: 70",
-    semester: "Halbjahr", allSemesters: "Alle", semester1: "H1 (Jan – Jun)", semester2: "H2 (Jul – Dez)",
-    km: "km",
-  },
+  legend: "Légende",
+  office: "Bureau",
+  protectedArea: "Aire protégée",
+  targetLabel: "Cible",
 };
 
-const getVille = (nom) => {
-  if (!nom) return "";
-  return nom.replace("Bureau à", "").trim();
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: "TABILAO FANARAHANA PADDI+",
+  antenna: "Antenina",
+  allAntennas: "Antenina rehetra",
+  year: "Taona",
+  semester: "Enim-bolana",
+  allSemesters: "Rehetra",
+  semester1: "S1 (Janoary – Jona)",
+  semester2: "S2 (Jolay – Desambra)",
+  dateOfLastUpdate: "Daty fanavaozana farany :",
+  update: "Havaozina",
+
+  keyAchievements: "ZAVA-BITA LEHIBE",
+  keyResults: "VOKATRA LEHIBE",
+  interventionZone: "FARITRA IASA",
+
+  municipalBudgets: "R1.1 Tetibolan'ny kaominina",
+  communes: "Kaominina",
+  reduction: "fihenana",
+  reductionBurnedAreas: "R1.2 Velaran-tany may manodidina ireo faritra arovana 7",
+  ecosystems: "R2.1 Velaran-tany voalamina maharitra",
+  ha: "ha",
+  beneficiaries: "mpahazo tombontsoa",
+  smallholders: "R2.2 Mpamboly madinika notohanana",
+
+  adoptedMeasures: "R1.1.2 Fepetra kaominina",
+  measures: "fepetra",
+  cosapDecisions: "R1.2.1 Fanapahan-kevitry ny COSAP",
+  decisions: "fanapahan-kevitra",
+  regionalPackages: "R1.2.2 Fepetra isam-paritra",
+  packages: "fonosana",
+  regionsMonitoring: "R1.1.1 Rafitra fanaraha-maso",
+  regions: "faritra",
+
+  sustainableAgropastoral: "R2.1.1 Velarana fambolena sy fiompiana",
+  sustainableForest: "R2.1.2 Velarana ala",
+  improvedProducers: "R2.2.1 Mpamokatra manana vola miditra",
+  agrMicroBusinesses: "R2.2.2 Orinasa madinika",
+  producers: "mpamokatra",
+  companies: "orinasa",
+
+  beneficiariesByGender: "Fizarana ny mpahazo tombontsoa araka ny lahy sy vavy",
+  men: "Lehilahy",
+  women: "Vehivavy",
+  youngBeneficiaries: "Fizarana ny mpahazo tombontsoa araka ny taona",
+  under_18: "<18",
+  between_18_35: "18-35",
+  between_36_59: "36-59",
+  more_60: ">60",
+
+  indicatorStatus: "Toetry ny tondro (arakaraka ny tanjona)",
+  under25: "<=25%",
+  between25_50: ">25% à 50%",
+  between50_75: ">50% à 75%",
+  over75: ">75%",
+
+  globalProjectProgress: "Fandrosoan'ny tetikasa amin'ny ankapobeny",
+  globalProgress: "Fandrosoana ankapobeny",
+
+  legend: "Fanazavana",
+  office: "Birao",
+  protectedArea: "Faritra arovana",
+  targetLabel: "Tanjona",
 };
 
-const pinSVG = `
-<svg width="20" height="20" viewBox="0 0 24 24">
-  <path fill="#e53935" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-  <circle cx="12" cy="9" r="2.5" fill="white"/>
-</svg>
+const en: Txt = {
+  title: "PADDI+ DASHBOARD",
+  antenna: "Office",
+  allAntennas: "All offices",
+  year: "Year",
+  semester: "Semester",
+  allSemesters: "All",
+  semester1: "S1 (Jan – Jun)",
+  semester2: "S2 (Jul – Dec)",
+  dateOfLastUpdate: "Data last updated:",
+  update: "Update",
+
+  keyAchievements: "KEY ACHIEVEMENTS",
+  keyResults: "KEY RESULTS",
+  interventionZone: "INTERVENTION AREA",
+
+  municipalBudgets: "R1.1 Municipal budgets",
+  communes: "Commune(s)",
+  reduction: "reduction",
+  reductionBurnedAreas: "R1.2 Burned areas around the 7 protected areas",
+  ecosystems: "R2.1 Areas under sustainable management",
+  ha: "ha",
+  beneficiaries: "beneficiaries",
+  smallholders: "R2.2 Smallholders supported",
+
+  adoptedMeasures: "R1.1.2 Municipal measures",
+  measures: "measure(s)",
+  cosapDecisions: "R1.2.1 COSAP decisions",
+  decisions: "decision(s)",
+  regionalPackages: "R1.2.2 Regional measures",
+  packages: "package(s)",
+  regionsMonitoring: "R1.1.1 Monitoring system",
+  regions: "region(s)",
+
+  sustainableAgropastoral: "R2.1.1 Agropastoral areas",
+  sustainableForest: "R2.1.2 Forest areas",
+  improvedProducers: "R2.2.1 Producers with income",
+  agrMicroBusinesses: "R2.2.2 Micro-enterprises",
+  producers: "producers",
+  companies: "companies",
+
+  beneficiariesByGender: "Beneficiaries by gender",
+  men: "Men",
+  women: "Women",
+  youngBeneficiaries: "Beneficiaries by age group",
+  under_18: "Under 18",
+  between_18_35: "18-35",
+  between_36_59: "36-59",
+  more_60: "Over 60",
+
+  indicatorStatus: "Indicator status (vs. targets)",
+  under25: "<=25%",
+  between25_50: ">25% to 50%",
+  between50_75: ">50% to 75%",
+  over75: ">75%",
+
+  globalProjectProgress: "Overall project progress against the five-year plan milestones",
+  globalProgress: "Overall progress",
+
+  legend: "Legend",
+  office: "Office",
+  protectedArea: "Protected area",
+  targetLabel: "Target",
+};
+
+const de: Txt = {
+  title: "PADDI+ DASHBOARD",
+  antenna: "Büro",
+  allAntennas: "Alle Büros",
+  year: "Jahr",
+  semester: "Halbjahr",
+  allSemesters: "Alle",
+  semester1: "H1 (Jan – Jun)",
+  semester2: "H2 (Jul – Dez)",
+  dateOfLastUpdate: "Daten aktualisiert am:",
+  update: "Aktualisieren",
+
+  keyAchievements: "WICHTIGE ERFOLGE",
+  keyResults: "WICHTIGE ERGEBNISSE",
+  interventionZone: "INTERVENTIONSGEBIET",
+
+  municipalBudgets: "R1.1 Gemeindehaushalte",
+  communes: "Gemeinde(n)",
+  reduction: "Reduzierung",
+  reductionBurnedAreas: "R1.2 Verbrannte Flächen um die 7 Schutzgebiete",
+  ecosystems: "R2.1 Nachhaltig bewirtschaftete Flächen",
+  ha: "ha",
+  beneficiaries: "Begünstigte",
+  smallholders: "R2.2 Unterstützte Kleinproduzenten",
+
+  adoptedMeasures: "R1.1.2 Gemeindemaßnahmen",
+  measures: "Maßnahme(n)",
+  cosapDecisions: "R1.2.1 COSAP-Entscheidungen",
+  decisions: "Entscheidung(en)",
+  regionalPackages: "R1.2.2 Regionale Maßnahmen",
+  packages: "Paket(e)",
+  regionsMonitoring: "R1.1.1 Monitoringsystem",
+  regions: "Region(en)",
+
+  sustainableAgropastoral: "R2.1.1 Agropastorale Flächen",
+  sustainableForest: "R2.1.2 Waldflächen",
+  improvedProducers: "R2.2.1 Produzenten mit Einkommen",
+  agrMicroBusinesses: "R2.2.2 Kleinstunternehmen",
+  producers: "Produzenten",
+  companies: "Unternehmen",
+
+  beneficiariesByGender: "Begünstigte nach Geschlecht",
+  men: "Männer",
+  women: "Frauen",
+  youngBeneficiaries: "Begünstigte nach Altersgruppe",
+  under_18: "Unter 18",
+  between_18_35: "18-35",
+  between_36_59: "36-59",
+  more_60: "Über 60",
+
+  indicatorStatus: "Status der Indikatoren (im Verhältnis zu den Zielen)",
+  under25: "<=25%",
+  between25_50: ">25% bis 50%",
+  between50_75: ">50% bis 75%",
+  over75: ">75%",
+
+  globalProjectProgress: "Gesamtfortschritt des Projekts gegenüber den Meilensteinen des Fünfjahresplans",
+  globalProgress: "Gesamtfortschritt",
+
+  legend: "Legende",
+  office: "Büro",
+  protectedArea: "Schutzgebiet",
+  targetLabel: "Ziel",
+};
+
+const dashboardTxt: Record<string, Txt> = { fr, mg, en, de };
+const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
+
+/* ================= CONSTANTES (hors composant : créées une seule fois) ================= */
+
+const VALID_ANTENNES = ["Tanà", "Amoron'i Mania", "Boeny", "Diana", "Atsimo-Atsinanana", "Anosy"];
+
+const UC_PAR_ANTENNE: Record<string, string> = {
+  "Tanà": "UCT", "Amoron'i Mania": "UCR-A", "Boeny": "UCR-B",
+  "Diana": "UCR-D", "Atsimo-Atsinanana": "UCR-F", "Anosy": "UCR-FD",
+};
+
+// "Amoron'i Mania" n'avait pas de couleur (il tombait en gris) : ajoutée.
+const ANTENNE_COLORS: Record<string, string> = {
+  "Tanà": "#16a34a",
+  "Amoron'i Mania": "#0ea5e9",
+  "Boeny": "#2563eb",
+  "Atsimo-Atsinanana": "#f59e0b",
+  "Diana": "#ef4444",
+  "Anosy": "#8b5cf6",
+};
+
+// Fonction stable : n'est plus recréée à chaque rendu, donc les couches Leaflet
+// ne sont plus détruites/reconstruites inutilement.
+const getColorByAntenne = (antenne?: string) => ANTENNE_COLORS[antenne ?? ""] ?? "#64748b";
+
+const clampPct = (v: number) => (Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0);
+
+const getVille = (nom?: string) => (nom ? nom.replace("Bureau à", "").trim() : "");
+
+const filterByAntenne = (features: any[], antenne: string) =>
+  antenne ? features.filter((f) => f.properties?.antenne === antenne) : features;
+
+/* ================= CSS RESPONSIVE =================
+   - media queries pour la structure de la page
+   - container queries pour les grilles : elles s'adaptent à la largeur réelle
+     de la colonne (et pas seulement à celle de l'écran). */
+
+const RESPONSIVE_CSS = `
+.pd-page{width:100%;max-width:2200px;margin:0 auto;min-height:100vh;min-height:100dvh}
+.pd-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:8px;align-items:start;padding-bottom:5px}
+.pd-left{container-type:inline-size;container-name:pdleft;display:flex;flex-direction:column;gap:8px;min-width:0}
+.pd-right{position:sticky;top:8px;display:flex;flex-direction:column;min-width:0;
+  height:calc(100vh - 90px);height:calc(100dvh - 90px);min-height:440px}
+.pd-map{flex:1;min-height:0;isolation:isolate;border:1px solid #e5e7eb;background:#f1f5f9}
+.pd-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%;min-width:0;align-items:stretch;grid-auto-rows:1fr}
+.pd-select{font-size:12px}
+.pd-title{overflow-wrap:anywhere}
+
+@container pdleft (max-width:820px){.pd-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container pdleft (max-width:420px){.pd-grid{grid-template-columns:minmax(0,1fr)}}
+
+@media (max-width:1100px){
+  .pd-layout{grid-template-columns:minmax(0,1fr)}
+  .pd-right{position:static;height:auto;min-height:0}
+  .pd-map{flex:none;height:clamp(320px,60vh,600px)}
+}
+@media (max-width:640px){
+  .pd-header{flex-direction:column;align-items:stretch !important}
+  .pd-filters{width:100%}
+  .pd-filter-group{flex:1 1 140px}
+  .pd-select{width:100%;font-size:16px} /* évite le zoom automatique sur iOS */
+  .pd-date{flex:1 1 100%}
+}
+@media (min-width:1800px){
+  .pd-layout{grid-template-columns:minmax(0,5fr) minmax(0,2fr)}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
 `;
 
-const officeIcon = (nom) =>
+/* ================= HOOK DE CHARGEMENT GEOJSON ================= */
+
+function useGeoJSON(url: string) {
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`${url} introuvable`);
+        return r.json();
+      })
+      .then((d) => { if (!cancelled) setData(d); })
+      .catch((err) => console.error("Erreur chargement", url, err));
+    return () => { cancelled = true; };
+  }, [url]);
+
+  return data;
+}
+
+/* ================= CARTE ================= */
+
+const officeIcon = (nom?: string) =>
   L.divIcon({
     html: `
-      <div style="
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        line-height:1;
-      ">
-
-        <!-- ICON -->
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;">
         <svg width="20" height="20" viewBox="0 0 24 24" style="display:block;">
           <path fill="#e53935" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
           <circle cx="12" cy="9" r="2.5" fill="white"/>
         </svg>
-
-        <!-- LABEL -->
-        <div style="
-          font-size:10px;
-          color:#111;
-          white-space:nowrap;
-          margin:0;
-          padding:0;
-          line-height:1;
-        ">
+        <div style="font-size:10px;color:#111;white-space:nowrap;margin:0;padding:0;line-height:1;">
           ${getVille(nom)}
         </div>
-
-      </div>
-    `,
+      </div>`,
     className: "",
     iconSize: [60, 40],
     iconAnchor: [30, 20],
   });
 
-function AutoZoom({ geoData }) {
+const pinSVG = `
+<svg width="20" height="20" viewBox="0 0 24 24">
+  <path fill="#e53935" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+  <circle cx="12" cy="9" r="2.5" fill="white"/>
+</svg>`;
+
+/** Cadre la carte sur les données, et la recadre quand son conteneur change de taille
+ *  (rotation du téléphone, redimensionnement de la fenêtre, passage 1 → 2 colonnes…). */
+function AutoZoom({ geoData }: { geoData: any }) {
   const map = useMap();
 
   useEffect(() => {
     if (!geoData?.features?.length) return;
+    const bounds = L.geoJSON(geoData).getBounds();
+    if (!bounds.isValid()) return;
 
-    const layer = L.geoJSON(geoData);
-    const bounds = layer.getBounds();
+    const fit = (animate: boolean) =>
+      map.fitBounds(bounds, { padding: [10, 10], maxZoom: 10, animate });
 
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10,
-        animate: true,
-      });
-    }
+    fit(true);
+
+    let timer: number | undefined;
+    const ro = new ResizeObserver(() => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => {
+        map.invalidateSize();
+        fit(false);
+      }, 150);
+    });
+    ro.observe(map.getContainer());
+
+    return () => {
+      window.clearTimeout(timer);
+      ro.disconnect();
+    };
   }, [geoData, map]);
 
   return null;
 }
 
-function onEachRegion(feature, layer, mapRef) {
-  const name = feature?.properties?.nom_reg;
-
-  if (name) {
-    layer.bindTooltip(name, {
-      sticky: true,
-      direction: "center",
-      className: "region-label",
-      permanent: true,
-    });
-  }
-
-  layer.on("click", () => {
-    const bounds = layer.getBounds?.();
-
-    if (bounds && bounds.isValid()) {
-      mapRef.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10,
-        animate: true,
-      });
-    }
-  });
-}
-
-function LegendControl({
-  getColorByAntenne,
-  antennes,
-  legendText,
-  officeText,
-  protectedAreaText,
+function LegendControl({ antennes, legendText, officeText, protectedAreaText }: {
+  antennes: string[]; legendText: string; officeText: string; protectedAreaText: string;
 }) {
   const map = useMap();
 
   useEffect(() => {
-    const legend = L.control({ position: "bottomright" });
+    const legend = new L.Control({ position: "bottomright" });
 
     legend.onAdd = () => {
       const div = L.DomUtil.create("div", "info legend");
+      L.DomEvent.disableClickPropagation(div);
 
       div.style.background = "white";
       div.style.padding = "8px 10px";
       div.style.borderRadius = "8px";
       div.style.boxShadow = "0 1px 5px rgba(0,0,0,0.2)";
       div.style.fontSize = "12px";
+      div.style.maxWidth = "60vw";
 
-      div.innerHTML = `<strong>${legendText}:</strong><br/>`;
+      const row = (inner: string) =>
+        `<div style="display:flex;align-items:center;gap:6px;margin-top:4px;">${inner}</div>`;
 
-      div.innerHTML += `
-      <div style="display:flex;align-items:center;gap:6px;">
-        ${pinSVG}
-        ${officeText}
-      </div>
-    `;
-
+      let html = `<strong>${legendText}:</strong>`;
+      html += row(`${pinSVG}${officeText}`);
       antennes.forEach((a) => {
-        const color = getColorByAntenne(a);
-
-        div.innerHTML += `
-          <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
-            <span style="
-              width:12px;height:12px;
-              background:${color};
-              display:inline-block;
-              border-radius:3px;"></span>
-            ${a}
-          </div>
-        `;
-        
+        html += row(`<span style="width:12px;height:12px;background:${getColorByAntenne(a)};display:inline-block;border-radius:3px;flex-shrink:0;"></span>${a}`);
       });
+      html += row(`
+        <svg width="18" height="18" viewBox="0 0 24 24" style="flex-shrink:0;">
+          <path d="M3 18 L6 5 L14 3 L21 8 L18 20 L8 21 Z" fill="rgba(34,197,94,0.30)" stroke="#16a34a" stroke-width="1"/>
+        </svg>${protectedAreaText}`);
 
-      div.innerHTML += `
-        <div style="display:flex;align-items:center;gap:6px;">
-        <svg width="18" height="18" viewBox="0 0 24 24">
-        <path
-        d="M3 18 L6 5 L14 3 L21 8 L18 20 L8 21 Z"
-        fill="rgba(34,197,94,0.30)"
-        stroke="white"
-        stroke-width="1"
-        />
-        </svg>
-        ${protectedAreaText}
-        </div>
-        `;
-      
+      div.innerHTML = html;
       return div;
     };
 
     legend.addTo(map);
-
-    return () => legend.remove();
-  }, [map, antennes, getColorByAntenne]);
+    return () => { legend.remove(); };
+    // Les textes sont maintenant dans les dépendances : la légende suit le changement de langue.
+  }, [map, antennes, legendText, officeText, protectedAreaText]);
 
   return null;
 }
 
-function RegionLayer({ data, getColorByAntenne }) {
+function RegionLayer({ data }: { data: any }) {
   const map = useMap();
 
   useEffect(() => {
@@ -568,23 +482,18 @@ function RegionLayer({ data, getColorByAntenne }) {
       style: (feature) => ({
         color: "#fff",
         weight: 1,
-        fillColor: getColorByAntenne(feature.properties?.antenne),
+        fillColor: getColorByAntenne(feature?.properties?.antenne),
         fillOpacity: 0.6,
       }),
-    });
+    }).addTo(map);
 
-    layer.addTo(map);
-
-    return () => {
-      layer.clearLayers();
-      map.removeLayer(layer);
-    };
-  }, [data, map, getColorByAntenne]);
+    return () => { layer.clearLayers(); map.removeLayer(layer); };
+  }, [data, map]);
 
   return null;
 }
 
-function BureauLayer({ data }) {
+function BureauLayer({ data }: { data: any }) {
   const map = useMap();
 
   useEffect(() => {
@@ -592,471 +501,369 @@ function BureauLayer({ data }) {
 
     const layer = L.geoJSON(data, {
       pointToLayer: (feature, latlng) =>
-        L.marker(latlng, {
-          icon: officeIcon(feature.properties?.nom),
-        }),
-    });
+        L.marker(latlng, { icon: officeIcon(feature.properties?.nom) }),
+    }).addTo(map);
 
-    layer.addTo(map);
-
-    return () => map.removeLayer(layer);
+    return () => { map.removeLayer(layer); };
   }, [data, map]);
 
   return null;
 }
 
-function AireProtegeeLayer({ data, selectedAntenne }) {
+function AireProtegeeLayer({ data, selectedAntenne }: { data: any; selectedAntenne: string }) {
   const map = useMap();
 
   useEffect(() => {
     if (!data?.features) return;
 
     const layer = L.geoJSON(data, {
-      style: {
-        color: "#fff",
-        weight: 0.8,
-        fillColor: "#22c55e",
-        fillOpacity: 0.30,
-      },
-      onEachFeature: (feature, layer) => {
-
-        if (selectedAntenne) {
-          layer.bindTooltip(feature.properties.nom_ap, {
+      style: { color: "#fff", weight: 0.8, fillColor: "#22c55e", fillOpacity: 0.30 },
+      onEachFeature: (feature, lyr) => {
+        if (selectedAntenne && feature.properties?.nom_ap) {
+          lyr.bindTooltip(feature.properties.nom_ap, {
             permanent: true,
             direction: "center",
             className: "ap-label",
             sticky: false,
           });
-        }      
+        }
       },
-    });
+    }).addTo(map);
 
-    layer.addTo(map);
-
-    return () => {
-      layer.clearLayers();
-      map.removeLayer(layer);
-    };
-  }, [data, map]);
+    return () => { layer.clearLayers(); map.removeLayer(layer); };
+  }, [data, map, selectedAntenne]); // selectedAntenne manquait : les étiquettes ne se mettaient pas à jour
 
   return null;
 }
 
-export default function Dashboard({ data }: any) {
+/* ================= PAGE ================= */
+
+export default function Dashboard(_props: { data?: unknown }) {
   const { lang } = useLanguage();
-  const t = dashboardTxt[lang];
+  const t = dashboardTxt[lang as string] ?? dashboardTxt.fr;
 
   const [selectedAntenne, setSelectedAntenne] = useState("");
-  const [regionsData, setRegionsData] = useState(null);
+  const [annee, setAnnee] = useState<number>(2026);
+  const [semestre, setSemestre] = useState<FiltreSemestre>("Tous");
+  const [dateMaj, setDateMaj] = useState<string | null>(null);
+  const [showLogin, setShowLogin] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [token, setToken] = useState("");
 
-    useEffect(() => {
-      fetch("/data/madagascar_24_region.geojson")
-        .then(res => {
-          if (!res.ok) throw new Error("GeoJSON introuvable");
-          return res.json();
-        })
-        .then(setRegionsData)
-        .catch(err => console.error("Erreur chargement GeoJSON:", err));
-    }, []);
+  const regionsData = useGeoJSON("/data/madagascar_24_region.geojson");
+  const bureauData = useGeoJSON("/data/localisation_bureau_paddi.geojson");
+  const aireProtegeeData = useGeoJSON("/data/aire_protegee_paddi.geojson");
+  const base = useGeoJSON("/data/Base_Indicateurs.geojson") as Base | null;
 
-  const VALID_ANTENNES = ["Tanà","Amoron'i Mania", "Boeny", "Diana", "Atsimo-Atsinanana", "Anosy"];
+  const chargerDate = () =>
+    fetch("/api/derniere-maj?source=indicateurs")
+      .then((r) => { if (!r.ok) throw new Error("maj indisponible"); return r.json(); })
+      .then((d) => setDateMaj(d.date ?? null))
+      .catch(() => setDateMaj(null));
+
+  useEffect(() => { chargerDate(); }, []);
 
   const antennes = useMemo(() => {
     if (!regionsData?.features) return [];
-
-    return VALID_ANTENNES.filter(a =>
-      regionsData.features.some(f => f.properties?.antenne === a)
+    return VALID_ANTENNES.filter((a) =>
+      regionsData.features.some((f: any) => f.properties?.antenne === a)
     );
   }, [regionsData]);
 
-  const showAll = selectedAntenne === "";
+  const tab = useMemo(
+    () => calculerTableau(base, annee, semestre, selectedAntenne || "Toutes"),
+    [base, annee, semestre, selectedAntenne]
+  );
+  const ind = tab.indicateurs;
 
-  const [bureauData, setBureauData] = useState(null);
+  const cibleTexte = (code: Code, unite: string) =>
+    `${t.targetLabel} : ${fmtNombre(ind[code].cible)}${ind[code].sur ? ` / ${ind[code].sur}` : ""} ${unite}`.trim();
 
-    useEffect(() => {
-      fetch("/data/localisation_bureau_paddi.geojson")
-        .then(r => r.json())
-        .then(setBureauData);
-    }, []);
-
-
-    const [aireProtegeeData, setAireProtegeeData] = useState(null);
-
-    useEffect(() => {
-      fetch("/data/aire_protegee_paddi.geojson")
-        .then((r) => r.json())
-        .then(setAireProtegeeData)
-        .catch(console.error);
-    }, []);
-
-
-  const UC_PAR_ANTENNE: Record<string, string> = {
-      "Tanà": "UCT", "Amoron'i Mania": "UCR-A", "Boeny": "UCR-B",
-      "Diana": "UCR-D", "Atsimo-Atsinanana": "UCR-F", "Anosy": "UCR-FD",
-    };
-    
-    const [base, setBase] = useState<Base | null>(null);
-    const [annee, setAnnee] = useState<number>(2026);
-    const [semestre, setSemestre] = useState<FiltreSemestre>("Tous");
-    const [dateMaj, setDateMaj] = useState<string | null>(null);
-    const [showLogin, setShowLogin] = useState(false);
-    const [showUpdate, setShowUpdate] = useState(false);
-    const [userName, setUserName] = useState("");
-    const [token, setToken] = useState("");
-    
-    const chargerDate = () =>
-      fetch("/api/derniere-maj?source=indicateurs")
-        .then((r) => r.json()).then((d) => setDateMaj(d.date ?? null)).catch(() => setDateMaj(null));
-    
-    useEffect(() => {
-      fetch("/data/Base_Indicateurs.geojson").then((r) => r.json()).then(setBase).catch(console.error);
-      chargerDate();
-    }, []);
-    
-    const tab = useMemo(
-      () => calculerTableau(base, annee, semestre, selectedAntenne || "Toutes"),
-      [base, annee, semestre, selectedAntenne]
-    );
-    const ind = tab.indicateurs;
-    
-    const cibleTexte = (code: Code, unite: string) =>
-      `${t.targetLabel} : ${fmtNombre(ind[code].cible)}${ind[code].sur ? ` / ${ind[code].sur}` : ""} ${unite}`.trim();
-    const kpi = (code: Code, unite: string) => ({
-      percent: ind[code].pct, color: couleurPct(ind[code].pct), target: cibleTexte(code, unite),
-    });
-
-  const regionsFiltrees = useMemo(() => {
-    if (!regionsData?.features) return [];
-  
-    return selectedAntenne === ""
-      ? regionsData.features.filter(f => f.properties?.actif)
-      : regionsData.features.filter(
-          f => f.properties?.actif &&
-               f.properties?.antenne === selectedAntenne
-        );
-  }, [regionsData, selectedAntenne]);
-
-  const norm = (v) => (v || "").toString().trim();
+  const kpi = (code: Code, unite: string) => ({
+    percent: ind[code].pct,
+    color: couleurPct(ind[code].pct),
+    target: cibleTexte(code, unite),
+  });
 
   const geoFiltered = useMemo(() => {
     if (!regionsData?.features) return null;
-  
-    const features = regionsData.features.filter(f => {
-      if (!f.properties?.actif) return false;
-    
-      if (!selectedAntenne) return true;
-    
-      return f.properties?.antenne === selectedAntenne;
-    });
-  
-    return {
-      type: "FeatureCollection",
-      features,
-    };
+    const actives = regionsData.features.filter((f: any) => f.properties?.actif);
+    return { type: "FeatureCollection", features: filterByAntenne(actives, selectedAntenne) };
   }, [regionsData, selectedAntenne]);
-
-  const getColorByAntenne = (antenne) => {
-    switch (antenne) {
-      case "Tanà":
-        return "#16a34a";
-      case "Boeny":
-        return "#2563eb";
-      case "Atsimo-Atsinanana":
-        return "#f59e0b";
-      case "Diana":
-        return "#ef4444";
-      case "Anosy":
-        return "#8b5cf6";
-      default:
-        return "#64748b";
-    }
-  };
 
   const bureauFiltered = useMemo(() => {
     if (!bureauData?.features) return null;
-  
-    return {
-      type: "FeatureCollection",
-      features: bureauData.features.filter(f =>
-        showAll ? true : f.properties.antenne === selectedAntenne
-      )
-    };
+    return { type: "FeatureCollection", features: filterByAntenne(bureauData.features, selectedAntenne) };
   }, [bureauData, selectedAntenne]);
-
 
   const aireProtegeeFiltered = useMemo(() => {
     if (!aireProtegeeData?.features) return null;
-  
-    return {
-      type: "FeatureCollection",
-      features: aireProtegeeData.features.filter((f) => {
-        if (!selectedAntenne) return true;
-  
-        return f.properties?.antenne === selectedAntenne;
-      }),
-    };
+    return { type: "FeatureCollection", features: filterByAntenne(aireProtegeeData.features, selectedAntenne) };
   }, [aireProtegeeData, selectedAntenne]);
 
-  console.log("features:", regionsData?.features);
-  console.log("antennes:", antennes);
+  const dateAffichee = (() => {
+    if (!dateMaj) return "—";
+    const d = new Date(dateMaj);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString(DATE_LOCALES[lang as string] ?? "fr-FR", {
+      day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo",
+    });
+  })();
 
-return (
-    <div style={styles.page}>
-      {/* HEADER */}
-      <div style={styles.header}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+  const hasRegions = (geoFiltered?.features?.length ?? 0) > 0;
+
+  return (
+    <div className="pd-page" style={styles.page}>
+      <style>{RESPONSIVE_CSS}</style>
+
+      {/* ============ HEADER ============ */}
+      <div className="pd-header" style={styles.header}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           <IconeTableauBord size={40} />
-          <h1 style={{ ...styles.title, margin: 0 }}>{t.title}</h1>
+          <h1 className="pd-title" style={styles.title}>{t.title}</h1>
         </div>
 
-        <div style={styles.headerFilters}>
-          <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>{t.antenna}</label>
-
+        <div className="pd-filters" style={styles.headerFilters}>
+          <div className="pd-filter-group" style={styles.filterGroup}>
+            <label style={styles.filterLabel}>{t.antenna}</label>
             <select
+              className="pd-select"
               style={styles.select}
               value={selectedAntenne}
               onChange={(e) => setSelectedAntenne(e.target.value)}
             >
               <option value="">{t.allAntennas}</option>
-
-              {antennes?.length > 0 &&
-                antennes.map((antenne) => (
-                  <option key={antenne} value={antenne}>
-                    {antenne} ({UC_PAR_ANTENNE[antenne]})
-                  </option>
-                ))}
+              {antennes.map((a) => (
+                <option key={a} value={a}>{a} ({UC_PAR_ANTENNE[a]})</option>
+              ))}
             </select>
           </div>
 
-          {/* ANNEE */}
-          <div style={styles.filterGroup}>
-          <label style={styles.filterLabel}>{t.year}</label>
-            
-           <select style={styles.select} value={annee} onChange={(e) => setAnnee(Number(e.target.value))}>
-              {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((a) => <option key={a} value={a}>{a}</option>)}
+          <div className="pd-filter-group" style={styles.filterGroup}>
+            <label style={styles.filterLabel}>{t.year}</label>
+            <select
+              className="pd-select"
+              style={styles.select}
+              value={annee}
+              onChange={(e) => setAnnee(Number(e.target.value))}
+            >
+              {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((a) => (
+                <option key={a} value={a}>{a}</option>
+              ))}
             </select>
           </div>
 
-          <div style={styles.filterGroup}>
+          <div className="pd-filter-group" style={styles.filterGroup}>
             <label style={styles.filterLabel}>{t.semester}</label>
-            <select style={styles.select} value={semestre} onChange={(e) => setSemestre(e.target.value as FiltreSemestre)}>
+            <select
+              className="pd-select"
+              style={styles.select}
+              value={semestre}
+              onChange={(e) => setSemestre(e.target.value as FiltreSemestre)}
+            >
               <option value="Tous">{t.allSemesters}</option>
               <option value="S1">{t.semester1}</option>
               <option value="S2">{t.semester2}</option>
             </select>
           </div>
 
-          <div style={styles.dateBox}>
+          <div className="pd-date" style={styles.dateBox}>
             <CalendarDays size={18} />
             <div>
               <div style={styles.dateLabel}>{t.dateOfLastUpdate}</div>
-  
-              <div style={styles.dateValue}>{dateMaj ? new Date(dateMaj).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric", timeZone: "Indian/Antananarivo" }) : "—"}</div>
+              <div style={styles.dateValue}>{dateAffichee}</div>
             </div>
           </div>
-          
         </div>
-        
       </div>
-      {/* ================== GLOBAL LAYOUT ================== */}
-      <div style={styles.layout}>
+
+      {/* ============ LAYOUT GLOBAL ============ */}
+      <div className="pd-layout">
         {/* COLONNE GAUCHE */}
-        <div style={styles.leftColumn}>
-          {/* ================= INDICATEURS ================= */}
+        <div className="pd-left">
+          {/* RÉALISATIONS CLÉS */}
           <div style={styles.leftBlock}>
             <div style={styles.sectionTitle}>
-              <TrendingUp size={30} />
+              <TrendingUp size={26} />
               <span>{t.keyAchievements}</span>
             </div>
 
-            <div style={styles.kpiGrid}>
-            <KpiCard
-              title={t.municipalBudgets}
-              value={fmtNombre(ind["R1.1"].valeur)}
-              unit={t.communes}
-              {...kpi("R1.1", t.communes)}
-              type="circle"
-            />
-            
-            <KpiCard
-              title={t.reductionBurnedAreas}
-              value={`${fmtNombre(ind["R1.2"].valeur)} %`}
-              unit={t.reduction}
-              {...kpi("R1.2", "%")}
-              icon={<Flame size={42} />}
-            />
-            
-            <KpiCard
-              title={t.ecosystems}
-              value={fmtNombre(ind["R2.1"].valeur)}
-              unit={t.ha}
-              {...kpi("R2.1", t.ha)}
-              icon={<Trees size={42} />}
-            />
-            
-            <KpiCard
-              title={t.smallholders}
-              value={fmtNombre(ind["R2.2"].valeur)}
-              unit={t.beneficiaries}
-              {...kpi("R2.2", t.beneficiaries)}
-              icon={<Users size={42} />}
-            />
+            <div className="pd-grid">
+              <KpiCard
+                title={t.municipalBudgets}
+                value={fmtNombre(ind["R1.1"].valeur)}
+                unit={t.communes}
+                {...kpi("R1.1", t.communes)}
+                type="circle"
+              />
+              <KpiCard
+                title={t.reductionBurnedAreas}
+                value={`${fmtNombre(ind["R1.2"].valeur)} %`}
+                unit={t.reduction}
+                {...kpi("R1.2", "%")}
+                icon={<Flame size={42} />}
+              />
+              <KpiCard
+                title={t.ecosystems}
+                value={fmtNombre(ind["R2.1"].valeur)}
+                unit={t.ha}
+                {...kpi("R2.1", t.ha)}
+                icon={<Trees size={42} />}
+              />
+              <KpiCard
+                title={t.smallholders}
+                value={fmtNombre(ind["R2.2"].valeur)}
+                unit={t.beneficiaries}
+                {...kpi("R2.2", t.beneficiaries)}
+                icon={<Users size={42} />}
+              />
             </div>
           </div>
 
-          {/* ================= RESULTATS CLES ================= */}
+          {/* RÉSULTATS CLÉS */}
           <div style={styles.resultSection}>
             <div style={styles.sectionTitle}>
-              <TrendingUp size={28} />
+              <TrendingUp size={26} />
               <span>{t.keyResults}</span>
             </div>
 
-            <div style={styles.resultGrid}>
-               <ResultCard
-                  icon={<Monitor size={20} />}
-                  title={t.regionsMonitoring}
-                  value={fmtNombre(ind["R1.1.1"].valeur)}
-                  unit={t.regions}
-                  {...kpi("R1.1.1", t.regions)}
-                />
-                
-                <ResultCard
-                  icon={<Home size={20} />}
-                  title={t.adoptedMeasures}
-                  value={fmtNombre(ind["R1.1.2"].valeur)}
-                  unit={t.measures}
-                  {...kpi("R1.1.2", t.communes)}
-                />
-                
-                <ResultCard
-                  icon={<FileText size={20} />}
-                  title={t.cosapDecisions}
-                  value={fmtNombre(ind["R1.2.1"].valeur)}
-                  unit={t.decisions}
-                  {...kpi("R1.2.1", t.decisions)}
-                />
-                
-                <ResultCard
-                  icon={<Leaf size={20} />}
-                  title={t.regionalPackages}
-                  value={fmtNombre(ind["R1.2.2"].valeur)}
-                  unit={t.packages}
-                  {...kpi("R1.2.2", t.packages)}
-                />           
+            <div className="pd-grid">
+              <ResultCard
+                icon={<Monitor size={20} />}
+                title={t.regionsMonitoring}
+                value={fmtNombre(ind["R1.1.1"].valeur)}
+                unit={t.regions}
+                {...kpi("R1.1.1", t.regions)}
+              />
+              <ResultCard
+                icon={<Home size={20} />}
+                title={t.adoptedMeasures}
+                value={fmtNombre(ind["R1.1.2"].valeur)}
+                unit={t.measures}
+                {...kpi("R1.1.2", t.communes)}
+              />
+              <ResultCard
+                icon={<FileText size={20} />}
+                title={t.cosapDecisions}
+                value={fmtNombre(ind["R1.2.1"].valeur)}
+                unit={t.decisions}
+                {...kpi("R1.2.1", t.decisions)}
+              />
+              <ResultCard
+                icon={<Leaf size={20} />}
+                title={t.regionalPackages}
+                value={fmtNombre(ind["R1.2.2"].valeur)}
+                unit={t.packages}
+                {...kpi("R1.2.2", t.packages)}
+              />
             </div>
           </div>
-        
+
           <div style={styles.realisationSection}>
-            {/* LIGNE KPI + GAUGE */}
             <div style={styles.kpiGroup}>
-              <div style={styles.realisationGrid}>
-                  <RealKpi
-                    title={t.sustainableAgropastoral}
-                    value={fmtNombre(ind["R2.1.1"].valeur)}
-                    unit={t.ha}
-                    {...kpi("R2.1.1", t.ha)}
-                    icon={<Tractor size={30} />}
-                  />
-                  
-                  <RealKpi
-                    title={t.sustainableForest}
-                    value={fmtNombre(ind["R2.1.2"].valeur)}
-                    unit={t.ha}
-                    {...kpi("R2.1.2", t.ha)}
-                    icon={<Trees size={30} />}
-                  />
-                  
-                  <RealKpi
-                    title={t.improvedProducers}
-                    value={fmtNombre(ind["R2.2.1"].valeur)}
-                    unit={t.producers}
-                    {...kpi("R2.2.1", t.producers)}
-                    icon={<Users size={30} />}
-                  />
-                  
-                  <RealKpi
-                    title={t.agrMicroBusinesses}
-                    value={fmtNombre(ind["R2.2.2"].valeur)}
-                    unit={t.companies}
-                    {...kpi("R2.2.2", t.companies)}
-                    icon={<Cog size={30} />}
-                  />      
+              <div className="pd-grid">
+                <RealKpi
+                  title={t.sustainableAgropastoral}
+                  value={fmtNombre(ind["R2.1.1"].valeur)}
+                  unit={t.ha}
+                  {...kpi("R2.1.1", t.ha)}
+                  icon={<Tractor size={30} />}
+                />
+                <RealKpi
+                  title={t.sustainableForest}
+                  value={fmtNombre(ind["R2.1.2"].valeur)}
+                  unit={t.ha}
+                  {...kpi("R2.1.2", t.ha)}
+                  icon={<Trees size={30} />}
+                />
+                <RealKpi
+                  title={t.improvedProducers}
+                  value={fmtNombre(ind["R2.2.1"].valeur)}
+                  unit={t.producers}
+                  {...kpi("R2.2.1", t.producers)}
+                  icon={<Users size={30} />}
+                />
+                <RealKpi
+                  title={t.agrMicroBusinesses}
+                  value={fmtNombre(ind["R2.2.2"].valeur)}
+                  unit={t.companies}
+                  {...kpi("R2.2.2", t.companies)}
+                  icon={<Cog size={30} />}
+                />
               </div>
             </div>
 
             <div style={styles.analyticsGroup}>
-          <div style={styles.analyticsGrid}>
-
-          <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>          
-              <DonutChart
-                  title={t.beneficiariesByGender}
-                    data={[{ name: t.men, value: tab.genre.hommes, color: '#16a34a' }, { name: t.women, value: tab.genre.femmes, color: '#eab308' }]}
+              <div className="pd-grid" style={{ gridAutoRows: "auto" }}>
+                <div style={styles.chartCard}>
+                  <DonutChart
+                    title={t.beneficiariesByGender}
+                    data={[
+                      { name: t.men, value: tab.genre.hommes, color: '#16a34a' },
+                      { name: t.women, value: tab.genre.femmes, color: '#eab308' },
+                    ]}
                     centerText={fmtNombre(tab.beneficiaires)}
                     centerLabel={t.producers}
-                />
-            </div>
+                  />
+                </div>
 
-            <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
-                <DonutChart
-                  title={t.youngBeneficiaries}
-                  data={[
-                    { name: t.under_18, value: tab.ages[0], color: '#ef4444' }, { name: t.between_18_35, value: tab.ages[1], color: '#22c55e' },
-                    { name: t.between_36_59, value: tab.ages[2], color: '#2563eb' }, { name: t.more_60, value: tab.ages[3], color: '#f97316' },
-                  ]}
-                  centerText={fmtNombre(tab.beneficiaires)}
-                  centerLabel={t.producers}
-                />
-            </div>
+                <div style={styles.chartCard}>
+                  <DonutChart
+                    title={t.youngBeneficiaries}
+                    data={[
+                      { name: t.under_18, value: tab.ages[0], color: '#ef4444' },
+                      { name: t.between_18_35, value: tab.ages[1], color: '#22c55e' },
+                      { name: t.between_36_59, value: tab.ages[2], color: '#2563eb' },
+                      { name: t.more_60, value: tab.ages[3], color: '#f97316' },
+                    ]}
+                    centerText={fmtNombre(tab.beneficiaires)}
+                    centerLabel={t.producers}
+                  />
+                </div>
 
-            <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
+                <div style={styles.chartCard}>
+                  <DonutChart
+                    title={t.indicatorStatus}
+                    showPercentage={false}
+                    data={[
+                      { name: t.under25, value: tab.statuts[0], color: '#ef4444' },
+                      { name: t.between25_50, value: tab.statuts[1], color: '#f59e0b' },
+                      { name: t.between50_75, value: tab.statuts[2], color: '#16a34a' },
+                      { name: t.over75, value: tab.statuts[3], color: '#2563eb' },
+                    ]}
+                    centerText={String(tab.nbIndicateurs)}
+                  />
+                </div>
 
-              <DonutChart
-                  title={t.indicatorStatus}
-                  showPercentage={false}
-                  data={[
-                    { name: t.under25, value: tab.statuts[0], color: '#ef4444' }, { name: t.between25_50, value: tab.statuts[1], color: '#f59e0b' },
-                    { name: t.between50_75, value: tab.statuts[2], color: '#16a34a' }, { name: t.over75, value: tab.statuts[3], color: '#2563eb' },
-                  ]}
-                  centerText={String(tab.nbIndicateurs)}
-                />
-            </div>
-
-            <div style={{ ...styles.chartCard, justifyContent: 'flex-start' }}>
-              
-                <GaugeKpi
-                  value={tab.avancementGlobal}
-                  title={t.globalProjectProgress}
-                  label={t.globalProgress}
-                />
+                <div style={styles.chartCard}>
+                  <GaugeKpi
+                    value={tab.avancementGlobal}
+                    title={t.globalProjectProgress}
+                    label={t.globalProgress}
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-        
-    </div>
 
         {/* COLONNE DROITE */}
-        <div style={styles.rightBlock}>
+        <div className="pd-right">
           <div style={styles.sectionTitle}>
-            <MapPinned size={28} />
+            <MapPinned size={26} />
             <span>{t.interventionZone}</span>
-              <button
-                type="button"
-                onClick={() => setShowLogin(true)}
-                style={styles.updateButton}
-              >
-                <RefreshCw size={16} />
-                <span>Mettre à jour</span>
-              </button>
-
+            <button type="button" onClick={() => setShowLogin(true)} style={styles.updateButton}>
+              <RefreshCw size={16} />
+              <span>{t.update}</span>
+            </button>
           </div>
 
-          <div style={styles.mapCard}>
+          <div className="pd-map" style={styles.mapCard}>
             <MapContainer
               center={[-18.8792, 47.5079]}
               zoom={6}
-              style={{ width: "100%", height: "100%", minHeight: "380px" }}
+              style={{ width: "100%", height: "100%" }}
             >
               <TileLayer
                 attribution="© ESRI"
@@ -1064,191 +871,131 @@ return (
               />
               <ScaleControl position="bottomleft" imperial={false} />
 
-              {geoFiltered?.features?.length > 0 && (
+              {/* Ordre des couches important : régions, puis aires protégées, puis bureaux */}
+              {hasRegions && (
                 <>
                   <RegionLayer
                     key={`${selectedAntenne}-${geoFiltered?.features?.length}`}
                     data={geoFiltered}
-                    getColorByAntenne={getColorByAntenne}
                   />
-
-                {aireProtegeeFiltered?.features?.length > 0 && (
-                  <AireProtegeeLayer
-                  key={`${selectedAntenne}-ap`}
-                  data={aireProtegeeFiltered}
-                  selectedAntenne={selectedAntenne}
-                />
-                )}
-
-              {bureauFiltered?.features?.length > 0 && (
-                <BureauLayer
-                  key={selectedAntenne || "all-bureau"}
-                  data={bureauFiltered}
-                />
-              )}
-
+                  {(aireProtegeeFiltered?.features?.length ?? 0) > 0 && (
+                    <AireProtegeeLayer
+                      key={`${selectedAntenne}-ap`}
+                      data={aireProtegeeFiltered}
+                      selectedAntenne={selectedAntenne}
+                    />
+                  )}
+                  {(bureauFiltered?.features?.length ?? 0) > 0 && (
+                    <BureauLayer key={selectedAntenne || "all-bureau"} data={bureauFiltered} />
+                  )}
                   <AutoZoom geoData={geoFiltered} />
                 </>
               )}
 
               <LegendControl
                 antennes={antennes}
-                getColorByAntenne={getColorByAntenne}
                 legendText={t.legend}
                 officeText={t.office}
                 protectedAreaText={t.protectedArea}
               />
             </MapContainer>
-          </div> {/* ferme mapCard */}
-        </div>   {/* ferme rightBlock */}
-      </div>     {/* ferme layout */}
+          </div>
+        </div>
+      </div>
 
       {showLogin && (
-        <LoginModal onClose={() => setShowLogin(false)}
-          onSuccess={(name, jeton) => { setUserName(name); setToken(jeton); setShowLogin(false); setShowUpdate(true); }} />
+        <LoginModal
+          onClose={() => setShowLogin(false)}
+          onSuccess={(name: string, jeton: string) => {
+            setUserName(name);
+            setToken(jeton);
+            setShowLogin(false);
+            setShowUpdate(true);
+          }}
+        />
       )}
       {showUpdate && (
         <UpdateIndicateursModal
           onClose={() => { setShowUpdate(false); setToken(""); }}
-          userName={userName} token={token} base={base}
-          anneeParDefaut={annee} antenneParDefaut={selectedAntenne}
-          onImported={chargerDate} />
+          userName={userName}
+          token={token}
+          base={base}
+          anneeParDefaut={annee}
+          antenneParDefaut={selectedAntenne}
+          onImported={chargerDate}
+        />
       )}
-    </div>    
-  );  
-}
-/* ================= KPI ================= */
-
-function CustomScale() {
-  return (
-    <div
-      style={{
-        position: 'relative',
-        bottom: 15,
-        left: 15,
-        background: 'white',
-        padding: '6px 10px',
-        borderRadius: 6,
-        boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
-        fontSize: 11,
-        fontWeight: 600,
-        zIndex: 100,
-      }}
-    >
-      <div style={{ height: 4, width: 50, background: '#111', marginBottom: 4 }} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', width: 50 }}>
-        <span>0</span>
-        <span>50 km</span>
-      </div>
     </div>
   );
 }
 
-function KpiCard({
-  title,
-  value,
-  unit,
-  percent,
-  target,
-  color,
-  icon,
-  type,
-}: any) {
+/* ================= COMPOSANTS ================= */
+
+function ProgressBar({ percent, color }: { percent: number; color: string }) {
+  return (
+    <div style={styles.barRow}>
+      <div style={styles.barBg}>
+        <div style={{ ...styles.barFill, width: `${clampPct(percent)}%`, background: color }} />
+      </div>
+      <span style={styles.percentText}>{percent}%</span>
+    </div>
+  );
+}
+
+function KpiCard({ title, value, unit, percent, target, color, icon, type }: any) {
   return (
     <div style={styles.card}>
       <div style={styles.kpiTitle}>{title}</div>
 
       <div style={styles.row}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={styles.value}>{value}</div>
           <div style={styles.unit}>{unit}</div>
         </div>
 
         {type === 'circle' ? (
-          <div
-            style={{
-              ...styles.circle,
-              background: `conic-gradient(${color} ${percent}%, #eee 0)`,
-            }}
-          >
+          <div style={{ ...styles.circle, background: `conic-gradient(${color} ${clampPct(percent)}%, #eee 0)` }}>
             <div style={styles.circleInner}>{percent}%</div>
           </div>
         ) : (
-          <div style={{ color }}>{icon}</div>
+          <div style={{ color, flexShrink: 0 }}>{icon}</div>
         )}
       </div>
 
-      <div style={styles.barRow}>
-        <div style={styles.barBg}>
-          {/* ambony --- card */}
-          <div
-            style={{
-              ...styles.barFill,
-              width: `${percent}%`,
-              background: color,
-            }}
-          />
-        </div>
-
-        <span style={styles.percentText}>{percent}%</span>
-      </div>
-
+      <ProgressBar percent={percent} color={color} />
       <div style={styles.target}>{target}</div>
     </div>
   );
 }
 
-
-function ResultCard({ icon, title, value, unit, percent, target }: any) {
-  const progressColor =
-    percent < 26
-      ? "#ef4444"
-      : percent < 51
-      ? "#f59e0b"
-      : percent < 76
-      ? "#22c55e"
-      : "#2563eb";
+function ResultCard({ icon, title, value, unit, percent, target, color }: any) {
+  // La couleur vient maintenant de couleurPct (comme les autres cartes),
+  // au lieu d'un second jeu de seuils codé en dur.
   return (
     <div style={styles.resultCard}>
-      {/* TITRE */}
       <div style={styles.resultTitle}>{title}</div>
 
-      {/* CONTENU HAUT */}
       <div style={styles.resultTop}>
-        {/* LEFT */}
         <div style={styles.resultContent}>
           <div style={styles.resultValue}>{value}</div>
           <div style={styles.resultUnit}>{unit}</div>
         </div>
 
-        {/* RIGHT ICON (centré proprement) */}
-       <div
+        <div
           style={{
             ...styles.resultIcon,
-            color: progressColor,
-            background: `${progressColor}20`,
-            border: `1px solid ${progressColor}40`,
-            }}>
+            color,
+            background: `${color}20`,
+            border: `1px solid ${color}40`,
+          }}
+        >
           {icon}
         </div>
       </div>
 
-      {/* BAR */}
-      <div style={styles.barRow}>
-        <div style={styles.barBg}>
-         <div
-            style={{
-              ...styles.barFill,
-              width: `${percent}%`,
-              background: progressColor,
-            }}
-          />
-        </div>
-
-        <span style={styles.percentText}>{percent}%</span>
+      <div style={{ padding: '0 8px' }}>
+        <ProgressBar percent={percent} color={color} />
       </div>
-
-      {/* TARGET */}
       <div style={styles.resultTarget}>{target}</div>
     </div>
   );
@@ -1259,142 +1006,59 @@ function RealKpi({ title, value, unit, target, percent, color, icon }: any) {
     <div style={styles.realCard}>
       <div style={styles.realTitle}>{title}</div>
 
-      {/* VALUE + ICON */}
       <div style={styles.realTop}>
-        <div>
+        <div style={{ minWidth: 0 }}>
           <div style={styles.realValue}>{value}</div>
           <div style={styles.realUnit}>{unit}</div>
         </div>
 
-        <div
-          style={{
-            ...styles.realIcon,
-            background: `${color}15`,
-            color: color,
-            border: `1px solid ${color}30`,
-          }}
-        >
+        <div style={{ ...styles.realIcon, background: `${color}15`, color, border: `1px solid ${color}30` }}>
           {icon}
         </div>
       </div>
 
-      {/* BAR */}
-      <div style={styles.barRow}>
-        <div style={styles.barBg}>
-          <div
-            style={{
-              ...styles.barFill,
-              width: `${percent}%`,
-              background: color,
-            }}
-          />
-        </div>
-
-        <span style={styles.percentText}>{percent}%</span>
-      </div>
-
+      <ProgressBar percent={percent} color={color} />
       <div style={styles.target}>{target}</div>
     </div>
   );
 }
 
 function GaugeKpi({ value, title, label }: any) {
-  const clamp = Math.min(Math.max(value, 0), 100);
-
-  const color =
-    clamp <= 30 ? '#dc2626' : clamp <= 55 ? '#f97316' : '#16a34a';
-
-  const data = [
-    { value: clamp },
-    { value: 100 - clamp },
-  ];
+  const clamp = clampPct(value);
+  // Même échelle de couleurs que les barres et le donut « statut » (avant : seuils 30/55 différents).
+  const color = couleurPct(clamp);
+  const data = [{ value: clamp }, { value: 100 - clamp }];
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: 200,
-        width: '100%',
-      }}
-    >
-      {/* TITRE */}
-      <div
-        style={{
-          fontSize: 12,
-          fontWeight: 700,
-          marginBottom: 6,
-          textAlign: 'center',
-        }}
-      >
-        {title}
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', minHeight: 220 }}>
+      <div style={styles.chartTitle}>{title}</div>
 
-      {/* JAUGE */}
-      <div style={{ width: '100%', height: 180, position: 'relative', marginTop: 20, }}>
+      <div style={{ width: '100%', height: 170, position: 'relative', marginTop: 10 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie
-              data={data}
-              startAngle={180}
-              endAngle={0}
-              innerRadius={50}
-              outerRadius={80}
-              dataKey="value"
-              stroke="none"
-            >
+            <Pie data={data} startAngle={180} endAngle={0} innerRadius={50} outerRadius={80} dataKey="value" stroke="none">
               <Cell fill={color} />
               <Cell fill="#e5e7eb" />
             </Pie>
           </PieChart>
         </ResponsiveContainer>
 
-        {/* TEXTE CENTRÉ DANS LA JAUGE */}
-        <div
-          style={{
-            position: 'absolute',
-            top: '55%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            textAlign: 'center',
-          }}
-        >
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 800,
-              color,
-              lineHeight: 1,
-            }}
-          >
-            {clamp}%
-          </div>
-          <div
-            style={{
-              fontSize: 11,
-              color: '#666',
-              marginTop: 2,
-            }}
-          >
-            {label}
-          </div>
+        <div style={{ position: 'absolute', top: '55%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{clamp}%</div>
+          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{label}</div>
         </div>
       </div>
     </div>
   );
 }
 
-function DonutChart({ title, data, centerText, centerLabel,showPercentage = true }: any) {
+function DonutChart({ title, data, centerText, centerLabel, showPercentage = true }: any) {
   return (
     <div style={styles.donutCard}>
-      {/* TITRE */}
       <div style={styles.chartTitle}>{title}</div>
 
-      {/* CHART */}
       <div style={styles.donutWrapper}>
-        <ResponsiveContainer width="100%" height={160}>
+        <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
@@ -1407,33 +1071,15 @@ function DonutChart({ title, data, centerText, centerLabel,showPercentage = true
               stroke="#ffffff"
               strokeWidth={3}
               labelLine={false}
-              label={({
-                cx,
-                cy,
-                midAngle,
-                innerRadius,
-                outerRadius,
-                value,
-              }) => {
+              label={({ cx, cy, midAngle, innerRadius, outerRadius, value }: any) => {
+                if (!value) return null; // pas d'étiquette « 0% » superposée aux autres
                 const RADIAN = Math.PI / 180;
                 const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
-
                 const x = cx + radius * Math.cos(-midAngle * RADIAN);
-
                 const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
                 return (
-                  <text
-                    x={x}
-                    y={y}
-                    fill="#fff"
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 800,
-                    }}
-                  >
+                  <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central"
+                    style={{ fontSize: 12, fontWeight: 800 }}>
                     {showPercentage ? `${value}%` : value}
                   </text>
                 );
@@ -1446,24 +1092,16 @@ function DonutChart({ title, data, centerText, centerLabel,showPercentage = true
           </PieChart>
         </ResponsiveContainer>
 
-        {/* CENTRE */}
         <div style={styles.donutCenter}>
           <div style={styles.donutCenterValue}>{centerText}</div>
-
-          <div style={styles.donutCenterLabel}>{centerLabel}</div>
+          {centerLabel && <div style={styles.donutCenterLabel}>{centerLabel}</div>}
         </div>
       </div>
 
-      {/* LEGENDE */}
       <div style={styles.legendModern}>
         {data.map((d: any, i: number) => (
           <div key={i} style={styles.legendModernItem}>
-            <span
-              style={{
-                ...styles.legendDot,
-                background: d.color,
-              }}
-            />
+            <span style={{ ...styles.legendDot, background: d.color }} />
             <span style={styles.legendText}>{d.name}</span>
           </div>
         ))}
@@ -1472,578 +1110,22 @@ function DonutChart({ title, data, centerText, centerLabel,showPercentage = true
   );
 }
 
-const isTablet =
-  typeof window !== 'undefined' && window.innerWidth < 1024;
+/* ================= STYLES =================
+   Plus de isMobile / isTablet calculés au chargement du module (ils ne réagissaient
+   ni au redimensionnement ni à la rotation) : toute la partie « grille / hauteur »
+   est dans RESPONSIVE_CSS. */
 
-const isMobile =
-  typeof window !== 'undefined' && window.innerWidth < 768;
-/* ================= STYLES ================= */
-
-
-const styles: any = {
+const styles: Record<string, React.CSSProperties> = {
   page: {
-    padding: '2px 0',
+    padding: '2px 4px',
     margin: 0,
-    width: '100%',
-    height: '100vh',
-    minHeight: '100vh',
-    background: 'none',
     display: 'flex',
     flexDirection: 'column',
     fontFamily: 'Inter, system-ui, sans-serif',
     boxSizing: 'border-box',
   },
 
-  layout: {
-    display: 'grid',
-    gridTemplateColumns: isTablet ? '1fr' : '2fr 1fr',
-    gap: 8,
-    alignItems: 'start', 
-    height: 'auto',
-    minHeight: 'auto',
-    overflow: 'visible',
-    paddingBottom: 5,
-  },
-
-  title: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: '#14532d',
-  },
-  /* LEFT */
-  leftBlock: {
-    background: '#fff',
-    padding: 10,
-    borderRadius: 10,
-    textAlign: 'center',
-  },
-
-  sectionTitle: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-    alignItems: 'center',
-    gap: 8,
-    fontWeight: 800,
-    marginBottom: 10,
-    color: '#14532d',
-  },
-
-  leftColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 8,
-    height: '100%',
-    minHeight: 0,
-    overflow: 'visible',
-  },
-
-  /* KPI GRID (réduite) */
-  kpiGrid: {
-    display: 'grid',
-    gridTemplateColumns: isMobile
-      ? '1fr'
-      : isTablet
-      ? 'repeat(2, minmax(0, 1fr))'
-      : 'repeat(4, minmax(0, 1fr))',
-    gap: 6,
-    gridAutoRows: '1fr',
-    alignItems: 'stretch',
-  },
-
-  card: {
-    background: '#fafafa',
-    borderRadius: 8,
-    height: '100%',
-    padding: 6,
-    minHeight: 130,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    textAlign: 'center',
-    overflow: 'hidden',
-    width: '100%',      // AJOUT
-  },
-
-  kpiTitle: {
-    fontSize: 10,
-    fontWeight: 800,
-    color: '#111',
-    textAlign: 'center',
-    width: '100%',
-  },
-
-  row: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 8,
-  },
-
-  value: {
-    fontSize: 16,
-    fontWeight: 800,
-  },
-
-  unit: {
-    fontSize: 10,
-    color: '#666',
-  },
-
-  circle: {
-    width: 38,
-    height: 38,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  circleInner: {
-    fontSize: 9,
-    fontWeight: 800,
-    background: '#fff',
-    width: 24,
-    height: 24,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  barBg: {
-     //background: '#1a5ada',
-    background: '#e5e7eb',
-    flex: 1,
-    height: 8,
-    borderRadius: 6,
-    overflow: 'hidden',
-    minWidth: 0,
-  },
-
-  barFill: {
-    height: '100%',
-    borderRadius: 10,
-  },
-
-  target: {
-    fontSize: 8,
-    marginTop: 3,
-    color: '#666',
-  },
-
-  barRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
-  },
-
-  percentText: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#111',
-    minWidth: 30,
-    textAlign: 'right',
-  },
-
-  /* RIGHT ZONE INTERVENTION */
-  rightBlock: {
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    top: 10,
-    height: '100%',
-  },
-
-  mapCard: {
-    flex: 1,
-    height: '100%',
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-
-  mapImg: {
-    width: '100%',
-    height: 'auto',
-  },
-
-  infoTitle: {
-    fontWeight: 700,
-    color: '#334155',
-    marginBottom: 10,
-    textAlign: 'center',
-    width: '100%',
-  },
-
-  percentRight: {
-    fontSize: 10,
-    fontWeight: 700,
-    color: '#111',
-    minWidth: 28,
-    textAlign: 'right',
-  },
-
-  resultSection: {
-    marginTop: 0,
-    background: '#fff',
-    marginBottom: 10,
-    padding: 10,
-    borderRadius: 10,
-  },
-
-  resultGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-    gap: 6,
-    width: '100%',
-    gridAutoRows: '1fr',
-    alignItems: 'stretch',
-  },
-
-  resultCard: {
-    background: '#fff',
-    borderRadius: 10,
-    gap: 4,
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    width: '100%',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-    overflow: 'hidden',
-    padding: 1,
-    minHeight: 120, // ⬅️ avant 150
-  },
-
-  resultTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '0 10px',
-  },
-
-  resultTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#111827',
-    lineHeight: 1.2,
-    textAlign: 'center',
-    width: '100%',
-    marginBottom: 8,
-  },
-
-  resultValue: {
-    fontSize: 16,
-    fontWeight: 800,
-    color: '#14532d',
-  },
-
-  resultUnit: {
-    fontSize: 11,
-    color: '#6b7280',
-  },
-
-  resultTarget: {
-    fontSize: 10,
-    marginTop: 4,
-    marginleft: 24,
-    color: '#6b7280',
-  },
-
-  resultIcon: {
-    width: 42,
-    height: 42,
-    minWidth: 42,
-    borderRadius: '50%',
-    //background: '#dcfce7',
-    //color: '#a3168b',
-    //color: '#16a34a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-    flexShrink: 0,
-    border: '1px solid #bbf7d0', // 🔥 renforce visibilité du cercle
-    boxShadow: '0 1px 3px rgba(0,0,0,0.08)', // léger relief
-  },
-
-  resultContent: {
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    gap: 1,
-    padding: '0 10px',   // 🔥 espace à gauche de value
-  },
-
-  iconBox: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: 6,
-    // color: '#a31676',
-    color: '#16a34a',
-  },
-
-  realisationSection: {
-    width: '100%',
-    background: 'transparent',
-    padding: 10,
-    borderRadius: 10,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 12,
-  },
-
-  realisationGrid: {
-    display: 'grid',
-    gridTemplateColumns: isMobile
-      ? '1fr'
-      : isTablet
-      ? 'repeat(2, minmax(0, 1fr))'
-      : 'repeat(4, minmax(0, 1fr))',
-    gap: 8,
-    gridAutoRows: '1fr',
-    alignItems: 'stretch',
-    width: '100%',
-    minWidth: 0,
-  },
-
-  realCard: {
-    height: '100%',
-    display: 'flex',
-    flexDirection: 'column',
-    background: '#fafafa',
-    padding: 10,
-    borderRadius: 10,
-    justifyContent: 'space-between',
-    minWidth: 0, // 🔥 IMPORTANT
-    overflow: 'hidden',
-  },
-
-  realTitle: {
-    fontSize: 10,
-    fontWeight: 700,
-    textAlign: 'center', // 🔥 AJOUT
-    width: '100%',
-  },
-
-  realTop: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: 8,
-  paddingRight: 8,
-  },
-
-  realValue: {
-    fontSize: 18,
-    fontWeight: 800,
-  },
-
-  realUnit: {
-    fontSize: 10,
-    color: '#666',
-  },
-
-  realIcon: {
-    width: 42,
-    height: 42,
-    minWidth: 42,
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 4,
-    boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
-  },
-
-  chartBox: {
-    background: '#fff',
-    padding: 6,
-    borderRadius: 10,
-    width: '100%',
-    height: isMobile ? 200 : 240,
-    overflow: 'hidden',
-  },
-
-  chartTitle: {
-    fontSize: 11,
-    fontWeight: 700,
-    marginBottom: 2,
-    lineHeight: 1.1,
-    textAlign: 'center',
-  },
-
-  donutCenter: {
-    position: 'absolute',
-    top: '60%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    textAlign: 'center',
-  },
-
-  legend: {
-    fontSize: 10,
-    marginTop: 0,
-  },
-
-  legendItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 1,
-    fontSize: 10,
-  },
-
-  legendBox: {
-    width: 5,
-    height: 5,
-    borderRadius: 0,
-  },
-
-  realisationGrid2: {
-    display: 'grid',
-    gridTemplateColumns: isTablet ? '1fr' : '2fr 1fr',
-    gap: 6,
-    alignItems: 'stretch',
-  },
-
-  pieBox: {
-    height: '100%',
-    minHeight: 0,
-    display: 'flex',
-    alignItems: 'stretch',
-    justifyContent: 'center',
-  },
-
-  donutCard: {
-    width: '100%',
-    height: 220,
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-  },
-
-  donutWrapper: {
-    position: 'relative',
-    width: '100%',
-    height: 140,
-    marginTop: 0,
-    marginBottom: 10,
-  },
-
-  donutCenterValue: {
-    fontSize: 20,
-    fontWeight: 800,
-    color: '#111827',
-    lineHeight: 1,
-  },
-
-  donutCenterLabel: {
-    fontSize: 10,
-    color: '#6b7280',
-    marginTop: 2,
-  },
-
-  legendModern: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 8,
-  },
-
-  legendModernItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 5,
-    background: '#fff',
-    padding: '1px 3px',
-  },
-
-  legendDot: {
-    width: 15,
-    height: 15,
-    borderRadius: '50%',
-    marginRight: 6,
-  },
-
-  legendText: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: 600,
-    color: '#374151',
-  },
-
-  legendPercent: {
-    fontSize: 11,
-    fontWeight: 800,
-    color: '#111827',
-  },
-
-  sectionIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: '50%',
-    background: 'transparent',
-    color: '#16a34a',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
-  },
-
-  mapSection: {
-    marginTop: 10,
-    background: '#f8fafc',
-    borderRadius: 10,
-    padding: 12,
-    border: '1px solid #e5e7eb',
-  },
-
-  legendRight: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 6,
-    minWidth: 140,
-  },
-
-  donutGroup: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-  },
-
-  donutGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'minmax(0, 1fr) 1fr',
-    gap: 8,
-  },
-
-  donutContainer: {
-    display: 'grid',
-    gridTemplateColumns: isTablet ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
-    gap: 2,
-    width: '100%',
-  },
-
-  donutRow: {
-    display: 'grid',
-    gridTemplateColumns: isMobile
-      ? '1fr'
-      : 'repeat(4,1fr)',
-    gap: 8,
-    width: '100%',
-  },
-
-  realisationTitle: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    fontWeight: 800,
-    marginBottom: 10,
-    color: '#14532d',
-    textAlign: 'center',
-  },
-
+  /* HEADER */
   header: {
     marginBottom: 10,
     display: 'flex',
@@ -2052,147 +1134,161 @@ const styles: any = {
     flexWrap: 'wrap',
     gap: 10,
   },
-
-  headerFilters: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-
-  filterGroup: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 4,
-  },
-
-  filterLabel: {
-    fontSize: 11,
-    fontWeight: 700,
-    color: '#14532d',
-  },
-
+  title: { margin: 0, fontSize: 'clamp(16px, 2.2vw, 22px)', fontWeight: 800, color: '#14532d' },
+  headerFilters: { display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' },
+  filterGroup: { display: 'flex', flexDirection: 'column', gap: 4 },
+  filterLabel: { fontSize: 11, fontWeight: 700, color: '#14532d' },
   select: {
     padding: '6px 10px',
     borderRadius: 8,
     border: '1px solid #d1d5db',
     background: '#fff',
-    fontSize: 12,
     fontWeight: 600,
     color: '#111827',
     cursor: 'pointer',
     outline: 'none',
     minWidth: 110,
   },
-
-  analyticsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, minmax(0, 0.75fr)) 0.8fr',
-    gap: 10,
-    alignItems: 'stretch',
-    width: '100%',
-  },
-
-  chartCard: {
-    background: '#fff',
-    borderRadius: 10,
-    padding: 8,        // ↓ réduit padding
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'space-between',  
-    minWidth: 0,
-    overflow: 'hidden',
-  },
-
-  gaugeBox: {
-    background: '#fff',
-    borderRadius: 10,
-    padding: 10,  
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',  
-    height: '100%',
-    minHeight: 0,
-  },
-
-  sectionDivider: {
-    height: 1,
-    background: '#e5e7eb',
-    margin: '4px 0',
-  },
-
-  kpiGroup: {
-    background: '#f8fafc',
-    border: '1px solid #e5e7eb',
-    borderRadius: 10,
-    padding: 12,
-    minHeight: 130,
-    width: '100%',
-    maxWidth: '100%',
-    minWidth: 0,
-    overflow: 'hidden',
-    boxSizing: 'border-box',
-  },
-
-  analyticsGroup: {
-    background: '#f8fafc',
-    border: '1px solid #e5e7eb',
-    borderRadius: 10,
-    padding: 12,
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 10,
-  },
-
-  footer: {
-    marginTop: 10,
-    padding: 10,
-    textAlign: 'center',
-    fontSize: 11,
-    color: '#6b7280',
-    borderTop: '1px solid #e5e7eb',
-    background: '#fff',
-    position: 'relative',
-    zIndex: 1,
-  },
+  // Avant : fond blanc à 12 % d'opacité sur fond clair = boîte invisible.
   dateBox: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    background: 'rgba(255,255,255,0.12)',
-    padding: '14px 14px',
+    background: '#fff',
+    border: '1px solid #e5e7eb',
+    color: '#14532d',
+    padding: '8px 14px',
     borderRadius: 10,
   },
-  
-  dateLabel: {
-    fontSize: 11,
-    opacity: 0.8,
-  },
+  dateLabel: { fontSize: 11, opacity: 0.8 },
+  dateValue: { fontSize: 12, fontWeight: 700 },
 
-  dateValue: {
+  /* BLOCS */
+  leftBlock: { background: '#fff', padding: 10, borderRadius: 10, textAlign: 'center', minWidth: 0 },
+  sectionTitle: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    fontWeight: 800,
+    marginBottom: 10,
+    color: '#14532d',
+  },
+  updateButton: {
+    marginLeft: 'auto',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    padding: '8px 12px',
+    border: 'none',
+    borderRadius: 8,
+    background: '#14532d',
+    color: '#fff',
     fontSize: 12,
     fontWeight: 700,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    boxShadow: '0 2px 5px rgba(20, 83, 45, 0.2)',
+  },
+  mapCard: { borderRadius: 8, overflow: 'hidden' },
+
+  /* KPI */
+  card: {
+    background: '#fafafa',
+    borderRadius: 8,
+    padding: 8,
+    minHeight: 130,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    gap: 4,
+    textAlign: 'center',
+    overflow: 'hidden',
+    minWidth: 0,
+  },
+  kpiTitle: { fontSize: 11, fontWeight: 800, color: '#111', textAlign: 'center', width: '100%', overflowWrap: 'anywhere' },
+  row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  value: { fontSize: 16, fontWeight: 800 },
+  unit: { fontSize: 11, color: '#666' },
+  circle: { width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  circleInner: {
+    fontSize: 9, fontWeight: 800, background: '#fff', width: 24, height: 24,
+    borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  barRow: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 },
+  barBg: { background: '#e5e7eb', flex: 1, height: 8, borderRadius: 6, overflow: 'hidden', minWidth: 0 },
+  barFill: { height: '100%', borderRadius: 10 },
+  percentText: { fontSize: 11, fontWeight: 700, color: '#111', minWidth: 34, textAlign: 'right' },
+  target: { fontSize: 10, marginTop: 3, color: '#666', overflowWrap: 'anywhere' },
+
+  /* RÉSULTATS CLÉS */
+  resultSection: { background: '#fff', padding: 10, borderRadius: 10, minWidth: 0 },
+  resultCard: {
+    background: '#fff',
+    borderRadius: 10,
+    gap: 4,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'space-between',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+    overflow: 'hidden',
+    padding: 6,
+    minHeight: 120,
+    minWidth: 0,
+  },
+  resultTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px', gap: 6 },
+  resultTitle: { fontSize: 11, fontWeight: 700, color: '#111827', lineHeight: 1.2, textAlign: 'center', width: '100%', marginBottom: 6, overflowWrap: 'anywhere' },
+  resultContent: { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, minWidth: 0 },
+  resultValue: { fontSize: 16, fontWeight: 800, color: '#14532d' },
+  resultUnit: { fontSize: 11, color: '#6b7280' },
+  resultTarget: { fontSize: 10, marginTop: 4, padding: '0 8px', color: '#6b7280', overflowWrap: 'anywhere' },
+  resultIcon: {
+    width: 42, height: 42, minWidth: 42, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
   },
 
-  updateButton: {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 8,
-  padding: "10px 14px",
-  border: "none",
-  borderRadius: 8,
-  background: "#14532d",
-  color: "#fff",
-  fontSize: 12,
-  fontWeight: 700,
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-  boxShadow: "0 2px 5px rgba(20, 83, 45, 0.2)",
-},
+  /* RÉALISATIONS */
+  realisationSection: { width: '100%', background: 'transparent', padding: 0, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 },
+  kpiGroup: {
+    background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: 10,
+    width: '100%', minWidth: 0, overflow: 'hidden', boxSizing: 'border-box',
+  },
+  realCard: {
+    display: 'flex', flexDirection: 'column', background: '#fafafa', padding: 10, gap: 4,
+    borderRadius: 10, justifyContent: 'space-between', minWidth: 0, overflow: 'hidden',
+  },
+  realTitle: { fontSize: 11, fontWeight: 700, textAlign: 'center', width: '100%', overflowWrap: 'anywhere' },
+  realTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', gap: 6 },
+  realValue: { fontSize: 18, fontWeight: 800 },
+  realUnit: { fontSize: 11, color: '#666' },
+  realIcon: {
+    width: 42, height: 42, minWidth: 42, borderRadius: '50%',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.06)', flexShrink: 0,
+  },
 
+  /* GRAPHIQUES */
+  analyticsGroup: {
+    background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: 10,
+    display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0,
+  },
+  chartCard: {
+    background: '#fff', borderRadius: 10, padding: 8, display: 'flex',
+    flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+    minWidth: 0, overflow: 'hidden',
+  },
+  chartTitle: { fontSize: 11, fontWeight: 700, marginBottom: 4, lineHeight: 1.2, textAlign: 'center' },
+  // Hauteur fixe (220) supprimée : la légende était coupée quand elle passait à la ligne.
+  donutCard: { width: '100%', minHeight: 240, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
+  donutWrapper: { position: 'relative', width: '100%', height: 160 },
+  donutCenter: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' },
+  donutCenterValue: { fontSize: 20, fontWeight: 800, color: '#111827', lineHeight: 1 },
+  donutCenterLabel: { fontSize: 10, color: '#6b7280', marginTop: 2 },
+  legendModern: { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 8 },
+  legendModernItem: { display: 'flex', alignItems: 'center', gap: 5, padding: '1px 3px' },
+  legendDot: { width: 12, height: 12, borderRadius: '50%', flexShrink: 0 },
+  legendText: { fontSize: 11, fontWeight: 600, color: '#374151' },
 };
-
-
