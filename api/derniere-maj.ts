@@ -1,5 +1,4 @@
 /// <reference types="node" />
-import type { NextApiRequest, NextApiResponse } from "next";
 import { createHmac, timingSafeEqual } from "crypto";
 
 /* api/derniere-maj.ts
@@ -47,7 +46,7 @@ async function dateDernierCommit(owner: string, repo: string, branch: string, to
   return Number.isFinite(t) ? t : null;
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "GET" && req.method !== "POST") {
     return res.status(405).json({ error: "Méthode non autorisée." });
   }
