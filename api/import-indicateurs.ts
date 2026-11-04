@@ -1,5 +1,4 @@
 /// <reference types="node" />
-import type { NextApiRequest, NextApiResponse } from "next";
 import { createHmac, timingSafeEqual } from "crypto";
 
 /* =====================================================================
@@ -130,7 +129,7 @@ async function ajouterHistorique(url: string, branch: string, headers: Record<st
 }
 
 /* ---------- Handler ---------- */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") return res.status(405).json({ error: "Méthode non autorisée." });
 
   const token = process.env.GITHUB_TOKEN;
