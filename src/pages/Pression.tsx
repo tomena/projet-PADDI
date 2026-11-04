@@ -707,6 +707,7 @@ export default function Pression() {
     const c = compterParZone(feuxAffiches, paysagesVisibles);
     return paysagesVisibles
       .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
+      .filter((x) => x.nombre > 0)
       .sort((a, b) => b.nombre - a.nombre);
   }, [feuxAffiches, paysagesVisibles]);
 
@@ -714,6 +715,7 @@ export default function Pression() {
     const c = compterParZone(feuxAffiches, mbvVisibles);
     return mbvVisibles
       .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
+      .filter((x) => x.nombre > 0)
       .sort((a, b) => b.nombre - a.nombre);
   }, [feuxAffiches, mbvVisibles]);
 
@@ -1018,15 +1020,16 @@ export default function Pression() {
 
   const stylePaysage = (): L.PathOptions => ({
     color: '#6d28d9',
-    weight: 1.5,
+    weight: 2.5,
     fillColor: '#8b5cf6',
-    fillOpacity: 0.05,
+    fillOpacity: 0.06,
   });
   const styleMbv = (): L.PathOptions => ({
-    color: '#1d4ed8',
-    weight: 1,
-    fillColor: '#3b82f6',
-    fillOpacity: 0.07,
+    color: '#0e7490',
+    weight: 1.3,
+    dashArray: '4 3',
+    fillColor: '#22d3ee',
+    fillOpacity: 0.16,
   });
 
   const optionsCouches: [keyof typeof couches, string][] = [
@@ -1459,7 +1462,7 @@ export default function Pression() {
               </p>
               <ListeZones
                 items={statsPaysages.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
-                vide={!apZone ? 'Choisissez une aire protégée pour voir ses paysages' : paysagesZ.length ? 'Aucun paysage trouvé pour cette aire protégée' : 'Chargement…'}
+                vide={!apZone ? 'Choisissez une aire protégée pour voir ses paysages' : paysagesVisibles.length ? 'Aucun feu détecté dans les paysages de cette aire protégée' : paysagesZ.length ? 'Aucun paysage trouvé pour cette aire protégée' : 'Chargement…'}
               />
             </article>
 
@@ -1471,7 +1474,7 @@ export default function Pression() {
               </p>
               <ListeZones
                 items={statsMbv.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
-                vide={!apZone ? 'Choisissez une aire protégée pour voir ses micro-bassins' : mbvZ.length ? 'Aucun micro-bassin trouvé pour cette aire protégée' : 'Chargement…'}
+                vide={!apZone ? 'Choisissez une aire protégée pour voir ses micro-bassins' : mbvVisibles.length ? 'Aucun feu détecté dans les micro-bassins de cette aire protégée' : mbvZ.length ? 'Aucun micro-bassin trouvé pour cette aire protégée' : 'Chargement…'}
               />
             </article>
 
@@ -1616,6 +1619,24 @@ export default function Pression() {
             <div><i style={{ background: '#facc15' }} />48 à 72 h</div>
           </div>
 
+          {apZone && (couches.paysages || couches.mbv) && (
+            <div className="pr-legende pr-legende-zones">
+              <strong>Zones de l’aire protégée</strong>
+              {couches.paysages && (
+                <div>
+                  <i style={{ background: 'rgba(139,92,246,.3)', border: '2px solid #6d28d9', boxShadow: 'none', borderRadius: 3 }} />
+                  Paysages
+                </div>
+              )}
+              {couches.mbv && (
+                <div>
+                  <i style={{ background: 'rgba(34,211,238,.3)', border: '2px dashed #0e7490', boxShadow: 'none', borderRadius: 3 }} />
+                  Micro-bassins
+                </div>
+              )}
+            </div>
+          )}
+
           {theme === 'deforestation' && couches.perte && (
             <div className="pr-legende">
               <strong>Perte de couvert forestier</strong>
@@ -1737,8 +1758,8 @@ const CSS = `
   box-shadow:0 1px 3px rgba(15,23,42,.06)}
 .pr-carte.c1{--accent:rgb(200,15,15)}   /* pression directe : rouge */
 .pr-carte.c2{--accent:#166534}          /* aires protégées : vert forêt */
-.pr-carte.c3{--accent:#0f766e}          /* paysages : vert d'eau */
-.pr-carte.c4{--accent:#1d4ed8}          /* micro-bassins : bleu */
+.pr-carte.c3{--accent:#6d28d9}          /* paysages : violet (comme sur la carte) */
+.pr-carte.c4{--accent:#0e7490}          /* micro-bassins : cyan (comme sur la carte) */
 .pr-carte.c5{--accent:#b45309}          /* périphéries : ocre */
 .pr-carte.c6{--accent:#475569}          /* communes : ardoise */
 .pr-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;color:var(--txt);line-height:1.25}
@@ -1793,6 +1814,7 @@ const CSS = `
   border:1px solid rgba(15,23,42,.15);font-size:12px;font-weight:600;display:flex;flex-direction:column;
   gap:7px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
 .pr-legende.cache{display:none}
+.pr-legende.pr-legende-zones{top:12px;bottom:auto}
 .pr-legende div{display:flex;align-items:center;gap:8px;color:#334155}
 .pr-legende strong{color:var(--txt)}
 .pr-legende i{width:11px;height:11px;border-radius:50%;border:1px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.35);flex:none}
