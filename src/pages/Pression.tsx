@@ -29,6 +29,15 @@ type Histo = Record<
   { total: number; regions: Record<string, number>; aps: Record<string, number> }
 >;
 
+type LigneMixte = {
+  nom: string;
+  feux?: number | null;
+  ha?: number | null;
+  err?: boolean;
+  on?: boolean;
+  onClick?: () => void;
+};
+
 const TOUS = '__tous__';
 const MADAGASCAR: L.LatLngBoundsExpression = [
   [-26, 42.3],
@@ -36,13 +45,6 @@ const MADAGASCAR: L.LatLngBoundsExpression = [
 ];
 const CLE_HISTO = 'pression_historique_feux_v1';
 const RANG = { l: 1, n: 2, h: 3 } as const;
-
-const THEMES = [
-  { id: 'feux', label: 'Points de feux actifs' },
-  { id: 'deforestation', label: 'Déforestation' },
-  { id: 'erosion', label: 'Zones à risque d’érosion' },
-] as const;
-type Theme = (typeof THEMES)[number]['id'];
 
 const rangAlerte = (c: string) => (c === 'high' ? 3 : c === 'nominal' ? 2 : 1);
 
@@ -90,6 +92,16 @@ const nf = (n: number) => n.toLocaleString('fr-FR');
 
 const couleurAge = (age: number) =>
   age <= 24 ? 'rgb(200,15,15)' : age <= 48 ? '#f97316' : '#facc15';
+
+const COULEUR_PERTE = '#dc6c9a';
+
+// Somme des hectares perdus entre deux années
+const sommeAnnees = (rows: PerteAn[] | null, debut: number, fin: number) =>
+  rows ? rows.filter((a) => a.annee >= debut && a.annee <= fin).reduce((t, a) => t + a.ha, 0) : null;
+
+// Tri : par nombre de feux si la couche feux est active, sinon par hectares
+const comparer = (parFeux: boolean) => (a: LigneMixte, b: LigneMixte) =>
+  (parFeux ? (b.feux ?? 0) - (a.feux ?? 0) : 0) || (b.ha ?? -1) - (a.ha ?? -1);
 
 /* =====================================================================
    GÉOMÉTRIE
@@ -447,10 +459,10 @@ function CouchePerte({ debut, fin }: { debut: number; fin: number }) {
       pane.style.zIndex = '250'; // au-dessus du fond de carte, sous les contours
       pane.style.pointerEvents = 'none';
     }
-    const c = L.tileLayer(
-  `https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=${debut}&end_year=${fin}&tcd=30&render_type=true_color`,
-  { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }
-).addTo(map);
+    const couche = L.tileLayer(
+      `https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=${debut}&end_year=${fin}&tcd=30&render_type=true_color`,
+      { pane: 'perte', maxNativeZoom: 12, opacity: 0.95, attribution: 'Perte de couvert © UMD/Hansen, GFW' }
+    ).addTo(map);
     return () => {
       map.removeLayer(couche);
     };
@@ -481,17 +493,61 @@ function MasqueZone({ zone }: { zone: Zone }) {
   return null;
 }
 
-function ListeZones({ items, vide }: { items: { nom: string; texte: string }[]; vide: string }) {
+// Liste à une ou deux valeurs par ligne : nombre de feux et/ou hectares déboisés
+function ListeMixte({
+  items,
+  vide,
+  feux,
+  perte,
+}: {
+  items: LigneMixte[];
+  vide: string;
+  feux: boolean;
+  perte: boolean;
+}) {
   if (!items.length) return <p className="pr-vide">{vide}</p>;
   return (
     <div className="pr-liste">
-      {items.map((i) => (
-        <div key={i.nom} className="pr-ligne">
-          <span>{i.nom}</span>
-          <strong>{i.texte}</strong>
-        </div>
-      ))}
+      {items.map((i) => {
+        const contenu = (
+          <>
+            <span>{i.nom}</span>
+            <span className="pr-vals">
+              {feux && (
+                <strong className="pr-v pr-v-feu" title="Feux détectés">
+                  {nf(i.feux ?? 0)}
+                </strong>
+              )}
+              {perte && (
+                <strong className="pr-v pr-v-ha" title="Superficie déboisée">
+                  {i.err ? 'n/d' : i.ha == null ? '…' : `${nf(Math.round(i.ha))} ha`}
+                </strong>
+              )}
+            </span>
+          </>
+        );
+        return i.onClick ? (
+          <button key={i.nom} className={`pr-ligne pr-cliquable ${i.on ? 'on' : ''}`} onClick={i.onClick}>
+            {contenu}
+          </button>
+        ) : (
+          <div key={i.nom} className="pr-ligne">
+            {contenu}
+          </div>
+        );
+      })}
     </div>
+  );
+}
+
+// Rappel des deux pastilles quand les deux couches sont actives
+function Cle({ feux, perte }: { feux: boolean; perte: boolean }) {
+  if (!feux || !perte) return null;
+  return (
+    <p className="pr-cle">
+      <span className="pr-v pr-v-feu">feux</span>
+      <span className="pr-v pr-v-ha">hectares déboisés</span>
+    </p>
   );
 }
 
@@ -517,10 +573,13 @@ export default function Pression() {
   const [ap, setAp] = useState(TOUS);
   const [periode, setPeriode] = useState<24 | 48 | 72>(72);
   const [confiance, setConfiance] = useState<'l' | 'n' | 'h'>('l');
-  const [theme, setTheme] = useState<Theme>('feux');
   const [joursDef, setJoursDef] = useState<7 | 30 | 90>(30);
   const [anneeDebut, setAnneeDebut] = useState(ANNEE_MIN);
   const [anneeFin, setAnneeFin] = useState(ANNEE_MAX);
+
+  // ---- Couches d'analyse (cases à cocher)
+  const [showFeux, setShowFeux] = useState(true);
+  const [showPerte, setShowPerte] = useState(false);
 
   // ---- Interface
   const [fond, setFond] = useState('topo');
@@ -685,33 +744,10 @@ export default function Pression() {
     [feuxRegion, periode]
   );
 
-  // ---- Statistiques des 6 cartes ----------------------------------------
+  // ---- Statistiques feux -------------------------------------------------
   const stats24 = feuxZone.filter((f) => f.age <= 24).length;
   const stats48 = feuxZone.filter((f) => f.age <= 48).length;
   const stats72 = feuxZone.length;
-
-  const statsAP = useMemo(() => {
-    const c = compterParZone(feuxRegionPeriode, apsVisibles);
-    return apsVisibles
-      .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
-      .sort((a, b) => b.nombre - a.nombre);
-  }, [feuxRegionPeriode, apsVisibles]);
-
-  const statsPaysages = useMemo(() => {
-    const c = compterParZone(feuxAffiches, paysagesVisibles);
-    return paysagesVisibles
-      .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
-      .filter((x) => x.nombre > 0)
-      .sort((a, b) => b.nombre - a.nombre);
-  }, [feuxAffiches, paysagesVisibles]);
-
-  const statsMbv = useMemo(() => {
-    const c = compterParZone(feuxAffiches, mbvVisibles);
-    return mbvVisibles
-      .map((z, i) => ({ nom: z.nom, nombre: c[i] }))
-      .filter((x) => x.nombre > 0)
-      .sort((a, b) => b.nombre - a.nombre);
-  }, [feuxAffiches, mbvVisibles]);
 
   const feuxPeriph = useMemo(
     () => feuxAffiches.filter((f) => periphSel.some((p) => dansZone(f.lon, f.lat, p))),
@@ -840,13 +876,21 @@ export default function Pression() {
     ? new Date(derniereMaj).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
     : '—';
 
+  // Texte de période affiché sous les titres des cartes (selon les couches cochées)
+  const notePeriode = [
+    showFeux ? `${periode} h` : '',
+    showPerte ? `${anneeDebut} – ${anneeFin}` : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   // ---- Déforestation : alertes GFW (une requête par région, 90 jours) -------
   const [alertes, setAlertes] = useState<any | null>(null);
   const [chargAlertes, setChargAlertes] = useState(false);
   const [erreurAlertes, setErreurAlertes] = useState('');
 
   useEffect(() => {
-    if (theme !== 'deforestation') return;
+    if (!showPerte) return;
     const ctrl = new AbortController();
     setAlertes(null);
     setErreurAlertes('');
@@ -869,7 +913,7 @@ export default function Pression() {
         if (!ctrl.signal.aborted) setChargAlertes(false);
       });
     return () => ctrl.abort();
-  }, [theme, region]);
+  }, [showPerte, region]);
 
   const defStats = useMemo(() => {
     const toutes: any[] = alertes?.lignes || [];
@@ -884,23 +928,13 @@ export default function Pression() {
       jours.push({ date: d, n: lignes.filter((l) => l.date === d).reduce((t, l) => t + l.alertes, 0) });
     }
 
-    const parConf = { high: 0, nominal: 0, low: 0 };
-    toutes
-      .filter((l) => l.date >= depuis(joursDef))
-      .forEach((l) => {
-        const k = l.confiance === 'high' ? 'high' : l.confiance === 'nominal' ? 'nominal' : 'low';
-        parConf[k] += l.alertes || 0;
-      });
-
     return {
       total: somme(joursDef, 'alertes'),
-      ha: somme(joursDef, 'ha'),
       p7: somme(7, 'alertes'),
       p30: somme(30, 'alertes'),
       p90: somme(90, 'alertes'),
       jours,
       maxJour: Math.max(1, ...jours.map((j) => j.n)),
-      parConf,
     };
   }, [alertes, confiance, joursDef]);
 
@@ -909,7 +943,7 @@ export default function Pression() {
   const enCours = useRef(new Set<string>());
 
   useEffect(() => {
-    if (theme !== 'deforestation') return;
+    if (!showPerte) return;
     const besoins: [string, string, string][] = [
       region === TOUS ? ['all', 'all', ''] : [`region:${region}`, 'region', region],
     ];
@@ -934,15 +968,10 @@ export default function Pression() {
         .finally(() => enCours.current.delete(cle));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [theme, region, apsVisibles, paysagesVisibles, mbvVisibles]);
+  }, [showPerte, region, apsVisibles, paysagesVisibles, mbvVisibles]);
 
   const defPerte = useMemo(() => {
     const lire = (cle: string) => (Array.isArray(perte[cle]) ? (perte[cle] as PerteAn[]) : null);
-    const somme = (rows: PerteAn[] | null) =>
-      rows
-        ? rows.filter((a) => a.annee >= anneeDebut && a.annee <= anneeFin).reduce((t, a) => t + a.ha, 0)
-        : null;
-
     const cleScope = apZone ? `ap:${apZone.nom}` : region === TOUS ? 'all' : `region:${region}`;
     const scope = lire(cleScope);
 
@@ -951,39 +980,63 @@ export default function Pression() {
       parAnnee.push({ annee: a, ha: scope?.find((x) => x.annee === a)?.ha ?? 0 });
     }
 
-    const aires = apsVisibles
-      .map((z) => {
-        const cle = `ap:${z.nom}`;
-        return { nom: z.nom, ha: somme(lire(cle)), erreur: perte[cle] === 'err' };
-      })
-      .sort((a, b) => (b.ha ?? -1) - (a.ha ?? -1));
-
-    const liste = (zones: Zone[], pre: string) => ({
-      trop: zones.length > MAX_ZONES,
-      items: zones
-        .map((z) => {
-          const cle = `${pre}:${z.nom}`;
-          const ha = somme(lire(cle));
-          return {
-            nom: z.nom,
-            ha,
-            texte: perte[cle] === 'err' ? 'n/d' : ha == null ? '…' : `${nf(Math.round(ha))} ha`,
-          };
-        })
-        .sort((a, b) => (b.ha ?? -1) - (a.ha ?? -1)),
-    });
-
     return {
-      paysages: liste(paysagesVisibles, 'paysage'),
-      mbvs: liste(mbvVisibles, 'mbv'),
       erreur: perte[cleScope] === 'err',
-      total: somme(scope),
+      total: sommeAnnees(scope, anneeDebut, anneeFin),
       parAnnee,
       maxAn: Math.max(1, ...parAnnee.map((a) => a.ha)),
       nbAnnees: anneeFin - anneeDebut + 1,
-      aires,
     };
-  }, [perte, anneeDebut, anneeFin, apZone, region, apsVisibles, paysagesVisibles, mbvVisibles]);
+  }, [perte, anneeDebut, anneeFin, apZone, region]);
+
+  // ---- Listes fusionnées : feux + hectares déboisés sur la même ligne -------
+  const ligneDe = (z: Zone, pre: string, feuxN: number, trop = false): LigneMixte => {
+    const cle = `${pre}:${z.nom}`;
+    const rows = Array.isArray(perte[cle]) ? (perte[cle] as PerteAn[]) : null;
+    return {
+      nom: z.nom,
+      feux: feuxN,
+      ha: sommeAnnees(rows, anneeDebut, anneeFin),
+      err: trop || perte[cle] === 'err',
+    };
+  };
+
+  const lignesAP = useMemo(() => {
+    const c = compterParZone(feuxRegionPeriode, apsVisibles);
+    return apsVisibles.map((z, i) => ligneDe(z, 'ap', c[i])).sort(comparer(showFeux));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feuxRegionPeriode, apsVisibles, perte, anneeDebut, anneeFin, showFeux]);
+
+  const lignesPaysages = useMemo(() => {
+    const c = compterParZone(feuxAffiches, paysagesVisibles);
+    const trop = paysagesVisibles.length > MAX_ZONES;
+    return paysagesVisibles
+      .map((z, i) => ligneDe(z, 'paysage', c[i], trop))
+      .filter((x) => showPerte || (x.feux ?? 0) > 0)
+      .sort(comparer(showFeux));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feuxAffiches, paysagesVisibles, perte, anneeDebut, anneeFin, showFeux, showPerte]);
+
+  const lignesMbv = useMemo(() => {
+    const c = compterParZone(feuxAffiches, mbvVisibles);
+    const trop = mbvVisibles.length > MAX_ZONES;
+    return mbvVisibles
+      .map((z, i) => ligneDe(z, 'mbv', c[i], trop))
+      .filter((x) => showPerte || (x.feux ?? 0) > 0)
+      .sort(comparer(showFeux));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feuxAffiches, mbvVisibles, perte, anneeDebut, anneeFin, showFeux, showPerte]);
+
+  const videZone = (visibles: Zone[], tous: Zone[], mot: string, motPl: string) =>
+    !apZone
+      ? `Choisissez une aire protégée pour voir ses ${motPl}`
+      : visibles.length
+        ? showPerte
+          ? ''
+          : `Aucun feu détecté dans les ${motPl} de cette aire protégée`
+        : tous.length
+          ? `Aucun ${mot} trouvé pour cette aire protégée`
+          : 'Chargement…';
 
   // ---- Styles des zones sur la carte ------------------------------------
   const styleRegion = (z: Zone): L.PathOptions => {
@@ -1036,6 +1089,12 @@ export default function Pression() {
     ['peripheries', 'Périphéries de 5 km'],
   ];
 
+  const lignesAPCliquables = lignesAP.map((a) => ({
+    ...a,
+    on: ap === a.nom,
+    onClick: () => setAp(ap === a.nom ? TOUS : a.nom),
+  }));
+
   /* ------------------------------------------------------------------ */
 
   return (
@@ -1055,7 +1114,7 @@ export default function Pression() {
             <div>
               <h1 className="pr-titre">Zones de pression</h1>
               <p className="pr-sous">
-                Feux actifs et pression sur les aires protégées
+                Feux actifs, perte de couvert forestier et pression sur les aires protégées
               </p>
             </div>
           </div>
@@ -1092,16 +1151,23 @@ export default function Pression() {
         </div>
 
         <div className="pr-filtres">
-          <label className="pr-champ">
-            <span>Thème d’analyse</span>
-            <select value={theme} onChange={(e) => setTheme(e.target.value as Theme)}>
-              {THEMES.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="pr-champ">
+            <span>Couches d’analyse</span>
+            <div className="pr-checks" role="group" aria-label="Couches d’analyse">
+              <label className={`pr-chk ${showFeux ? 'on' : ''}`}>
+                <input type="checkbox" checked={showFeux} onChange={() => setShowFeux((v) => !v)} />
+                Points de feux actifs
+              </label>
+              <label className={`pr-chk perte ${showPerte ? 'on' : ''}`}>
+                <input type="checkbox" checked={showPerte} onChange={() => setShowPerte((v) => !v)} />
+                Perte de couvert forestier
+              </label>
+              <label className="pr-chk off" title="Couche à intégrer">
+                <input type="checkbox" disabled />
+                Érosion (bientôt)
+              </label>
+            </div>
+          </div>
 
           <label className="pr-champ">
             <span>Région</span>
@@ -1129,65 +1195,78 @@ export default function Pression() {
             </select>
           </label>
 
-          <div className="pr-champ">
-            <span>Période</span>
-            <div className="pr-seg" role="group" aria-label="Période">
-              {theme === 'deforestation'
-                ? ([7, 30, 90] as const).map((j) => (
-                    <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
-                      {j} j
-                    </button>
-                  ))
-                : ([24, 48, 72] as const).map((h) => (
-                    <button key={h} disabled={theme !== 'feux'} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
-                      {h} h
-                    </button>
-                  ))}
-            </div>
-          </div>
-
-          {theme === 'deforestation' && (
+          {showFeux && (
             <div className="pr-champ">
-              <span>Perte de couvert (années)</span>
-              <div className="pr-annees">
-                <select
-                  aria-label="Année de début"
-                  value={anneeDebut}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setAnneeDebut(v);
-                    if (v > anneeFin) setAnneeFin(v);
-                  }}
-                >
-                  {ANNEES.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-                <span>à</span>
-                <select
-                  aria-label="Année de fin"
-                  value={anneeFin}
-                  onChange={(e) => {
-                    const v = Number(e.target.value);
-                    setAnneeFin(v);
-                    if (v < anneeDebut) setAnneeDebut(v);
-                  }}
-                >
-                  {ANNEES.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
+              <span>Période des feux</span>
+              <div className="pr-seg" role="group" aria-label="Période des feux">
+                {([24, 48, 72] as const).map((h) => (
+                  <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
+                    {h} h
+                  </button>
+                ))}
               </div>
             </div>
           )}
 
+          {showPerte && (
+            <>
+              <div className="pr-champ">
+                <span>Alertes récentes</span>
+                <div className="pr-seg" role="group" aria-label="Période des alertes">
+                  {([7, 30, 90] as const).map((j) => (
+                    <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
+                      {j} j
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pr-champ">
+                <span>Perte de couvert (années)</span>
+                <div className="pr-annees">
+                  <select
+                    aria-label="Année de début"
+                    value={anneeDebut}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setAnneeDebut(v);
+                      if (v > anneeFin) setAnneeFin(v);
+                    }}
+                  >
+                    {ANNEES.map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
+                  <span>à</span>
+                  <select
+                    aria-label="Année de fin"
+                    value={anneeFin}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setAnneeFin(v);
+                      if (v < anneeDebut) setAnneeDebut(v);
+                    }}
+                  >
+                    {ANNEES.map((a) => (
+                      <option key={a} value={a}>
+                        {a}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+
           <label className="pr-champ">
             <span>Fiabilité</span>
-            <select value={confiance} disabled={theme === 'erosion'} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
+            <select
+              value={confiance}
+              disabled={!showFeux && !showPerte}
+              onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}
+            >
               <option value="l">Toutes les détections</option>
               <option value="n">Nominale et plus</option>
               <option value="h">Élevée seulement</option>
@@ -1206,310 +1285,248 @@ export default function Pression() {
       <div className="pr-body">
         {/* ---------- PANNEAU DE STATISTIQUES ---------- */}
         <aside className="pr-panel">
-          {theme === 'erosion' && (
+          {!showFeux && !showPerte && (
             <section className="pr-attente-theme">
-              <h2>{THEMES.find((t) => t.id === theme)?.label}</h2>
-              <p>
-                Cette couche n’est pas encore intégrée. Les statistiques et la carte
-                s’afficheront ici dès que les données seront ajoutées.
-              </p>
+              <h2>Aucune couche sélectionnée</h2>
+              <p>Cochez « Points de feux actifs » et/ou « Perte de couvert forestier » pour afficher les statistiques et la carte.</p>
             </section>
           )}
-          {theme === 'deforestation' && (
-            <>
-              <section className="pr-hero">
-                <div className="pr-hero-haut">
-                  <div className="pr-hero-nb">{chargAlertes ? '…' : nf(defStats.total)}</div>
-                  <div className="pr-hero-txt">
-                    <strong>alertes de perte de couvert forestier</strong>
-                    <span>
-                      {region !== TOUS ? region : 'Tout Madagascar'} · {joursDef} derniers jours
-                    </span>
-                  </div>
-                </div>
 
-                {erreurAlertes ? (
-                  <p className="pr-vide">{erreurAlertes}</p>
-                ) : (
-                  <>
-                    <div className="pr-chrono" role="img" aria-label="Alertes par jour">
-                      {defStats.jours.map((j) => (
-                        <div key={j.date} className="pr-chrono-col" title={`${j.n} alertes · ${j.date}`}>
-                          <div
-                            className="pr-chrono-barre"
-                            style={{
-                              height: `${Math.max(4, (j.n / defStats.maxJour) * 100)}%`,
-                              background: 'rgb(200,15,15)',
-                            }}
-                          />
-                        </div>
-                      ))}
+          {(showFeux || showPerte) && (
+            <>
+              {/* ---- Synthèse : un bloc par couche cochée ---- */}
+              <section className="pr-hero">
+                {showFeux && (
+                  <div className="pr-hero-bloc">
+                    <div className="pr-hero-haut">
+                      <div className="pr-hero-nb">{nf(feuxAffiches.length)}</div>
+                      <div className="pr-hero-txt">
+                        <strong>feux détectés</strong>
+                        <span>
+                          {portee} · {periode} dernières heures
+                        </span>
+                      </div>
+                    </div>
+                    <div className="pr-chrono" role="img" aria-label="Détections par tranche de 6 heures">
+                      {[...chronologie]
+                        .map((n, i) => ({ n, i }))
+                        .reverse()
+                        .map(({ n, i }) => (
+                          <div key={i} className="pr-chrono-col" title={`${n} feux · il y a ${i * 6} à ${i * 6 + 6} h`}>
+                            <div
+                              className="pr-chrono-barre"
+                              style={{
+                                height: `${Math.max(4, (n / maxBloc) * 100)}%`,
+                                background: couleurAge(i * 6 + 3),
+                                opacity: i * 6 < periode ? 1 : 0.22,
+                              }}
+                            />
+                          </div>
+                        ))}
                     </div>
                     <div className="pr-chrono-legende">
-                      <span>il y a {joursDef} jours</span>
-                      <span>aujourd’hui</span>
+                      <span>il y a 72 h</span>
+                      <span>maintenant</span>
                     </div>
-                  </>
+                  </div>
+                )}
+
+                {showPerte && (
+                  <div className="pr-hero-bloc perte">
+                    <div className="pr-hero-haut">
+                      <div className="pr-hero-nb">
+                        {defPerte.erreur ? 'n/d' : defPerte.total == null ? '…' : nf(Math.round(defPerte.total))}
+                        {defPerte.total != null && <small>ha</small>}
+                      </div>
+                      <div className="pr-hero-txt">
+                        <strong>de couvert forestier perdu</strong>
+                        <span>
+                          {portee} · {anneeDebut} – {anneeFin}
+                        </span>
+                      </div>
+                    </div>
+                    {erreurAlertes ? (
+                      <p className="pr-vide">{erreurAlertes}</p>
+                    ) : (
+                      <>
+                        <div className="pr-chrono" role="img" aria-label="Alertes de perte de couvert par jour">
+                          {defStats.jours.map((j) => (
+                            <div key={j.date} className="pr-chrono-col" title={`${j.n} alertes · ${j.date}`}>
+                              <div
+                                className="pr-chrono-barre"
+                                style={{
+                                  height: `${Math.max(4, (j.n / defStats.maxJour) * 100)}%`,
+                                  background: COULEUR_PERTE,
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                        <div className="pr-chrono-legende">
+                          <span>
+                            {chargAlertes ? '…' : nf(defStats.total)} alertes · {joursDef} derniers jours
+                          </span>
+                          <span>aujourd’hui</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
               </section>
 
               <div className="pr-grille">
+                {/* CARTE 1 : rythme récent */}
                 <article className="pr-carte c1">
-                  <h2>Alertes par période</h2>
-                  <p className="pr-note">{region !== TOUS ? region : 'Tout Madagascar'}</p>
-                  {[
-                    ['7 derniers jours', defStats.p7, 'rgb(200,15,15)'],
-                    ['30 derniers jours', defStats.p30, '#f97316'],
-                    ['90 derniers jours', defStats.p90, '#facc15'],
-                  ].map(([label, val, col]) => (
-                    <div className="pr-ligne-barre" key={label as string}>
-                      <div className="pr-ligne">
-                        <span>{label}</span>
-                        <strong>{nf(val as number)}</strong>
-                      </div>
-                      <div className="pr-barre">
-                        <i style={{ width: `${defStats.p90 ? ((val as number) / defStats.p90) * 100 : 0}%`, background: col as string }} />
-                      </div>
-                    </div>
-                  ))}
-                </article>
-
-                <article className="pr-carte c2">
-                  <h2>Superficie déboisée à l’intérieur de l’aire protégée</h2>
-                  <p className="pr-note">
-                    {anneeDebut} – {anneeFin} · hectares
-                  </p>
-                  {defPerte.aires.length ? (
-                    <div className="pr-liste">
-                      {defPerte.aires.map((a) => (
-                        <button
-                          key={a.nom}
-                          className={`pr-ligne pr-cliquable ${ap === a.nom ? 'on' : ''}`}
-                          onClick={() => setAp(ap === a.nom ? TOUS : a.nom)}
-                        >
-                          <span>{a.nom}</span>
-                          <strong>
-                            {a.erreur ? 'n/d' : a.ha == null ? '…' : `${nf(Math.round(a.ha))} ha`}
-                          </strong>
-                        </button>
+                  <h2>Rythme récent</h2>
+                  <p className="pr-note">{portee}</p>
+                  {showFeux && (
+                    <>
+                      <h3 className="pr-sstitre">Feux détectés</h3>
+                      {[
+                        ['24 dernières heures', stats24, 'rgb(200,15,15)'],
+                        ['48 dernières heures', stats48, '#f97316'],
+                        ['72 dernières heures', stats72, '#facc15'],
+                      ].map(([label, val, col]) => (
+                        <div className="pr-ligne-barre" key={label as string}>
+                          <div className="pr-ligne">
+                            <span>{label}</span>
+                            <strong>{nf(val as number)}</strong>
+                          </div>
+                          <div className="pr-barre">
+                            <i style={{ width: `${stats72 ? ((val as number) / stats72) * 100 : 0}%`, background: col as string }} />
+                          </div>
+                        </div>
                       ))}
-                    </div>
-                  ) : (
-                    <p className="pr-vide">Aucune aire protégée dans cette région</p>
+                    </>
+                  )}
+                  {showPerte && (
+                    <>
+                      <h3 className="pr-sstitre">Alertes de perte de couvert</h3>
+                      {[
+                        ['7 derniers jours', defStats.p7, 'rgb(200,15,15)'],
+                        ['30 derniers jours', defStats.p30, '#f97316'],
+                        ['90 derniers jours', defStats.p90, '#facc15'],
+                      ].map(([label, val, col]) => (
+                        <div className="pr-ligne-barre" key={label as string}>
+                          <div className="pr-ligne">
+                            <span>{label}</span>
+                            <strong>{chargAlertes ? '…' : nf(val as number)}</strong>
+                          </div>
+                          <div className="pr-barre">
+                            <i style={{ width: `${defStats.p90 ? ((val as number) / defStats.p90) * 100 : 0}%`, background: col as string }} />
+                          </div>
+                        </div>
+                      ))}
+                    </>
                   )}
                 </article>
 
+                {/* CARTE 2 : aires protégées */}
+                <article className="pr-carte c2">
+                  <h2>Aires protégées</h2>
+                  <p className="pr-note">
+                    {region === TOUS ? 'Toutes les régions' : region} · {notePeriode}
+                  </p>
+                  <Cle feux={showFeux} perte={showPerte} />
+                  <ListeMixte
+                    items={lignesAPCliquables}
+                    feux={showFeux}
+                    perte={showPerte}
+                    vide={apZ.length ? 'Aucune aire protégée dans cette région' : 'Chargement…'}
+                  />
+                </article>
+
+                {/* CARTE 3 : paysages */}
                 <article className="pr-carte c3">
-                  <h2>Superficie déboisée par paysage</h2>
+                  <h2>Paysages</h2>
                   <p className="pr-note">
-                    {anneeDebut} – {anneeFin} · hectares
+                    {portee} · {notePeriode}
                   </p>
-                  {defPerte.paysages.trop ? (
-                    <p className="pr-vide">
-                      Trop de paysages ({defPerte.paysages.items.length}) : choisissez d’abord une région
-                    </p>
-                  ) : (
-                    <ListeZones items={defPerte.paysages.items} vide={apZone ? 'Aucun paysage trouvé pour cette aire protégée' : 'Choisissez une aire protégée pour voir ses paysages'} />
-                  )}
+                  <Cle feux={showFeux} perte={showPerte} />
+                  <ListeMixte
+                    items={lignesPaysages}
+                    feux={showFeux}
+                    perte={showPerte}
+                    vide={videZone(paysagesVisibles, paysagesZ, 'paysage', 'paysages')}
+                  />
                 </article>
 
+                {/* CARTE 4 : micro-bassins */}
                 <article className="pr-carte c4">
-                  <h2>Superficie déboisée par micro-bassin</h2>
+                  <h2>Micro-bassins</h2>
                   <p className="pr-note">
-                    {anneeDebut} – {anneeFin} · hectares
+                    {portee} · {notePeriode}
                   </p>
-                  {defPerte.mbvs.trop ? (
-                    <p className="pr-vide">
-                      Trop de micro-bassins ({defPerte.mbvs.items.length}) : choisissez d’abord une région ou une aire protégée
+                  <Cle feux={showFeux} perte={showPerte} />
+                  <ListeMixte
+                    items={lignesMbv}
+                    feux={showFeux}
+                    perte={showPerte}
+                    vide={videZone(mbvVisibles, mbvZ, 'micro-bassin', 'micro-bassins')}
+                  />
+                </article>
+
+                {/* CARTE 5 : évolution annuelle de la perte */}
+                {showPerte && (
+                  <article className="pr-carte c5">
+                    <h2>Évolution annuelle de la perte</h2>
+                    <p className="pr-note">
+                      Hectares perdus par an · {portee}
+                      {defPerte.total != null && ` · ≈ ${nf(Math.round(defPerte.total / defPerte.nbAnnees))} ha/an`}
                     </p>
-                  ) : (
-                    <ListeZones items={defPerte.mbvs.items} vide={apZone ? 'Aucun micro-bassin trouvé pour cette aire protégée' : 'Choisissez une aire protégée pour voir ses micro-bassins'} />
-                  )}
-                </article>
-
-                <article className="pr-carte c5">
-                  <h2>Superficie déboisée</h2>
-                  <p className="pr-note">
-                    {portee} · {anneeDebut} – {anneeFin}
-                  </p>
-                  <div className="pr-grand">
-                    {defPerte.erreur ? 'n/d' : defPerte.total == null ? '…' : `${nf(Math.round(defPerte.total))} ha`}
-                  </div>
-                  <p className="pr-note">
-                    {defPerte.total != null
-                      ? `≈ ${nf(Math.round(defPerte.total / defPerte.nbAnnees))} ha par an en moyenne`
-                      : 'Chargement des données GFW'}
-                  </p>
-                </article>
-
-                <article className="pr-carte c6">
-                  <h2>Évolution annuelle</h2>
-                  <p className="pr-note">Hectares perdus par an · {portee}</p>
-                  {defPerte.erreur ? (
-                    <p className="pr-vide">Données indisponibles</p>
-                  ) : (
-                    defPerte.parAnnee.map((a) => (
-                      <div className="pr-ligne-barre" key={a.annee}>
-                        <div className="pr-ligne">
-                          <span>{a.annee}</span>
-                          <strong>{defPerte.total == null ? '…' : `${nf(Math.round(a.ha))} ha`}</strong>
+                    {defPerte.erreur ? (
+                      <p className="pr-vide">Données indisponibles</p>
+                    ) : (
+                      defPerte.parAnnee.map((a) => (
+                        <div className="pr-ligne-barre" key={a.annee}>
+                          <div className="pr-ligne">
+                            <span>{a.annee}</span>
+                            <strong>{defPerte.total == null ? '…' : `${nf(Math.round(a.ha))} ha`}</strong>
+                          </div>
+                          <div className="pr-barre">
+                            <i style={{ width: `${(a.ha / defPerte.maxAn) * 100}%`, background: COULEUR_PERTE }} />
+                          </div>
                         </div>
-                        <div className="pr-barre">
-                          <i style={{ width: `${(a.ha / defPerte.maxAn) * 100}%` }} />
+                      ))
+                    )}
+                  </article>
+                )}
+
+                {/* CARTE 6 : périphéries de 5 km + communes */}
+                {showFeux && (
+                  <article className="pr-carte c6">
+                    <h2>Autour des aires protégées</h2>
+                    <p className="pr-note">Périphéries de 5 km · {periode} h</p>
+                    <div className="pr-grand">{nf(feuxPeriph.length)}</div>
+                    <p className="pr-note">
+                      {feuxAffiches.length
+                        ? `${Math.round((feuxPeriph.length / feuxAffiches.length) * 100)} % des feux affichés`
+                        : 'Aucun feu affiché'}
+                    </p>
+                    <h3 className="pr-sstitre">Top 3 des communes</h3>
+                    {topCommunes.length ? (
+                      topCommunes.map((c, i) => (
+                        <div className="pr-ligne-barre" key={c.nom + i}>
+                          <div className="pr-ligne">
+                            <span>
+                              {i + 1}. {c.nom}
+                            </span>
+                            <strong>{nf(c.nombre)}</strong>
+                          </div>
+                          <div className="pr-barre">
+                            <i style={{ width: `${(c.nombre / topCommunes[0].nombre) * 100}%` }} />
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  )}
-                </article>
+                      ))
+                    ) : (
+                      <p className="pr-vide">
+                        {communesZ.length ? 'Aucun feu dans la zone choisie' : 'Chargement…'}
+                      </p>
+                    )}
+                  </article>
+                )}
               </div>
             </>
-          )}
-          {theme === 'feux' && (
-          <>
-          <section className="pr-hero">
-            <div className="pr-hero-haut">
-              <div className="pr-hero-nb">{nf(feuxAffiches.length)}</div>
-              <div className="pr-hero-txt">
-                <strong>feux détectés</strong>
-                <span>
-                  {portee} · {periode} dernières heures
-                </span>
-              </div>
-            </div>
-
-            <div className="pr-chrono" role="img" aria-label="Détections par tranche de 6 heures">
-              {[...chronologie]
-                .map((n, i) => ({ n, i }))
-                .reverse()
-                .map(({ n, i }) => (
-                  <div key={i} className="pr-chrono-col" title={`${n} feux · il y a ${i * 6} à ${i * 6 + 6} h`}>
-                    <div
-                      className="pr-chrono-barre"
-                      style={{
-                        height: `${Math.max(4, (n / maxBloc) * 100)}%`,
-                        background: couleurAge(i * 6 + 3),
-                        opacity: i * 6 < periode ? 1 : 0.22,
-                      }}
-                    />
-                  </div>
-                ))}
-            </div>
-            <div className="pr-chrono-legende">
-              <span>il y a 72 h</span>
-              <span>maintenant</span>
-            </div>
-          </section>
-
-          <div className="pr-grille">
-            {/* CARTE 1 : par période */}
-            <article className="pr-carte c1">
-              <h2>Feux par période</h2>
-              <p className="pr-note">{portee}</p>
-              {[
-                ['24 dernières heures', stats24, 'rgb(200,15,15)'],
-                ['48 dernières heures', stats48, '#f97316'],
-                ['72 dernières heures', stats72, '#facc15'],
-              ].map(([label, val, col]) => (
-                <div className="pr-ligne-barre" key={label as string}>
-                  <div className="pr-ligne">
-                    <span>{label}</span>
-                    <strong>{nf(val as number)}</strong>
-                  </div>
-                  <div className="pr-barre">
-                    <i style={{ width: `${stats72 ? ((val as number) / stats72) * 100 : 0}%`, background: col as string }} />
-                  </div>
-                </div>
-              ))}
-            </article>
-
-            {/* CARTE 2 : aires protégées */}
-            <article className="pr-carte c2">
-              <h2>Feux à l’intérieur de l’aire protégée</h2>
-              <p className="pr-note">
-                {region === TOUS ? 'Toutes les régions' : region} · {periode} h
-              </p>
-              {statsAP.length ? (
-                <div className="pr-liste">
-                  {statsAP.map((a) => (
-                    <button
-                      key={a.nom}
-                      className={`pr-ligne pr-cliquable ${ap === a.nom ? 'on' : ''}`}
-                      onClick={() => setAp(ap === a.nom ? TOUS : a.nom)}
-                    >
-                      <span>{a.nom}</span>
-                      <strong>{nf(a.nombre)}</strong>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <p className="pr-vide">
-                  {apZ.length ? 'Aucune aire protégée dans cette région' : 'Chargement…'}
-                </p>
-              )}
-            </article>
-
-            {/* CARTE 3 : paysages (à intégrer) */}
-            <article className="pr-carte c3">
-              <h2>Feux par paysage</h2>
-              <p className="pr-note">
-                {portee} · {periode} h
-              </p>
-              <ListeZones
-                items={statsPaysages.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
-                vide={!apZone ? 'Choisissez une aire protégée pour voir ses paysages' : paysagesVisibles.length ? 'Aucun feu détecté dans les paysages de cette aire protégée' : paysagesZ.length ? 'Aucun paysage trouvé pour cette aire protégée' : 'Chargement…'}
-              />
-            </article>
-
-            {/* CARTE 4 : micro-bassins (à intégrer) */}
-            <article className="pr-carte c4">
-              <h2>Feux par micro-bassin</h2>
-              <p className="pr-note">
-                {portee} · {periode} h
-              </p>
-              <ListeZones
-                items={statsMbv.map((p) => ({ nom: p.nom, texte: nf(p.nombre) }))}
-                vide={!apZone ? 'Choisissez une aire protégée pour voir ses micro-bassins' : mbvVisibles.length ? 'Aucun feu détecté dans les micro-bassins de cette aire protégée' : mbvZ.length ? 'Aucun micro-bassin trouvé pour cette aire protégée' : 'Chargement…'}
-              />
-            </article>
-
-            {/* CARTE 5 : périphéries */}
-            <article className="pr-carte c5">
-              <h2>Périphéries de 5 km</h2>
-              <p className="pr-note">Autour des aires protégées · {periode} h</p>
-              <div className="pr-grand">{nf(feuxPeriph.length)}</div>
-              <p className="pr-note">
-                {feuxAffiches.length
-                  ? `${Math.round((feuxPeriph.length / feuxAffiches.length) * 100)} % des feux affichés`
-                  : 'Aucun feu affiché'}
-              </p>
-            </article>
-
-            {/* CARTE 6 : communes */}
-            <article className="pr-carte c6">
-              <h2>Top 3 des communes</h2>
-              <p className="pr-note">Nombre de feux · {periode} h</p>
-              {topCommunes.length ? (
-                topCommunes.map((c, i) => (
-                  <div className="pr-ligne-barre" key={c.nom + i}>
-                    <div className="pr-ligne">
-                      <span>
-                        {i + 1}. {c.nom}
-                      </span>
-                      <strong>{nf(c.nombre)}</strong>
-                    </div>
-                    <div className="pr-barre">
-                      <i style={{ width: `${(c.nombre / topCommunes[0].nombre) * 100}%` }} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="pr-vide">
-                  {communesZ.length ? 'Aucun feu dans la zone choisie' : 'Chargement…'}
-                </p>
-              )}
-            </article>
-          </div>
-          </>
           )}
         </aside>
 
@@ -1530,8 +1547,8 @@ export default function Pression() {
             <Redimension />
             <FocusCarte zone={apZone || regionZone} maxZoom={apZone ? 11 : 9} />
 
-            {theme === 'deforestation' && couches.perte && <CouchePerte debut={anneeDebut} fin={anneeFin} />}
-            {theme === 'deforestation' && couches.perte && (apZone || regionZone) && (
+            {showPerte && couches.perte && <CouchePerte debut={anneeDebut} fin={anneeFin} />}
+            {showPerte && couches.perte && (apZone || regionZone) && (
               <MasqueZone zone={(apZone || regionZone) as Zone} />
             )}
             {couches.regions && (
@@ -1548,7 +1565,7 @@ export default function Pression() {
                 onClick={(z) => setAp(z.nom === ap ? TOUS : z.nom)}
               />
             )}
-            {theme === 'feux' && couches.feux && <CoucheFeux feux={feuxAffiches} />}
+            {showFeux && couches.feux && <CoucheFeux feux={feuxAffiches} />}
           </MapContainer>
 
           {/* Barre d'outils : fond de carte + couches */}
@@ -1586,7 +1603,7 @@ export default function Pression() {
                 <div className="pr-pop pr-pop-droite">
                   {optionsCouches
                     .filter(([id]) =>
-                      id === 'feux' ? theme === 'feux' : id === 'perte' ? theme === 'deforestation' : true
+                      id === 'feux' ? showFeux : id === 'perte' ? showPerte : true
                     )
                     .map(([id, label]) => (
                     <label key={id} className="pr-check">
@@ -1605,13 +1622,28 @@ export default function Pression() {
 
           {menu && <div className="pr-voile" onClick={() => setMenu(null)} />}
 
-          {/* Légende */}
-          <div className={`pr-legende ${theme !== 'feux' ? 'cache' : ''}`}>
-            <strong>Ancienneté des feux</strong>
-            <div><i style={{ background: 'rgb(200,15,15)' }} />Moins de 24 h</div>
-            <div><i style={{ background: '#f97316' }} />24 à 48 h</div>
-            <div><i style={{ background: '#facc15' }} />48 à 72 h</div>
-          </div>
+          {/* Légendes : empilées en bas à gauche selon les couches affichées */}
+          {((showFeux && couches.feux) || (showPerte && couches.perte)) && (
+            <div className="pr-legendes">
+              {showFeux && couches.feux && (
+                <div className="pr-legende">
+                  <strong>Ancienneté des feux</strong>
+                  <div><i style={{ background: 'rgb(200,15,15)' }} />Moins de 24 h</div>
+                  <div><i style={{ background: '#f97316' }} />24 à 48 h</div>
+                  <div><i style={{ background: '#facc15' }} />48 à 72 h</div>
+                </div>
+              )}
+              {showPerte && couches.perte && (
+                <div className="pr-legende">
+                  <strong>Perte de couvert forestier</strong>
+                  <div>
+                    <i style={{ background: COULEUR_PERTE }} />
+                    {anneeDebut} à {anneeFin}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {apZone && (couches.paysages || couches.mbv) && (
             <div className="pr-legende pr-legende-zones">
@@ -1629,20 +1661,6 @@ export default function Pression() {
                 </div>
               )}
             </div>
-          )}
-
-          {theme === 'deforestation' && couches.perte && (
-            <div className="pr-legende">
-              <strong>Perte de couvert forestier</strong>
-              <div>
-                <i style={{ background: '#dc6c9a' }} />
-                {anneeDebut} à {anneeFin}
-              </div>
-            </div>
-          )}
-
-          {theme === 'erosion' && (
-            <div className="pr-alerte pr-info">Zones à risque d’érosion : couche à intégrer</div>
           )}
 
           {erreur && (
@@ -1676,6 +1694,7 @@ const CSS = `
   --mut:#64748b;
   --rouge:rgb(200,15,15);
   --vert:#166534;
+  --perte:#db2777;                      /* couleur des pastilles « perte de couvert » */
   --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --corps:'Figtree','Segoe UI',system-ui,sans-serif;
 
@@ -1722,47 +1741,67 @@ const CSS = `
   font-size:13px;font-weight:600;cursor:pointer}
 .pr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
+/* ---- Cases à cocher des couches d'analyse ---- */
+.pr-checks{display:flex;gap:6px;flex-wrap:wrap}
+.pr-chk{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid #cbd5e1;border-radius:9px;
+  background:#fff;font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;white-space:nowrap}
+.pr-chk input{accent-color:var(--rouge);width:15px;height:15px;margin:0;cursor:inherit}
+.pr-chk.on{border-color:var(--rouge);background:#fef2f2}
+.pr-chk.perte input{accent-color:var(--perte)}
+.pr-chk.perte.on{border-color:var(--perte);background:#fdf2f8}
+.pr-chk.off{opacity:.55;cursor:not-allowed;background:#f1f5f9}
+
 /* ---- Corps ---- */
 .pr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(400px,46%) 1fr}
 .pr-panel{overflow-y:auto;padding:16px;background:var(--fond-panneau);border-right:1px solid var(--ligne)}
 .pr-map{position:relative;min-height:0;min-width:0;isolation:isolate}
 
-/* ---- Résumé principal ---- */
-.pr-hero{background:var(--carte);border:1px solid var(--ligne);border-left:5px solid var(--rouge);
-  border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
-.pr-hero-haut{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
-.pr-hero-nb{font-family:var(--titre);font-weight:800;font-size:clamp(44px,6vw,68px);line-height:.9;
-  color:var(--rouge);letter-spacing:-.03em}
+/* ---- Synthèse : un bloc par couche cochée ---- */
+.pr-hero{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:14px}
+.pr-hero-bloc{--a:var(--rouge);background:var(--carte);border:1px solid var(--ligne);border-left:5px solid var(--a);
+  border-radius:14px;padding:16px;min-width:0;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.pr-hero-bloc.perte{--a:var(--perte)}
+.pr-hero-haut{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.pr-hero-nb{font-family:var(--titre);font-weight:800;font-size:clamp(36px,4.4vw,56px);line-height:.9;
+  color:var(--a);letter-spacing:-.03em;overflow-wrap:anywhere}
+.pr-hero-nb small{font-size:.38em;font-weight:700;margin-left:6px;letter-spacing:0}
 .pr-hero-txt{display:flex;flex-direction:column;gap:2px;padding-bottom:4px;min-width:0}
-.pr-hero-txt strong{font-family:var(--titre);font-size:17px;color:var(--txt)}
+.pr-hero-txt strong{font-family:var(--titre);font-size:16px;color:var(--txt);line-height:1.2}
 .pr-hero-txt span{color:var(--mut);font-size:12.5px}
-.pr-chrono{display:flex;align-items:flex-end;gap:5px;height:68px;margin-top:16px}
+.pr-chrono{display:flex;align-items:flex-end;gap:4px;height:60px;margin-top:14px}
 .pr-chrono-col{flex:1;height:100%;display:flex;align-items:flex-end}
 .pr-chrono-barre{width:100%;border-radius:4px 4px 2px 2px;transition:height .3s,opacity .2s}
-.pr-chrono-legende{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);margin-top:6px}
+.pr-chrono-legende{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:6px}
 
 .pr-attente-theme{background:var(--carte);border:1px dashed #94a3b8;border-radius:14px;padding:22px}
 .pr-attente-theme h2{margin:0 0 8px;font-family:var(--titre);font-size:18px}
 .pr-attente-theme p{margin:0;color:var(--mut);line-height:1.5}
 
-/* ---- Grille 2 colonnes × 3 lignes : une couleur par carte ---- */
-.pr-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+/* ---- Grille 2 colonnes : une couleur par carte ---- */
+.pr-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
 .pr-carte{--accent:#475569;background:var(--carte);border:1px solid var(--ligne);border-top:4px solid var(--accent);
   border-radius:12px;padding:14px;min-width:0;display:flex;flex-direction:column;
   box-shadow:0 1px 3px rgba(15,23,42,.06)}
-.pr-carte.c1{--accent:rgb(200,15,15)}   /* pression directe : rouge */
+.pr-carte.c1{--accent:rgb(200,15,15)}   /* rythme récent : rouge */
 .pr-carte.c2{--accent:#166534}          /* aires protégées : vert forêt */
 .pr-carte.c3{--accent:#6d28d9}          /* paysages : violet (comme sur la carte) */
 .pr-carte.c4{--accent:#0e7490}          /* micro-bassins : cyan (comme sur la carte) */
-.pr-carte.c5{--accent:#b45309}          /* périphéries : ocre */
-.pr-carte.c6{--accent:#475569}          /* communes : ardoise */
+.pr-carte.c5{--accent:var(--perte)}     /* évolution de la perte : rose */
+.pr-carte.c6{--accent:#b45309}          /* périphéries & communes : ocre */
 .pr-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;color:var(--txt);line-height:1.25}
+.pr-sstitre{margin:10px 0 6px;font-size:12px;font-weight:700;color:#334155}
 .pr-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
 .pr-carte-attente{background:#f8fafc;border-style:dashed;border-top-style:solid}
 .pr-vide{margin:auto 0;padding:8px 0;font-size:12.5px;color:var(--mut);font-style:italic}
 .pr-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;padding:5px 0;color:#334155}
 .pr-ligne span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pr-ligne strong{font-variant-numeric:tabular-nums;color:var(--txt)}
+.pr-ligne .pr-vals{flex:none;display:flex;gap:12px;overflow:visible}
+.pr-v{display:inline-flex;align-items:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pr-v::before{content:'';width:7px;height:7px;border-radius:50%;margin-right:5px;flex:none;background:var(--p)}
+.pr-v-feu{--p:var(--rouge)}
+.pr-v-ha{--p:#dc6c9a}
+.pr-cle{display:flex;flex-wrap:wrap;gap:4px 14px;margin:-4px 0 8px;font-size:11px;color:var(--mut)}
 .pr-ligne-barre{margin-bottom:8px}
 .pr-barre{height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden}
 .pr-barre i{display:block;height:100%;border-radius:3px;background:var(--accent);transition:width .3s}
@@ -1802,12 +1841,13 @@ const CSS = `
 .pr-check input{accent-color:var(--rouge);width:16px;height:16px}
 .pr-voile{position:absolute;inset:0;z-index:1005;background:transparent}
 
-/* ---- Légende & messages sur la carte ---- */
+/* ---- Légendes & messages sur la carte ---- */
+.pr-legendes{position:absolute;left:12px;bottom:12px;z-index:1000;display:flex;flex-direction:column;gap:8px}
 .pr-legende{position:absolute;left:12px;bottom:12px;z-index:1000;padding:11px 14px;border-radius:12px;
   background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   border:1px solid rgba(15,23,42,.15);font-size:12px;font-weight:600;display:flex;flex-direction:column;
   gap:7px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
-.pr-legende.cache{display:none}
+.pr-legendes .pr-legende{position:static}
 .pr-legende.pr-legende-zones{top:12px;bottom:auto}
 .pr-legende div{display:flex;align-items:center;gap:8px;color:#334155}
 .pr-legende strong{color:var(--txt)}
@@ -1815,7 +1855,6 @@ const CSS = `
 .pr-alerte{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1000;display:flex;gap:10px;
   align-items:center;padding:9px 13px;border-radius:10px;background:#fff1f1;color:rgb(160,10,10);
   font-size:12.5px;font-weight:700;border:1px solid #f5b5b5;box-shadow:0 2px 8px rgba(0,0,0,.12)}
-.pr-alerte.pr-info{background:#fff;color:#334155;border-color:#cbd5e1;top:auto;bottom:12px}
 .pr-alerte button{border:0;background:rgb(200,15,15);color:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font-weight:700}
 
 .pr .leaflet-container{background:#e5e7eb;font-family:var(--corps)}
@@ -1839,6 +1878,7 @@ const CSS = `
   .pr-titre{font-size:18px}
   .pr-panel{padding:12px}
   .pr-grille{grid-template-columns:1fr}
+  .pr-hero{grid-template-columns:1fr}
   .pr-map{height:50vh}
   .pr-legende{font-size:11px;padding:8px 10px}
   .pr-outil{padding:7px 10px}
