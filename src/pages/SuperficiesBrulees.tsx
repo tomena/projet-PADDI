@@ -505,7 +505,7 @@ export default function SuperficiesBrulees({ data }: any) {
           </section>
 
           {/* Comparaison des 7 AP, légende cliquable */}
-          <section className="sbr-carte sbr-large">
+          <section className="sbr-carte">
             <h2>{t.comparison}</h2>
             <p className="sbr-note">{t.comparisonHint}</p>
             <div className="sbr-chips">
@@ -539,7 +539,7 @@ export default function SuperficiesBrulees({ data }: any) {
             </div>
           </section>
 
-          <section className="sbr-carte sbr-large">
+          <section className="sbr-carte">
             <h2>{t.ranking}</h2>
             <p className="sbr-note">{t.rankingSub} · {selectedYear}</p>
             <ul className="sbr-rang">
@@ -657,7 +657,7 @@ const CSS = `
 .sbr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
 /* ---- Corps : panneau (plus large) + carte (plus étroite, pleine hauteur) ---- */
-.sbr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,58%) minmax(0,1fr)}
+.sbr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,66%) minmax(0,1fr)}
 .sbr-panel{container-type:inline-size;container-name:sbrp;overflow-y:auto;padding:16px;
   background:var(--fond-panneau);border-right:1px solid var(--ligne);min-width:0}
 .sbr-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
@@ -666,11 +666,11 @@ const CSS = `
 .sbr-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#ecfdf5;
   border:1px solid #bbf7d0;color:#065f46;grid-column:1/-1}
 .sbr-banner p{margin:0;font-size:13px;font-weight:600;line-height:1.45}
-.sbr-large,.sbr-footer{grid-column:1/-1}
+.sbr-footer{grid-column:1/-1}
 
 /* ---- Cartes ---- */
 .sbr-carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:16px;min-width:0;
-  box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column}
+  box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column;container-type:inline-size;container-name:sbc}
 .sbr-carte:nth-of-type(1){border-top:4px solid var(--rouge)}
 .sbr-carte:nth-of-type(2){border-top:4px solid #16a34a}
 .sbr-carte:nth-of-type(3){border-top:4px solid #2563eb}
@@ -694,8 +694,8 @@ const CSS = `
 .sbr-donut-centre span{font-size:11.5px;color:var(--mut);margin-top:3px}
 .sbr-donut-centre em{font-style:normal;font-size:11.5px;font-weight:700;margin-top:4px}
 
-.sbr-graph{flex:1;min-height:270px;width:100%}
-.sbr-graph-grand{flex:none;height:340px}
+.sbr-graph{flex:1;min-height:250px;width:100%}
+.sbr-graph-grand{flex:1;min-height:240px}
 
 .sbr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .sbr-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid #cbd5e1;
@@ -707,8 +707,8 @@ const CSS = `
 
 /* ---- Classement ---- */
 .sbr-rang{list-style:none;margin:0;padding:0;display:grid;gap:4px}
-.sbr-rang button{display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,2fr) auto auto;gap:6px 12px;
-  align-items:center;width:100%;padding:8px 10px;border:0;border-radius:8px;background:transparent;
+.sbr-rang button{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px 12px;
+  align-items:center;width:100%;padding:6px 10px;border:0;border-radius:8px;background:transparent;
   cursor:pointer;text-align:left;font-size:12.5px;color:var(--txt)}
 .sbr-rang button:hover{background:#f1f5f9}
 .sbr-rang button.on{background:#dcfce7;outline:1px solid #16a34a}
@@ -716,7 +716,7 @@ const CSS = `
   text-overflow:ellipsis;white-space:nowrap}
 .sbr-rang .nom i{width:10px;height:10px;border-radius:50%;flex:none}
 .sbr-rang .val{font-variant-numeric:tabular-nums;order:3;min-width:60px;text-align:right}
-.sbr-piste{order:2;position:relative;height:8px;background:#e2e8f0;border-radius:4px}
+.sbr-piste{grid-column:1/-1;order:5;position:relative;height:8px;background:#e2e8f0;border-radius:4px}
 .sbr-piste i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width .3s}
 .sbr-piste u{position:absolute;top:-3px;bottom:-3px;left:62.5%;width:2px;background:#0f172a;opacity:.65}
 .sbr-statut{order:4;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
@@ -746,13 +746,14 @@ const CSS = `
 .sbr-legende div{display:flex;align-items:center;gap:8px;color:#334155;font-weight:600}
 .sbr-legende .carre{width:14px;height:14px;border-radius:3px;flex:none}
 
+@container sbc (min-width:600px){
+  .sbr-rang button{grid-template-columns:minmax(110px,1.1fr) minmax(0,2fr) auto auto}
+  .sbr-piste{grid-column:auto;order:2}
+}
+
 /* ---- Adaptation au PANNEAU (largeur réelle disponible) ---- */
 @container sbrp (min-width:620px){
   .sbr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-}
-@container sbrp (max-width:520px){
-  .sbr-rang button{grid-template-columns:minmax(0,1fr) auto auto}
-  .sbr-piste{grid-column:1/-1;order:5}
 }
 @container sbrp (max-width:360px){
   .sbr-kpi-haut{grid-template-columns:1fr}
@@ -761,18 +762,18 @@ const CSS = `
 
 /* ---- Adaptation à la ZONE (sidebar ouverte ou réduite) ---- */
 @container sbr (max-width:1279px){
-  .sbr-body{grid-template-columns:minmax(0,54%) minmax(0,1fr)}
+  .sbr-body{grid-template-columns:minmax(0,62%) minmax(0,1fr)}
 }
 @container sbr (min-width:1600px){
-  .sbr-body{grid-template-columns:minmax(0,60%) minmax(0,1fr)}
+  .sbr-body{grid-template-columns:minmax(0,68%) minmax(0,1fr)}
   .sbr-panel{padding:20px}
   .sbr-grid{gap:16px}
 }
 @container sbr (min-width:2200px){
   .sbr-in{font-size:16px}
-  .sbr-body{grid-template-columns:minmax(0,62%) minmax(0,1fr)}
+  .sbr-body{grid-template-columns:minmax(0,70%) minmax(0,1fr)}
   .sbr-graph{min-height:340px}
-  .sbr-graph-grand{height:420px}
+  .sbr-graph-grand{min-height:380px}
 }
 /* Tablette & mobile : carte au-dessus, la page défile */
 @container sbr (max-width:1023px){
@@ -794,7 +795,7 @@ const CSS = `
   .sbr-map-titre{top:60px;max-width:calc(100% - 24px);font-size:11.5px}
   .sbr-legende{display:none}
   .sbr-graph{min-height:230px}
-  .sbr-graph-grand{height:290px}
+  .sbr-graph-grand{min-height:280px}
   .sbr-champ select{min-width:140px}
   .sbr-footer strong{margin-left:0}
 }
