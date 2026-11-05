@@ -836,9 +836,9 @@ const CouchePerte = ({ debut, fin }: { debut: number; fin: number }) => {
       pane.style.pointerEvents = "none";
     }
     const c = L.tileLayer(
-      `https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=${debut}&end_year=${fin}&tcd=30`,
-      { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }
-    ).addTo(map);
+  `https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=${debut}&end_year=${fin}&tcd=30&render_type=true_color`,
+  { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }
+).addTo(map);
     return () => { map.removeLayer(c); };
   }, [debut, fin, map]);
   return null;
