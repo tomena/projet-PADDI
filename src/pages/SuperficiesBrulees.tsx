@@ -280,6 +280,12 @@ export default function SuperficiesBrulees({ data }: any) {
     [tableauVirtuel]
   );
 
+  // Pas d'années vides (2027-2030) sur l'axe : on s'arrête à la dernière année avec données
+  const comparisonDisplay = useMemo(
+    () => comparisonData.filter((r) => AP_LIST.some((a) => r[a.code] !== undefined)),
+    [comparisonData]
+  );
+
   /* ---------- Classement des 7 aires protégées pour l'année choisie ---------- */
   const apRows = useMemo(
     () =>
@@ -315,6 +321,21 @@ export default function SuperficiesBrulees({ data }: any) {
       ),
     };
   }, [regionsData, selectedAntenne]);
+
+  // Légende : uniquement les couleurs présentes sur la carte (Tanà n'a pas de couche région).
+  // Les régions sans couleur dédiée (Amoron'i Mania, Vakinankaratra…) partagent le gris.
+  const legendeRegions = useMemo(() => {
+    const colorees = new Map<string, string>();
+    const grises = new Set<string>();
+    (geoFiltered?.features || []).forEach((f: any) => {
+      const a = f.properties?.antenne || '';
+      if (COULEUR_ANTENNE[a]) colorees.set(a, COULEUR_ANTENNE[a]);
+      else grises.add(f.properties?.nom_reg || a);
+    });
+    const items = [...colorees].map(([label, color]) => ({ label, color }));
+    if (grises.size) items.push({ label: [...grises].filter(Boolean).join(' / '), color: getColorByAntenne('') });
+    return items;
+  }, [geoFiltered]);
 
   const aireProtegeeFiltered = useMemo(() => {
     if (!aireProtegeeData?.features) return null;
@@ -431,7 +452,7 @@ export default function SuperficiesBrulees({ data }: any) {
                 </div>
 
                 <div className="sbr-donut">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" aspect={1}>
                     <PieChart>
                       <Pie data={dataDonut} innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270}
                            dataKey="value" stroke="none" isAnimationActive={false}>
@@ -520,10 +541,10 @@ export default function SuperficiesBrulees({ data }: any) {
             </div>
             <div className="sbr-graph sbr-graph-grand">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={comparisonData} margin={{ top: 10, right: 24, left: -8, bottom: 0 }}>
+                <LineChart data={comparisonDisplay} margin={{ top: 10, right: 24, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                   <XAxis dataKey="annee" tick={{ fontSize: 11 }} padding={{ left: 12, right: 12 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v)}%`} domain={['auto', 'auto']}>
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v)}%`} domain={[(m: number) => Math.floor(Math.min(m, -25) / 10) * 10, (m: number) => Math.ceil(Math.max(m, 0) / 10) * 10]}>
                     <Label value="Variation (%)" angle={-90} position="insideLeft"
                            style={{ textAnchor: 'middle', fontSize: 11, fontWeight: 600, fill: '#475569' }} />
                   </YAxis>
@@ -593,8 +614,6 @@ export default function SuperficiesBrulees({ data }: any) {
             ) : null}
           </MapContainer>
 
-          <div className="sbr-map-titre">{t.mapTitle} ({selectedYear})</div>
-
           <div className="sbr-outils" role="group" aria-label={t.basemap}>
             <button className={fond === 'topo' ? 'on' : ''} onClick={() => setFond('topo')}>{t.topo}</button>
             <button className={fond === 'sat' ? 'on' : ''} onClick={() => setFond('sat')}>{t.sat}</button>
@@ -603,11 +622,9 @@ export default function SuperficiesBrulees({ data }: any) {
           <div className="sbr-legende">
             <strong>{t.legend}</strong>
             <div><i className="carre" style={{ background: 'rgba(34,197,94,.45)', border: '1px solid #15803d' }} />{t.protectedLegend}</div>
-            {Object.entries(COULEUR_ANTENNE)
-              .filter(([a]) => !selectedAntenne || a === selectedAntenne)
-              .map(([a, c]) => (
-                <div key={a}><i className="carre" style={{ background: c, opacity: 0.7 }} />{a}</div>
-              ))}
+            {legendeRegions.map((r) => (
+              <div key={r.label}><i className="carre" style={{ background: r.color, opacity: 0.7 }} />{r.label}</div>
+            ))}
           </div>
         </main>
       </div>
@@ -687,12 +704,12 @@ const CSS = `
 .sbr-tuile span{font-size:11px;color:var(--mut);line-height:1.25}
 .sbr-tuile strong{font-family:var(--titre);font-size:clamp(13px,1.15vw,16px);font-weight:700;
   font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
-.sbr-donut{position:relative;height:176px;width:100%;max-width:210px;margin:auto}
-.sbr-donut-centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;pointer-events:none;padding:0 22%}
-.sbr-donut-centre strong{font-family:var(--titre);font-size:clamp(22px,2.4vw,30px);font-weight:800;line-height:1}
-.sbr-donut-centre span{font-size:11.5px;color:var(--mut);margin-top:3px}
-.sbr-donut-centre em{font-style:normal;font-size:11.5px;font-weight:700;margin-top:4px}
+.sbr-donut{position:relative;width:100%;max-width:190px;margin:auto;container-type:inline-size}
+.sbr-donut-centre{position:absolute;left:20%;right:20%;top:20%;bottom:20%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;pointer-events:none;overflow:hidden}
+.sbr-donut-centre strong{font-family:var(--titre);font-size:clamp(13px,12.5cqw,26px);font-weight:800;line-height:1;white-space:nowrap}
+.sbr-donut-centre span{font-size:clamp(8.5px,5.4cqw,11.5px);color:var(--mut);margin-top:3px;line-height:1.15}
+.sbr-donut-centre em{font-style:normal;font-size:clamp(8.5px,5.4cqw,11.5px);font-weight:700;margin-top:3px;line-height:1.15}
 
 .sbr-graph{flex:1;min-height:250px;width:100%}
 .sbr-graph-grand{flex:1;min-height:240px}
@@ -730,10 +747,6 @@ const CSS = `
 .sbr .sbr-ap-label{background:#fff;border:1px solid #94a3b8;border-radius:5px;font-size:12px;font-weight:700;
   box-shadow:0 2px 8px rgba(0,0,0,.2);padding:3px 7px}
 .sbr .sbr-ap-label:before{display:none}
-.sbr-map-titre{position:absolute;top:12px;left:12px;z-index:1000;padding:9px 13px;border-radius:10px;
-  background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border:1px solid rgba(15,23,42,.15);font-size:12.5px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15);
-  width:fit-content;max-width:calc(100% - 200px)}
 .sbr-outils{position:absolute;top:12px;right:12px;z-index:1000;display:flex;border-radius:10px;overflow:hidden;
   border:1px solid rgba(15,23,42,.18);background:rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .sbr-outils button{padding:9px 12px;border:0;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)}
@@ -792,7 +805,6 @@ const CSS = `
   .sbr-grid{gap:12px}
   .sbr-carte{padding:12px}
   .sbr-map{height:48vh}
-  .sbr-map-titre{top:60px;max-width:calc(100% - 24px);font-size:11.5px}
   .sbr-legende{display:none}
   .sbr-graph{min-height:230px}
   .sbr-graph-grand{min-height:280px}
