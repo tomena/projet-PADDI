@@ -1,8 +1,12 @@
-import React, { useEffect, useRef, useState,} from "react";
-import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle,} from "lucide-react";
-import {  analyserFichierCouts,  UC_PAR_ONGLET,  ONGLET_PAR_UTILISATEUR,  UTILISATEURS_ADMIN,} from "../utils/parseCoutsExcel";
+import React, { useEffect, useRef, useState } from "react";
+import { X, RefreshCw, FileSpreadsheet, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  analyserFichierCouts,
+  UC_PAR_ONGLET,
+  ONGLET_PAR_UTILISATEUR,
+  UTILISATEURS_ADMIN,
+} from "../utils/parseCoutsExcel";
 import { analyserFichierDecaissement } from "../utils/parseDecaissementExcel";
-
 
 interface UpdateModalProps {
   onClose: () => void;
@@ -10,28 +14,133 @@ interface UpdateModalProps {
   token?: string;
 }
 
-export default function UpdateModal({ onClose, userName, token }: UpdateModalProps) {
+/* =========================================================
+   STYLES RESPONSIVES
+   Les media queries sont impossibles en style inline : on utilise
+   des classes "um-*" avec !important pour passer devant les styles
+   inline uniquement quand l'écran est petit. Sur ordinateur, le rendu
+   reste identique à l'ancien.
+========================================================= */
+const RESPONSIVE_CSS = `
+.um-overlay {
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-top: max(12px, env(safe-area-inset-top)) !important;
+  padding-right: max(12px, env(safe-area-inset-right)) !important;
+  padding-bottom: max(12px, env(safe-area-inset-bottom)) !important;
+  padding-left: max(12px, env(safe-area-inset-left)) !important;
+}
 
+.um-modal {
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  margin: auto;
+  max-height: calc(100vh - 24px) !important;
+  max-height: calc(100dvh - 24px) !important;
+}
+
+.um-header, .um-footer { flex-shrink: 0 !important; }
+.um-header { gap: 10px; }
+.um-header-left { min-width: 0; }
+
+.um-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+.um-modal button:focus-visible,
+.um-modal select:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 2px;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- Téléphones (<= 640px) : feuille ancrée en bas ---------- */
+@media (max-width: 640px) {
+  .um-overlay { align-items: flex-end !important; padding: 0 !important; }
+
+  .um-modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0;
+    border-radius: 16px 16px 0 0 !important;
+    max-height: calc(100vh - 8px - env(safe-area-inset-top)) !important;
+    max-height: calc(100dvh - 8px - env(safe-area-inset-top)) !important;
+  }
+
+  .um-header  { padding: 14px !important; }
+  .um-content { padding: 14px !important; }
+
+  /* Choix Décaissement / Taux d'avancement et menus : en colonne */
+  .um-stack { flex-direction: column !important; align-items: stretch !important; }
+  .um-stack > * { width: 100% !important; }
+
+  /* Année / Mois : une colonne */
+  .um-grid-2 { grid-template-columns: 1fr !important; }
+
+  /* Listes déroulantes : pleine largeur, 16px (pas de zoom auto sur iOS) */
+  .um-modal select {
+    width: 100% !important;
+    min-height: 44px;
+    font-size: 16px !important;
+  }
+
+  /* Textes minuscules rendus lisibles */
+  .um-text-small { font-size: 12px !important; }
+
+  /* Pied de page : boutons pleine largeur, empilés */
+  .um-footer {
+    flex-direction: column-reverse !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+    padding: 12px 14px max(12px, env(safe-area-inset-bottom)) !important;
+  }
+  .um-footer button {
+    width: 100% !important;
+    min-height: 44px;
+    justify-content: center;
+    font-size: 13px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .um-header  { padding: 12px !important; }
+  .um-content { padding: 12px !important; }
+}
+
+/* ---------- Écrans courts / paysage mobile ---------- */
+@media (max-height: 520px) {
+  .um-overlay { align-items: flex-start !important; }
+  .um-modal   { max-height: none !important; margin: 0 auto; }
+  .um-header, .um-footer { padding-top: 8px !important; padding-bottom: 8px !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .um-modal * { transition: none !important; }
+}
+`;
+
+export default function UpdateModal({ onClose, userName, token }: UpdateModalProps) {
   const [anneeImport, setAnneeImport] = useState<string>("2026");
-  const anneesDisponibles = [ 2024,2025,2026,2027,2028,2029,2030,];
-  
+  const anneesDisponibles = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
+
   const [moisImport, setMoisImport] = useState<string>("");
   const moisDisponibles = [
-  "Janvier", "Février", "Mars", "Avril",
-  "Mai", "Juin", "Juillet", "Août",
-  "Septembre", "Octobre", "Novembre", "Décembre",
-];
-  
-  const [typeMiseAJour, setTypeMiseAJour] = useState<
-    "decaissement" | "avancement" | null
-  >(null);
+    "Janvier", "Février", "Mars", "Avril",
+    "Mai", "Juin", "Juillet", "Août",
+    "Septembre", "Octobre", "Novembre", "Décembre",
+  ];
 
-  const [niveau, setNiveau] = useState<
-    "Par composante" | "Par instrument"
-  >("Par composante");
+  const [typeMiseAJour, setTypeMiseAJour] = useState<"decaissement" | "avancement" | null>(null);
 
-  const [uniteCoordination, setUniteCoordination] =
-  useState("UCT");  
+  const [niveau, setNiveau] = useState<"Par composante" | "Par instrument">("Par composante");
+
+  const [uniteCoordination, setUniteCoordination] = useState("UCT");
 
   const uniteParUtilisateur: Record<string, string> = {
     Joary: "UCT",
@@ -41,44 +150,43 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
     Michael: "UCR-A",
     Tsinjo: "UCR-FD",
   };
-  
+
   // Utilisateurs et droits
   const estAdmin = UTILISATEURS_ADMIN.has(userName ?? "");
   const estCeline = userName === "Celine";
-  
+
   // Seuls les administrateurs choisissent le type de mise à jour.
   const peutChoisirType = estAdmin;
-  
+
   // Celine peut choisir le niveau pour le décaissement.
   // Les autres utilisateurs ne peuvent pas changer le niveau.
   const peutChoisirNiveau = estAdmin || estCeline;
-  
+
   // Seuls les administrateurs choisissent l'unité de coordination.
   const peutChoisirUnite = estAdmin;
-  
+
   // Initialisation selon l'utilisateur connecté
   useEffect(() => {
     if (!userName) return;
-  
+
     if (estAdmin) {
       setTypeMiseAJour(null);
       setNiveau("Par composante");
       setUniteCoordination("UCT");
       return;
     }
-  
+
     if (estCeline) {
       setTypeMiseAJour("decaissement");
       setNiveau("Par composante");
       setUniteCoordination("");
       return;
     }
-  
+
     setTypeMiseAJour("avancement");
     setNiveau("Par composante");
     setUniteCoordination(uniteParUtilisateur[userName] || "");
   }, [userName, estAdmin, estCeline]);
-  
 
   const [fichier, setFichier] = useState<File | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -88,11 +196,11 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
   const [importEnCours, setImportEnCours] = useState(false);
   // undefined = chargement, null = jamais de mise à jour, sinon la date ISO
   const [derniereMaj, setDerniereMaj] = useState<string | null | undefined>(undefined);
-  
+
   useEffect(() => {
     if (!token) return;
     let annule = false;
-  
+
     fetch("/api/derniere-maj", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -101,10 +209,10 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
       .then((r) => r.json())
       .then((d) => { if (!annule) setDerniereMaj(d.date ?? null); })
       .catch(() => { if (!annule) setDerniereMaj(undefined); }); // erreur : on n'affiche rien
-  
+
     return () => { annule = true; };
   }, [token]);
-  
+
   const formaterDate = (iso: string) =>
     new Date(iso).toLocaleString("fr-FR", {
       dateStyle: "long",
@@ -116,9 +224,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
      SÉLECTION DU FICHIER
   ========================= */
 
-  const handleFileChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setErreur(null);
     setMessage(null);
 
@@ -129,16 +235,10 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
       return;
     }
 
-    const extension = file.name
-      .split(".")
-      .pop()
-      ?.toLowerCase();
+    const extension = file.name.split(".").pop()?.toLowerCase();
 
     if (extension !== "xlsx" && extension !== "xls") {
-      setErreur(
-        "Veuillez sélectionner un fichier Excel au format .xlsx ou .xls."
-      );
-
+      setErreur("Veuillez sélectionner un fichier Excel au format .xlsx ou .xls.");
       setFichier(null);
 
       if (fileInputRef.current) {
@@ -168,47 +268,47 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
   const ongletsDisponibles = Object.keys(UC_PAR_ONGLET);
   const peutImporterDecaissement = estAdmin || estCeline;
 
-const peutImporterAvancement =
-  estAdmin || Boolean(ONGLET_PAR_UTILISATEUR[userName ?? ""]);
+  const peutImporterAvancement =
+    estAdmin || Boolean(ONGLET_PAR_UTILISATEUR[userName ?? ""]);
 
-const peutImporter =
-  typeMiseAJour === "decaissement"
-    ? peutImporterDecaissement
-    : typeMiseAJour === "avancement"
-      ? peutImporterAvancement
-      : false;
+  const peutImporter =
+    typeMiseAJour === "decaissement"
+      ? peutImporterDecaissement
+      : typeMiseAJour === "avancement"
+        ? peutImporterAvancement
+        : false;
 
   const importerDecaissement = async () => {
-      setImportEnCours(true);
-      try {
-        const niveauApi = niveau === "Par instrument" ? "instrument" : "composante";
-        const lu = await analyserFichierDecaissement(fichier as File, niveauApi);
-    
-        const reponse = await fetch("/api/import-decaissement", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, niveau: niveauApi, budgets: lu.budgets, lignes: lu.lignes }),
-        });
-        const resultat = await reponse.json().catch(() => ({}));
-        if (!reponse.ok || !resultat.success) throw new Error(resultat.error || "Échec de la mise à jour du décaissement.");
-    
-        setMessage(resultat.message + (lu.avertissements.length ? ` Attention : ${lu.avertissements[0]}` : ""));
-      } catch (error) {
-        setErreur(error instanceof Error ? error.message : "Une erreur inattendue est survenue.");
-      } finally {
-        setImportEnCours(false);
-      }
-    };
+    setImportEnCours(true);
+    try {
+      const niveauApi = niveau === "Par instrument" ? "instrument" : "composante";
+      const lu = await analyserFichierDecaissement(fichier as File, niveauApi);
+
+      const reponse = await fetch("/api/import-decaissement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, niveau: niveauApi, budgets: lu.budgets, lignes: lu.lignes }),
+      });
+      const resultat = await reponse.json().catch(() => ({}));
+      if (!reponse.ok || !resultat.success) throw new Error(resultat.error || "Échec de la mise à jour du décaissement.");
+
+      setMessage(resultat.message + (lu.avertissements.length ? ` Attention : ${lu.avertissements[0]}` : ""));
+    } catch (error) {
+      setErreur(error instanceof Error ? error.message : "Une erreur inattendue est survenue.");
+    } finally {
+      setImportEnCours(false);
+    }
+  };
 
   const handleImport = async () => {
     setErreur(null);
     setMessage(null);
-  
+
     if (!fichier) {
       setErreur("Veuillez sélectionner un fichier Excel.");
       return;
     }
-  
+
     if (!userName) {
       setErreur("Utilisateur non identifié.");
       return;
@@ -217,96 +317,76 @@ const peutImporter =
     if (!token) {
       setErreur("Session expirée : fermez cette fenêtre et reconnectez-vous.");
       return;
-        }
-  
-  if (!peutImporter) {
+    }
+
+    if (!peutImporter) {
       setErreur("Vous n'êtes pas autorisé à importer ces données.");
       return;
     }
 
-  if (typeMiseAJour === "decaissement") {
-    await importerDecaissement();
-    return;
-  }
-  
+    if (typeMiseAJour === "decaissement") {
+      await importerDecaissement();
+      return;
+    }
+
     let ongletsAImporter: string[] = [];
-  
+
     if (estAdminImport) {
       if (uniteCoordination === "Tous") {
         ongletsAImporter = ongletsDisponibles;
       } else {
         ongletsAImporter = ongletsDisponibles.filter(
-          (onglet) =>
-            UC_PAR_ONGLET[onglet] === uniteCoordination
+          (onglet) => UC_PAR_ONGLET[onglet] === uniteCoordination
         );
       }
     } else if (ongletImpose) {
       ongletsAImporter = [ongletImpose];
     }
-  
+
     if (ongletsAImporter.length === 0) {
-      setErreur(
-        "Aucun onglet Excel autorisé ne correspond à votre unité de coordination."
-      );
+      setErreur("Aucun onglet Excel autorisé ne correspond à votre unité de coordination.");
       return;
-    }  
+    }
     setImportEnCours(true);
-  
+
     try {
       // Lire uniquement les onglets autorisés.
-      const imports = await analyserFichierCouts(
-        fichier,
-        ongletsAImporter,
-        Number(anneeImport)
-      );
-  
+      const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
+
       if (!imports || imports.length === 0) {
-        throw new Error(
-          "Aucune donnée exploitable trouvée dans les onglets sélectionnés."
-        );
+        throw new Error("Aucune donnée exploitable trouvée dans les onglets sélectionnés.");
       }
-  
+
       // Envoyer les données à l'API import-couts.
       const reponse = await fetch("/api/import-couts", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            token,
-            imports,
-          }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, imports }),
       });
-  
+
       const resultatAPI = await reponse.json();
-  
+
       if (!reponse.ok || !resultatAPI.success) {
         throw new Error(
-          resultatAPI.error ||
-            resultatAPI.message ||
-            "Échec de la mise à jour des coûts."
+          resultatAPI.error || resultatAPI.message || "Échec de la mise à jour des coûts."
         );
       }
-  
-      setMessage(
-        resultatAPI.message ||
-          "Importation et mise à jour effectuées avec succès."
-      );
+
+      setMessage(resultatAPI.message || "Importation et mise à jour effectuées avec succès.");
       setDerniereMaj(new Date().toISOString());
-  
+
       console.log("Résultat de l'importation :", resultatAPI);
     } catch (error) {
       console.error("Erreur pendant l'importation :", error);
-  
+
       setErreur(
-        error instanceof Error
-          ? error.message
-          : "Une erreur inattendue est survenue."
+        error instanceof Error ? error.message : "Une erreur inattendue est survenue."
       );
     } finally {
       setImportEnCours(false);
     }
   };
+
   /* =========================
      RESET DU MODAL
   ========================= */
@@ -323,45 +403,33 @@ const peutImporter =
 
   return (
     <>
-      {/* OVERLAY */}
-      <div
-        style={styles.overlay}
-        onClick={handleClose}
-      >
-        {/* MODAL */}
-        <div
-          style={styles.modal}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* =========================
-              HEADER
-          ========================= */}
+      <style>{RESPONSIVE_CSS}</style>
 
-          <div style={styles.header}>
-            <div style={styles.headerLeft}>
+      {/* OVERLAY */}
+      <div className="um-overlay" style={styles.overlay} onClick={handleClose}>
+        {/* MODAL */}
+        <div className="um-modal" style={styles.modal} onClick={(e) => e.stopPropagation()}>
+          {/* HEADER */}
+          <div className="um-header" style={styles.header}>
+            <div className="um-header-left" style={styles.headerLeft}>
               <div style={styles.headerIcon}>
-                <RefreshCw
-                  size={20}
-                  color="#2563eb"
-                />
+                <RefreshCw size={20} color="#2563eb" />
               </div>
 
               <div>
-                <div style={styles.title}>
-                  Mise à jour des données
-                </div>
+                <div style={styles.title}>Mise à jour des données</div>
 
-                <div style={styles.subtitle}>
+                <div className="um-text-small" style={styles.subtitle}>
                   Importer et actualiser les données financières
                 </div>
                 {userName && (
-                  <div style={styles.welcome}>
+                  <div className="um-text-small" style={styles.welcome}>
                     Bienvenue {userName} !
                   </div>
                 )}
-                
+
                 {derniereMaj !== undefined && (
-                  <div style={styles.lastUpdate}>
+                  <div className="um-text-small" style={styles.lastUpdate}>
                     {derniereMaj
                       ? `Ta dernière mise à jour était: ${formaterDate(derniereMaj)}`
                       : "Tu n'as pas encore fait de mise à jour."}
@@ -370,45 +438,24 @@ const peutImporter =
               </div>
             </div>
 
-            <button
-              onClick={handleClose}
-              style={styles.closeButton}
-              title="Fermer"
-            >
+            <button onClick={handleClose} style={styles.closeButton} title="Fermer" aria-label="Fermer">
               <X size={19} />
             </button>
           </div>
 
-          {/* =========================
-              CONTENU
-          ========================= */}
+          {/* CONTENU */}
+          <div className="um-content" style={styles.content}>
+            <div style={styles.sectionTitle}>DONNÉES À METTRE À JOUR</div>
 
-          <div style={styles.content}>
-
-            {/* TITRE SECTION */}
-
-            <div style={styles.sectionTitle}>
-              DONNÉES À METTRE À JOUR
-            </div>
-
-            {/* =========================
-                CHOIX DES DONNÉES
-            ========================= */}
-            
-            <div style={styles.dataChoices}>
+            {/* CHOIX DES DONNÉES */}
+            <div className="um-stack" style={styles.dataChoices}>
               {/* DÉCAISSEMENT */}
               <label
                 style={{
                   ...styles.choice,
-                  ...(typeMiseAJour === "decaissement"
-                    ? styles.choiceActive
-                    : {}),
-                  ...(!estAdmin && !estCeline
-                    ? { opacity: 0.5, cursor: "not-allowed" }
-                    : {}),
-                  ...(estCeline
-                    ? { cursor: "default" }
-                    : {}),
+                  ...(typeMiseAJour === "decaissement" ? styles.choiceActive : {}),
+                  ...(!estAdmin && !estCeline ? { opacity: 0.5, cursor: "not-allowed" } : {}),
+                  ...(estCeline ? { cursor: "default" } : {}),
                 }}
               >
                 <input
@@ -417,12 +464,7 @@ const peutImporter =
                   disabled={!estAdmin && !estCeline}
                   onChange={() => {
                     if (!estAdmin && !estCeline) return;
-
-                    setTypeMiseAJour(
-                      typeMiseAJour === "decaissement"
-                        ? null
-                        : "decaissement"
-                    );
+                    setTypeMiseAJour(typeMiseAJour === "decaissement" ? null : "decaissement");
                   }}
                   style={styles.checkbox}
                 />
@@ -430,9 +472,7 @@ const peutImporter =
                 <span
                   style={{
                     ...styles.choiceText,
-                    ...(typeMiseAJour === "decaissement"
-                      ? styles.choiceTextActive
-                      : {}),
+                    ...(typeMiseAJour === "decaissement" ? styles.choiceTextActive : {}),
                   }}
                 >
                   Décaissement
@@ -443,12 +483,8 @@ const peutImporter =
               <label
                 style={{
                   ...styles.choice,
-                  ...(typeMiseAJour === "avancement"
-                    ? styles.choiceActive
-                    : {}),
-                  ...(estCeline
-                    ? { opacity: 0.5, cursor: "not-allowed" }
-                    : {}),
+                  ...(typeMiseAJour === "avancement" ? styles.choiceActive : {}),
+                  ...(estCeline ? { opacity: 0.5, cursor: "not-allowed" } : {}),
                 }}
               >
                 <input
@@ -457,12 +493,7 @@ const peutImporter =
                   disabled={!estAdmin}
                   onChange={() => {
                     if (!estAdmin) return;
-
-                    setTypeMiseAJour(
-                      typeMiseAJour === "avancement"
-                        ? null
-                        : "avancement"
-                    );
+                    setTypeMiseAJour(typeMiseAJour === "avancement" ? null : "avancement");
                   }}
                   style={styles.checkbox}
                 />
@@ -470,48 +501,32 @@ const peutImporter =
                 <span
                   style={{
                     ...styles.choiceText,
-                    ...(typeMiseAJour === "avancement"
-                      ? styles.choiceTextActive
-                      : {}),
+                    ...(typeMiseAJour === "avancement" ? styles.choiceTextActive : {}),
                   }}
                 >
                   Taux d'avancement
                 </span>
               </label>
-            </div>       
+            </div>
 
-           {/* =========================
-                MENUS DE PARAMÉTRAGE
-            ========================= */}
-            
             {/* MENUS DE PARAMÉTRAGE */}
             {typeMiseAJour && (
-              <div style={styles.levelContainer}>
+              <div className="um-stack" style={styles.levelContainer}>
                 {/* NIVEAU : uniquement pour le décaissement */}
                 {typeMiseAJour === "decaissement" && (
                   <div style={styles.selectGroup}>
-                    <div style={styles.levelLabel}>
-                      Niveau de mise à jour
-                    </div>
+                    <div style={styles.levelLabel}>Niveau de mise à jour</div>
 
                     <select
                       value={niveau}
                       onChange={(e) =>
-                        setNiveau(
-                          e.target.value as
-                            | "Par composante"
-                            | "Par instrument"
-                        )
+                        setNiveau(e.target.value as "Par composante" | "Par instrument")
                       }
                       disabled={!peutChoisirNiveau}
                       style={styles.select}
                     >
-                      <option value="Par composante">
-                        Par composante
-                      </option>
-                      <option value="Par instrument">
-                        Par instrument
-                      </option>
+                      <option value="Par composante">Par composante</option>
+                      <option value="Par instrument">Par instrument</option>
                     </select>
                   </div>
                 )}
@@ -519,9 +534,7 @@ const peutImporter =
                 {/* UNITÉ : uniquement pour le taux d'avancement */}
                 {typeMiseAJour === "avancement" && !estCeline && (
                   <div style={styles.selectGroup}>
-                    <div style={styles.levelLabel}>
-                      Unité de coordination
-                    </div>
+                    <div style={styles.levelLabel}>Unité de coordination</div>
 
                     <select
                       value={uniteCoordination}
@@ -550,9 +563,7 @@ const peutImporter =
                           <option value="UCR-FD">UCR-FD</option>
                         </>
                       ) : (
-                        <option value={uniteCoordination}>
-                          {uniteCoordination}
-                        </option>
+                        <option value={uniteCoordination}>{uniteCoordination}</option>
                       )}
                     </select>
                   </div>
@@ -561,143 +572,136 @@ const peutImporter =
             )}
 
             {/* IMPORT EXCEL */}
-              <div style={styles.importSection}>
-                <div style={styles.sectionTitle}>
-                  IMPORTER LE FICHIER EXCEL
-                </div>
-              
-                {/* PREMIÈRE LIGNE : ANNÉE ET MOIS */}
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: "12px",
-                    alignItems: "end",
-                    width: "100%",
-                  }}
-                >
-                  {/* ANNÉE */}
-                  <div style={styles.selectGroup}>
-                    <div style={styles.levelLabel}>Année</div>
-              
-                    <select
-                      value={anneeImport}
-                      onChange={(e) => setAnneeImport(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Choisir l'année</option>
-                      {anneesDisponibles.map((annee) => (
-                        <option key={annee} value={annee}>
-                          {annee}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-              
-                  {/* MOIS */}
-                  <div style={styles.selectGroup}>
-                    <div style={styles.levelLabel}>Mois</div>
-              
-                    <select
-                      value={moisImport}
-                      onChange={(e) => setMoisImport(e.target.value)}
-                      style={styles.select}
-                    >
-                      <option value="">Choisir le mois</option>
-                      {moisDisponibles.map((mois) => (
-                        <option key={mois} value={mois}>
-                          {mois}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              
-                {/* DEUXIÈME LIGNE : FICHIER EXCEL SUR TOUTE LA LARGEUR */}
-                <div
-                  style={{
-                    ...styles.importButtonContainer,
-                    width: "100%",
-                    marginTop: "12px",
-                  }}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".xlsx,.xls"
-                    onChange={handleFileChange}
-                    style={{ display: "none" }}
-                  />
-              
-                  <div
-                    style={{
-                      ...styles.uploadBox,
-                      width: "100%",
-                      minHeight: "100px",
-                      padding: "16px",
-                      boxSizing: "border-box",
-                      ...(fichier ? styles.uploadBoxSelected : {}),
-                    }}
-                    onClick={handleOpenFile}
+            <div style={styles.importSection}>
+              <div style={styles.sectionTitle}>IMPORTER LE FICHIER EXCEL</div>
+
+              {/* ANNÉE ET MOIS */}
+              <div
+                className="um-grid-2"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "12px",
+                  alignItems: "end",
+                  width: "100%",
+                }}
+              >
+                {/* ANNÉE */}
+                <div style={styles.selectGroup}>
+                  <div style={styles.levelLabel}>Année</div>
+
+                  <select
+                    value={anneeImport}
+                    onChange={(e) => setAnneeImport(e.target.value)}
+                    style={styles.select}
                   >
-                    {fichier ? (
-                      <>
-                        <div style={styles.fileIcon}>
-                          <FileSpreadsheet size={24} color="#16a34a" />
-                        </div>
-              
-                        <div style={styles.fileName}>{fichier.name}</div>
-              
-                        <div style={styles.fileInfo}>
-                          {(fichier.size / 1024).toFixed(1)} Ko
-                        </div>
-              
-                        <div style={styles.changeFile}>
-                          Cliquer pour remplacer
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div style={styles.uploadIcon}>
-                          <Upload size={22} color="#2563eb" />
-                        </div>
-              
-                        <div style={styles.uploadTitle}>
-                          Choisir le fichier Excel
-                        </div>
-              
-                        <div style={styles.uploadFormat}>
-                          .xlsx / .xls
-                        </div>
-                      </>
-                    )}
-                  </div>
+                    <option value="">Choisir l'année</option>
+                    {anneesDisponibles.map((annee) => (
+                      <option key={annee} value={annee}>
+                        {annee}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* MOIS */}
+                <div style={styles.selectGroup}>
+                  <div style={styles.levelLabel}>Mois</div>
+
+                  <select
+                    value={moisImport}
+                    onChange={(e) => setMoisImport(e.target.value)}
+                    style={styles.select}
+                  >
+                    <option value="">Choisir le mois</option>
+                    {moisDisponibles.map((mois) => (
+                      <option key={mois} value={mois}>
+                        {mois}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
+              {/* FICHIER EXCEL SUR TOUTE LA LARGEUR */}
+              <div
+                style={{
+                  ...styles.importButtonContainer,
+                  width: "100%",
+                  marginTop: "12px",
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileChange}
+                  style={{ display: "none" }}
+                />
+
+                <div
+                  style={{
+                    ...styles.uploadBox,
+                    width: "100%",
+                    minHeight: "100px",
+                    padding: "16px",
+                    boxSizing: "border-box",
+                    ...(fichier ? styles.uploadBoxSelected : {}),
+                  }}
+                  onClick={handleOpenFile}
+                >
+                  {fichier ? (
+                    <>
+                      <div style={styles.fileIcon}>
+                        <FileSpreadsheet size={24} color="#16a34a" />
+                      </div>
+
+                      <div style={styles.fileName}>{fichier.name}</div>
+
+                      <div className="um-text-small" style={styles.fileInfo}>
+                        {(fichier.size / 1024).toFixed(1)} Ko
+                      </div>
+
+                      <div className="um-text-small" style={styles.changeFile}>
+                        Cliquer pour remplacer
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={styles.uploadIcon}>
+                        <Upload size={22} color="#2563eb" />
+                      </div>
+
+                      <div style={styles.uploadTitle}>Choisir le fichier Excel</div>
+
+                      <div className="um-text-small" style={styles.uploadFormat}>
+                        .xlsx / .xls
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* MESSAGE ERREUR */}
             {erreur && (
-              <div style={styles.errorMessage}>
-                <AlertCircle size={16} color="#dc2626" />
+              <div className="um-text-small" style={styles.errorMessage} role="alert">
+                <AlertCircle size={16} color="#dc2626" style={{ flexShrink: 0 }} />
                 <span>{erreur}</span>
               </div>
             )}
 
             {/* MESSAGE SUCCÈS */}
             {message && (
-              <div style={styles.successMessage}>
-                <CheckCircle2 size={16} color="#16a34a" />
+              <div className="um-text-small" style={styles.successMessage} role="status">
+                <CheckCircle2 size={16} color="#16a34a" style={{ flexShrink: 0 }} />
                 <span>{message}</span>
               </div>
             )}
           </div>
 
-
-          {/* =========================
-                  FOOTER
-              ========================= */}
-
-          <div style={styles.footer}>
+          {/* FOOTER */}
+          <div className="um-footer" style={styles.footer}>
             <button
               type="button"
               onClick={handleClose}
@@ -713,10 +717,7 @@ const peutImporter =
               style={{
                 ...styles.importButton,
                 opacity: !typeMiseAJour || !fichier || importEnCours ? 0.55 : 1,
-                cursor:
-                  !typeMiseAJour || !fichier || importEnCours
-                    ? "not-allowed"
-                    : "pointer",
+                cursor: !typeMiseAJour || !fichier || importEnCours ? "not-allowed" : "pointer",
               }}
               disabled={!typeMiseAJour || !fichier || importEnCours}
             >
@@ -727,21 +728,16 @@ const peutImporter =
                 }}
               />
 
-              {importEnCours
-                ? "Importation en cours..."
-                : "Importer et mettre à jour"}
+              {importEnCours ? "Importation en cours..." : "Importer et mettre à jour"}
             </button>
           </div>
-        </div> {/* fin de styles.modal */}
-        </div>   {/* fin de styles.overlay */}
-      </>
-    );
-  }
+        </div>
+      </div>
+    </>
+  );
+}
 
-const styles: {
-  [key: string]: React.CSSProperties;
-} = {
-
+const styles: { [key: string]: React.CSSProperties } = {
   overlay: {
     position: "fixed",
     inset: 0,
@@ -760,8 +756,7 @@ const styles: {
     maxWidth: 570,
     background: "#ffffff",
     borderRadius: 16,
-    boxShadow:
-      "0 25px 60px rgba(15, 23, 42, 0.22)",
+    boxShadow: "0 25px 60px rgba(15, 23, 42, 0.22)",
     overflow: "hidden",
     border: "1px solid #e2e8f0",
   },
@@ -816,6 +811,7 @@ const styles: {
     alignItems: "center",
     justifyContent: "center",
     cursor: "pointer",
+    flexShrink: 0,
   },
 
   content: {
@@ -858,8 +854,7 @@ const styles: {
   choiceActive: {
     border: "1px solid #93c5fd",
     background: "#f8fbff",
-    boxShadow:
-      "0 2px 6px rgba(37, 99, 235, 0.06)",
+    boxShadow: "0 2px 6px rgba(37, 99, 235, 0.06)",
   },
 
   checkbox: {
@@ -1021,6 +1016,7 @@ const styles: {
     color: "#b91c1c",
     fontSize: 10,
     fontWeight: 600,
+    overflowWrap: "anywhere",
   },
 
   successMessage: {
@@ -1035,6 +1031,7 @@ const styles: {
     color: "#166534",
     fontSize: 10,
     fontWeight: 600,
+    overflowWrap: "anywhere",
   },
 
   footer: {
@@ -1086,15 +1083,15 @@ const styles: {
   },
 
   importButtonContainer: {
-  width: "100%",
-  minWidth: 0,
-  boxSizing: "border-box",
-},
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+  },
 
   lastUpdate: {
-  marginTop: 5,
-  fontSize: 10,
-  color: "#64748b",
-  fontWeight: 600,
-},
+    marginTop: 5,
+    fontSize: 10,
+    color: "#64748b",
+    fontWeight: 600,
+  },
 };
