@@ -368,15 +368,16 @@ const RESPONSIVE_CSS = `
 /* tableaux : une SEULE définition de colonnes => en-tête, lignes et total bien alignés */
 .sc-cols{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.5fr) minmax(0,1.6fr);align-items:center;gap:6px}
 
-.sc-d4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:4px}
-.sc-d5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:4px}
+/* composantes : 2 colonnes, rangées en colonne => C1 sur C2 (bleu) à gauche, C3 sur C4 (vert) à droite */
+.sc-d4{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:6px;padding:6px}
+.sc-d5{flex:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:4px;align-items:stretch}
 .sc-donut{container-type:inline-size}
 .sc-two{display:flex;justify-content:space-between;align-items:stretch;gap:6px;width:100%;margin-top:auto;padding-top:8px}
 .sc-two>div{flex:1;min-width:0;text-align:center}
 .sc-sep{width:1px;background:#e2e8f0;flex:none}
 
 @container (max-width:639px){.sc-d5{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container (max-width:519px){.sc-d4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:479px){.sc-d4{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-flow:row}}
 @container (max-width:379px){.sc-d5{grid-template-columns:repeat(2,minmax(0,1fr))}.sc-amount{font-size:10px !important}}
 @container (max-width:139px){.sc-two{flex-direction:column;gap:4px}.sc-sep{width:100%;height:1px}}
 
@@ -425,11 +426,11 @@ function Ring({ percent, color, size = 72, inner = 18, outer = 30, font = 11 }: 
   );
 }
 
-function TableRow({ icon: Icon, color, title, amount, percent, index }: any) {
+function TableRow({ icon: Icon, color, title, amount, percent, index, fill }: any) {
   const p = clampPct(percent);
   const c = getProgressColor(p);
   return (
-    <div className="sc-cols" style={{ ...styles.row, background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
+    <div className="sc-cols" style={{ ...styles.row, ...(fill ? { flex: 1 } : null), background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
       <div style={styles.cellFlex}>
         <Icon size={18} color={color} style={{ flexShrink: 0 }} />
         <div style={styles.rowTitle}>{title}</div>
@@ -455,16 +456,16 @@ function TotalRow({ label, amount, percent, color }: any) {
   );
 }
 
-function RateCard({ title, color, percent, dec, plan, icon: Icon, tinted, labels }: any) {
+function RateCard({ title, color, percent, dec, plan, icon: Icon, labels }: any) {
   const c = getProgressColor(percent);
   return (
     <div
       className="sc-donut"
       style={{
         ...styles.donutCard,
-        border: `1.5px solid ${color}${tinted ? "40" : "33"}`,
-        background: tinted ? `${color}10` : "#f8fafc",
-        borderTop: tinted ? undefined : `2px solid ${color}`,
+        border: `1.5px solid ${color}33`,
+        background: "#f8fafc",
+        borderTop: `2px solid ${color}`,
       }}
     >
       <div style={{ ...styles.donutTitle, color }}>{title}</div>
@@ -479,12 +480,36 @@ function RateCard({ title, color, percent, dec, plan, icon: Icon, tinted, labels
       <div className="sc-two">
         <div>
           <div style={styles.smallLabel}>{labels.disbursed}</div>
-          <div style={{ ...styles.money, color: tinted ? "#0f172a" : color }}>{formatCompactEuro(dec)}</div>
+          <div style={{ ...styles.money, color }}>{formatCompactEuro(dec)}</div>
         </div>
         <div className="sc-sep" />
         <div>
           <div style={styles.smallLabel}>{labels.planned}</div>
           <div style={styles.money}>{formatCompactEuro(plan)}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Carte compacte des composantes : anneau à gauche, titre + montants à droite.
+ *  Elle est basse (≈ 90 px) pour que 2 rangées tiennent dans la hauteur des cartes voisines. */
+function CompactRateCard({ title, color, percent, dec, plan, labels }: any) {
+  const c = getProgressColor(percent);
+  return (
+    <div style={{ ...styles.compactCard, border: `1.5px solid ${color}40`, background: `${color}10` }}>
+      <Ring percent={percent} color={c} size={68} inner={18} outer={31} font={10} />
+      <div style={styles.compactBody}>
+        <div style={{ ...styles.compactTitle, color }}>{title}</div>
+        <div style={styles.compactValues}>
+          <div style={styles.compactValue}>
+            <div style={styles.smallLabel}>{labels.disbursed}</div>
+            <div style={styles.money}>{formatCompactEuro(dec)}</div>
+          </div>
+          <div style={styles.compactValue}>
+            <div style={styles.smallLabel}>{labels.planned}</div>
+            <div style={styles.money}>{formatCompactEuro(plan)}</div>
+          </div>
         </div>
       </div>
     </div>
@@ -735,14 +760,19 @@ export default function SuiviCouts() {
             <ResponsiveContainer width="100%" height={170}>
               <BarChart data={yearlyData} margin={{ top: 30, right: 16, left: 0, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dbeafe" />
-                <XAxis dataKey="year" tick={{ fontSize: 10, fill: "#64748b", fontWeight: 600 }} axisLine={false} tickLine={false} />
+                <XAxis
+                  dataKey="year"
+                  tick={{ fontSize: 11, fill: "#334155", fontWeight: 700 }}
+                  axisLine={{ stroke: "#1e293b", strokeWidth: 2 }}
+                  tickLine={{ stroke: "#1e293b", strokeWidth: 1.5 }}
+                />
                 <YAxis
-                  width={38}
+                  width={42}
                   domain={[0, "auto"]}
                   tickFormatter={(v) => (v === 0 ? "0" : `${v}M`)}
-                  tick={{ fontSize: 10, fill: "#64748b", fontWeight: 700 }}
-                  axisLine={false}
-                  tickLine={false}
+                  tick={{ fontSize: 11, fill: "#334155", fontWeight: 700 }}
+                  axisLine={{ stroke: "#1e293b", strokeWidth: 2 }}
+                  tickLine={{ stroke: "#1e293b", strokeWidth: 1.5 }}
                 />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]} barSize={22}>
                   {yearlyData.map((entry, index) => (
@@ -820,10 +850,13 @@ export default function SuiviCouts() {
               <span>{t.budgetShare}</span>
             </div>
 
-            {composantes.map((item, i) => (
-              <TableRow key={i} index={i} icon={item.icon} color={item.color} title={item.title}
-                amount={eur(item.amount)} percent={Number(item.percent) || 0} />
-            ))}
+            {/* les lignes se partagent toute la hauteur disponible de la carte */}
+            <div style={styles.rowsFill}>
+              {composantes.map((item, i) => (
+                <TableRow key={i} fill index={i} icon={item.icon} color={item.color} title={item.title}
+                  amount={eur(item.amount)} percent={Number(item.percent) || 0} />
+              ))}
+            </div>
 
             <TotalRow label={t.total} amount={eur(dec.totalOutputs)} percent={totalOutPct} color="#1d4ed8" />
           </div>
@@ -835,7 +868,7 @@ export default function SuiviCouts() {
           <div className="sc-card">
             <div style={{ ...styles.subHead, color: "#1d4ed8" }}>{t.globalProgress}</div>
 
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, paddingBottom: 6 }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, paddingBottom: 6 }}>
               <Ring percent={tauxAvancement} color={getProgressColor(tauxAvancement)} size={100} inner={25} outer={42} font={16} />
 
               <div style={{ width: "100%" }}>
@@ -856,7 +889,7 @@ export default function SuiviCouts() {
             <div style={{ ...styles.subHead, color: "#1d4ed8" }}>{t.progressComponent}</div>
             <div className="sc-d4">
               {tauxComposantes.map((item, i) => (
-                <RateCard key={i} tinted {...item} labels={rateLabels} />
+                <CompactRateCard key={i} {...item} labels={rateLabels} />
               ))}
             </div>
           </div>
@@ -1006,6 +1039,22 @@ const styles: Record<string, React.CSSProperties> = {
   donutTitle: { fontSize: 9, fontWeight: 900, lineHeight: 1.15, minHeight: "3.5em", textAlign: "center", letterSpacing: 0.2 },
   smallLabel: { fontSize: 9, fontWeight: 900, color: "#64748b", lineHeight: 1.1, whiteSpace: "nowrap" },
   money: { fontWeight: 900, fontSize: 11, color: "#0f172a", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
+
+  /* carte compacte (composantes) */
+  compactCard: {
+    display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, minWidth: 0,
+    minHeight: 84, boxSizing: "border-box", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+  },
+  compactBody: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 },
+  compactTitle: {
+    fontSize: 9, fontWeight: 900, lineHeight: 1.15, letterSpacing: 0.2, textAlign: "left",
+    display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+  },
+  // flex-wrap : si la carte est étroite, « décaissé » et « planifié » passent l'un sous l'autre
+  compactValues: { display: "flex", flexWrap: "wrap", gap: "3px 10px" },
+  compactValue: { flex: "1 1 52px", minWidth: 0, textAlign: "left" },
+
+  rowsFill: { flex: 1, display: "flex", flexDirection: "column" },
 
   /* légende */
   footerHeader: { fontSize: 11, fontWeight: 800, color: "#1d4ed8", letterSpacing: 0.4 },
