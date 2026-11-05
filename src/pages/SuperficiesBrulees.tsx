@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
 import { MapContainer, TileLayer, ScaleControl, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
   ReferenceLine, PieChart, Pie, Cell, Label, Legend,
 } from 'recharts';
-import { Flame, Target, Calendar, MapPin, Landmark, FileSpreadsheet, RotateCcw } from 'lucide-react';
+import { Flame, Target, Calendar, MapPin, Landmark, FileSpreadsheet, RotateCcw, Download, ChevronDown } from 'lucide-react';
 
 /* =====================================================================
    TEXTES
@@ -29,7 +29,7 @@ const TEXT: any = {
     comparison: 'Comparaison multi-annuelle des 7 aires protégées',
     comparisonHint: 'Touchez un code pour afficher ou masquer une courbe',
     legend: 'Légende', protectedLegend: 'Aire protégée', basemap: 'Fond de carte',
-    topo: 'Topographique', sat: 'Satellite', noData: 'Pas de données', trajectory: 'Trajectoire attendue', ranking: 'Classement des aires protégées', rankingSub: 'Variation par rapport à la référence · repère noir à -25 %', remaining: 'Reste à réduire', apsReached: 'Aires ayant atteint la cible', reached: 'Cible atteinte', onTrack: 'En bonne voie', toReinforce: 'À renforcer', late: 'En retard',
+    topo: 'Topographique', sat: 'Satellite', noData: 'Pas de données', trajectory: 'Trajectoire attendue', ranking: 'Classement des aires protégées', rankingSub: 'Variation par rapport à la référence · repère noir à -25 %', remaining: 'Reste à réduire', apsReached: 'Aires ayant atteint la cible', reached: 'Cible atteinte', onTrack: 'En bonne voie', toReinforce: 'À renforcer', late: 'En retard', export: 'Exporter', exportCsv: 'Données (CSV)', exportCsvSub: 'Les 4 graphiques · tableaux de valeurs', exportPdf: 'Imprimer / PDF', exportPdfSub: 'Les 4 cartes sur une page',
     footer: 'Analyse détaillée par aire protégée, commune et micro-bassin versant',
     dashboard: 'Tableaux de bord PADDI.xlsx', ahead: 'au-delà', delay: 'de retard',
   },
@@ -49,7 +49,7 @@ const TEXT: any = {
     comparison: "Fampitahana isan-taona ny faritra arovana 7",
     comparisonHint: 'Tsindrio ny kaody mba haseho na afenina ny tsipika',
     legend: 'Maribolana', protectedLegend: 'Faritra arovana', basemap: 'Sarintany fototra',
-    topo: 'Topografika', sat: 'Zanabolana', noData: 'Tsy misy angona', trajectory: 'Làlana andrasana', ranking: 'Laharan’ny faritra arovana', rankingSub: 'Fiovana raha oharina amin’ny fototra · tondro mainty amin’ny -25%', remaining: 'Mbola hotsaraina', apsReached: 'Faritra tratra ny tanjona', reached: 'Tanjona tratra', onTrack: 'Eo am-pandrosoana', toReinforce: 'Ilaina ny fanamafisana', late: 'Tara',
+    topo: 'Topografika', sat: 'Zanabolana', noData: 'Tsy misy angona', trajectory: 'Làlana andrasana', ranking: 'Laharan’ny faritra arovana', rankingSub: 'Fiovana raha oharina amin’ny fototra · tondro mainty amin’ny -25%', remaining: 'Mbola hotsaraina', apsReached: 'Faritra tratra ny tanjona', reached: 'Tanjona tratra', onTrack: 'Eo am-pandrosoana', toReinforce: 'Ilaina ny fanamafisana', late: 'Tara', export: 'Alefa', exportCsv: 'Angona (CSV)', exportCsvSub: 'Sary 4 · tabilao sanda', exportPdf: 'Pirinty / PDF', exportPdfSub: 'Karatra 4 amin’ny pejy iray',
     footer: "Famakafakana amin'ny antsipiriany isaky ny Faritra Arovana, Kaominina ary mikro-basinina",
     dashboard: 'Takelaka PADDI.xlsx', ahead: 'mihoatra ny tanjona', delay: 'tara',
   },
@@ -69,7 +69,7 @@ const TEXT: any = {
     comparison: 'Multi-year comparison of the 7 protected areas',
     comparisonHint: 'Tap a code to show or hide a line',
     legend: 'Legend', protectedLegend: 'Protected area', basemap: 'Basemap',
-    topo: 'Topographic', sat: 'Satellite', noData: 'No data', trajectory: 'Expected trajectory', ranking: 'Protected-area ranking', rankingSub: 'Variation vs baseline · black marker at -25%', remaining: 'Left to reduce', apsReached: 'Areas that reached the target', reached: 'Target reached', onTrack: 'On track', toReinforce: 'Needs effort', late: 'Behind',
+    topo: 'Topographic', sat: 'Satellite', noData: 'No data', trajectory: 'Expected trajectory', ranking: 'Protected-area ranking', rankingSub: 'Variation vs baseline · black marker at -25%', remaining: 'Left to reduce', apsReached: 'Areas that reached the target', reached: 'Target reached', onTrack: 'On track', toReinforce: 'Needs effort', late: 'Behind', export: 'Export', exportCsv: 'Data (CSV)', exportCsvSub: 'The 4 charts · value tables', exportPdf: 'Print / PDF', exportPdfSub: 'The 4 cards on one page',
     footer: 'Detailed analysis by protected area, municipality and micro-watershed',
     dashboard: 'PADDI Dashboard.xlsx', ahead: 'ahead', delay: 'behind schedule',
   },
@@ -89,7 +89,7 @@ const TEXT: any = {
     comparison: 'Mehrjähriger Vergleich der 7 Schutzgebiete',
     comparisonHint: 'Kürzel antippen, um eine Linie ein- oder auszublenden',
     legend: 'Legende', protectedLegend: 'Schutzgebiet', basemap: 'Hintergrundkarte',
-    topo: 'Topografisch', sat: 'Satellit', noData: 'Keine Daten', trajectory: 'Erwarteter Verlauf', ranking: 'Rangliste der Schutzgebiete', rankingSub: 'Veränderung ggü. Referenz · schwarze Marke bei -25 %', remaining: 'Noch zu reduzieren', apsReached: 'Schutzgebiete mit erreichtem Ziel', reached: 'Ziel erreicht', onTrack: 'Auf Kurs', toReinforce: 'Nachsteuern', late: 'Im Rückstand',
+    topo: 'Topografisch', sat: 'Satellit', noData: 'Keine Daten', trajectory: 'Erwarteter Verlauf', ranking: 'Rangliste der Schutzgebiete', rankingSub: 'Veränderung ggü. Referenz · schwarze Marke bei -25 %', remaining: 'Noch zu reduzieren', apsReached: 'Schutzgebiete mit erreichtem Ziel', reached: 'Ziel erreicht', onTrack: 'Auf Kurs', toReinforce: 'Nachsteuern', late: 'Im Rückstand', export: 'Export', exportCsv: 'Daten (CSV)', exportCsvSub: 'Die 4 Diagramme · Wertetabellen', exportPdf: 'Drucken / PDF', exportPdfSub: 'Die 4 Karten auf einer Seite',
     footer: 'Detaillierte Analyse nach Schutzgebiet, Gemeinde und Mikroeinzugsgebiet',
     dashboard: 'PADDI-Dashboard.xlsx', ahead: 'über dem Ziel', delay: 'Rückstand',
   },
@@ -134,6 +134,14 @@ const ST: any = {
   late: { k: 'late', c: '#b91c1c', bg: '#fee2e2', bar: '#dc2626' },
   nodata: { k: 'noData', c: '#64748b', bg: '#f1f5f9', bar: '#cbd5e1' },
 };
+
+function telechargerCSV(nom: string, lignes: (string | number)[][]) {
+  const csv = '\ufeff' + lignes.map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = nom; a.click();
+  URL.revokeObjectURL(url);
+}
 
 const num = (v: any) => Number(String(v ?? 0).replace(',', '.')) || 0;
 const fr1 = (v: number) => Number(v ?? 0).toFixed(1).replace('.', ',');
@@ -201,6 +209,16 @@ export default function SuperficiesBrulees({ data }: any) {
   const [selectedAP, setSelectedAP] = useState('');
   const [fond, setFond] = useState<'topo' | 'sat'>('topo');
   const [hidden, setHidden] = useState<string[]>([]);
+  const [menuExport, setMenuExport] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!menuExport) return;
+    const hors = (e: MouseEvent) => { if (!exportRef.current?.contains(e.target as Node)) setMenuExport(false); };
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && setMenuExport(false);
+    document.addEventListener('mousedown', hors);
+    document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', hors); document.removeEventListener('keydown', esc); };
+  }, [menuExport]);
 
   const [regionsData, setRegionsData] = useState<any>(null);
   const [aireProtegeeData, setAireProtegeeData] = useState<any>(null);
@@ -378,6 +396,26 @@ export default function SuperficiesBrulees({ data }: any) {
   const toggleSerie = (code: string) =>
     setHidden((h) => (h.includes(code) ? h.filter((x) => x !== code) : [...h, code]));
 
+  /* ---------- Export des 4 graphiques ---------- */
+  const v2 = (n: any) => Number(n ?? 0).toFixed(2).replace('.', ',');
+  const exporterCSV = () => {
+    const L: (string | number)[][] = [];
+    L.push([t.targetRate], [t.protectedArea, portee], [t.year, selectedYear]);
+    L.push([`${t.reference} (ha)`, v2(donutKPI.Baseline)], [`${t.burnedArea} (ha)`, v2(donutKPI.Superficie)],
+      [`${t.objective2030} (ha)`, v2(donutKPI.Objectif2030)], [`${t.variation} (%)`, v2(donutKPI.Variation)],
+      [`${t.targetRate} (%)`, v2(donutKPI.TauxAtteinte2030)],
+      [`${t.remaining} (ha)`, donutKPI.HasData ? v2(Math.max(0, donutKPI.Superficie - donutKPI.Objectif2030)) : '']);
+    L.push([], [t.annualEvolution], [t.year, `${t.burnedVariation}`, `${t.trajectory} (%)`, t.targetLine]);
+    evolution.forEach((e: any) => L.push([e.annee, e.valeur == null ? '' : v2(e.valeur), e.traj == null ? '' : v2(e.traj), -25]));
+    L.push([], [t.comparison], [t.year, ...AP_LIST.map((a) => `${a.code} (%)`)]);
+    comparisonDisplay.forEach((r: any) => L.push([r.annee, ...AP_LIST.map((a) => (r[a.code] === undefined ? '' : v2(r[a.code])))]));
+    L.push([], [`${t.ranking} ${selectedYear}`], [t.protectedArea, 'Code', `${t.variation} (%)`, '']);
+    apRows.forEach((r) => L.push([r.nom, r.code, r.has ? v2(r.variation) : '', t[ST[r.statut].k]]));
+    telechargerCSV(`superficies_brulees_${selectedYear}_${new Date().toISOString().slice(0, 10)}.csv`, L);
+    setMenuExport(false);
+  };
+  const imprimer = () => { setMenuExport(false); setTimeout(() => window.print(), 80); };
+
   /* =====================================================================
      RENDU
      ===================================================================== */
@@ -427,6 +465,23 @@ export default function SuperficiesBrulees({ data }: any) {
             </button>
           )}
         </div>
+
+        <div className="sbr-export" ref={exportRef}>
+          <button className="sbr-btn" aria-haspopup="menu" aria-expanded={menuExport}
+                  onClick={() => setMenuExport((v) => !v)}>
+            <Download size={14} /> {t.export} <ChevronDown size={14} />
+          </button>
+          {menuExport && (
+            <div className="sbr-pop" role="menu">
+              <button role="menuitem" className="sbr-pop-item" onClick={exporterCSV}>
+                <strong>{t.exportCsv}</strong><span>{t.exportCsvSub}</span>
+              </button>
+              <button role="menuitem" className="sbr-pop-item" onClick={imprimer}>
+                <strong>{t.exportPdf}</strong><span>{t.exportPdfSub}</span>
+              </button>
+            </div>
+          )}
+        </div>
         </div>
       </header>
 
@@ -434,6 +489,7 @@ export default function SuperficiesBrulees({ data }: any) {
       <div className="sbr-body">
         <aside className="sbr-panel">
           <div className="sbr-grid">
+          <div className="sbr-print-titre">{t.pageTitle} · {portee} · {selectedYear}</div>
           <div className="sbr-banner">
             <Target size={22} color="#16a34a" style={{ flex: 'none' }} />
             <p>{t.indicator}</p>
@@ -673,6 +729,18 @@ const CSS = `
   border:1px dashed #94a3b8;background:transparent;color:var(--txt);font-size:13px;font-weight:600;cursor:pointer}
 .sbr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
+.sbr-export{position:relative;align-self:flex-end}
+.sbr-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid #0f172a;
+  background:#0f172a;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.sbr-btn:hover{background:#1e293b}
+.sbr-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:250px;background:#fff;
+  border:1px solid rgba(15,23,42,.12);border-radius:12px;padding:7px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.sbr-pop-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;
+  padding:10px;border:0;border-radius:8px;background:transparent;color:var(--txt);cursor:pointer;font-size:13px}
+.sbr-pop-item span{color:var(--mut);font-size:11.5px}
+.sbr-pop-item:hover{background:#f1f5f9}
+.sbr-print-titre{display:none}
+
 /* ---- Corps : panneau (plus large) + carte (plus étroite, pleine hauteur) ---- */
 .sbr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,66%) minmax(0,1fr)}
 .sbr-panel{container-type:inline-size;container-name:sbrp;overflow-y:auto;padding:16px;
@@ -795,7 +863,8 @@ const CSS = `
   .sbr-body{display:flex;flex-direction:column;flex:none}
   .sbr-map{order:-1;height:56vh;min-height:320px;flex:none}
   .sbr-panel{overflow:visible;border-right:0}
-  .sbr-filtres{width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .sbr-export{order:1;margin-left:auto;align-self:center}
+  .sbr-filtres{order:2;width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
   .sbr-champ,.sbr-reset{flex:none}
 }
 @container sbr (max-width:639px){
@@ -810,6 +879,18 @@ const CSS = `
   .sbr-graph-grand{min-height:280px}
   .sbr-champ select{min-width:140px}
   .sbr-footer strong{margin-left:0}
+}
+/* ---- Impression / PDF : seulement les 4 cartes ---- */
+@media print{
+  @page{size:A4 landscape;margin:10mm}
+  body *{visibility:hidden}
+  .sbr-panel,.sbr-panel *{visibility:visible}
+  .sbr-panel{position:absolute;left:0;top:0;width:100%;overflow:visible;border:0;padding:0;background:#fff;
+    -webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .sbr-in{height:auto}
+  .sbr-print-titre{display:block;grid-column:1/-1;font-family:var(--titre);font-size:16px;font-weight:700}
+  .sbr-footer{display:none}
+  .sbr-carte{break-inside:avoid;box-shadow:none}
 }
 @media (prefers-reduced-motion:reduce){ .sbr *{transition:none !important;animation:none !important} }
 `;
