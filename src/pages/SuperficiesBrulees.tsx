@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
   ReferenceLine, PieChart, Pie, Cell, Label, Legend,
 } from 'recharts';
-import { Flame, Target, Calendar, MapPin, Landmark, FileSpreadsheet, RotateCcw, Download, ChevronDown } from 'lucide-react';
+import { Flame, Calendar, MapPin, Landmark, FileSpreadsheet, RotateCcw, Download, ChevronDown } from 'lucide-react';
 
 /* =====================================================================
    TEXTES
@@ -28,7 +28,7 @@ const TEXT: any = {
     mapTitle: 'Superficies brûlées en périphérie des aires protégées',
     comparison: 'Comparaison multi-annuelle des 7 aires protégées',
     comparisonHint: 'Touchez un code pour afficher ou masquer une courbe',
-    legend: 'Légende', protectedLegend: 'Aire protégée', basemap: 'Fond de carte',
+    legend: 'Légende', protectedLegend: 'Aire protégée', periphLegend: 'Périphérie 5 km', basemap: 'Fond de carte',
     topo: 'Topographique', sat: 'Satellite', noData: 'Pas de données', trajectory: 'Trajectoire attendue', ranking: 'Classement des aires protégées', rankingSub: 'Variation par rapport à la référence · repère noir à -25 %', remaining: 'Reste à réduire', apsReached: 'Aires ayant atteint la cible', reached: 'Cible atteinte', onTrack: 'En bonne voie', toReinforce: 'À renforcer', late: 'En retard', export: 'Exporter', exportCsv: 'Données (CSV)', exportCsvSub: 'Les 4 graphiques · tableaux de valeurs', exportPdf: 'Imprimer / PDF', exportPdfSub: 'Les 4 cartes sur une page',
     footer: 'Analyse détaillée par aire protégée, commune et micro-bassin versant',
     dashboard: 'Tableaux de bord PADDI.xlsx', ahead: 'au-delà', delay: 'de retard',
@@ -48,7 +48,7 @@ const TEXT: any = {
     mapTitle: "Sarintanin'ny velaran-tany may manodidina ny faritra arovana",
     comparison: "Fampitahana isan-taona ny faritra arovana 7",
     comparisonHint: 'Tsindrio ny kaody mba haseho na afenina ny tsipika',
-    legend: 'Maribolana', protectedLegend: 'Faritra arovana', basemap: 'Sarintany fototra',
+    legend: 'Maribolana', protectedLegend: 'Faritra arovana', periphLegend: 'Manodidina 5 km', basemap: 'Sarintany fototra',
     topo: 'Topografika', sat: 'Zanabolana', noData: 'Tsy misy angona', trajectory: 'Làlana andrasana', ranking: 'Laharan’ny faritra arovana', rankingSub: 'Fiovana raha oharina amin’ny fototra · tondro mainty amin’ny -25%', remaining: 'Mbola hotsaraina', apsReached: 'Faritra tratra ny tanjona', reached: 'Tanjona tratra', onTrack: 'Eo am-pandrosoana', toReinforce: 'Ilaina ny fanamafisana', late: 'Tara', export: 'Alefa', exportCsv: 'Angona (CSV)', exportCsvSub: 'Sary 4 · tabilao sanda', exportPdf: 'Pirinty / PDF', exportPdfSub: 'Karatra 4 amin’ny pejy iray',
     footer: "Famakafakana amin'ny antsipiriany isaky ny Faritra Arovana, Kaominina ary mikro-basinina",
     dashboard: 'Takelaka PADDI.xlsx', ahead: 'mihoatra ny tanjona', delay: 'tara',
@@ -68,7 +68,7 @@ const TEXT: any = {
     mapTitle: 'Burned areas around protected areas',
     comparison: 'Multi-year comparison of the 7 protected areas',
     comparisonHint: 'Tap a code to show or hide a line',
-    legend: 'Legend', protectedLegend: 'Protected area', basemap: 'Basemap',
+    legend: 'Legend', protectedLegend: 'Protected area', periphLegend: '5 km buffer', basemap: 'Basemap',
     topo: 'Topographic', sat: 'Satellite', noData: 'No data', trajectory: 'Expected trajectory', ranking: 'Protected-area ranking', rankingSub: 'Variation vs baseline · black marker at -25%', remaining: 'Left to reduce', apsReached: 'Areas that reached the target', reached: 'Target reached', onTrack: 'On track', toReinforce: 'Needs effort', late: 'Behind', export: 'Export', exportCsv: 'Data (CSV)', exportCsvSub: 'The 4 charts · value tables', exportPdf: 'Print / PDF', exportPdfSub: 'The 4 cards on one page',
     footer: 'Detailed analysis by protected area, municipality and micro-watershed',
     dashboard: 'PADDI Dashboard.xlsx', ahead: 'ahead', delay: 'behind schedule',
@@ -88,7 +88,7 @@ const TEXT: any = {
     mapTitle: 'Karte der verbrannten Flächen um Schutzgebiete',
     comparison: 'Mehrjähriger Vergleich der 7 Schutzgebiete',
     comparisonHint: 'Kürzel antippen, um eine Linie ein- oder auszublenden',
-    legend: 'Legende', protectedLegend: 'Schutzgebiet', basemap: 'Hintergrundkarte',
+    legend: 'Legende', protectedLegend: 'Schutzgebiet', periphLegend: '5-km-Puffer', basemap: 'Hintergrundkarte',
     topo: 'Topografisch', sat: 'Satellit', noData: 'Keine Daten', trajectory: 'Erwarteter Verlauf', ranking: 'Rangliste der Schutzgebiete', rankingSub: 'Veränderung ggü. Referenz · schwarze Marke bei -25 %', remaining: 'Noch zu reduzieren', apsReached: 'Schutzgebiete mit erreichtem Ziel', reached: 'Ziel erreicht', onTrack: 'Auf Kurs', toReinforce: 'Nachsteuern', late: 'Im Rückstand', export: 'Export', exportCsv: 'Daten (CSV)', exportCsvSub: 'Die 4 Diagramme · Wertetabellen', exportPdf: 'Drucken / PDF', exportPdfSub: 'Die 4 Karten auf einer Seite',
     footer: 'Detaillierte Analyse nach Schutzgebiet, Gemeinde und Mikroeinzugsgebiet',
     dashboard: 'PADDI-Dashboard.xlsx', ahead: 'über dem Ziel', delay: 'Rückstand',
@@ -222,6 +222,7 @@ export default function SuperficiesBrulees({ data }: any) {
 
   const [regionsData, setRegionsData] = useState<any>(null);
   const [aireProtegeeData, setAireProtegeeData] = useState<any>(null);
+  const [peripherieData, setPeripherieData] = useState<any>(null);
   const [feuxData, setFeuxData] = useState<any[]>([]);
 
   useEffect(() => {
@@ -229,6 +230,7 @@ export default function SuperficiesBrulees({ data }: any) {
       .then((r) => { if (!r.ok) throw new Error('GeoJSON introuvable'); return r.json(); })
       .then(setRegionsData).catch(console.error);
     fetch('/data/aire_protegee_paddi.geojson').then((r) => r.json()).then(setAireProtegeeData).catch(console.error);
+    fetch('/data/peripherie_5km_paddi.geojson').then((r) => r.json()).then(setPeripherieData).catch(console.error);
     fetch('/data/Bases_Feux.geojson').then((r) => r.json())
       .then((d) => setFeuxData(d.features.map((f: any) => f.properties))).catch(console.error);
   }, []);
@@ -367,6 +369,19 @@ export default function SuperficiesBrulees({ data }: any) {
     };
   }, [aireProtegeeData, selectedAntenne, selectedAP]);
 
+  // Périphérie 5 km : suit les mêmes filtres (région / aire protégée) via le champ « nom_ap »
+  const peripherieFiltered = useMemo(() => {
+    if (!peripherieData?.features) return null;
+    const filtre = !!selectedAntenne || !!selectedAP;
+    const noms = new Set((aireProtegeeFiltered?.features || []).map((f: any) => f.properties?.nom_ap));
+    return {
+      type: 'FeatureCollection',
+      features: filtre
+        ? peripherieData.features.filter((f: any) => noms.has(f.properties?.nom_ap))
+        : peripherieData.features,
+    };
+  }, [peripherieData, aireProtegeeFiltered, selectedAntenne, selectedAP]);
+
   const apList = useMemo(() => {
     if (!aireProtegeeData?.features) return [];
     return aireProtegeeData.features
@@ -381,6 +396,10 @@ export default function SuperficiesBrulees({ data }: any) {
     []
   );
   const styleAP = useMemo(() => ({ color: '#fff', weight: 0.8, fillColor: '#22c55e', fillOpacity: 0.35 }), []);
+  const stylePeriph = useMemo(
+    () => ({ color: '#b45309', weight: 1.2, dashArray: '4 4', fillColor: '#d97706', fillOpacity: 0.08 }),
+    []
+  );
 
   const changeAntenne = (v: string) => { setSelectedAntenne(v); setSelectedAP(''); };
   const filtresModifies = selectedYear !== DEFAULT_YEAR || !!selectedAntenne || !!selectedAP;
@@ -490,10 +509,6 @@ export default function SuperficiesBrulees({ data }: any) {
         <aside className="sbr-panel">
           <div className="sbr-grid">
           <div className="sbr-print-titre">{t.pageTitle} · {portee} · {selectedYear}</div>
-          <div className="sbr-banner">
-            <Target size={22} color="#16a34a" style={{ flex: 'none' }} />
-            <p>{t.indicator}</p>
-          </div>
 
           {/* KPI : donut + synthèse */}
           <section className="sbr-carte">
@@ -581,7 +596,7 @@ export default function SuperficiesBrulees({ data }: any) {
             </div>
           </section>
 
-          {/* Comparaison des 7 AP, légende cliquable */}
+          {/* Comparaison des 7 AP, légende cliquable (acronymes seuls) */}
           <section className="sbr-carte">
             <h2>{t.comparison}</h2>
             <p className="sbr-note">{t.comparisonHint}</p>
@@ -591,7 +606,7 @@ export default function SuperficiesBrulees({ data }: any) {
                         className={`sbr-chip ${hidden.includes(a.code) ? 'off' : ''}`}
                         onClick={() => toggleSerie(a.code)}>
                   <i style={{ background: a.color }} />
-                  <b>{a.code}</b> {a.nom}
+                  <b>{a.code}</b>
                 </button>
               ))}
             </div>
@@ -609,7 +624,7 @@ export default function SuperficiesBrulees({ data }: any) {
                     label={{ value: t.targetLine, position: 'insideBottomLeft', fill: '#dc2626', fontSize: 11 }} />
                   {AP_LIST.filter((a) => !hidden.includes(a.code)).map((a) => (
                     <Line key={a.code} dataKey={a.code} type="monotone" stroke={a.color} strokeWidth={2}
-                          name={`${a.nom} (${a.code})`} dot={{ r: 2 }} activeDot={{ r: 5 }} connectNulls />
+                          name={a.code} dot={{ r: 2 }} activeDot={{ r: 5 }} connectNulls />
                   ))}
                 </LineChart>
               </ResponsiveContainer>
@@ -661,6 +676,9 @@ export default function SuperficiesBrulees({ data }: any) {
             {geoFiltered?.features?.length ? (
               <>
                 <GeoLayer key={`r-${selectedAntenne}`} data={geoFiltered} style={styleRegion} />
+                {peripherieFiltered?.features?.length ? (
+                  <GeoLayer key={`pe-${selectedAntenne}-${selectedAP}`} data={peripherieFiltered} style={stylePeriph} />
+                ) : null}
                 {aireProtegeeFiltered?.features?.length ? (
                   <GeoLayer key={`ap-${selectedAntenne}-${selectedAP}`} data={aireProtegeeFiltered}
                             style={styleAP} labels={!!selectedAntenne || !!selectedAP} />
@@ -678,6 +696,7 @@ export default function SuperficiesBrulees({ data }: any) {
           <div className="sbr-legende">
             <strong>{t.legend}</strong>
             <div><i className="carre" style={{ background: 'rgba(34,197,94,.45)', border: '1px solid #15803d' }} />{t.protectedLegend}</div>
+            <div><i className="carre" style={{ background: 'rgba(217,119,6,.15)', border: '2px dashed #b45309' }} />{t.periphLegend}</div>
             {legendeRegions.map((r) => (
               <div key={r.label}><i className="carre" style={{ background: r.color, opacity: 0.7 }} />{r.label}</div>
             ))}
@@ -748,9 +767,6 @@ const CSS = `
 .sbr-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 .sbr-map{position:relative;min-height:0;min-width:0;isolation:isolate;height:100%}
 
-.sbr-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#ecfdf5;
-  border:1px solid #bbf7d0;color:#065f46;grid-column:1/-1}
-.sbr-banner p{margin:0;font-size:13px;font-weight:600;line-height:1.45}
 .sbr-footer{grid-column:1/-1}
 
 /* ---- Cartes ---- */
