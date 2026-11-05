@@ -10,6 +10,255 @@ interface ActivitesAccessModalProps {
   ) => void;
 }
 
+/*
+ * Les styles inline ne supportent pas les media queries.
+ * On utilise donc des classes CSS injectées via <style>, ce qui permet
+ * d'adapter la modale à tous les écrans (petits mobiles, paysage,
+ * tablettes, ordinateurs, très grands écrans).
+ */
+const css = `
+.aam-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  box-sizing: border-box;
+  padding:
+    max(clamp(8px, 3vw, 24px), env(safe-area-inset-top))
+    max(clamp(8px, 3vw, 24px), env(safe-area-inset-right))
+    max(clamp(8px, 3vw, 24px), env(safe-area-inset-bottom))
+    max(clamp(8px, 3vw, 24px), env(safe-area-inset-left));
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.aam-modal {
+  width: 100%;
+  max-width: 480px;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-sizing: border-box;
+}
+
+.aam-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #15803d;
+  color: #ffffff;
+  padding: 20px 22px;
+}
+
+.aam-header-text { min-width: 0; }
+
+.aam-title {
+  font-size: clamp(16px, 4.2vw, 19px);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.aam-subtitle {
+  margin-top: 4px;
+  font-size: clamp(12px, 3.3vw, 13px);
+  opacity: 0.9;
+  overflow-wrap: anywhere;
+}
+
+.aam-close {
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 25px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.aam-form {
+  padding: 24px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.aam-info {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 22px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+}
+
+.aam-info-icon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #15803d;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+}
+
+.aam-info-body { min-width: 0; }
+
+.aam-info-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #166534;
+  margin-bottom: 3px;
+}
+
+.aam-info-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #475569;
+  overflow-wrap: anywhere;
+}
+
+.aam-field { margin-bottom: 17px; }
+
+.aam-label {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.aam-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 44px;
+  padding: 0 13px;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  outline: none;
+  font-size: 14px;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.aam-input:focus-visible {
+  border-color: #15803d;
+  box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.25);
+}
+
+.aam-error {
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.aam-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.aam-btn {
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 9px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.aam-btn-cancel {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #475569;
+}
+
+.aam-btn-submit {
+  border: none;
+  background: #15803d;
+  color: #ffffff;
+}
+
+.aam-close:focus-visible,
+.aam-btn:focus-visible {
+  outline: 3px solid rgba(21, 128, 61, 0.45);
+  outline-offset: 2px;
+}
+
+/* ---------- Tablettes et petits écrans (≤ 600px) ---------- */
+@media (max-width: 600px) {
+  .aam-header { padding: 16px 16px; }
+  .aam-form { padding: 18px 16px; }
+  .aam-info { padding: 12px; margin-bottom: 18px; }
+
+  /* 16px minimum : évite le zoom automatique sur iOS */
+  .aam-input { font-size: 16px; height: 48px; }
+
+  .aam-actions { flex-direction: column-reverse; }
+  .aam-btn { width: 100%; min-height: 48px; }
+}
+
+/* ---------- Très petits écrans (≤ 360px) ---------- */
+@media (max-width: 360px) {
+  .aam-modal { border-radius: 12px; }
+  .aam-header { padding: 14px 12px; }
+  .aam-form { padding: 14px 12px; }
+  .aam-info { flex-direction: column; gap: 8px; }
+}
+
+/* ---------- Écrans de faible hauteur (mobile en paysage) ---------- */
+@media (max-height: 520px) {
+  .aam-overlay { align-items: flex-start; }
+  .aam-header { padding-top: 10px; padding-bottom: 10px; }
+  .aam-form { padding-top: 12px; padding-bottom: 12px; }
+  .aam-info { display: none; }
+  .aam-field { margin-bottom: 12px; }
+  .aam-actions { margin-top: 14px; }
+}
+
+/* ---------- Grands écrans (≥ 1600px) ---------- */
+@media (min-width: 1600px) {
+  .aam-modal { max-width: 540px; }
+  .aam-input { height: 48px; font-size: 15px; }
+  .aam-btn { min-height: 46px; }
+}
+
+/* ---------- Écrans tactiles : zones de toucher confortables ---------- */
+@media (hover: none) and (pointer: coarse) {
+  .aam-close { width: 44px; height: 44px; }
+}
+
+/* ---------- Respect de la réduction des animations ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .aam-overlay, .aam-modal { scroll-behavior: auto; transition: none; animation: none; }
+}
+`;
+
 export default function ActivitesAccessModal({
   isOpen,
   onClose,
@@ -42,10 +291,9 @@ export default function ActivitesAccessModal({
       "anjarampifohazana.toky@giz.de": "Toky",
       "joary.andriamiharimanana@giz.de": "Joary",
     };
-    
-    const normalizedIdentifiant =
-      identifiant.trim().toLowerCase();
-    
+
+    const normalizedIdentifiant = identifiant.trim().toLowerCase();
+
     if (
       USERS[normalizedIdentifiant] &&
       motDePasse === "PaddiActivite2026"
@@ -53,7 +301,7 @@ export default function ActivitesAccessModal({
       setIdentifiant("");
       setMotDePasse("");
       setError("");
-    
+
       onSuccess(
         USERS[normalizedIdentifiant],
         normalizedIdentifiant,
@@ -65,275 +313,117 @@ export default function ActivitesAccessModal({
   };
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
+    <>
+      <style>{css}</style>
 
-        {/* HEADER */}
-        <div style={styles.header}>
-          <div>
-            <div style={styles.headerTitle}>
-              Accès mise à jour
-            </div>
-
-            <div style={styles.headerSubtitle}>
-              Suivi des activités annuelles
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={handleCancel}
-            style={styles.closeButton}
-            aria-label="Fermer"
-          >
-            ×
-          </button>
-        </div>
-
-        {/* CONTENU */}
-        <form onSubmit={handleSubmit} style={styles.form}>
-
-          <div style={styles.infoBox}>
-            <div style={styles.infoIcon}>✓</div>
-
-            <div>
-              <div style={styles.infoTitle}>
-                Accès réservé
+      <div className="aam-overlay">
+        <div
+          className="aam-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="aam-title"
+        >
+          {/* HEADER */}
+          <div className="aam-header">
+            <div className="aam-header-text">
+              <div className="aam-title" id="aam-title">
+                Accès mise à jour
               </div>
-
-              <div style={styles.infoText}>
-                Veuillez saisir vos identifiants pour accéder
-                à la mise à jour des activités.
+              <div className="aam-subtitle">
+                Suivi des activités annuelles
               </div>
             </div>
-          </div>
-
-          {/* IDENTIFIANT */}
-          <div style={styles.field}>
-            <label style={styles.label}>
-              Identifiant
-            </label>
-
-            <input
-              type="text"
-              value={identifiant}
-              onChange={(e) => {
-                setIdentifiant(e.target.value);
-                setError("");
-              }}
-              placeholder="Saisir votre identifiant"
-              autoComplete="username"
-              style={styles.input}
-            />
-          </div>
-
-          {/* MOT DE PASSE */}
-          <div style={styles.field}>
-            <label style={styles.label}>
-              Mot de passe
-            </label>
-
-            <input
-              type="password"
-              value={motDePasse}
-              onChange={(e) => {
-                setMotDePasse(e.target.value);
-                setError("");
-              }}
-              placeholder="Saisir votre mot de passe"
-              autoComplete="current-password"
-              style={styles.input}
-            />
-          </div>
-
-          {/* ERREUR */}
-          {error && (
-            <div style={styles.error}>
-              {error}
-            </div>
-          )}
-
-          {/* ACTIONS */}
-          <div style={styles.actions}>
 
             <button
               type="button"
               onClick={handleCancel}
-              style={styles.cancelButton}
+              className="aam-close"
+              aria-label="Fermer"
             >
-              Annuler
+              ×
             </button>
-
-            <button
-              type="submit"
-              style={styles.submitButton}
-            >
-              Accéder à la mise à jour
-            </button>
-
           </div>
 
-        </form>
+          {/* CONTENU */}
+          <form onSubmit={handleSubmit} className="aam-form">
+            <div className="aam-info">
+              <div className="aam-info-icon">✓</div>
+
+              <div className="aam-info-body">
+                <div className="aam-info-title">Accès réservé</div>
+                <div className="aam-info-text">
+                  Veuillez saisir vos identifiants pour accéder à la mise
+                  à jour des activités.
+                </div>
+              </div>
+            </div>
+
+            {/* IDENTIFIANT */}
+            <div className="aam-field">
+              <label className="aam-label" htmlFor="aam-identifiant">
+                Identifiant
+              </label>
+              <input
+                id="aam-identifiant"
+                type="text"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                value={identifiant}
+                onChange={(e) => {
+                  setIdentifiant(e.target.value);
+                  setError("");
+                }}
+                placeholder="Saisir votre identifiant"
+                autoComplete="username"
+                className="aam-input"
+              />
+            </div>
+
+            {/* MOT DE PASSE */}
+            <div className="aam-field">
+              <label className="aam-label" htmlFor="aam-motdepasse">
+                Mot de passe
+              </label>
+              <input
+                id="aam-motdepasse"
+                type="password"
+                value={motDePasse}
+                onChange={(e) => {
+                  setMotDePasse(e.target.value);
+                  setError("");
+                }}
+                placeholder="Saisir votre mot de passe"
+                autoComplete="current-password"
+                className="aam-input"
+              />
+            </div>
+
+            {/* ERREUR */}
+            {error && (
+              <div className="aam-error" role="alert">
+                {error}
+              </div>
+            )}
+
+            {/* ACTIONS */}
+            <div className="aam-actions">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="aam-btn aam-btn-cancel"
+              >
+                Annuler
+              </button>
+
+              <button type="submit" className="aam-btn aam-btn-submit">
+                Accéder à la mise à jour
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15, 23, 42, 0.45)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-    padding: 20,
-  },
-
-  modal: {
-    width: "100%",
-    maxWidth: 480,
-    background: "#ffffff",
-    borderRadius: 16,
-    overflow: "hidden",
-    boxShadow: "0 20px 60px rgba(0,0,0,0.20)",
-  },
-
-  header: {
-    background: "#15803d",
-    color: "#ffffff",
-    padding: "20px 22px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  headerTitle: {
-    fontSize: 19,
-    fontWeight: 800,
-  },
-
-  headerSubtitle: {
-    marginTop: 4,
-    fontSize: 13,
-    opacity: 0.9,
-  },
-
-  closeButton: {
-    width: 34,
-    height: 34,
-    border: "none",
-    borderRadius: 8,
-    background: "rgba(255,255,255,0.15)",
-    color: "#ffffff",
-    fontSize: 25,
-    lineHeight: 1,
-    cursor: "pointer",
-  },
-
-  form: {
-    padding: 24,
-  },
-
-  infoBox: {
-    display: "flex",
-    gap: 12,
-    padding: 14,
-    marginBottom: 22,
-    background: "#f0fdf4",
-    border: "1px solid #bbf7d0",
-    borderRadius: 10,
-  },
-
-  infoIcon: {
-    width: 28,
-    height: 28,
-    flexShrink: 0,
-    borderRadius: "50%",
-    background: "#15803d",
-    color: "#ffffff",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontWeight: 800,
-  },
-
-  infoTitle: {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#166534",
-    marginBottom: 3,
-  },
-
-  infoText: {
-    fontSize: 13,
-    lineHeight: 1.5,
-    color: "#475569",
-  },
-
-  field: {
-    marginBottom: 17,
-  },
-
-  label: {
-    display: "block",
-    marginBottom: 7,
-    fontSize: 13,
-    fontWeight: 700,
-    color: "#334155",
-  },
-
-  input: {
-    width: "100%",
-    boxSizing: "border-box",
-    height: 44,
-    padding: "0 13px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 9,
-    outline: "none",
-    fontSize: 14,
-    color: "#0f172a",
-    background: "#ffffff",
-  },
-
-  error: {
-    padding: "10px 12px",
-    marginBottom: 16,
-    borderRadius: 8,
-    background: "#fef2f2",
-    border: "1px solid #fecaca",
-    color: "#b91c1c",
-    fontSize: 13,
-    fontWeight: 600,
-  },
-
-  actions: {
-    display: "flex",
-    justifyContent: "flex-end",
-    gap: 10,
-    marginTop: 24,
-  },
-
-  cancelButton: {
-    height: 42,
-    padding: "0 18px",
-    border: "1px solid #cbd5e1",
-    borderRadius: 9,
-    background: "#ffffff",
-    color: "#475569",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-
-  submitButton: {
-    height: 42,
-    padding: "0 18px",
-    border: "none",
-    borderRadius: 9,
-    background: "#15803d",
-    color: "#ffffff",
-    fontWeight: 700,
-    cursor: "pointer",
-  },
-};
