@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
-  ReferenceLine, PieChart, Pie, Cell, Label,
+  ReferenceLine, PieChart, Pie, Cell, Label, Legend,
 } from 'recharts';
 import { Flame, Target, Calendar, MapPin, Landmark, FileSpreadsheet, RotateCcw } from 'lucide-react';
 
@@ -29,7 +29,7 @@ const TEXT: any = {
     comparison: 'Comparaison multi-annuelle des 7 aires protégées',
     comparisonHint: 'Touchez un code pour afficher ou masquer une courbe',
     legend: 'Légende', protectedLegend: 'Aire protégée', basemap: 'Fond de carte',
-    topo: 'Topographique', sat: 'Satellite', noData: 'Pas de données',
+    topo: 'Topographique', sat: 'Satellite', noData: 'Pas de données', trajectory: 'Trajectoire attendue', ranking: 'Classement des aires protégées', rankingSub: 'Variation par rapport à la référence · repère noir à -25 %', remaining: 'Reste à réduire', apsReached: 'Aires ayant atteint la cible', reached: 'Cible atteinte', onTrack: 'En bonne voie', toReinforce: 'À renforcer', late: 'En retard',
     footer: 'Analyse détaillée par aire protégée, commune et micro-bassin versant',
     dashboard: 'Tableaux de bord PADDI.xlsx', ahead: 'au-delà', delay: 'de retard',
   },
@@ -49,7 +49,7 @@ const TEXT: any = {
     comparison: "Fampitahana isan-taona ny faritra arovana 7",
     comparisonHint: 'Tsindrio ny kaody mba haseho na afenina ny tsipika',
     legend: 'Maribolana', protectedLegend: 'Faritra arovana', basemap: 'Sarintany fototra',
-    topo: 'Topografika', sat: 'Zanabolana', noData: 'Tsy misy angona',
+    topo: 'Topografika', sat: 'Zanabolana', noData: 'Tsy misy angona', trajectory: 'Làlana andrasana', ranking: 'Laharan’ny faritra arovana', rankingSub: 'Fiovana raha oharina amin’ny fototra · tondro mainty amin’ny -25%', remaining: 'Mbola hotsaraina', apsReached: 'Faritra tratra ny tanjona', reached: 'Tanjona tratra', onTrack: 'Eo am-pandrosoana', toReinforce: 'Ilaina ny fanamafisana', late: 'Tara',
     footer: "Famakafakana amin'ny antsipiriany isaky ny Faritra Arovana, Kaominina ary mikro-basinina",
     dashboard: 'Takelaka PADDI.xlsx', ahead: 'mihoatra ny tanjona', delay: 'tara',
   },
@@ -69,7 +69,7 @@ const TEXT: any = {
     comparison: 'Multi-year comparison of the 7 protected areas',
     comparisonHint: 'Tap a code to show or hide a line',
     legend: 'Legend', protectedLegend: 'Protected area', basemap: 'Basemap',
-    topo: 'Topographic', sat: 'Satellite', noData: 'No data',
+    topo: 'Topographic', sat: 'Satellite', noData: 'No data', trajectory: 'Expected trajectory', ranking: 'Protected-area ranking', rankingSub: 'Variation vs baseline · black marker at -25%', remaining: 'Left to reduce', apsReached: 'Areas that reached the target', reached: 'Target reached', onTrack: 'On track', toReinforce: 'Needs effort', late: 'Behind',
     footer: 'Detailed analysis by protected area, municipality and micro-watershed',
     dashboard: 'PADDI Dashboard.xlsx', ahead: 'ahead', delay: 'behind schedule',
   },
@@ -89,7 +89,7 @@ const TEXT: any = {
     comparison: 'Mehrjähriger Vergleich der 7 Schutzgebiete',
     comparisonHint: 'Kürzel antippen, um eine Linie ein- oder auszublenden',
     legend: 'Legende', protectedLegend: 'Schutzgebiet', basemap: 'Hintergrundkarte',
-    topo: 'Topografisch', sat: 'Satellit', noData: 'Keine Daten',
+    topo: 'Topografisch', sat: 'Satellit', noData: 'Keine Daten', trajectory: 'Erwarteter Verlauf', ranking: 'Rangliste der Schutzgebiete', rankingSub: 'Veränderung ggü. Referenz · schwarze Marke bei -25 %', remaining: 'Noch zu reduzieren', apsReached: 'Schutzgebiete mit erreichtem Ziel', reached: 'Ziel erreicht', onTrack: 'Auf Kurs', toReinforce: 'Nachsteuern', late: 'Im Rückstand',
     footer: 'Detaillierte Analyse nach Schutzgebiet, Gemeinde und Mikroeinzugsgebiet',
     dashboard: 'PADDI-Dashboard.xlsx', ahead: 'über dem Ziel', delay: 'Rückstand',
   },
@@ -124,6 +124,16 @@ const COULEUR_ANTENNE: Record<string, string> = {
   'Tanà': '#16a34a', Boeny: '#2563eb', 'Atsimo-Atsinanana': '#f59e0b', Diana: '#ef4444', Anosy: '#8b5cf6',
 };
 const getColorByAntenne = (a: string) => COULEUR_ANTENNE[a] || '#64748b';
+
+const statutDe = (reduction: number, has: boolean) =>
+  !has ? 'nodata' : reduction >= 25 ? 'reached' : reduction >= 15 ? 'onTrack' : reduction >= 5 ? 'toReinforce' : 'late';
+const ST: any = {
+  reached: { k: 'reached', c: '#1d4ed8', bg: '#dbeafe', bar: '#2563eb' },
+  onTrack: { k: 'onTrack', c: '#15803d', bg: '#dcfce7', bar: '#16a34a' },
+  toReinforce: { k: 'toReinforce', c: '#b45309', bg: '#fef3c7', bar: '#f59e0b' },
+  late: { k: 'late', c: '#b91c1c', bg: '#fee2e2', bar: '#dc2626' },
+  nodata: { k: 'noData', c: '#64748b', bg: '#f1f5f9', bar: '#cbd5e1' },
+};
 
 const num = (v: any) => Number(String(v ?? 0).replace(',', '.')) || 0;
 const fr1 = (v: number) => Number(v ?? 0).toFixed(1).replace('.', ',');
@@ -242,7 +252,7 @@ export default function SuperficiesBrulees({ data }: any) {
     () =>
       tableauVirtuel.find(
         (d) => String(d.AP).trim() === String(selectedAP).trim() && Number(d.Annee) === Number(selectedYear)
-      ) ?? { Baseline: 0, Objectif2030: 0, Superficie: 0, Variation: 0, Reduction: 0, TauxAtteinte2030: 0, EcartCible: 0 },
+      ) ?? { HasData: false, Baseline: 0, Objectif2030: 0, Superficie: 0, Variation: 0, Reduction: 0, TauxAtteinte2030: 0, EcartCible: 0 },
     [tableauVirtuel, selectedAP, selectedYear]
   );
 
@@ -250,7 +260,7 @@ export default function SuperficiesBrulees({ data }: any) {
     () =>
       tableauVirtuel
         .filter((d) => String(d.AP).trim() === String(selectedAP).trim())
-        .map((d) => ({ annee: Number(d.Annee), valeur: d.HasData ? -d.Reduction : null, cible: -25 }))
+        .map((d) => ({ annee: Number(d.Annee), valeur: d.HasData ? -d.Reduction : null, cible: -25, traj: Number(d.Annee) >= 2025 ? -(25 / 6) * (Number(d.Annee) - 2024) : null }))
         .sort((a, b) => a.annee - b.annee),
     [tableauVirtuel, selectedAP]
   );
@@ -269,6 +279,23 @@ export default function SuperficiesBrulees({ data }: any) {
       }),
     [tableauVirtuel]
   );
+
+  /* ---------- Classement des 7 aires protégées pour l'année choisie ---------- */
+  const apRows = useMemo(
+    () =>
+      AP_LIST.map((a) => {
+        const d = tableauVirtuel.find((x) => x.AP === a.nom && Number(x.Annee) === Number(selectedYear));
+        const has = !!d?.HasData;
+        const reduction = has ? d.Reduction : 0;
+        return { ...a, has, reduction, variation: has ? d.Variation : 0, statut: statutDe(reduction, has) };
+      }).sort((a, b) => (b.has ? b.reduction : -999) - (a.has ? a.reduction : -999)),
+    [tableauVirtuel, selectedYear]
+  );
+  const nbAtteintes = apRows.filter((r) => r.statut === 'reached').length;
+  const choisirAP = (nom: string) => {
+    setSelectedAntenne('');
+    setSelectedAP(selectedAP === nom ? '' : nom);
+  };
 
   /* ---------- Filtres géographiques ---------- */
   const antennes = useMemo(
@@ -335,6 +362,7 @@ export default function SuperficiesBrulees({ data }: any) {
      ===================================================================== */
   return (
     <div className="sb">
+      <div className="sb-in">
       <style>{CSS}</style>
 
       {/* ============ EN-TÊTE + FILTRES (même structure que Pression) ============ */}
@@ -384,6 +412,7 @@ export default function SuperficiesBrulees({ data }: any) {
       {/* ============ CORPS : panneau à gauche, carte pleine hauteur à droite ============ */}
       <div className="sb-body">
         <aside className="sb-panel">
+          <div className="sb-grid">
           <div className="sb-banner">
             <Target size={22} color="#16a34a" style={{ flex: 'none' }} />
             <p>{t.indicator}</p>
@@ -392,7 +421,7 @@ export default function SuperficiesBrulees({ data }: any) {
           {/* KPI : donut + synthèse */}
           <section className="sb-carte">
             <h2>{t.targetRate}</h2>
-            <p className="sb-note">{portee} · {selectedYear}</p>
+            <p className="sb-note">{portee} · {selectedYear}{!donutKPI.HasData && ` · ${t.noData}`}</p>
             <div className="sb-kpi">
               <div className="sb-donut">
                 <ResponsiveContainer width="100%" height="100%">
@@ -423,6 +452,13 @@ export default function SuperficiesBrulees({ data }: any) {
                   <dd style={{ color: variation <= 0 ? '#16a34a' : '#dc2626' }}>{fr1(variation)} %</dd>
                 </div>
                 <div><dt>{t.objective2030}</dt><dd>{formatHa(donutKPI.Objectif2030)}</dd></div>
+                <div>
+                  <dt>{t.remaining}</dt>
+                  <dd>{donutKPI.HasData ? formatHa(Math.max(0, donutKPI.Superficie - donutKPI.Objectif2030)) : '—'}</dd>
+                </div>
+                {!selectedAP && (
+                  <div><dt>{t.apsReached}</dt><dd>{nbAtteintes} / {AP_LIST.length}</dd></div>
+                )}
               </dl>
             </div>
           </section>
@@ -447,6 +483,9 @@ export default function SuperficiesBrulees({ data }: any) {
                   <Tooltip formatter={(v: any) => `${fr1(v)} %`} labelFormatter={(l) => `${t.year} ${l}`} />
                   <ReferenceLine y={-25} stroke="#16a34a" strokeDasharray="5 5"
                     label={{ value: t.targetLine, position: 'insideBottomLeft', fill: '#15803d', fontSize: 11 }} />
+                  <Line type="linear" dataKey="traj" name={t.trajectory} stroke="#64748b" strokeWidth={2}
+                        strokeDasharray="6 4" dot={false} connectNulls />
+                  <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11 }} />
                   <Line type="monotone" dataKey="valeur" name={t.burnedVariation} stroke="#c80f0f"
                         strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls={false}
                         label={({ x, y, value }: any) =>
@@ -461,7 +500,7 @@ export default function SuperficiesBrulees({ data }: any) {
           </section>
 
           {/* Comparaison des 7 AP, légende cliquable */}
-          <section className="sb-carte">
+          <section className="sb-carte sb-large">
             <h2>{t.comparison}</h2>
             <p className="sb-note">{t.comparisonHint}</p>
             <div className="sb-chips">
@@ -495,6 +534,31 @@ export default function SuperficiesBrulees({ data }: any) {
             </div>
           </section>
 
+          <section className="sb-carte sb-large">
+            <h2>{t.ranking}</h2>
+            <p className="sb-note">{t.rankingSub} · {selectedYear}</p>
+            <ul className="sb-rang">
+              {apRows.map((r) => {
+                const st = ST[r.statut];
+                return (
+                  <li key={r.code}>
+                    <button className={selectedAP === r.nom ? 'on' : ''} onClick={() => choisirAP(r.nom)}>
+                      <span className="nom"><i style={{ background: r.color }} />{r.nom}</span>
+                      <strong className="val" style={{ color: r.has ? (r.variation <= 0 ? '#16a34a' : '#dc2626') : '#94a3b8' }}>
+                        {r.has ? `${fr1(r.variation)} %` : '—'}
+                      </strong>
+                      <span className="sb-statut" style={{ color: st.c, background: st.bg }}>{t[st.k]}</span>
+                      <span className="sb-piste">
+                        <i style={{ width: `${(Math.max(0, Math.min(r.reduction, 40)) / 40) * 100}%`, background: st.bar }} />
+                        <u />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+
           <a className="sb-footer"
              href="https://gizonline.sharepoint.com/:x:/r/sites/PADDIwithguests-01SEetSIG/Freigegebene%20Dokumente/Equipe%20Technique/03.%20Op%C3%A9rations/R%C3%A9alisation%20PO%20(par%20unit%C3%A9)/UCT%20Tan%C3%A0/Composante%200/SIG/2025-10-06_Tableau_de_Bord_Feux/TB_et_BDD/Tableau_de_Bord_PADDI.xlsx?d=w35ed3c1299264334a65aa1d2729d3042&csf=1&web=1&e=pze1XJ"
              target="_blank" rel="noreferrer">
@@ -502,6 +566,7 @@ export default function SuperficiesBrulees({ data }: any) {
             <span>{t.footer}</span>
             <strong>{t.dashboard}</strong>
           </a>
+          </div>
         </aside>
 
         {/* ---------- CARTE : toute la hauteur à droite ---------- */}
@@ -541,6 +606,7 @@ export default function SuperficiesBrulees({ data }: any) {
           </div>
         </main>
       </div>
+      </div>
     </div>
   );
 }
@@ -551,21 +617,25 @@ export default function SuperficiesBrulees({ data }: any) {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
+/* .sb est un « conteneur » : tout s'adapte à la largeur réellement disponible
+   (sidebar ouverte ou réduite), pas à la largeur de la fenêtre. */
 .sb{
   --fond-panneau:#f1f4f7; --fond-entete:rgba(255,255,255,.95); --carte:#fff; --ligne:#e2e8f0;
-  --txt:#0f172a; --mut:#64748b; --rouge:rgb(200,15,15); --vert:#166534;
+  --txt:#0f172a; --mut:#64748b; --rouge:rgb(200,15,15);
   --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --corps:'Figtree','Segoe UI',system-ui,sans-serif;
-  height:100%;min-height:100vh;width:100%;display:flex;flex-direction:column;
+  width:100%;max-width:100%;container-type:inline-size;container-name:sb;
   color:var(--txt);font-family:var(--corps);font-size:14px;box-sizing:border-box;
 }
 .sb *{box-sizing:border-box}
 .sb button,.sb select{font-family:inherit}
 .sb button:focus-visible,.sb select:focus-visible,.sb a:focus-visible{outline:2px solid var(--rouge);outline-offset:2px}
+/* --sb-offset : hauteur d'un éventuel en-tête global de ton application (ex. 64px) */
+.sb-in{height:calc(100dvh - var(--sb-offset,0px));min-height:560px;display:flex;flex-direction:column}
 
 /* ---- En-tête ---- */
 .sb-top{background:var(--fond-entete);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
-  border-bottom:1px solid var(--ligne);padding:12px 18px;position:relative;z-index:20}
+  border-bottom:1px solid var(--ligne);padding:12px 18px;position:relative;z-index:20;flex:none}
 .sb-top-ligne{display:flex;align-items:center;gap:12px}
 .sb-marque{display:flex;align-items:center;gap:12px;min-width:0}
 .sb-logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#fff;flex:none;
@@ -581,27 +651,29 @@ const CSS = `
   border:1px dashed #94a3b8;background:transparent;color:var(--txt);font-size:13px;font-weight:600;cursor:pointer}
 .sb-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
-/* ---- Corps : panneau + carte pleine hauteur ---- */
-.sb-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(420px,50%) 1fr;
-  height:calc(100vh - 130px)}
-.sb-panel{overflow-y:auto;padding:16px;background:var(--fond-panneau);border-right:1px solid var(--ligne);
-  display:flex;flex-direction:column;gap:14px;min-width:0}
+/* ---- Corps : panneau (plus large) + carte (plus étroite, pleine hauteur) ---- */
+.sb-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,58%) minmax(0,1fr)}
+.sb-panel{container-type:inline-size;container-name:sbp;overflow-y:auto;padding:16px;
+  background:var(--fond-panneau);border-right:1px solid var(--ligne);min-width:0}
+.sb-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 .sb-map{position:relative;min-height:0;min-width:0;isolation:isolate;height:100%}
 
 .sb-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#ecfdf5;
-  border:1px solid #bbf7d0;color:#065f46}
+  border:1px solid #bbf7d0;color:#065f46;grid-column:1/-1}
 .sb-banner p{margin:0;font-size:13px;font-weight:600;line-height:1.45}
+.sb-large,.sb-footer{grid-column:1/-1}
 
 /* ---- Cartes ---- */
 .sb-carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:16px;min-width:0;
-  box-shadow:0 1px 3px rgba(15,23,42,.06)}
+  box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column}
 .sb-carte:nth-of-type(1){border-top:4px solid var(--rouge)}
 .sb-carte:nth-of-type(2){border-top:4px solid #16a34a}
 .sb-carte:nth-of-type(3){border-top:4px solid #2563eb}
+.sb-carte:nth-of-type(4){border-top:4px solid #f59e0b}
 .sb-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;line-height:1.25}
 .sb-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
 
-.sb-kpi{display:grid;grid-template-columns:minmax(170px,.9fr) 1.1fr;gap:16px;align-items:center}
+.sb-kpi{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:center}
 .sb-donut{position:relative;height:200px;max-width:240px;width:100%;margin:0 auto}
 .sb-donut-centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
   text-align:center;pointer-events:none;padding:0 22%}
@@ -614,8 +686,8 @@ const CSS = `
 .sb-stats dd{margin:3px 0 0;font-family:var(--titre);font-size:clamp(14px,1.3vw,17px);font-weight:700;
   font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 
-.sb-graph{height:260px;width:100%}
-.sb-graph-grand{height:320px}
+.sb-graph{flex:1;min-height:270px;width:100%}
+.sb-graph-grand{flex:none;height:340px}
 
 .sb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .sb-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid #cbd5e1;
@@ -624,6 +696,22 @@ const CSS = `
 .sb-chip i{width:10px;height:10px;border-radius:50%;flex:none}
 .sb-chip.off{opacity:.45;text-decoration:line-through;background:#f8fafc}
 .sb-chip:hover{background:#f1f5f9}
+
+/* ---- Classement ---- */
+.sb-rang{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.sb-rang button{display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,2fr) auto auto;gap:6px 12px;
+  align-items:center;width:100%;padding:8px 10px;border:0;border-radius:8px;background:transparent;
+  cursor:pointer;text-align:left;font-size:12.5px;color:var(--txt)}
+.sb-rang button:hover{background:#f1f5f9}
+.sb-rang button.on{background:#dcfce7;outline:1px solid #16a34a}
+.sb-rang .nom{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.sb-rang .nom i{width:10px;height:10px;border-radius:50%;flex:none}
+.sb-rang .val{font-variant-numeric:tabular-nums;order:3;min-width:60px;text-align:right}
+.sb-piste{order:2;position:relative;height:8px;background:#e2e8f0;border-radius:4px}
+.sb-piste i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width .3s}
+.sb-piste u{position:absolute;top:-3px;bottom:-3px;left:62.5%;width:2px;background:#0f172a;opacity:.65}
+.sb-statut{order:4;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
 
 .sb-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;
   background:#ecfdf5;color:var(--txt);text-decoration:none;font-size:13px}
@@ -634,10 +722,10 @@ const CSS = `
 .sb .sb-ap-label{background:#fff;border:1px solid #94a3b8;border-radius:5px;font-size:12px;font-weight:700;
   box-shadow:0 2px 8px rgba(0,0,0,.2);padding:3px 7px}
 .sb .sb-ap-label:before{display:none}
-.sb-map-titre{position:absolute;top:12px;left:12px;right:200px;z-index:1000;padding:9px 13px;border-radius:10px;
+.sb-map-titre{position:absolute;top:12px;left:12px;z-index:1000;padding:9px 13px;border-radius:10px;
   background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   border:1px solid rgba(15,23,42,.15);font-size:12.5px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15);
-  width:fit-content;max-width:calc(100% - 210px)}
+  width:fit-content;max-width:calc(100% - 200px)}
 .sb-outils{position:absolute;top:12px;right:12px;z-index:1000;display:flex;border-radius:10px;overflow:hidden;
   border:1px solid rgba(15,23,42,.18);background:rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(0,0,0,.15)}
 .sb-outils button{padding:9px 12px;border:0;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)}
@@ -650,50 +738,59 @@ const CSS = `
 .sb-legende div{display:flex;align-items:center;gap:8px;color:#334155;font-weight:600}
 .sb-legende .carre{width:14px;height:14px;border-radius:3px;flex:none}
 
-/* ---- Grands écrans ---- */
-@media (min-width:1600px){
-  .sb-body{grid-template-columns:minmax(560px,44%) 1fr}
-  .sb-panel{padding:20px;gap:16px}
+/* ---- Adaptation au PANNEAU (largeur réelle disponible) ---- */
+@container sbp (min-width:620px){
+  .sb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media (min-width:2200px){
-  .sb{font-size:16px}
-  .sb-body{grid-template-columns:minmax(760px,40%) 1fr}
-  .sb-graph{height:320px}
+@container sbp (min-width:460px) and (max-width:619px){
+  .sb-kpi{grid-template-columns:minmax(180px,.9fr) 1.1fr}
 }
-
-/* ---- Petits portables ---- */
-@media (max-width:1279px){
-  .sb-body{grid-template-columns:minmax(380px,52%) 1fr}
-  .sb-kpi{grid-template-columns:1fr}
+@container sbp (max-width:520px){
+  .sb-rang button{grid-template-columns:minmax(0,1fr) auto auto}
+  .sb-piste{grid-column:1/-1;order:5}
+}
+@container sbp (max-width:340px){
+  .sb-stats{grid-template-columns:1fr}
 }
 
-/* ---- Tablette & mobile : carte au-dessus, la page défile ---- */
-@media (max-width:1023px){
-  .sb{min-height:0}
+/* ---- Adaptation à la ZONE (sidebar ouverte ou réduite) ---- */
+@container sb (max-width:1279px){
+  .sb-body{grid-template-columns:minmax(0,54%) minmax(0,1fr)}
+}
+@container sb (min-width:1600px){
+  .sb-body{grid-template-columns:minmax(0,60%) minmax(0,1fr)}
+  .sb-panel{padding:20px}
+  .sb-grid{gap:16px}
+}
+@container sb (min-width:2200px){
+  .sb-in{font-size:16px}
+  .sb-body{grid-template-columns:minmax(0,62%) minmax(0,1fr)}
+  .sb-graph{min-height:340px}
+  .sb-graph-grand{height:420px}
+}
+/* Tablette & mobile : carte au-dessus, la page défile */
+@container sb (max-width:1023px){
+  .sb-in{height:auto;min-height:0}
   .sb-top{position:sticky;top:0}
-  .sb-body{display:flex;flex-direction:column;height:auto;flex:none}
+  .sb-body{display:flex;flex-direction:column;flex:none}
   .sb-map{order:-1;height:56vh;min-height:320px;flex:none}
   .sb-panel{overflow:visible;border-right:0}
   .sb-filtres{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
   .sb-champ,.sb-reset{flex:none}
-  .sb-kpi{grid-template-columns:minmax(180px,.9fr) 1.1fr}
 }
-@media (max-width:639px){
+@container sb (max-width:639px){
   .sb-top{padding:10px 12px}
   .sb-sous{display:none}
-  .sb-panel{padding:12px;gap:12px}
+  .sb-panel{padding:12px}
+  .sb-grid{gap:12px}
   .sb-carte{padding:12px}
-  .sb-kpi{grid-template-columns:1fr}
   .sb-map{height:48vh}
-  .sb-map-titre{right:12px;top:60px;max-width:calc(100% - 24px);font-size:11.5px}
+  .sb-map-titre{top:60px;max-width:calc(100% - 24px);font-size:11.5px}
   .sb-legende{display:none}
-  .sb-graph{height:230px}
-  .sb-graph-grand{height:280px}
+  .sb-graph{min-height:230px}
+  .sb-graph-grand{height:290px}
   .sb-champ select{min-width:140px}
   .sb-footer strong{margin-left:0}
-}
-@media (max-width:359px){
-  .sb-stats{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){ .sb *{transition:none !important;animation:none !important} }
 `;
