@@ -9,117 +9,382 @@ interface UpdateActivitesModalProps {
   motDePasse: string;
 }
 
-type MainChoice = "taux" | "axes";
-type TauxChoice = "global" | "realisation" | "composante";
-type AxeChoice = "gestion" | "amenagement";
+/* =========================================================
+   CONFIGURATION DES CHAMPS
+   (une seule source de vérité : formulaire, chargement,
+   enregistrement et validation en dérivent)
+========================================================= */
 
-const mois = [
-  "Janvier",
-  "Février",
-  "Mars",
-  "Avril",
-  "Mai",
-  "Juin",
-  "Juillet",
-  "Août",
-  "Septembre",
-  "Octobre",
-  "Novembre",
-  "Décembre",
-];
-
-const unites = [
-  "UCT",
-  "UCR-A",
-  "UCR-B",
-  "UCR-D",
-  "UCR-F",
-  "UCR-FD",
-];
-
-const annees = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
-
-interface InputPercentProps {
-  id: string;
+interface FieldDef {
+  id: string; // clé dans le formulaire
+  col: string; // colonne dans le GeoJSON
   label: string;
-  value: string;
-  onChange: (id: string, value: string) => void;
-  invalid?: boolean;
+  pct?: boolean; // pourcentage (stocké en décimal)
+  readOnly?: boolean;
 }
 
-const InputPercent = ({
+interface Section {
+  label: string;
+  fields: FieldDef[];
+}
+
+type Group = "taux" | "axes";
+
+const pct = (id: string, col: string, label: string): FieldDef => ({
   id,
+  col,
   label,
-  value,
-  onChange,
-  invalid = false,
-}: InputPercentProps) => (
-    <div
-    style={{
-      ...styles.fieldCard,
-      ...(invalid ? styles.invalidFieldCard : {}),
-    }}
-  >
-    <label style={styles.fieldLabel}>{label}</label>
+  pct: true,
+});
 
-    <div
-      style={{
-        ...styles.percentInputWrapper,
-        ...(invalid ? styles.invalidInput : {}),
-      }}
-    >
-      <input
-        type="text"
-        inputMode="decimal"
-        value={value}
-        onChange={(e) => onChange(id, e.target.value)}
-        placeholder="0"
-        style={styles.percentInput}
-      />
+const num = (id: string, col: string, label: string, readOnly = false): FieldDef => ({
+  id,
+  col,
+  label,
+  readOnly,
+});
 
-      <span style={styles.percentSymbol}>%</span>
+// ex. ["1.1.1", "Analyses"] → { id: "a111", col: "TAA 1.1.1", label: "1.1.1 Analyses" }
+const taa = (items: [string, string][]) =>
+  items.map(([code, label]) =>
+    pct(`a${code.replace(/\./g, "")}`, `TAA ${code}`, `${code} ${label}`)
+  );
+
+const SECTIONS: Record<string, Section> = {
+  global: {
+    label: "Avancement global des activités",
+    fields: [
+      pct("tauxGlobal", "TAG", "Taux d'avancement global des activités"),
+      num("totalPlanifiees", "NAP", "Total activités planifiées"),
+      num("achevees", "NAA", "Activités achevées"),
+      num("enCours", "NAC", "Activités en cours"),
+      num("nonDemarrees", "NAD", "Activités non démarrées", true),
+    ],
+  },
+  realisation: {
+    label: "Avancement par réalisation",
+    fields: [
+      pct("r1", "TAR 1", "R1. Système de gestion"),
+      pct("r2", "TAR 2", "R2. Aménagement du territoire"),
+    ],
+  },
+  composante: {
+    label: "Avancement par composante",
+    fields: [
+      pct("c1", "TAC C1", "C1. Gestion de services écosystémiques"),
+      pct("c2", "TAC C2", "C2. Gouvernance environnementale décentralisée"),
+      pct("c3", "TAC C3", "C3. Développement des paysages productifs"),
+      pct("c4", "TAC C4", "C4. Création d'emplois verts"),
+    ],
+  },
+  gestion: {
+    label: "Système de gestion",
+    fields: taa([
+      ["1.1.1", "Analyses diagnostiques"],
+      ["1.1.2", "Planification territoriale"],
+      ["1.1.3", "Suivi écosystémique"],
+      ["1.1.4", "Financement durable"],
+      ["1.2.1", "Participation des populations"],
+      ["1.2.2", "Coopération avec MNP"],
+      ["1.2.3", "Coordination intersectorielle"],
+      ["1.2.4", "Lutte contre la corruption"],
+    ]),
+  },
+  amenagement: {
+    label: "Aménagement du territoire",
+    fields: taa([
+      ["2.1.1", "Restauration paysages"],
+      ["2.1.2", "Production durable"],
+      ["2.1.3", "Sécurisation foncière"],
+      ["2.1.4", "Gestion des feux"],
+      ["2.2.1", "Système de marché"],
+      ["2.2.2", "Valorisation des productions"],
+      ["2.2.3", "Diversification des activités"],
+      ["2.2.4", "Mobilisation communautaire"],
+    ]),
+  },
+};
+
+const GROUPS: Record<
+  Group,
+  { title: string; desc: string; subtitle: string; tabs: string[] }
+> = {
+  taux: {
+    title: "Taux d'avancement",
+    desc: "Activités, réalisations et composantes",
+    subtitle: "Type d'avancement",
+    tabs: ["global", "realisation", "composante"],
+  },
+  axes: {
+    title: "Axes prioritaires",
+    desc: "Système de gestion et aménagement",
+    subtitle: "Axe prioritaire",
+    tabs: ["gestion", "amenagement"],
+  },
+};
+
+const ALL_FIELDS = Object.values(SECTIONS).flatMap((s) => s.fields);
+
+const MOIS = [
+  "Janvier", "Février", "Mars", "Avril", "Mai", "Juin",
+  "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre",
+];
+const UNITES = ["UCT", "UCR-A", "UCR-B", "UCR-D", "UCR-F", "UCR-FD"];
+const ANNEES = ["2024", "2025", "2026", "2027", "2028", "2029", "2030"];
+
+const isEmpty = (v?: string) => !v || v.trim() === "";
+
+// Activités non démarrées = planifiées − achevées − en cours
+const calcNonDemarrees = (v: Record<string, string>) =>
+  v.totalPlanifiees
+    ? String(
+        Math.max(
+          0,
+          Number(v.totalPlanifiees) - Number(v.achevees || 0) - Number(v.enCours || 0)
+        )
+      )
+    : "";
+
+/* =========================================================
+   PETITS COMPOSANTS
+========================================================= */
+
+interface FieldProps {
+  def: FieldDef;
+  value: string;
+  onChange: (id: string, value: string) => void;
+  invalid: boolean;
+}
+
+const Field = ({ def, value, onChange, invalid }: FieldProps) => {
+  const inputId = `uam-${def.id}`;
+  const flag = invalid ? " is-invalid" : "";
+
+  return (
+    <div className={`uam-card${flag}`}>
+      <label className="uam-flabel" htmlFor={inputId}>
+        {def.label}
+      </label>
+
+      {def.pct ? (
+        <div className={`uam-pct${flag}`}>
+          <input
+            id={inputId}
+            type="text"
+            inputMode="decimal"
+            value={value}
+            onChange={(e) => onChange(def.id, e.target.value)}
+            placeholder="0"
+            className="uam-pct-input"
+          />
+          <span className="uam-pct-symbol">%</span>
+        </div>
+      ) : (
+        <input
+          id={inputId}
+          type="number"
+          min="0"
+          step="1"
+          value={value}
+          readOnly={def.readOnly}
+          onChange={(e) => onChange(def.id, e.target.value)}
+          placeholder="Saisir une valeur"
+          className={`uam-input${flag}${def.readOnly ? " is-readonly" : ""}`}
+        />
+      )}
     </div>
-  </div>
-);
+  );
+};
 
-
-interface InputNumberProps {
+interface SelectProps {
   id: string;
   label: string;
   value: string;
-  onChange: (id: string, value: string) => void;
-  invalid?: boolean;
+  onChange: (value: string) => void;
+  options: string[];
 }
 
-const InputNumber = ({
-  id,
-  label,
-  value,
-  onChange,
-  invalid = false,
-}: InputNumberProps) => (
-    <div
-    style={{
-      ...styles.fieldCard,
-      ...(invalid ? styles.invalidFieldCard : {}),
-    }}
-  >
-    <label style={styles.fieldLabel}>{label}</label>
-
-    <input
-      type="number"
-      min="0"
-      step="1"
+const Select = ({ id, label, value, onChange, options }: SelectProps) => (
+  <div>
+    <label className="uam-slabel" htmlFor={id}>
+      {label}
+    </label>
+    <select
+      id={id}
+      className="uam-select"
       value={value}
-      onChange={(e) => onChange(id, e.target.value)}
-      placeholder="Saisir une valeur"
-      style={{
-        ...styles.normalInput,
-        ...(invalid ? styles.invalidInput : {}),
-      }}
-    />
+      onChange={(e) => onChange(e.target.value)}
+    >
+      <option value="">Sélectionner</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
   </div>
 );
+
+/* =========================================================
+   HISTORIQUE
+========================================================= */
+
+const pick = (obj: any, keys: string[]) => {
+  for (const k of keys) if (obj?.[k] !== undefined && obj?.[k] !== null) return obj[k];
+  return "";
+};
+
+const HISTORIQUE_COLONNES = [
+  "Utilisateur", "Date", "Heure", "Année", "Unité de coordination",
+  "Nom colonne modifié", "Ancienne valeur", "Nouvelle valeur",
+];
+
+interface HistoriqueModalProps {
+  identifiant: string;
+  motDePasse: string;
+  onClose: () => void;
+}
+
+function HistoriqueModal({ identifiant, motDePasse, onClose }: HistoriqueModalProps) {
+  const [entries, setEntries] = useState<any[]>([]);
+  const [erreur, setErreur] = useState("");
+  const [chargement, setChargement] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await fetch(`/api/historique-geojson?t=${Date.now()}`, {
+          cache: "no-store",
+          headers: {
+            "x-paddi-identifiant": identifiant,
+            "x-paddi-password": motDePasse,
+            "Cache-Control": "no-cache",
+          },
+        });
+
+        const texte = await response.text();
+
+        if (!response.ok) {
+          throw new Error(
+            response.status === 401
+              ? "Accès non autorisé : vérifie les identifiants de session."
+              : `Erreur API historique (${response.status}) : ${texte}`
+          );
+        }
+
+        let result: any;
+        try {
+          result = JSON.parse(texte);
+        } catch {
+          throw new Error("La réponse de l'API historique n'est pas un JSON valide.");
+        }
+
+        // Deux formats acceptés : { entries: [...] } ou directement [...]
+        const liste = Array.isArray(result) ? result : result?.entries;
+        if (!Array.isArray(liste)) {
+          throw new Error(
+            "L'API répond, mais ne renvoie pas de tableau entries. Vérifie la structure JSON."
+          );
+        }
+
+        if (!cancelled) setEntries(liste);
+      } catch (error) {
+        console.error("Erreur chargement historique :", error);
+        if (!cancelled) {
+          setErreur(
+            error instanceof Error
+              ? error.message
+              : "Une erreur est survenue lors du chargement de l'historique."
+          );
+        }
+      } finally {
+        if (!cancelled) setChargement(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [identifiant, motDePasse]);
+
+  // Une ligne par changement réel (ancienne valeur ≠ nouvelle valeur)
+  const lignes = entries.flatMap((e, i) => {
+    const d = e.date ? new Date(e.date) : null;
+    const valide = d !== null && !isNaN(d.getTime());
+
+    return (Array.isArray(e.changements) ? e.changements : [])
+      .map((c: any, j: number) => ({
+        key: `${e.id ?? i}-${j}`,
+        cells: [
+          e.utilisateur ?? e.nom ?? "",
+          valide ? d!.toLocaleDateString("fr-FR") : "",
+          valide ? d!.toLocaleTimeString("fr-FR") : "",
+          e.annee ?? "",
+          e.uc ?? "",
+          pick(c, ["colonne", "champ", "field", "nomColonne"]),
+        ],
+        ancienne: pick(c, ["ancienneValeur", "ancienne", "oldValue"]),
+        nouvelle: pick(c, ["nouvelleValeur", "nouvelle", "newValue"]),
+      }))
+      .filter((l: any) => JSON.stringify(l.ancienne) !== JSON.stringify(l.nouvelle));
+  });
+
+  return (
+    <div className="uam-overlay uam-overlay-top">
+      <div className="uam-modal uam-modal-history" role="dialog" aria-modal="true">
+        <div className="uam-header">
+          <div className="uam-header-text">
+            <h2 className="uam-title">Historique des mises à jour</h2>
+            <p className="uam-subtitle">
+              Consultez les modifications effectuées sur les activités.
+            </p>
+          </div>
+
+          <button type="button" onClick={onClose} className="uam-close" title="Fermer">
+            <X size={21} />
+          </button>
+        </div>
+
+        <div className="uam-hbody">
+          {chargement ? (
+            <div className="uam-hmsg">Chargement de l'historique...</div>
+          ) : erreur ? (
+            <div className="uam-hmsg is-error">{erreur}</div>
+          ) : lignes.length === 0 ? (
+            <div className="uam-hmsg">Aucune modification enregistrée.</div>
+          ) : (
+            <table className="uam-table">
+              <thead>
+                <tr>
+                  {HISTORIQUE_COLONNES.map((titre) => (
+                    <th key={titre}>{titre}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {lignes.map((l: any) => (
+                  <tr key={l.key}>
+                    {l.cells.map((cell: unknown, k: number) => (
+                      <td key={k}>{String(cell)}</td>
+                    ))}
+                    <td>{String(l.ancienne)}</td>
+                    <td>{String(l.nouvelle)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   COMPOSANT PRINCIPAL
+========================================================= */
 
 export default function UpdateActivitesModal({
   isOpen,
@@ -128,1838 +393,566 @@ export default function UpdateActivitesModal({
   identifiant,
   motDePasse,
 }: UpdateActivitesModalProps) {
-
-  const [mainChoice, setMainChoice] = useState<MainChoice>("taux");
-
-  const [tauxChoice, setTauxChoice] =
-    useState<TauxChoice>("global");
-
-  const [axeChoice, setAxeChoice] =
-    useState<AxeChoice>("gestion");
+  const [group, setGroup] = useState<Group>("taux");
+  const [tab, setTab] = useState<Record<Group, string>>({
+    taux: "global",
+    axes: "gestion",
+  });
 
   const [annee, setAnnee] = useState("");
-  const [moisSelectionne, setMoisSelectionne] = useState("");
+  const [mois, setMois] = useState("");
   const [uc, setUc] = useState("");
 
   const [values, setValues] = useState<Record<string, string>>({});
+  const [showValidation, setShowValidation] = useState(false);
   const [showHistorique, setShowHistorique] = useState(false);
 
-  const [historique, setHistorique] = useState<any[]>([]);
-  const [erreurHistorique, setErreurHistorique] = useState("");
-  const [chargementHistorique, setChargementHistorique] = useState(false);
-  
-  const [showValidation, setShowValidation] = useState(false);
-  const requiredFields = [
-  "tauxGlobal",
-  "totalPlanifiees",
-  "achevees",
-  "enCours",
-  "nonDemarrees",
-  "r1", "r2",
-  "c1", "c2", "c3", "c4",
-  "a111", "a112", "a113", "a114",
-  "a121", "a122", "a123", "a124",
-  "a211", "a212", "a213", "a214",
-  "a221", "a222", "a223", "a224",
-];
-
-const tabFields = {
-  global: [
-    "tauxGlobal",
-    "totalPlanifiees",
-    "achevees",
-    "enCours",
-    "nonDemarrees",
-  ],
-  realisation: ["r1", "r2"],
-  composante: ["c1", "c2", "c3", "c4"],
-  gestion: [
-    "a111", "a112", "a113", "a114",
-    "a121", "a122", "a123", "a124",
-  ],
-  amenagement: [
-    "a211", "a212", "a213", "a214",
-    "a221", "a222", "a223", "a224",
-  ],
-};
-
-const isFieldMissing = (field: string) =>
-  showValidation &&
-  (!values[field] || values[field].trim() === "");
-
-const isTabInvalid = (fields: string[]) =>
-  showValidation &&
-  fields.some(
-    (field) =>
-      !values[field] || values[field].trim() === ""
-  );
-
-useEffect(() => {
-  if (!annee || !moisSelectionne || !uc) {
+  /* ---------- Chargement de l'enregistrement existant ---------- */
+  useEffect(() => {
     setValues({});
-    return;
-  }
+    if (!annee || !mois || !uc) return;
 
-  let cancelled = false;
+    let cancelled = false;
 
-  const chargerEnregistrement = async () => {
-    setValues({});
-
-    console.log("Chargement demandé :", {
-      annee,
-      mois: moisSelectionne,
-      uc,
-    });
-
-    try {
-      const params = new URLSearchParams({
-        annee,
-        mois: moisSelectionne,
-        uc,
-      });
-
-      const response = await fetch(
-        `/api/update-geojson?${params.toString()}`
-      );
-
-      console.log("Réponse API :", response.status);
-
-      const result = await response.json();
-
-        console.log("Réponse API mise à jour :", result);
-        console.log("Statut HTTP :", response.status);
+    (async () => {
+      try {
+        const params = new URLSearchParams({ annee, mois, uc });
+        const response = await fetch(`/api/update-geojson?${params}`);
+        const result = await response.json();
 
         if (!response.ok) {
-          alert(
-            result.error ||
-            "Échec de l’enregistrement."
-          );
+          console.warn("Chargement de l'enregistrement :", result.error);
           return;
         }
 
-      if (!response.ok) {
-        if (!cancelled) {
-          console.warn(
-            "Chargement de l'enregistrement :",
-            result.error
-          );
-        }
-        return;
-      }
-
-      const p = result.properties;
-
-      const mapping: Record<string, string> = {
-        tauxGlobal: "TAG",
-        totalPlanifiees: "NAP",
-        achevees: "NAA",
-        enCours: "NAC",
-        nonDemarrees: "NAD",
-
-        r1: "TAR 1",
-        r2: "TAR 2",
-
-        c1: "TAC C1",
-        c2: "TAC C2",
-        c3: "TAC C3",
-        c4: "TAC C4",
-
-        a111: "TAA 1.1.1",
-        a112: "TAA 1.1.2",
-        a113: "TAA 1.1.3",
-        a114: "TAA 1.1.4",
-
-        a121: "TAA 1.2.1",
-        a122: "TAA 1.2.2",
-        a123: "TAA 1.2.3",
-        a124: "TAA 1.2.4",
-
-        a211: "TAA 2.1.1",
-        a212: "TAA 2.1.2",
-        a213: "TAA 2.1.3",
-        a214: "TAA 2.1.4",
-
-        a221: "TAA 2.2.1",
-        a222: "TAA 2.2.2",
-        a223: "TAA 2.2.3",
-        a224: "TAA 2.2.4",
-      };
-
-      const percentageFields = new Set([
-        "tauxGlobal",
-
-        "r1", "r2",
-      
-        "c1", "c2", "c3", "c4",
-      
-        "a111", "a112", "a113", "a114",
-        "a121", "a122", "a123", "a124",
-        "a211", "a212", "a213", "a214",
-        "a221", "a222", "a223", "a224",
-      ]);
-
-      const loadedValues: Record<string, string> = {};
-
-      for (const [formKey, column] of Object.entries(mapping)) {
-        const storedValue = p[column];
-
-        if (storedValue === null || storedValue === undefined) {
-          loadedValues[formKey] = "";
-          continue;
+        const loaded: Record<string, string> = {};
+        for (const f of ALL_FIELDS) {
+          const raw = result.properties?.[f.col];
+          if (raw === null || raw === undefined) {
+            loaded[f.id] = "";
+            continue;
+          }
+          const n = f.pct ? Number(raw) * 100 : Number(raw);
+          loaded[f.id] = String(Number(n.toFixed(6)));
         }
 
-        const displayValue = percentageFields.has(formKey)
-          ? Number(storedValue) * 100
-          : Number(storedValue);
-
-        loadedValues[formKey] = String(
-          Number(displayValue.toFixed(6))
-        );
+        if (!cancelled) setValues(loaded);
+      } catch (error) {
+        console.error("Erreur de chargement :", error);
       }
+    })();
 
-      if (!cancelled) {
-        setValues(loadedValues);
-      }
-    } catch (error) {
-      console.error("Erreur de chargement :", error);
-    }
-  };
-
-  chargerEnregistrement();
-
-  return () => {
-    cancelled = true;
-  };
-}, [annee, moisSelectionne, uc]);
-
+    return () => {
+      cancelled = true;
+    };
+  }, [annee, mois, uc]);
 
   if (!isOpen) return null;
 
-  
-const handleValueChange = (
-  key: string,
-  value: string
-) => {
-  // Autoriser uniquement les nombres et le point décimal
-  if (!/^\d*\.?\d*$/.test(value)) return;
+  /* ---------- Saisie ---------- */
+  const handleValueChange = (id: string, value: string) => {
+    // Uniquement des nombres avec un point décimal
+    if (!/^\d*\.?\d*$/.test(value)) return;
 
-  // Limiter les pourcentages à 100
-  if (value !== "" && Number(value) > 100) return;
+    // Les pourcentages sont limités à 100
+    const def = ALL_FIELDS.find((f) => f.id === id);
+    if (def?.pct && value !== "" && Number(value) > 100) return;
 
-  setValues((prev) => {
-    const next = {
-      ...prev,
-      [key]: value,
-    };
-
-    // Recalcul automatique des activités non démarrées
-    if (
-      ["totalPlanifiees", "achevees", "enCours"].includes(key)
-    ) {
-      const total = Number(next.totalPlanifiees || 0);
-      const achevees = Number(next.achevees || 0);
-      const enCours = Number(next.enCours || 0);
-
-      // Ne pas afficher de résultat tant que le total est vide
-      next.nonDemarrees =
-        next.totalPlanifiees === ""
-          ? ""
-          : String(
-              Math.max(0, total - achevees - enCours)
-            );
-    }
-
-    return next;
-  });
-};
-
+    setValues((prev) => {
+      const next = { ...prev, [id]: value };
+      if (["totalPlanifiees", "achevees", "enCours"].includes(id)) {
+        next.nonDemarrees = calcNonDemarrees(next);
+      }
+      return next;
+    });
+  };
 
   const handleReset = () => {
-      setAnnee("");
-      setMoisSelectionne("");
-      setUc("");
-      setValues({});
-      setShowValidation(false);
-    };
-
-  const handleMainChoice = (choice: MainChoice) => {
-    setMainChoice(choice);
-  };
-  
-  const handleTauxChoice = (choice: TauxChoice) => {
-    setTauxChoice(choice);
-  };
-  
-  const handleAxeChoice = (choice: AxeChoice) => {
-    setAxeChoice(choice);
+    setAnnee("");
+    setMois("");
+    setUc("");
+    setValues({});
+    setShowValidation(false);
   };
 
+  /* ---------- Enregistrement ---------- */
   const handleSave = async () => {
-
     setShowValidation(true);
-    // =====================================================
-    // 1. Vérification des informations générales
-    // =====================================================
-  
-    if (!annee || !moisSelectionne || !uc) {
-      alert(
-        "Veuillez sélectionner l’année, le mois et l’unité de coordination."
-      );
+
+    if (!annee || !mois || !uc) {
+      alert("Veuillez sélectionner l’année, le mois et l’unité de coordination.");
       return;
     }
-  
-    const missingFields = requiredFields.filter(
-      (field) =>
-        values[field] === undefined ||
-        values[field] === null ||
-        values[field].trim() === ""
-    );
-  
-    if (missingFields.length > 0) {
-      alert(
-        "Veuillez remplir tous les champs avant d'enregistrer."
-      );
-  
-      console.warn(
-        "Champs manquants :",
-        missingFields
-      );
-  
+
+    if (ALL_FIELDS.some((f) => isEmpty(values[f.id]))) {
+      alert("Veuillez remplir tous les champs avant d'enregistrer.");
       return;
     }
-  
-    // =====================================================
-    // 3. Correspondance formulaire → GeoJSON
-    // =====================================================
-  
-    const fieldMapping: Record<string, string> = {
-      tauxGlobal: "TAG",
-  
-      totalPlanifiees: "NAP",
-      achevees: "NAA",
-      enCours: "NAC",
-      nonDemarrees: "NAD",
-  
-      r1: "TAR 1",
-      r2: "TAR 2",
-  
-      c1: "TAC C1",
-      c2: "TAC C2",
-      c3: "TAC C3",
-      c4: "TAC C4",
-  
-      a111: "TAA 1.1.1",
-      a112: "TAA 1.1.2",
-      a113: "TAA 1.1.3",
-      a114: "TAA 1.1.4",
-  
-      a121: "TAA 1.2.1",
-      a122: "TAA 1.2.2",
-      a123: "TAA 1.2.3",
-      a124: "TAA 1.2.4",
-  
-      a211: "TAA 2.1.1",
-      a212: "TAA 2.1.2",
-      a213: "TAA 2.1.3",
-      a214: "TAA 2.1.4",
-  
-      a221: "TAA 2.2.1",
-      a222: "TAA 2.2.2",
-      a223: "TAA 2.2.3",
-      a224: "TAA 2.2.4",
-    };
-  
-    // =====================================================
-    // 4. Champs qui sont des pourcentages
-    // =====================================================
-  
-    const percentageFields = new Set([
-      "tauxGlobal",
-  
-      "r1",
-      "r2",
-  
-      "c1",
-      "c2",
-      "c3",
-      "c4",
-  
-      "a111",
-      "a112",
-      "a113",
-      "a114",
-  
-      "a121",
-      "a122",
-      "a123",
-      "a124",
-  
-      "a211",
-      "a212",
-      "a213",
-      "a214",
-  
-      "a221",
-      "a222",
-      "a223",
-      "a224",
-    ]);
-  
-    // =====================================================
-    // 5. Préparation des données à envoyer
-    // =====================================================
-  
+
+    const data = { ...values, nonDemarrees: calcNonDemarrees(values) };
     const updates: Record<string, number> = {};
 
-    
-const valeursAEnregistrer = {
-  ...values,
-  nonDemarrees:
-    values.totalPlanifiees === undefined ||
-    values.totalPlanifiees === ""
-      ? ""
-      : String(
-          Math.max(
-            0,
-            Number(values.totalPlanifiees || 0) -
-              Number(values.achevees || 0) -
-              Number(values.enCours || 0)
-          )
-        ),
-};
-
-  
-    for (const field of requiredFields) {
-      const rawValue = valeursAEnregistrer[field];
-  
-      const column = fieldMapping[field];
-  
-      if (!column) {
-        console.warn(
-          `Aucune correspondance trouvée pour ${field}`
-        );
-        continue;
-      }
-  
-      const parsedValue = Number(rawValue);
-  
-      if (!Number.isFinite(parsedValue)) {
-        alert(
-          `Valeur invalide pour le champ : ${field}`
-        );
+    for (const f of ALL_FIELDS) {
+      const n = Number(data[f.id]);
+      if (!Number.isFinite(n)) {
+        alert(`Valeur invalide pour le champ : ${f.id}`);
         return;
       }
-  
       // Les pourcentages sont stockés sous forme décimale
-      updates[column] = percentageFields.has(field)
-        ? parsedValue / 100
-        : parsedValue;
+      updates[f.col] = f.pct ? n / 100 : n;
     }
-  
-    // =====================================================
-    // 6. Envoi au serveur
-    // =====================================================
-  
+
     try {
       const response = await fetch("/api/update-geojson", {
         method: "POST",
-  
-        headers: {
-          "Content-Type": "application/json",
-        },
-  
-        body: JSON.stringify({
-          identifiant,
-          motDePasse,
-          annee,
-          mois: moisSelectionne,
-          uc,
-          updates,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifiant, motDePasse, annee, mois, uc, updates }),
       });
-  
+
       const result = await response.json();
-  
+
       if (!response.ok) {
-        alert(
-          result.error ||
-          "Échec de l’enregistrement."
-        );
+        alert(result.error || "Échec de l’enregistrement.");
         return;
       }
-  
-      alert(
-        "Toutes les données ont été enregistrées avec succès dans GitHub."
-      );
-  
+
+      alert("Toutes les données ont été enregistrées avec succès dans GitHub.");
       onClose();
-  
     } catch (error) {
-      console.error(
-        "Erreur d’enregistrement :",
-        error
-      );
-  
-      alert(
-        "Impossible de contacter le serveur. Vérifiez votre connexion."
-      );
+      console.error("Erreur d’enregistrement :", error);
+      alert("Impossible de contacter le serveur. Vérifiez votre connexion.");
     }
   };
 
-  const renderHeaderFields = () => (
-    <>
-      <div style={styles.contextGrid}>
-        <div>
-          <label style={styles.selectLabel}>Année</label>
+  /* ---------- Validation visuelle ---------- */
+  const isMissing = (f: FieldDef) => showValidation && isEmpty(values[f.id]);
+  const isTabInvalid = (key: string) => SECTIONS[key].fields.some(isMissing);
+  const isGroupInvalid = (g: Group) => GROUPS[g].tabs.some(isTabInvalid);
 
-          <select
-            value={annee}
-            onChange={(e) => setAnnee(e.target.value)}
-            style={styles.select}
-          >
-            <option value="">Sélectionner</option>
-
-            {annees.map((year) => (
-              <option key={year} value={year}>
-                {year}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label style={styles.selectLabel}>Mois</label>
-
-          <select
-            value={moisSelectionne}
-            onChange={(e) =>
-              setMoisSelectionne(e.target.value)
-            }
-            style={styles.select}
-          >
-            <option value="">Sélectionner</option>
-
-            {mois.map((month) => (
-              <option key={month} value={month}>
-                {month}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div style={styles.fullField}>
-        <label style={styles.selectLabel}>
-          Unité de coordination
-        </label>
-
-        <select
-          value={uc}
-          onChange={(e) => setUc(e.target.value)}
-          style={styles.select}
-        >
-          <option value="">Sélectionner</option>
-
-          {unites.map((unit) => (
-            <option key={unit} value={unit}>
-              {unit}
-            </option>
-          ))}
-        </select>
-      </div>
-    </>
-  );
-
-  const totalPlanifiees = Number(values["totalPlanifiees"] || 0);
-    const achevees = Number(values["achevees"] || 0);
-    const enCours = Number(values["enCours"] || 0);
-
-    const nonDemarrees = Math.max(
-      0,
-      totalPlanifiees - (achevees + enCours)
-    );
-
-  const renderGlobal = () => (
-  <>
-    <div style={styles.fieldsGrid}>
-
-      <InputPercent
-        id="tauxGlobal"
-        label="Taux d'avancement global des activités"
-        value={values["tauxGlobal"] || ""}
-        onChange={handleValueChange}
-        invalid={isFieldMissing("tauxGlobal")}
-      />
-
-      <InputNumber
-        id="totalPlanifiees"
-        label="Total activités planifiées"
-        value={values["totalPlanifiees"] || ""}
-        onChange={handleValueChange}
-        invalid={isFieldMissing("totalPlanifiees")}
-      />
-
-      <InputNumber
-        id="achevees"
-        label="Activités achevées"
-        value={values["achevees"] || ""}
-        onChange={handleValueChange}
-        invalid={isFieldMissing("achevees")}
-      />
-
-      <InputNumber
-        id="enCours"
-        label="Activités en cours"
-        value={values["enCours"] || ""}
-        onChange={handleValueChange}
-        invalid={isFieldMissing("enCours")}
-      />
-
-      
-      <InputNumber
-        id="nonDemarrees"
-        label="Activités non démarrées"
-        value={values["nonDemarrees"] || ""}
-        onChange={() => {}}
-        invalid={isFieldMissing("nonDemarrees")}
-      />
-
-
-    </div>
-  </>
-);
-
-  const renderRealisation = () => (
-    <>
-
-      <div style={styles.fieldsGrid}>
-        <InputPercent
-          id="r1"
-          label="R1. Système de gestion"
-          value={values["r1"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("r1")}
-        />
-
-        <InputPercent
-          id="r2"
-          label="R2. Aménagement du territoire"
-          value={values["r2"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("r2")}
-        />
-      </div>
-    </>
-  );
-
-  const renderComposante = () => (
-    <>
-
-      <div style={styles.fieldsGrid}>
-        <InputPercent
-          id="c1"
-          label="C1. Gestion de services écosystémiques"
-          value={values["c1"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("c1")}
-        />
-
-        <InputPercent
-          id="c2"
-          label="C2. Gouvernance environnementale décentralisée"
-          value={values["c2"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("c2")}
-        />
-
-        <InputPercent
-          id="c3"
-          label="C3. Développement des paysages productifs"
-          value={values["c3"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("c3")}
-        />
-
-        <InputPercent
-          id="c4"
-          label="C4. Création d'emplois verts"
-          value={values["c4"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("c4")}
-        />
-      </div>
-    </>
-  );
-
-  const renderGestion = () => (
-    <>
-
-      <div style={styles.fieldsGrid}>
-        <InputPercent
-          id="a111"
-          label="1.1.1 Analyses diagnostiques"
-          value={values["a111"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a111")}
-        />
-
-        <InputPercent
-          id="a112"
-          label="1.1.2 Planification territoriale"
-          value={values["a112"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a112")}
-        />
-
-        <InputPercent
-          id="a113"
-          label="1.1.3 Suivi écosystémique"
-          value={values["a113"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a113")}
-        />
-
-        <InputPercent
-          id="a114"
-          label="1.1.4 Financement durable"
-          value={values["a114"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a114")}
-        />
-
-        <InputPercent
-          id="a121"
-          label="1.2.1 Participation des populations"
-          value={values["a121"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a121")}
-        />
-
-        <InputPercent
-          id="a122"
-          label="1.2.2 Coopération avec MNP"
-          value={values["a122"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a122")}
-        />
-
-        <InputPercent
-          id="a123"
-          label="1.2.3 Coordination intersectorielle"
-          value={values["a123"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a123")}
-        />
-
-        <InputPercent
-          id="a124"
-          label="1.2.4 Lutte contre la corruption"
-          value={values["a124"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a124")}
-        />
-      </div>
-    </>
-  );
-
-  const renderAmenagement = () => (
-    <>
-
-      <div style={styles.fieldsGrid}>
-        <InputPercent
-          id="a211"
-          label="2.1.1 Restauration paysages"
-          value={values["a211"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a211")}
-        />
-
-        <InputPercent
-          id="a212"
-          label="2.1.2 Production durable"
-          value={values["a212"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a212")}
-        />
-
-        <InputPercent
-          id="a213"
-          label="2.1.3 Sécurisation foncière"
-          value={values["a213"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a213")}
-        />
-
-        <InputPercent
-          id="a214"
-          label="2.1.4 Gestion des feux"
-          value={values["a214"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a214")}
-        />
-
-        <InputPercent
-          id="a221"
-          label="2.2.1 Système de marché"
-          value={values["a221"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a221")}
-        />
-
-        <InputPercent
-          id="a222"
-          label="2.2.2 Valorisation des productions"
-          value={values["a222"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a222")}
-        />
-
-        <InputPercent
-          id="a223"
-          label="2.2.3 Diversification des activités"
-          value={values["a223"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a223")}
-        />
-
-        <InputPercent
-          id="a224"
-          label="2.2.4 Mobilisation communautaire"
-          value={values["a224"] || ""}
-          onChange={handleValueChange}
-          invalid={isFieldMissing("a224")}
-        />
-      </div>
-    </>
-  );
-
-const chargerHistorique = async () => {
-  setChargementHistorique(true);
-  setErreurHistorique("");
-
-  try {
-    const response = await fetch(
-      `/api/historique-geojson?t=${Date.now()}`,
-      {
-        method: "GET",
-        cache: "no-store",
-        headers: {
-          "x-paddi-identifiant": identifiant,
-          "x-paddi-password": motDePasse,
-          "Cache-Control": "no-cache",
-        },
-      }
-    );
-
-    const texte = await response.text();
-
-    console.log("Statut API historique :", response.status);
-    console.log("Réponse brute API historique :", texte);
-
-    if (!response.ok) {
-      throw new Error(
-        response.status === 401
-          ? "Accès non autorisé : vérifie les identifiants de session."
-          : `Erreur API historique (${response.status}) : ${texte}`
-      );
-    }
-
-    let result: any;
-
-    try {
-      result = JSON.parse(texte);
-    } catch {
-      throw new Error(
-        "La réponse de l'API historique n'est pas un JSON valide."
-      );
-    }
-
-    // Accepter les deux formats possibles :
-    // { entries: [...] } ou directement [...]
-    const entries = Array.isArray(result)
-      ? result
-      : result?.entries;
-
-    if (!Array.isArray(entries)) {
-      console.error(
-        "Structure JSON inattendue pour l'historique :",
-        result
-      );
-
-      throw new Error(
-        "L'API répond, mais ne renvoie pas de tableau entries. Vérifie la structure JSON."
-      );
-    }
-
-    console.log("Nombre d'entrées reçues :", entries.length);
-    console.log("Dernière entrée reçue :", entries[0]);
-
-    setHistorique(entries);
-  } catch (error) {
-    console.error("Erreur chargement historique :", error);
-
-    setHistorique([]);
-
-    setErreurHistorique(
-      error instanceof Error
-        ? error.message
-        : "Une erreur est survenue lors du chargement de l'historique."
-    );
-  } finally {
-    setChargementHistorique(false);
-  }
-};
-  
-  const lignesHistorique = historique.flatMap((entry) => {
-    const date = entry.date ? new Date(entry.date) : null;
-  
-    return (Array.isArray(entry.changements) ? entry.changements : [])
-      .filter((changement) => {
-        const ancienneValeur =
-          changement.ancienneValeur ??
-          changement.ancienne ??
-          changement.oldValue ??
-          null;
-  
-        const nouvelleValeur =
-          changement.nouvelleValeur ??
-          changement.nouvelle ??
-          changement.newValue ??
-          null;
-  
-        return (
-          JSON.stringify(ancienneValeur) !==
-          JSON.stringify(nouvelleValeur)
-        );
-      })
-      .map((changement) => ({
-        utilisateur: entry.utilisateur ?? entry.nom ?? "",
-        mail: entry.identifiant ?? "",
-        date: date
-          ? date.toLocaleDateString("fr-FR")
-          : "",
-        heure: date
-          ? date.toLocaleTimeString("fr-FR", {
-              hour: "2-digit",
-              minute: "2-digit",
-              second: "2-digit",
-            })
-          : "",
-        colonne:
-          changement.colonne ??
-          changement.champ ??
-          changement.field ??
-          changement.nomColonne ??
-          "",
-        ancienneValeur:
-          changement.ancienneValeur ??
-          changement.ancienne ??
-          changement.oldValue ??
-          "",
-        nouvelleValeur:
-          changement.nouvelleValeur ??
-          changement.nouvelle ??
-          changement.newValue ??
-          "",
-      }));
-  });
-  
-  const celluleHistorique: React.CSSProperties = {
-    padding: 10,
-    border: "1px solid #e2e8e3",
-    verticalAlign: "top",
-    whiteSpace: "nowrap",
-  };
+  const current = GROUPS[group];
+  const section = SECTIONS[tab[group]];
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.modal}>
-        {/* ================= HEADER ================= */}
+    <>
+      <style>{css}</style>
 
-      <div style={styles.modalHeader}>
+      <div className="uam-overlay">
+        <div className="uam-modal" role="dialog" aria-modal="true" aria-labelledby="uam-title">
+          {/* ================= HEADER ================= */}
+          <div className="uam-header">
+            <div className="uam-header-text">
+              <h2 className="uam-title" id="uam-title">Mise à jour</h2>
+              <p className="uam-subtitle">Suivi des activités annuelles</p>
+              {userName && <div className="uam-welcome">Bienvenue {userName} !</div>}
+            </div>
 
-      {/* GAUCHE : TITRE */}
-      <div>
-        <h2 style={styles.title}>
-          Mise à jour
-        </h2>
-
-        <p style={styles.subtitle}>
-          Suivi des activités annuelles
-        </p>
-
-        {userName && (
-          <div style={styles.welcome}>
-            Bienvenue {userName} !
-          </div>
-        )}
-      </div>
-
-      {/* DROITE : HISTORIQUE + FERMER */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-
-{/* HISTORIQUE */}
-<button
-  type="button"
-  onClick={async () => {
-    setShowHistorique(true);
-    await chargerHistorique();
-  }}
-  style={{
-    display: "flex",
-    alignItems: "center",
-    gap: 6,
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid rgba(255,255,255,0.45)",
-    backgroundColor: "rgba(255,255,255,0.15)",
-    color: "#ffffff",
-    cursor: "pointer",
-    fontWeight: 600,
-    fontSize: 13,
-  }}
-  title="Voir l'historique des mises à jour"
->
-  <History size={16} />
-  Historique
-</button>
-
-
-        {/* FERMER */}
-        <button
-          type="button"
-          onClick={onClose}
-          style={styles.closeButton}
-          title="Fermer"
-        >
-          <X size={21} />
-        </button>
-
-      </div>
-
-      </div>
-
-        {/* ================= CONTENU ================= */}
-
-        <div style={styles.content}>
-          <div style={styles.sectionTitle}>
-            Que souhaitez-vous mettre à jour ?
-          </div>
-
-          {renderHeaderFields()}
-
-          {/* CHOIX PRINCIPAL */}
-
-          <div style={styles.choiceGrid}>
-            <button
-              onClick={() => handleMainChoice("taux")}
-              style={{
-                  ...styles.choiceButton,
-                  ...(mainChoice === "taux"
-                    ? styles.choiceButtonActive
-                    : {}),
-                  ...(isTabInvalid([
-                    ...tabFields.global,
-                    ...tabFields.realisation,
-                    ...tabFields.composante,
-                  ])
-                    ? styles.invalidTab
-                    : {}),
-                }}
-            >
-              <div style={styles.choiceTitle}>
-                Taux d'avancement
-              </div>
-
-              <div style={styles.choiceDescription}>
-                Activités, réalisations et composantes
-              </div>
-            </button>
-
-            <button
-              onClick={() => handleMainChoice("axes")}
-              style={{
-                  ...styles.choiceButton,
-                  ...(mainChoice === "axes"
-                    ? styles.choiceButtonActive
-                    : {}),
-                  ...(isTabInvalid([
-                    ...tabFields.gestion,
-                    ...tabFields.amenagement,
-                  ])
-                    ? styles.invalidTab
-                    : {}),
-                }}
-            >
-              <div style={styles.choiceTitle}>
-                Axes prioritaires
-              </div>
-
-              <div style={styles.choiceDescription}>
-                Système de gestion et aménagement
-              </div>
-            </button>
-          </div>
-
-          {/* ================= TAUX ================= */}
-
-          {mainChoice === "taux" && (
-            <>
-              <div style={styles.subTitle}>
-                Type d'avancement
-              </div>
-
-              <div style={styles.tabs}>
-                <button
-                  onClick={() =>
-                    handleTauxChoice("global")
-                  }
-                  style={{
-                    ...styles.tab,
-                    ...(tauxChoice === "global"
-                      ? styles.tabActive
-                      : {}),
-                    ...(isTabInvalid(tabFields.global)
-                      ? styles.invalidTab
-                      : {}),
-                  }}
-                >
-                  Avancement global des activités
-                </button>
-
-                <button
-                  onClick={() =>
-                    handleTauxChoice("realisation")
-                  }
-                  style={{
-                    ...styles.tab,
-                    ...(tauxChoice === "realisation"
-                      ? styles.tabActive
-                      : {}),
-                    ...(isTabInvalid(tabFields.realisation)
-                      ? styles.invalidTab
-                      : {}),
-                  }}
-                >
-                  Avancement par réalisation
-                </button>
-
-                <button
-                  onClick={() =>
-                    handleTauxChoice("composante")
-                  }
-                  style={{
-                    ...styles.tab,
-                    ...(tauxChoice === "composante"
-                      ? styles.tabActive
-                      : {}),
-                    ...(isTabInvalid(tabFields.composante)
-                      ? styles.invalidTab
-                      : {}),
-                  }}
-                >
-                  Avancement par composante
-                </button>
-              </div>
-
-              <div style={styles.formSection}>
-                {tauxChoice === "global" &&
-                  renderGlobal()}
-
-                {tauxChoice === "realisation" &&
-                  renderRealisation()}
-
-                {tauxChoice === "composante" &&
-                  renderComposante()}
-              </div>
-            </>
-          )}
-
-          {/* ================= AXES ================= */}
-
-          {mainChoice === "axes" && (
-            <>
-              <div style={styles.subTitle}>
-                Axe prioritaire
-              </div>
-
-              <div style={styles.tabs}>
-                <button
-                  onClick={() =>
-                    handleAxeChoice("gestion")
-                  }
-                  style={{
-                    ...styles.tab,
-                    ...(axeChoice === "gestion"
-                      ? styles.tabActive
-                      : {}),
-                    ...(isTabInvalid(tabFields.gestion)
-                      ? styles.invalidTab
-                      : {}),
-                  }}
-                >
-                  Système de gestion
-                </button>
-
-                <button
-                  onClick={() =>
-                    handleAxeChoice("amenagement")
-                  }
-                  style={{
-                    ...styles.tab,
-                    ...(axeChoice === "amenagement"
-                      ? styles.tabActive
-                      : {}),
-                    ...(isTabInvalid(tabFields.amenagement)
-                      ? styles.invalidTab
-                      : {}),
-                  }}
-                >
-                  Aménagement du territoire
-                </button>
-              </div>
-
-              <div style={styles.formSection}>
-                {axeChoice === "gestion" &&
-                  renderGestion()}
-
-                {axeChoice === "amenagement" &&
-                  renderAmenagement()}
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ================= FOOTER ================= */}
-
-        <div style={styles.footer}>
-          <button
-            onClick={handleReset}
-            style={styles.resetButton}
-          >
-            <RotateCcw size={16} />
-            Réinitialiser
-          </button>
-
-          <div style={styles.footerRight}>
-            <button
-              onClick={onClose}
-              style={styles.cancelButton}
-            >
-              Annuler
-            </button>
-
-            <button
-              onClick={handleSave}
-              style={styles.saveButton}
-            >
-              <Save size={16} />
-              Enregistrer
-            </button>
-          </div>
-        </div>
-      </div>
-      
- {/* ================= HISTORIQUE ================= */}
-
- {showHistorique && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.45)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 10000,
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              width: "min(900px, 95vw)",
-              maxHeight: "85vh",
-              backgroundColor: "#ffffff",
-              borderRadius: 14,
-              boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-            }}
-          >
-
-            {/* HEADER HISTORIQUE */}
-            <div
-              style={{
-                background: GREEN,
-                color: "#ffffff",
-                padding: "16px 20px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div
-                  style={{
-                    fontSize: 19,
-                    fontWeight: 700,
-                  }}
-                >
-                  Historique des mises à jour
-                </div>
-
-                <div
-                  style={{
-                    fontSize: 13,
-                    opacity: 0.9,
-                    marginTop: 3,
-                  }}
-                >
-                  Consultez les modifications effectuées sur les activités.
-                </div>
-              </div>
-
+            <div className="uam-header-actions">
               <button
                 type="button"
-                onClick={() => setShowHistorique(false)}
-                style={{
-                  border: "none",
-                  background: "transparent",
-                  color: "#ffffff",
-                  cursor: "pointer",
-                  padding: 5,
-                }}
-                title="Fermer"
+                className="uam-hist"
+                onClick={() => setShowHistorique(true)}
+                title="Voir l'historique des mises à jour"
               >
-                <X size={22} />
+                <History size={16} />
+                <span>Historique</span>
+              </button>
+
+              <button type="button" className="uam-close" onClick={onClose} title="Fermer">
+                <X size={21} />
               </button>
             </div>
+          </div>
 
-            {/* CONTENU HISTORIQUE */}
-            <div
-              style={{
-                padding: 20,
-                overflowY: "auto",
-              }}
-            >
-              <div
-                style={{
-                  padding: 30,
-                  textAlign: "center",
-                  color: "#6b7280",
-                }}
-              >
-                
-              {chargementHistorique ? (
-                <div style={{ padding: 30, textAlign: "center" }}>
-                  Chargement de l'historique...
-                </div>
-              ) : erreurHistorique ? (
-                <div style={{ padding: 30, textAlign: "center", color: "#dc2626" }}>
-                  {erreurHistorique}
-                </div>
-              ) : historique.length === 0 ? (
-                <div style={{ padding: 30, textAlign: "center", color: "#6b7280" }}>
-                  Aucune mise à jour enregistrée.
-                </div>
-              ) : (
-                <div style={{ display: "grid", gap: 12 }}>
+          {/* ================= CONTENU ================= */}
+          <div className="uam-content">
+            <div className="uam-section-title">Que souhaitez-vous mettre à jour ?</div>
 
-                  {historique.length === 0 ? (
-                    <p style={{ textAlign: "center", padding: 24 }}>
-                      Aucune modification enregistrée.
-                    </p>
-                  ) : (
-                    <div
-                      style={{
-                        maxHeight: "420px",
-                        overflowY: "auto",
-                        overflowX: "auto",
-                        width: "100%",
-                      }}
-                    >
+            <div className="uam-context">
+              <Select id="uam-annee" label="Année" value={annee} onChange={setAnnee} options={ANNEES} />
+              <Select id="uam-mois" label="Mois" value={mois} onChange={setMois} options={MOIS} />
+            </div>
 
-                      <table
-                        style={{
-                          width: "100%",
-                          borderCollapse: "collapse",
-                          fontSize: 13,
-                          textAlign: "left",
-                        }}
-                      >
+            <div className="uam-full">
+              <Select
+                id="uam-uc"
+                label="Unité de coordination"
+                value={uc}
+                onChange={setUc}
+                options={UNITES}
+              />
+            </div>
 
-                        <thead>
-                          <tr style={{ background: "#f0f5f1" }}>
-                          {[
-                            "Utilisateur",
-                            "Date",
-                            "Heure",
-                            "Année",
-                            "Unité de coordination",
-                            "Nom colonne modifié",
-                            "Ancienne valeur",
-                            "Nouvelle valeur",
-                          ].map((titre) => (
-                            <th
-                              key={titre}
-                              style={{
-                                padding: 10,
-                                border: "1px solid #dce5dd",
-                                color: "#245c3a",
-                                whiteSpace: "normal",
-                                lineHeight: 1.2,
-                                position: "sticky",
-                                top: 0,
-                                zIndex: 2,
-                                background: "#f0f5f1",
-                                minWidth: 100,
-                              }}
-                            >
-                              {titre.split(" ").map((mot, index) => (
-                                <React.Fragment key={index}>
-                                  {index > 0 && " "}
-                                  {mot}
-                                </React.Fragment>
-                              ))}
-                            </th>
-                          ))}
-                          </tr>
-                        </thead>
+            {/* Choix principal */}
+            <div className="uam-choices">
+              {(Object.keys(GROUPS) as Group[]).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  aria-pressed={group === g}
+                  onClick={() => setGroup(g)}
+                  className={`uam-choice${group === g ? " is-active" : ""}${
+                    isGroupInvalid(g) ? " is-invalid" : ""
+                  }`}
+                >
+                  <div className="uam-choice-title">{GROUPS[g].title}</div>
+                  <div className="uam-choice-desc">{GROUPS[g].desc}</div>
+                </button>
+              ))}
+            </div>
 
-                        <tbody>
-                          {historique.flatMap((entry, index) => {
+            {/* Sous-onglets */}
+            <div className="uam-subtitle-block">{current.subtitle}</div>
 
-                            const date = entry.date
-                              ? new Date(entry.date)
-                              : null;
+            <div className="uam-tabs">
+              {current.tabs.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={tab[group] === key}
+                  onClick={() => setTab((t) => ({ ...t, [group]: key }))}
+                  className={`uam-tab${tab[group] === key ? " is-active" : ""}${
+                    isTabInvalid(key) ? " is-invalid" : ""
+                  }`}
+                >
+                  {SECTIONS[key].label}
+                </button>
+              ))}
+            </div>
 
-                            return (
-                              Array.isArray(entry.changements)
-                                ? entry.changements
-                                : []
-                            )
-                              .filter((c) => {
-                                const ancienne =
-                                  c.ancienneValeur ??
-                                  c.ancienne ??
-                                  c.oldValue ??
-                                  null;
-
-                                const nouvelle =
-                                  c.nouvelleValeur ??
-                                  c.nouvelle ??
-                                  c.newValue ??
-                                  null;
-
-                                return (
-                                  JSON.stringify(ancienne) !==
-                                  JSON.stringify(nouvelle)
-                                );
-                              })
-                              .map((c, i) => (
-                                <tr key={`${entry.id ?? index}-${i}`}>
-
-                                  <td style={celluleHistorique}>
-                                    {entry.utilisateur ?? entry.nom ?? ""}
-                                  </td>
-
-                                  <td style={celluleHistorique}>
-                                    {date && !isNaN(date.getTime())
-                                      ? date.toLocaleDateString("fr-FR")
-                                      : ""}
-                                  </td>
-
-                                  <td style={celluleHistorique}>
-                                    {date && !isNaN(date.getTime())
-                                      ? date.toLocaleTimeString("fr-FR")
-                                      : ""}
-                                  </td>
-
-                                  <td style={celluleHistorique}>
-                                    {entry.annee ?? ""}
-                                  </td>
-
-                                  <td style={celluleHistorique}>
-                                    {entry.uc ?? ""}
-                                  </td>
-
-                                  <td style={celluleHistorique}>
-                                    {c.colonne ??
-                                      c.champ ??
-                                      c.field ??
-                                      c.nomColonne ??
-                                      ""}
-                                  </td>
-
-                                  <td style={celluleHistorique}>
-                                    {String(
-                                      c.ancienneValeur ??
-                                      c.ancienne ??
-                                      c.oldValue ??
-                                      ""
-                                    )}
-                                  </td>
-
-                                  <td style={celluleHistorique}>
-                                    {String(
-                                      c.nouvelleValeur ??
-                                      c.nouvelle ??
-                                      c.newValue ??
-                                      ""
-                                    )}
-                                  </td>
-
-                                </tr>
-                              ));
-                          })}
-                        </tbody>
-
-                      </table>
-                    </div>
-                  )}
-
-                </div>
-              )}
+            {/* Champs */}
+            <div className="uam-form-section">
+              <div className="uam-fields">
+                {section.fields.map((f) => (
+                  <Field
+                    key={f.id}
+                    def={f}
+                    value={values[f.id] || ""}
+                    onChange={handleValueChange}
+                    invalid={isMissing(f)}
+                  />
+                ))}
               </div>
             </div>
           </div>
-        </div>
-      )}
 
-    </div>
+          {/* ================= FOOTER ================= */}
+          <div className="uam-footer">
+            <button type="button" onClick={handleReset} className="uam-btn uam-btn-reset">
+              <RotateCcw size={16} />
+              Réinitialiser
+            </button>
+
+            <div className="uam-footer-right">
+              <button type="button" onClick={onClose} className="uam-btn uam-btn-cancel">
+                Annuler
+              </button>
+
+              <button type="button" onClick={handleSave} className="uam-btn uam-btn-save">
+                <Save size={16} />
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {showHistorique && (
+        <HistoriqueModal
+          identifiant={identifiant}
+          motDePasse={motDePasse}
+          onClose={() => setShowHistorique(false)}
+        />
+      )}
+    </>
   );
 }
 
 /* =========================================================
-   STYLES
+   STYLES (classes CSS pour pouvoir utiliser les media queries)
 ========================================================= */
 
-const GREEN = "#15803d";
-const GREEN_DARK = "#166534";
-const GREEN_LIGHT = "#f0fdf4";
-const GREEN_BORDER = "#bbf7d0";
+const css = `
+.uam-overlay {
+  --pad: clamp(8px, 2.5vw, 20px);
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.55);
+  box-sizing: border-box;
+  padding:
+    max(var(--pad), env(safe-area-inset-top))
+    max(var(--pad), env(safe-area-inset-right))
+    max(var(--pad), env(safe-area-inset-bottom))
+    max(var(--pad), env(safe-area-inset-left));
+}
+.uam-overlay-top { z-index: 10000; }
 
-const styles: Record<string, React.CSSProperties> = {
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    background: "rgba(15, 23, 42, 0.55)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 9999,
-    padding: "20px",
-  },
+.uam-modal {
+  width: min(1050px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+}
+.uam-modal-history { width: min(900px, 100%); }
 
-  modal: {
-    width: "min(1050px, 100%)",
-    maxHeight: "90vh",
-    background: "#ffffff",
-    borderRadius: "16px",
-    overflow: "hidden",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "0 25px 60px rgba(0,0,0,0.20)",
-  },
+/* ----- Header ----- */
+.uam-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: #15803d;
+  color: #fff;
+  padding: 18px 22px;
+}
+.uam-header-text { min-width: 0; }
+.uam-title { margin: 0; font-size: clamp(17px, 4.5vw, 21px); font-weight: 700; overflow-wrap: anywhere; }
+.uam-subtitle { margin: 4px 0 0; font-size: 13px; opacity: 0.9; }
+.uam-welcome {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 10px;
+  font-weight: 700;
+}
+.uam-header-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.uam-hist {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.uam-close {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  cursor: pointer;
+}
 
-  modalHeader: {
-    background: GREEN,
-    color: "#ffffff",
-    padding: "18px 22px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    flexShrink: 0,
-  },
+/* ----- Contenu ----- */
+.uam-content { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; -webkit-overflow-scrolling: touch; }
+.uam-section-title { font-size: 15px; font-weight: 700; color: #1f2937; margin-bottom: 12px; }
+.uam-subtitle-block { font-size: 14px; font-weight: 700; color: #374151; margin: 22px 0 10px; }
 
-  title: {
-    margin: 0,
-    fontSize: "21px",
-    fontWeight: 700,
-  },
+.uam-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
+.uam-full { margin-bottom: 16px; }
+.uam-slabel { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+.uam-select {
+  width: 100%;
+  height: 40px;
+  padding: 0 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font-size: 13px;
+}
 
-  subtitle: {
-    margin: "4px 0 0",
-    fontSize: "13px",
-    opacity: 0.9,
-  },
+.uam-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.uam-choice {
+  text-align: left;
+  padding: 15px 17px;
+  background: #fff;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.uam-choice.is-active { background: #f0fdf4; border: 2px solid #15803d; box-shadow: 0 2px 8px rgba(21, 128, 61, 0.1); }
+.uam-choice-title { color: #1f2937; font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.uam-choice-desc { color: #6b7280; font-size: 12px; }
 
-  closeButton: {
-    border: "none",
-    background: "rgba(255,255,255,0.15)",
-    color: "#ffffff",
-    width: "36px",
-    height: "36px",
-    borderRadius: "8px",
-    cursor: "pointer",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+.uam-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.uam-tab {
+  padding: 9px 13px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.uam-tab.is-active { background: #15803d; border-color: #15803d; color: #fff; }
 
-  content: {
-    padding: "22px",
-    overflowY: "auto",
-    flex: 1,
-  },
+.uam-choice.is-invalid,
+.uam-tab.is-invalid { border: 2px solid #dc2626; box-shadow: 0 0 0 1px #dc2626; }
 
-  sectionTitle: {
-    fontSize: "15px",
-    fontWeight: 700,
-    color: "#1f2937",
-    marginBottom: "12px",
-  },
+.uam-form-section { margin-top: 18px; padding: 18px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; }
+.uam-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
-  subTitle: {
-    fontSize: "14px",
-    fontWeight: 700,
-    color: "#374151",
-    marginTop: "22px",
-    marginBottom: "10px",
-  },
+.uam-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; min-width: 0; }
+.uam-flabel { display: block; font-size: 12px; line-height: 1.4; font-weight: 600; color: #374151; margin-bottom: 8px; min-height: 34px; }
 
-  choiceGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "12px",
-  },
+.uam-input {
+  width: 100%;
+  height: 38px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 13px;
+}
+.uam-input.is-readonly { background: #f3f4f6; color: #4b5563; }
+.uam-pct { display: flex; align-items: center; height: 38px; border: 1px solid #d1d5db; border-radius: 7px; background: #fff; overflow: hidden; }
+.uam-pct-input { flex: 1; min-width: 0; height: 100%; padding: 0 10px; border: none; outline: none; font-size: 13px; }
+.uam-pct-symbol { padding: 0 10px; color: #15803d; font-weight: 700; font-size: 13px; }
 
-  choiceButton: {
-    textAlign: "left",
-    padding: "15px 17px",
-    background: "#ffffff",
-    border: "1px solid #d1d5db",
-    borderRadius: "10px",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-  },
+.uam-card.is-invalid,
+.uam-input.is-invalid,
+.uam-pct.is-invalid { border: 1px solid #dc2626; box-shadow: 0 0 0 1px #dc2626; }
 
-  choiceButtonActive: {
-    background: GREEN_LIGHT,
-    border: `2px solid ${GREEN}`,
-    boxShadow: "0 2px 8px rgba(21,128,61,0.10)",
-  },
+/* ----- Footer ----- */
+.uam-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #e5e7eb;
+  background: #fff;
+}
+.uam-footer-right { display: flex; gap: 8px; }
+.uam-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 9px 15px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.uam-btn-reset,
+.uam-btn-cancel { border: 1px solid #d1d5db; background: #fff; color: #4b5563; }
+.uam-btn-save { border: none; background: #15803d; color: #fff; font-weight: 700; }
 
-  choiceTitle: {
-    color: "#1f2937",
-    fontSize: "14px",
-    fontWeight: 700,
-    marginBottom: "4px",
-  },
+/* ----- Historique ----- */
+.uam-hbody { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+.uam-hmsg { padding: 30px; text-align: center; color: #6b7280; }
+.uam-hmsg.is-error { color: #dc2626; }
+.uam-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+.uam-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-width: 100px;
+  padding: 10px;
+  border: 1px solid #dce5dd;
+  background: #f0f5f1;
+  color: #245c3a;
+  line-height: 1.2;
+}
+.uam-table td { padding: 10px; border: 1px solid #e2e8e3; vertical-align: top; white-space: nowrap; }
 
-  choiceDescription: {
-    color: "#6b7280",
-    fontSize: "12px",
-  },
+/* ----- Accessibilité ----- */
+.uam-close:focus-visible,
+.uam-hist:focus-visible,
+.uam-choice:focus-visible,
+.uam-tab:focus-visible,
+.uam-btn:focus-visible,
+.uam-select:focus-visible,
+.uam-input:focus-visible { outline: 3px solid rgba(21, 128, 61, 0.45); outline-offset: 2px; }
+.uam-pct:focus-within { border-color: #15803d; box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.25); }
 
-  tabs: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-  },
+/* ---------- Tablettes / petits écrans (≤ 720px) ---------- */
+@media (max-width: 720px) {
+  .uam-content { padding: 18px; }
+  .uam-header { padding: 16px; }
+}
 
-  tab: {
-    padding: "9px 13px",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    background: "#ffffff",
-    color: "#4b5563",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: 600,
-  },
+/* ---------- Mobiles (≤ 560px) ---------- */
+@media (max-width: 560px) {
+  .uam-hist span { display: none; }           /* icône seule */
+  .uam-hist { width: 40px; height: 40px; padding: 0; justify-content: center; }
+  .uam-close { width: 40px; height: 40px; }
 
-  tabActive: {
-    background: GREEN,
-    borderColor: GREEN,
-    color: "#ffffff",
-  },
+  .uam-content { padding: 14px; }
+  .uam-choices,
+  .uam-fields { grid-template-columns: minmax(0, 1fr); }
+  .uam-form-section { padding: 12px; }
+  .uam-flabel { min-height: 0; }
 
-  formSection: {
-    marginTop: "18px",
-    padding: "18px",
-    background: "#f8fafc",
-    border: "1px solid #e5e7eb",
-    borderRadius: "12px",
-  },
+  .uam-tabs { flex-direction: column; }
+  .uam-tab { width: 100%; text-align: left; min-height: 44px; }
+  .uam-choice { padding: 13px 14px; }
 
-  contextGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-    gap: "14px",
-    marginBottom: "14px",
-  },
+  /* 16px minimum : évite le zoom automatique sur iOS */
+  .uam-select,
+  .uam-input,
+  .uam-pct-input { font-size: 16px; }
+  .uam-select { height: 44px; }
+  .uam-input,
+  .uam-pct { height: 44px; }
 
-  fullField: {
-    marginBottom: "16px",
-  },
+  .uam-footer { flex-direction: column-reverse; align-items: stretch; padding: 12px 14px; }
+  .uam-footer-right { width: 100%; }
+  .uam-footer-right .uam-btn { flex: 1; }
+  .uam-btn { min-height: 46px; font-size: 13px; }
+}
 
-  selectLabel: {
-    display: "block",
-    fontSize: "12px",
-    fontWeight: 600,
-    color: "#374151",
-    marginBottom: "6px",
-  },
+/* ---------- Très petits écrans (≤ 400px) ---------- */
+@media (max-width: 400px) {
+  .uam-modal { border-radius: 12px; }
+  .uam-context { grid-template-columns: minmax(0, 1fr); }
+  .uam-header { padding: 12px; }
+  .uam-content { padding: 12px; }
+}
 
-  select: {
-    width: "100%",
-    height: "40px",
-    padding: "0 11px",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    background: "#ffffff",
-    color: "#374151",
-    fontSize: "13px",
-    outline: "none",
-  },
+/* ---------- Faible hauteur (mobile en paysage) ---------- */
+@media (max-height: 520px) {
+  .uam-overlay { align-items: flex-start; }
+  .uam-header { padding-top: 8px; padding-bottom: 8px; }
+  .uam-subtitle,
+  .uam-welcome { display: none; }
+  .uam-content { padding-top: 12px; padding-bottom: 12px; }
+  .uam-footer { padding-top: 8px; padding-bottom: 8px; }
+}
 
-  fieldsGrid: {
-    display: "grid",
-    gridTemplateColumns:
-      "repeat(2, minmax(0, 1fr))",
-    gap: "12px",
-  },
+/* ---------- Grands écrans (≥ 1600px) ---------- */
+@media (min-width: 1600px) {
+  .uam-modal { width: min(1200px, 100%); }
+  .uam-modal-history { width: min(1100px, 100%); }
+}
 
-  fieldCard: {
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "10px",
-    padding: "12px",
-  },
+/* ---------- Écrans tactiles ---------- */
+@media (hover: none) and (pointer: coarse) {
+  .uam-btn,
+  .uam-tab { min-height: 44px; }
+}
 
-  fieldLabel: {
-    display: "block",
-    fontSize: "12px",
-    lineHeight: 1.4,
-    fontWeight: 600,
-    color: "#374151",
-    marginBottom: "8px",
-    minHeight: "34px",
-  },
-
-  normalInput: {
-    width: "100%",
-    height: "38px",
-    boxSizing: "border-box",
-    padding: "0 10px",
-    border: "1px solid #d1d5db",
-    borderRadius: "7px",
-    fontSize: "13px",
-    outline: "none",
-  },
-
-  percentInputWrapper: {
-    display: "flex",
-    alignItems: "center",
-    height: "38px",
-    border: "1px solid #d1d5db",
-    borderRadius: "7px",
-    background: "#ffffff",
-    overflow: "hidden",
-  },
-
-  percentInput: {
-    flex: 1,
-    minWidth: 0,
-    height: "100%",
-    padding: "0 10px",
-    border: "none",
-    outline: "none",
-    fontSize: "13px",
-  },
-
-  percentSymbol: {
-    padding: "0 10px",
-    color: GREEN,
-    fontWeight: 700,
-    fontSize: "13px",
-  },
-
-  footer: {
-    padding: "14px 20px",
-    borderTop: "1px solid #e5e7eb",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    background: "#ffffff",
-    flexShrink: 0,
-  },
-
-  footerRight: {
-    display: "flex",
-    gap: "8px",
-  },
-
-  resetButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    padding: "9px 13px",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    background: "#ffffff",
-    color: "#4b5563",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: 600,
-  },
-
-  cancelButton: {
-    padding: "9px 15px",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    background: "#ffffff",
-    color: "#4b5563",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: 600,
-  },
-
-  saveButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "7px",
-    padding: "9px 16px",
-    border: "none",
-    borderRadius: "8px",
-    background: GREEN,
-    color: "#ffffff",
-    cursor: "pointer",
-    fontSize: "12px",
-    fontWeight: 700,
-  },
-
-  welcome: {
-    display: "inline-block",
-    marginTop: "6px",
-    padding: "3px 8px",
-    borderRadius: "6px",
-    background: "#dcfce7",
-    color: "#166534",
-    fontSize: "10px",
-    fontWeight: 700,
-  },
-
-  invalidFieldCard: {
-    border: "1px solid #dc2626",
-    boxShadow: "0 0 0 1px #dc2626",
-  },
-  
-  invalidInput: {
-    border: "1px solid #dc2626",
-    boxShadow: "0 0 0 1px #dc2626",
-  },
-  
-  invalidTab: {
-    border: "2px solid #dc2626",
-    boxShadow: "0 0 0 1px #dc2626",
-  },
-};
+@media (prefers-reduced-motion: reduce) {
+  .uam-choice { transition: none; }
+}
+`;
