@@ -369,7 +369,7 @@ const RESPONSIVE_CSS = `
 .sc-cols{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,1.5fr) minmax(0,1.6fr);align-items:center;gap:6px}
 
 /* composantes : 2 colonnes, rangées en colonne => C1 sur C2 (bleu) à gauche, C3 sur C4 (vert) à droite */
-.sc-d4{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:6px;padding:6px}
+.sc-d4{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,auto);gap:6px;padding:6px}
 .sc-d5{flex:1;display:grid;grid-template-columns:repeat(var(--n,5),minmax(0,1fr));gap:4px;padding:4px;align-items:stretch}
 .sc-donut{container-type:inline-size}
 .sc-two{display:flex;justify-content:space-between;align-items:stretch;gap:4px;width:100%;margin-top:auto;padding-top:8px}
