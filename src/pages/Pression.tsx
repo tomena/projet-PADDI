@@ -1203,8 +1203,8 @@ export default function Pression() {
           </div>
 
           {/* Colonne de droite : filtres géographiques et fiabilité */}
-          <div className="pr-fgroupe pr-fdroite">
-            <label className="pr-inl">
+          <div className="pr-fdroite">
+            <label className="pr-champ">
               <span>Région</span>
               <select value={region} onChange={(e) => choisirRegion(e.target.value)}>
                 <option value={TOUS}>Toutes les régions</option>
@@ -1216,7 +1216,7 @@ export default function Pression() {
               </select>
             </label>
 
-            <label className="pr-inl">
+            <label className="pr-champ">
               <span>Aire protégée</span>
               <select value={apZone ? ap : TOUS} onChange={(e) => setAp(e.target.value)}>
                 <option value={TOUS}>
@@ -1690,8 +1690,9 @@ const CSS = `
 /* Deux groupes à deux lignes alignées : [couche + ses réglages] | [filtres] */
 .pr-fgroupe{display:grid;grid-auto-rows:36px;gap:8px 14px;align-items:center}
 .pr-fgauche{grid-template-columns:max-content max-content}
-.pr-fdroite{grid-template-columns:max-content max-content;column-gap:18px;margin-left:auto}
-.pr-fdroite .pr-reset{grid-column:2;justify-self:end}
+.pr-fdroite{display:flex;align-items:flex-end;gap:12px;margin-left:auto}
+.pr-fdroite select{height:36px;padding:0 10px}
+.pr-fdroite .pr-reset{height:36px}
 .pr-fctl{display:flex;align-items:center;gap:18px;min-width:0}
 .pr-inl{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;font-size:12px;color:var(--mut);font-weight:500}
 .pr-fgauche .pr-inl>span:first-child{min-width:46px}
@@ -1726,7 +1727,7 @@ const CSS = `
 .pr-chk.off{opacity:.55;cursor:not-allowed;background:#f1f5f9}
 
 /* ---- Corps ---- */
-.pr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(400px,46%) 1fr}
+.pr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(440px,56%) 1fr}
 .pr-panel{overflow-y:auto;padding:16px;background:var(--fond-panneau);border-right:1px solid var(--ligne)}
 .pr-map{position:relative;min-height:0;min-width:0;isolation:isolate}
 
@@ -1845,7 +1846,7 @@ const CSS = `
   .pr-map{order:-1;height:56vh;min-height:320px;flex:none}
   .pr-panel{overflow:visible;border-right:0}
   .pr-filtres{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-  .pr-champ,.pr-reset,.pr-fgroupe{flex:none}
+  .pr-champ,.pr-reset,.pr-fgroupe,.pr-fdroite{flex:none}
 }
 @media (max-width:639px){
   .pr-top{padding:10px 12px}
