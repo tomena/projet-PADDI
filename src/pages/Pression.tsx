@@ -1151,133 +1151,134 @@ export default function Pression() {
         </div>
 
         <div className="pr-filtres">
-          <div className="pr-champ">
-            <span>Couches d’analyse</span>
-            <div className="pr-checks" role="group" aria-label="Couches d’analyse">
-              <label className={`pr-chk ${showFeux ? 'on' : ''}`}>
-                <input type="checkbox" checked={showFeux} onChange={() => setShowFeux((v) => !v)} />
-                Points de feux actifs
-              </label>
-              <label className={`pr-chk perte ${showPerte ? 'on' : ''}`}>
-                <input type="checkbox" checked={showPerte} onChange={() => setShowPerte((v) => !v)} />
-                Perte de couvert forestier
-              </label>
-              <label className="pr-chk off" title="Couche à intégrer">
-                <input type="checkbox" disabled />
-                Érosion (bientôt)
-              </label>
+          {/* Colonne de gauche : une ligne par couche, avec ses réglages à droite */}
+          <div className="pr-fgroupe pr-fgauche">
+            <label className={`pr-chk ${showFeux ? 'on' : ''}`}>
+              <input type="checkbox" checked={showFeux} onChange={() => setShowFeux((v) => !v)} />
+              Points de feux actifs
+            </label>
+            <div className="pr-fctl">
+              {showFeux && (
+                <div className="pr-inl">
+                  <span>Période</span>
+                  <div className="pr-seg" role="group" aria-label="Période des feux">
+                    {([24, 48, 72] as const).map((h) => (
+                      <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
+                        {h} h
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <label className={`pr-chk perte ${showPerte ? 'on' : ''}`}>
+              <input type="checkbox" checked={showPerte} onChange={() => setShowPerte((v) => !v)} />
+              Perte de couvert forestier
+            </label>
+            <div className="pr-fctl">
+              {showPerte && (
+                <>
+                  <div className="pr-inl">
+                    <span>Alertes</span>
+                    <div className="pr-seg" role="group" aria-label="Période des alertes">
+                      {([7, 30, 90] as const).map((j) => (
+                        <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
+                          {j} j
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pr-inl">
+                    <span>Années</span>
+                    <div className="pr-annees">
+                      <select
+                        aria-label="Année de début"
+                        value={anneeDebut}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setAnneeDebut(v);
+                          if (v > anneeFin) setAnneeFin(v);
+                        }}
+                      >
+                        {ANNEES.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                      <span>à</span>
+                      <select
+                        aria-label="Année de fin"
+                        value={anneeFin}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setAnneeFin(v);
+                          if (v < anneeDebut) setAnneeDebut(v);
+                        }}
+                      >
+                        {ANNEES.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          <label className="pr-champ">
-            <span>Région</span>
-            <select value={region} onChange={(e) => choisirRegion(e.target.value)}>
-              <option value={TOUS}>Toutes les régions</option>
-              {nomsRegions.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="pr-champ">
-            <span>Aire protégée</span>
-            <select value={apZone ? ap : TOUS} onChange={(e) => setAp(e.target.value)}>
-              <option value={TOUS}>
-                {region === TOUS ? 'Toutes les aires protégées' : 'Toutes celles de la région'}
-              </option>
-              {nomsAP.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          {showFeux && (
-            <div className="pr-champ">
-              <span>Période des feux</span>
-              <div className="pr-seg" role="group" aria-label="Période des feux">
-                {([24, 48, 72] as const).map((h) => (
-                  <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
-                    {h} h
-                  </button>
+          {/* Colonne de droite : filtres géographiques et fiabilité */}
+          <div className="pr-fgroupe pr-fdroite">
+            <label className="pr-inl">
+              <span>Région</span>
+              <select value={region} onChange={(e) => choisirRegion(e.target.value)}>
+                <option value={TOUS}>Toutes les régions</option>
+                {nomsRegions.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
                 ))}
-              </div>
-            </div>
-          )}
+              </select>
+            </label>
 
-          {showPerte && (
-            <>
-              <div className="pr-champ">
-                <span>Alertes récentes</span>
-                <div className="pr-seg" role="group" aria-label="Période des alertes">
-                  {([7, 30, 90] as const).map((j) => (
-                    <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
-                      {j} j
-                    </button>
-                  ))}
-                </div>
-              </div>
+            <label className="pr-inl">
+              <span>Aire protégée</span>
+              <select value={apZone ? ap : TOUS} onChange={(e) => setAp(e.target.value)}>
+                <option value={TOUS}>
+                  {region === TOUS ? 'Toutes les aires protégées' : 'Toutes celles de la région'}
+                </option>
+                {nomsAP.map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </label>
 
-              <div className="pr-champ">
-                <span>Perte de couvert (années)</span>
-                <div className="pr-annees">
-                  <select
-                    aria-label="Année de début"
-                    value={anneeDebut}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setAnneeDebut(v);
-                      if (v > anneeFin) setAnneeFin(v);
-                    }}
-                  >
-                    {ANNEES.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                  <span>à</span>
-                  <select
-                    aria-label="Année de fin"
-                    value={anneeFin}
-                    onChange={(e) => {
-                      const v = Number(e.target.value);
-                      setAnneeFin(v);
-                      if (v < anneeDebut) setAnneeDebut(v);
-                    }}
-                  >
-                    {ANNEES.map((a) => (
-                      <option key={a} value={a}>
-                        {a}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </>
-          )}
+            <label className="pr-inl">
+              <span>Fiabilité</span>
+              <select
+                value={confiance}
+                disabled={!showFeux && !showPerte}
+                onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}
+              >
+                <option value="l">Toutes les détections</option>
+                <option value="n">Nominale et plus</option>
+                <option value="h">Élevée seulement</option>
+              </select>
+            </label>
 
-          <label className="pr-champ">
-            <span>Fiabilité</span>
-            <select
-              value={confiance}
-              disabled={!showFeux && !showPerte}
-              onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}
-            >
-              <option value="l">Toutes les détections</option>
-              <option value="n">Nominale et plus</option>
-              <option value="h">Élevée seulement</option>
-            </select>
-          </label>
-
-          {filtresModifies && (
-            <button className="pr-reset" onClick={reinitialiser}>
-              Réinitialiser
-            </button>
-          )}
+            {filtresModifies ? (
+              <button className="pr-reset" onClick={reinitialiser}>
+                Réinitialiser
+              </button>
+            ) : (
+              <span />
+            )}
+          </div>
         </div>
       </header>
 
@@ -1375,11 +1376,42 @@ export default function Pression() {
               </section>
 
               <div className="pr-grille">
-                {/* CARTE 1 : rythme récent */}
+                {/* CARTE 1 : rythme récent (barres des deux couches superposées) */}
                 <article className="pr-carte c1">
                   <h2>Rythme récent</h2>
                   <p className="pr-note">{portee}</p>
-                  {showFeux && (
+
+                  {showFeux && showPerte && (
+                    <>
+                      <p className="pr-cle">
+                        <span className="pr-v pr-v-feu">feux (24 / 48 / 72 h)</span>
+                        <span className="pr-v pr-v-ha">alertes (7 / 30 / 90 j)</span>
+                      </p>
+                      {[
+                        ['24 h · 7 j', stats24, defStats.p7],
+                        ['48 h · 30 j', stats48, defStats.p30],
+                        ['72 h · 90 j', stats72, defStats.p90],
+                      ].map(([label, f, al]) => (
+                        <div className="pr-ligne-barre" key={label as string}>
+                          <div className="pr-ligne">
+                            <span>{label}</span>
+                            <span className="pr-vals">
+                              <strong className="pr-v pr-v-feu">{nf(f as number)}</strong>
+                              <strong className="pr-v pr-v-ha">{chargAlertes ? '…' : nf(al as number)}</strong>
+                            </span>
+                          </div>
+                          <div className="pr-barre fine">
+                            <i style={{ width: `${stats72 ? ((f as number) / stats72) * 100 : 0}%`, background: 'rgb(200,15,15)' }} />
+                          </div>
+                          <div className="pr-barre fine">
+                            <i style={{ width: `${defStats.p90 ? ((al as number) / defStats.p90) * 100 : 0}%`, background: COULEUR_PERTE }} />
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  )}
+
+                  {showFeux && !showPerte && (
                     <>
                       <h3 className="pr-sstitre">Feux détectés</h3>
                       {[
@@ -1399,7 +1431,8 @@ export default function Pression() {
                       ))}
                     </>
                   )}
-                  {showPerte && (
+
+                  {showPerte && !showFeux && (
                     <>
                       <h3 className="pr-sstitre">Alertes de perte de couvert</h3>
                       {[
@@ -1726,7 +1759,20 @@ const CSS = `
 .pr-btn-plein{background:#0f172a;color:#fff;border-color:#0f172a}
 .pr-btn-plein:hover:not(:disabled){background:#1e293b}
 
-.pr-filtres{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
+.pr-filtres{display:flex;gap:10px 32px;align-items:flex-start;flex-wrap:wrap;margin-top:12px}
+/* Deux groupes à deux lignes alignées : [couche + ses réglages] | [filtres] */
+.pr-fgroupe{display:grid;grid-auto-rows:36px;gap:8px 14px;align-items:center}
+.pr-fgauche{grid-template-columns:max-content max-content}
+.pr-fdroite{grid-template-columns:max-content max-content;column-gap:18px}
+.pr-fctl{display:flex;align-items:center;gap:18px;min-width:0}
+.pr-inl{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;font-size:12px;color:var(--mut);font-weight:500}
+.pr-fgauche .pr-inl>span:first-child{min-width:46px}
+.pr-fgroupe select{height:36px;padding:0 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
+  font-size:13px;min-width:140px;max-width:210px;cursor:pointer}
+.pr-fgroupe select:disabled{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}
+.pr-fgroupe .pr-annees select{min-width:84px}
+.pr-fgroupe .pr-seg button{height:34px;padding:0 14px}
+.pr-fgroupe .pr-chk,.pr-fgroupe .pr-reset{height:36px}
 .pr-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
 .pr-champ>span{font-size:12px;color:var(--mut);font-weight:500}
 .pr-champ select{padding:8px 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;
@@ -1803,6 +1849,7 @@ const CSS = `
 .pr-v-ha{--p:#dc6c9a}
 .pr-cle{display:flex;flex-wrap:wrap;gap:4px 14px;margin:-4px 0 8px;font-size:11px;color:var(--mut)}
 .pr-ligne-barre{margin-bottom:8px}
+.pr-barre.fine{height:4px;margin-top:3px}
 .pr-barre{height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden}
 .pr-barre i{display:block;height:100%;border-radius:3px;background:var(--accent);transition:width .3s}
 .pr-grand{font-family:var(--titre);font-weight:800;font-size:40px;color:var(--accent);line-height:1.05}
@@ -1870,7 +1917,7 @@ const CSS = `
   .pr-map{order:-1;height:56vh;min-height:320px;flex:none}
   .pr-panel{overflow:visible;border-right:0}
   .pr-filtres{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-  .pr-champ,.pr-reset{flex:none}
+  .pr-champ,.pr-reset,.pr-fgroupe{flex:none}
 }
 @media (max-width:639px){
   .pr-top{padding:10px 12px}
