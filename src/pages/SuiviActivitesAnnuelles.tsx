@@ -3,8 +3,8 @@ import { useLanguage } from "../context/LanguageContext";
 import ActivitesAccessModal from "../components/ActivitesAccessModal";
 import UpdateActivitesModal from "../components/UpdateActivitesModal";
 import {
-  CalendarDays, RotateCcw, RefreshCw, Download, CheckCircle, ListChecks, Clock, XCircle,
-  Leaf, ShieldCheck, Mountain, BriefcaseBusiness, Building2, Users, Trees, ClipboardCheck, FileText,
+  CalendarDays, RotateCcw, RefreshCw, CheckCircle, ListChecks, Clock, XCircle,
+  TreePine, Landmark, Wheat, HardHat, Building2, Users, Trees, ClipboardCheck, FileText, FileSpreadsheet,
 } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
 
@@ -324,10 +324,11 @@ interface LigneActivite {
 const ordreMois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
 const COMPOSANTES: { code: string; key: keyof Txt; icon: any }[] = [
-  { code: "C1", key: "componentC1", icon: Leaf },
-  { code: "C2", key: "componentC2", icon: ShieldCheck },
-  { code: "C3", key: "componentC3", icon: Mountain },
-  { code: "C4", key: "componentC4", icon: BriefcaseBusiness },
+  // C1 écosystèmes → arbre · C2 gouvernance décentralisée → institution · C3 paysages productifs → culture · C4 emplois verts → ouvrier
+  { code: "C1", key: "componentC1", icon: TreePine },
+  { code: "C2", key: "componentC2", icon: Landmark },
+  { code: "C3", key: "componentC3", icon: Wheat },
+  { code: "C4", key: "componentC4", icon: HardHat },
 ];
 
 const AXES: { titleKey: keyof Txt; icon: any; items: [string, keyof Txt][] }[] = [
@@ -392,8 +393,16 @@ const RESPONSIVE_CSS = `
 .sa-btn-ghost:hover{background:#f1f5f9}
 .sa-btn-primary{border:1px solid #2563eb;background:#2563eb;color:#fff}
 .sa-btn-primary:hover{background:#1d4ed8}
-.sa-btn-export{width:42px;min-height:50px;padding:0;border:1px solid #15803d;background:#15803d;color:#fff}
-.sa-btn-export:hover{background:#166534}
+
+/* bouton d'export : pastille « verre » dans l'en-tête, avec l'année exportée */
+.sa-header-right{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
+.sa-export{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 6px 0 14px;border-radius:999px;
+  border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.16);color:#fff;font-size:12px;font-weight:700;
+  cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);transition:background .2s ease,color .2s ease,transform .15s ease}
+.sa-export:hover{background:#fff;color:#15803d}
+.sa-export:active{transform:scale(.97)}
+.sa-export-year{background:#fff;color:#15803d;border-radius:999px;padding:5px 11px;font-size:11px;font-weight:800;transition:background .2s ease,color .2s ease}
+.sa-export:hover .sa-export-year{background:#15803d;color:#fff}
 
 .sa-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.7fr);gap:8px;align-items:stretch}
 .sa-axes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start}
@@ -403,11 +412,17 @@ const RESPONSIVE_CSS = `
 
 .sa-card{container-type:inline-size;background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:10px;
   box-sizing:border-box;display:flex;flex-direction:column;min-width:0}
-.sa-comp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-top:10px;flex:1}
+.sa-comp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:6px;margin-top:10px;flex:1}
+.sa-compcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:8px 6px}
+.sa-comptext{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 .sa-axrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(4px,1vw,10px);align-items:center;
   padding:4px 0;border-bottom:1px solid #f1f5f9}
 
-@container (min-width:560px){.sa-comp{grid-template-columns:repeat(4,minmax(0,1fr))}}
+/* la grille reste TOUJOURS en 2 colonnes × 2 lignes ; si la carte est large, chaque case passe en « texte à gauche, anneau à droite » */
+@container (min-width:560px){
+  .sa-compcard{flex-direction:row;justify-content:space-between;text-align:left;gap:12px;padding:10px 18px}
+  .sa-comptext{flex-direction:row;gap:12px;flex:1}
+}
 @container (max-width:359px){.sa-axrow{grid-template-columns:minmax(0,1fr)}}
 
 @container sa (max-width:1099px){
@@ -683,12 +698,22 @@ export default function SuiviActivitesAnnuelles() {
             </div>
           </div>
 
-          <div style={styles.dateBox}>
-            <CalendarDays size={18} />
-            <div>
-              <div style={styles.dateLabel}>{t.updated}</div>
-              <div style={styles.dateValue}>{dateAffichee}</div>
+          <div className="sa-header-right">
+            <div style={styles.dateBox}>
+              <CalendarDays size={18} />
+              <div>
+                <div style={styles.dateLabel}>{t.updated}</div>
+                <div style={styles.dateValue}>{dateAffichee}</div>
+              </div>
             </div>
+
+            {/* export Excel de l'année choisie dans les filtres */}
+            <button type="button" className="sa-export" onClick={handleExportExcel}
+              title={`${t.exportTitle} ${annee}`} aria-label={`${t.exportTitle} ${annee}`}>
+              <FileSpreadsheet size={20} strokeWidth={1.8} />
+              <span>{t.exportTitle}</span>
+              <span className="sa-export-year">{annee}</span>
+            </button>
           </div>
         </div>
 
@@ -703,15 +728,6 @@ export default function SuiviActivitesAnnuelles() {
                 {annees.map((a) => <option key={a} value={a}>{a}</option>)}
               </select>
               <div style={styles.filterSub}>{subAnnee}</div>
-            </div>
-
-            {/* export Excel de l'année choisie */}
-            <div style={styles.exportBox}>
-              <span style={styles.exportLabel}>{t.export}</span>
-              <button type="button" className="sa-btn sa-btn-export" onClick={handleExportExcel}
-                title={t.exportTitle} aria-label={t.exportTitle}>
-                <Download size={22} strokeWidth={1.8} />
-              </button>
             </div>
           </div>
 
@@ -788,7 +804,7 @@ export default function SuiviActivitesAnnuelles() {
             </div>
           </div>
 
-          {/* Par composante : C1 C2 en haut, C3 C4 en bas (4 sur une ligne si la carte est large) */}
+          {/* Par composante : grille fixe 2 colonnes × 2 lignes (C1 C2 / C3 C4) */}
           <div className="sa-card">
             <div style={styles.cardHeader}>{t.byComponent}</div>
 
@@ -797,10 +813,12 @@ export default function SuiviActivitesAnnuelles() {
                 const Icon = c.icon;
                 const color = getProgressColor(c.percent);
                 return (
-                  <div key={c.label} style={styles.smallCard}>
-                    <div style={styles.compIcon}><Icon size={18} color="#16a34a" /></div>
-                    <div style={styles.compLabel}>{c.label}</div>
-                    <Ring percent={c.percent} color={color} size={70} inner={20} outer={34} font={11} label={fmtPct(c.percent)} />
+                  <div key={c.label} className="sa-compcard" style={styles.smallCard}>
+                    <div className="sa-comptext">
+                      <div style={styles.compIcon}><Icon size={20} color="#16a34a" /></div>
+                      <div style={styles.compLabel}>{c.label}</div>
+                    </div>
+                    <Ring percent={c.percent} color={color} size={88} inner={27} outer={42} font={13} label={fmtPct(c.percent)} />
                   </div>
                 );
               })}
@@ -902,8 +920,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600, background: "#fff", outline: "none", boxSizing: "border-box", cursor: "pointer",
   },
   filterSub: { marginTop: 4, fontSize: 11, color: "#6b7280", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
-  exportBox: { display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, alignSelf: "stretch", flexShrink: 0 },
-  exportLabel: { fontSize: 12, fontWeight: 700, color: "#15803d", whiteSpace: "nowrap" },
 
   /* cartes */
   cardHeader: {
@@ -924,12 +940,9 @@ const styles: Record<string, React.CSSProperties> = {
   },
   resultTitle: { fontSize: 14, fontWeight: 900, color: "#111827", textAlign: "center" },
 
-  smallCard: {
-    background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, padding: "8px 6px",
-    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, textAlign: "center", minWidth: 0,
-  },
-  compIcon: { width: 34, height: 34, borderRadius: "50%", background: "rgba(22, 163, 74, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  compLabel: { fontSize: 10, fontWeight: 700, color: "#111827", lineHeight: 1.2, overflowWrap: "anywhere" },
+  smallCard: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, minWidth: 0 },
+  compIcon: { width: 38, height: 38, borderRadius: "50%", background: "rgba(22, 163, 74, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  compLabel: { fontSize: 11, fontWeight: 700, color: "#111827", lineHeight: 1.2, overflowWrap: "anywhere" },
 
   /* axes prioritaires */
   axisHeader: {
