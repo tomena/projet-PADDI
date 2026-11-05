@@ -5,7 +5,7 @@ import {
 } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Area, Line, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Legend, LabelList, Cell,
+  CartesianGrid, Tooltip, Legend, LabelList, Cell, ReferenceLine,
 } from "recharts";
 import { MapContainer, TileLayer, ZoomControl, useMap } from "react-leaflet";
 import L from "leaflet";
@@ -312,8 +312,14 @@ const CSS = `
 .fx-lg i{width:13px;height:10px;display:inline-block;border:1px solid #9ca3af}
 .fx-lg i.dot{width:10px;height:10px;border-radius:50%;border:1px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.35)}
 .fx-lg-chips i.dot{border-radius:50%}
-.fx-lg-h{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
-.fx-lg-m{font-weight:700;color:#b91c1c}
+.fx-lg-cols{display:flex;gap:9px;align-items:stretch;margin-top:3px}
+.fx-lg .fx-lg-scale{flex-direction:column;align-items:flex-start;gap:0;margin-top:0}
+.fx-lg .fx-lg-per{flex-direction:column;align-items:flex-start;justify-content:center;gap:0;margin-top:0;padding-left:9px;border-left:1px solid #e2e8f0;line-height:1.3;color:#475569}
+.fx-lg-per b{color:#b91c1c;font-size:12px;text-transform:capitalize}
+.fx-zone{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:6px 8px 2px;margin-bottom:8px}
+.fx-zh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
+.fx-zt{display:flex;align-items:center;gap:6px;color:#1565c0;font-size:12px;font-weight:700}
+.fx-vchip{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
 .fx-lbl{background:none;border:0}
 .fx-lbl span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-weight:700;color:#0f172a;text-shadow:0 0 2px #fff,0 0 3px #fff,0 0 4px #fff;pointer-events:none}
 .fx-load{padding:30px;text-align:center;color:#0b4ea2;font-weight:600}
@@ -428,38 +434,34 @@ const HistoricalChart = ({ zones, year, t }: any) => (
   <Card title={t.historicalDifference}>
     {zones.map((z: any) => {
       const rows = [
-        { nom: String(year), val: z.annee, type: "annee" },
-        { nom: t.historicalAverage, val: z.moyenne, type: "moyenne" },
-        { nom: t.highPressureYears, val: z.difficile, type: "difficile" },
+        { nom: String(year), val: z.annee },
+        { nom: t.historicalAverage, val: z.moyenne },
+        { nom: t.highPressureYears, val: z.difficile },
       ];
+      const v = z.moyenne !== 0 ? ((z.annee - z.moyenne) / z.moyenne) * 100 : 0;
+      const [vc, vbg, sym] = v > 0 ? ["#b91c1c", "#fee2e2", "▲"] : v < 0 ? ["#1d4ed8", "#dbeafe", "▼"] : ["#15803d", "#dcfce7", "="];
+      const Icon = z.kind === "5km" ? MapPinned : Trees;
       return (
-        <div key={z.zone} style={{ marginBottom: 6 }}>
-          <div style={{ color: "#1565c0", fontSize: 12, fontWeight: 700, marginBottom: 3 }}>{z.zone}</div>
-          <ResponsiveContainer width="100%" height={112}>
-            <BarChart data={rows} layout="vertical" margin={{ top: 0, right: 15, left: 5, bottom: 2 }}>
-              <XAxis type="number" hide />
-              <YAxis type="category" dataKey="nom" width={95} tick={{ fontSize: 11, fill: "#333" }} />
-              <CartesianGrid horizontal={false} strokeDasharray="3 3" />
-              <Bar dataKey="val" barSize={25} radius={[0, 3, 3, 0]}>
+        <div key={z.zone} className="fx-zone">
+          <div className="fx-zh">
+            <span className="fx-zt"><Icon size={14} />{z.zone}</span>
+            <span className="fx-vchip" style={{ color: vc, background: vbg }} title={t.historicalAverage}>{sym} {v > 0 ? "+" : ""}{v.toFixed(1)} %</span>
+          </div>
+          <ResponsiveContainer width="100%" height={104}>
+            <BarChart data={rows} layout="vertical" margin={{ top: 2, right: 10, left: 0, bottom: 2 }} barCategoryGap="18%">
+              <XAxis type="number" hide domain={[0, (m: number) => Math.max(1, m * 1.3)]} />
+              <YAxis type="category" dataKey="nom" width={108} tick={{ fontSize: 11, fill: "#334155" }} axisLine={false} tickLine={false} />
+              <ReferenceLine x={z.moyenne} stroke="#475569" strokeDasharray="4 3" />
+              <Bar dataKey="val" barSize={20} radius={[0, 4, 4, 0]} background={{ fill: "#eef2f7", radius: 4 }}>
                 {["#9ca3af", "#EAB308", "#d32f2f"].map((c, i) => <Cell key={i} fill={c} />)}
                 <LabelList
                   dataKey="val"
                   content={(p: any) => {
                     const { x, y, width, height, value, index } = p;
-                    const el = rows[index];
                     const text = `${Math.round(value).toLocaleString("fr-FR")} ha`;
-                    const inside = width > text.length * 6 + 50;
-                    let vText = "", vColor = "#2563eb";
-                    if (el.type === "annee") {
-                      const v = z.moyenne !== 0 ? ((el.val - z.moyenne) / z.moyenne) * 100 : 0;
-                      vText = ` (${v > 0 ? "+" : ""}${v.toFixed(1)}%)`;
-                      vColor = v > 0 ? "#ef4444" : v < 0 ? "#2563eb" : "#22c55e";
-                    }
+                    const inside = width > text.length * 6.2 + 16;
                     return (
-                      <g>
-                        <text x={inside ? x + width - 8 : x + width + 8} y={y + height / 2} dy={4} textAnchor={inside ? "end" : "start"} fill={inside ? "#fff" : "#000"} fontSize={11} fontWeight={600}>{text}</text>
-                        {vText && <text x={inside ? x + width - text.length * 6 - 4 : x + width + 8 + text.length * 6} y={y + height / 2} dy={4} textAnchor={inside ? "end" : "start"} fill={vColor} fontSize={11} fontWeight={700}>{vText}</text>}
-                      </g>
+                      <text x={inside ? x + width - 8 : x + width + 6} y={y + height / 2} dy={4} textAnchor={inside ? "end" : "start"} fill={inside ? (index === 1 ? "#3f2d00" : "#fff") : "#1f2937"} fontSize={11} fontWeight={700}>{text}</text>
                     );
                   }}
                 />
@@ -676,7 +678,7 @@ const Resize = () => {
   return null;
 };
 
-const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, periodLabel, monthSel, setMonthSel, monthNames }: any) => {
+const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, periodLabel, periodParts, monthSel, setMonthSel, monthNames }: any) => {
   const [fond, setFond] = useState("topo");
   const [show, setShow] = useState<any>({ fires: true, communes: true, ap: true, periph: true, zones: true, regions: false, labels: true });
   const focus = apZones.length ? [...apZones, ...periph] : regionZone ? [regionZone] : [];
@@ -723,8 +725,15 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
             </div>
           )}
           {show.communes && communes.length > 0 && (
-            <div className="fx-lg"><div className="fx-lg-h"><strong>{t.legend}</strong><span className="fx-lg-m">{periodLabel}</span></div>
-              {scale.slice().reverse().map(([m, c], i, a) => <div key={c}><i style={{ background: c }} />{i === a.length - 1 ? `≥ ${m} %` : i === 0 ? `< ${a[1][0]} %` : `${m} – ${a[i + 1][0]} %`}</div>)}
+            <div className="fx-lg"><strong>{t.legend}</strong>
+              <div className="fx-lg-cols">
+                <div className="fx-lg-scale">
+                  {scale.slice().reverse().map(([m, c], i, a) => <div key={c}><i style={{ background: c }} />{i === a.length - 1 ? `≥ ${m} %` : i === 0 ? `< ${a[1][0]} %` : `${m} – ${a[i + 1][0]} %`}</div>)}
+                </div>
+                <div className="fx-lg-per">
+                  <span>{periodParts[0]}</span><b>{periodParts[1]}</b>{periodParts[2] && <span>{periodParts[2]}</span>}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -894,8 +903,8 @@ export default function AnalyseFeux() {
     const moy = (s: string) => [2020, 2021, 2022, 2023, 2024].reduce((a, y) => a + ha(y, s), 0) / 5;
     const diff = (s: string, ys: number[]) => ys.reduce((a, y) => a + ha(y, s), 0) / ys.length;
     return [
-      { zone: t.peripheral5km, annee: ha(year, "5km"), moyenne: moy("5km"), difficile: diff("5km", [2018, 2023, 2025]) },
-      { zone: t.insidePark, annee: ha(year, "interieur"), moyenne: moy("interieur"), difficile: diff("interieur", [2023, 2025]) },
+      { kind: "5km", zone: t.peripheral5km, annee: ha(year, "5km"), moyenne: moy("5km"), difficile: diff("5km", [2018, 2023, 2025]) },
+      { kind: "interieur", zone: t.insidePark, annee: ha(year, "interieur"), moyenne: moy("interieur"), difficile: diff("interieur", [2023, 2025]) },
     ];
   }, [rowsAP, year, ap, lang]);
 
@@ -918,6 +927,7 @@ export default function AnalyseFeux() {
 
   const monthNames = MOIS_KEYS.map((k, i) => (lang === "mg" ? t.months[k] : new Date(2000, i, 1).toLocaleDateString(({ fr: "fr-FR", en: "en-GB", de: "de-DE" } as any)[lang] || "fr-FR", { month: "long" })));
   const periodLabel = mapMonth < 0 ? `${t.ofYear} ${year}` : `${t.ofMonth} ${monthNames[mapMonth]} ${year}`;
+  const periodParts = mapMonth < 0 ? [t.ofYear, String(year), ""] : [t.ofMonth, monthNames[mapMonth], String(year)];
   const scale = mapMonth < 0 ? SCALE_Y : SCALE_M;
   const evoColor = (evolution ?? 0) >= 0 ? "#d32f2f" : "#2e7d32";
 
@@ -1002,7 +1012,7 @@ export default function AnalyseFeux() {
               t={t} ap={ap} year={year} communes={communesMap} zones={zonesBrulees} apZones={apZones} periph={periphSel}
               regions={regionsZ} regionZone={regionZone} fires={fires} hours={hours} setHours={setHours}
               onRefresh={loadFires} err={firesErr}
-              scale={scale} periodLabel={periodLabel} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
+              scale={scale} periodLabel={periodLabel} periodParts={periodParts} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
             />
           </div>
         </>
