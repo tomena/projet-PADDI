@@ -180,7 +180,7 @@ function LegendControl({ t }: any) {
 }
 
 /* ================= COMPOSANT PRINCIPAL ================= */
-export default function SuperficiesBrulees() {
+function SuperficiesBruleesInner() {
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
 
@@ -665,3 +665,28 @@ const CSS = `
 
 @media (prefers-reduced-motion:reduce){.sb *{transition:none!important;animation:none!important}}
 `;
+
+/* ================= AFFICHE L'ERREUR À L'ÉCRAN (au lieu d'une page blanche) ================= */
+class ErrorBoundary extends React.Component<any, { error: any }> {
+  state = { error: null as any };
+  static getDerivedStateFromError(error: any) { return { error }; }
+  componentDidCatch(error: any, info: any) { console.error("SuperficiesBrulees:", error, info); }
+  render() {
+    if (this.state.error) {
+      return (
+        <pre style={{ padding: 16, margin: 16, background: "#fef2f2", color: "#991b1b", whiteSpace: "pre-wrap", borderRadius: 8 }}>
+          {String(this.state.error?.stack || this.state.error)}
+        </pre>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function SuperficiesBrulees() {
+  return (
+    <ErrorBoundary>
+      <SuperficiesBruleesInner />
+    </ErrorBoundary>
+  );
+}
