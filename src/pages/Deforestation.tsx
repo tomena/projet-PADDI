@@ -72,6 +72,7 @@ const fr = {
   lAP: "Limite de l'AP",
   lPeriph: "Périphérie 5 km",
   lRegions: "Régions",
+  lPixels: "Perte réelle (pixels GFW)",
   metricCum: "Cumul depuis 2001",
   metricYear: "Année seule",
   legendCum: "Taux cumulé de perte (% de la couverture 2000)",
@@ -141,6 +142,7 @@ const mg: Txt = {
   lAP: "Sisin'ny AP",
   lPeriph: "Manodidina 5 km",
   lRegions: "Faritra",
+  lPixels: "Fatiantoka tena izy (pixel GFW)",
   metricCum: "Fitambatra hatramin'ny 2001",
   metricYear: "Taona iray",
   legendCum: "Tahan'ny fahaverezan'ala mitambatra (% amin'ny rakotra 2000)",
@@ -209,6 +211,7 @@ const en: Txt = {
   lAP: "PA boundary",
   lPeriph: "5 km periphery",
   lRegions: "Regions",
+  lPixels: "Real loss (GFW pixels)",
   metricCum: "Cumulative since 2001",
   metricYear: "Single year",
   legendCum: "Cumulative loss rate (% of 2000 cover)",
@@ -277,6 +280,7 @@ const de: Txt = {
   lAP: "Grenze des Schutzgebiets",
   lPeriph: "5-km-Randgebiet",
   lRegions: "Regionen",
+  lPixels: "Tatsächlicher Verlust (GFW-Pixel)",
   metricCum: "Kumuliert seit 2001",
   metricYear: "Einzelnes Jahr",
   legendCum: "Kumulierte Verlustrate (% der Waldfläche 2000)",
@@ -361,6 +365,26 @@ function useGeo(url: string) {
   return [features, done] as const;
 }
 
+/* ---- Perte annuelle par commune selon Global Forest Watch ----
+   Appelle /api/gfw-perte?type=communes&nom=<aire protégée>
+   et attend : { communes: { "NomCommune": [{ annee: 2020, ha: 12.4 }, …] } } */
+type PerteAn = { annee: number; ha: number };
+
+function useGfwCommunes(ap: string, on: boolean) {
+  const [data, setData] = useState<Record<string, Record<string, PerteAn[]>>>({});
+  useEffect(() => {
+    if (!on || !ap || data[ap]) return;
+    const ctrl = new AbortController();
+    fetch(`/api/gfw-perte?type=communes&nom=${encodeURIComponent(ap)}`, { signal: ctrl.signal })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("GFW"))))
+      .then((j) => setData((d) => ({ ...d, [ap]: j.communes || {} })))
+      .catch(() => { /* on garde les données de la base */ });
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ap, on]);
+  return data[ap] ?? null;
+}
+
 /* ---- Géométrie ---- */
 type Bbox = [number, number, number, number];
 type Zone = { nom: string; feature: any; bbox: Bbox; [k: string]: any };
@@ -415,9 +439,10 @@ const CSS = `
 .df-logo svg.f{position:absolute;right:-5px;bottom:-5px;background:#fff;border-radius:50%;padding:3px}
 .df-h1{margin:0;color:#0b4ea2;font-size:clamp(17px,2.4vw,24px);font-weight:700;line-height:1.2}
 .df-sub{margin:2px 0 0;font-size:12px;color:#6b7280}
-.df-filters{display:flex;flex-wrap:wrap;gap:10px}
+.df-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .df-f{display:flex;flex-direction:column;gap:4px;min-width:130px;flex:1 1 130px}
 .df-f label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#374151}
+.df-gfw{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#374151;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;cursor:pointer;white-space:nowrap}
 .df select,.df-sel{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;background:#f9fafb;font-weight:600;font-size:12px;cursor:pointer}
 .df select:focus-visible,.df input:focus-visible,.df button:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
 .df-rank{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-bottom:10px;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;font-size:12px}
@@ -437,7 +462,7 @@ const CSS = `
 @media(max-width:1099px){.df-mapcard{order:-1;height:68vh;min-height:420px}}
 .df-card{background:#fff;border:1px solid #d9d9d9;border-radius:10px;padding:10px;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 .df-ct{margin:0 0 8px;text-align:center;font-size:12px;font-weight:700;font-style:italic;color:#d32f2f;line-height:1.3}
-.df-chart{height:clamp(250px,22vw,380px)}
+.df-chart{height:clamp(190px,15vw,250px)}
 .df-note{margin:6px 0 0;font-size:11px;color:#64748b;text-align:center}
 .df-tip{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
 .df-tip b{display:block;margin-bottom:4px;color:#0f172a}
@@ -473,6 +498,7 @@ const CSS = `
 .df-lg div{display:flex;align-items:center;gap:6px;margin-top:2px}
 .df-lg i{width:13px;height:10px;display:inline-block;border:1px solid #9ca3af}
 .df-lg i.bub{width:12px;height:12px;border-radius:50%;background:rgba(29,78,216,.55);border:1.5px solid #fff;box-shadow:0 0 0 1px #1d4ed8}
+.df-lg i.pix{background:#dc6c9a;border-color:#dc6c9a}
 .df-apbox{position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);border-radius:10px;padding:8px 11px;box-shadow:0 1px 6px rgba(0,0,0,.28);font-size:11px;max-width:60%;border-left:4px solid #166534}
 .df-apbox b{display:block;font-size:13px;color:#14532d}
 .df-apbox span{color:#64748b}
@@ -592,7 +618,7 @@ const EvolutionChart = ({ data, year, peak, t, f }: any) => (
   </Card>
 );
 
-/* 2. Communes les plus touchées : l'année choisie OU le cumul depuis 2001 (fusion des anciens graphiques 1 et 4) */
+/* 2. Communes les plus touchées : l'année choisie OU le cumul depuis 2001 */
 const TopTip = ({ active, payload, f, t }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -637,7 +663,7 @@ const TopChart = ({ data, share, mode, setMode, n, setN, year, t, f }: any) => (
   </Card>
 );
 
-/* 3. Comparaison de deux années (fusion des anciens graphiques 2 et 3) : intérieur du parc OU communes riveraines */
+/* 3. Comparaison de deux années : intérieur du parc OU communes riveraines */
 const CmpTip = ({ active, payload, label, year, cmpYear, f }: any) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -800,6 +826,42 @@ const Labels = ({ zones }: any) => {
   return null;
 };
 
+/* pixels réels de perte du couvert arboré (UMD/Hansen via Global Forest Watch) */
+const CouchePerte = ({ debut, fin }: { debut: number; fin: number }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!map.getPane("perte")) {
+      const pane = map.createPane("perte");
+      pane.style.zIndex = "250"; // au-dessus du fond de carte, sous les contours
+      pane.style.pointerEvents = "none";
+    }
+    const c = L.tileLayer(
+      `https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=${debut}&end_year=${fin}&tcd=30`,
+      { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }
+    ).addTo(map);
+    return () => { map.removeLayer(c); };
+  }, [debut, fin, map]);
+  return null;
+};
+
+/* voile clair sur tout ce qui est hors des zones (AP + périphérie, ou région) */
+const MasqueZones = ({ zones }: { zones: Zone[] }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!zones.length) return;
+    const monde: L.LatLngTuple[] = [[-89, -179], [-89, 179], [89, 179], [89, -179]];
+    const trous: L.LatLngTuple[][] = [];
+    zones.forEach((z) => {
+      const g = z.feature.geometry;
+      const polys: number[][][][] = g?.type === "Polygon" ? [g.coordinates] : g?.type === "MultiPolygon" ? g.coordinates : [];
+      polys.forEach((p) => trous.push(p[0].map(([x, y]) => [y, x] as L.LatLngTuple)));
+    });
+    const c = L.polygon([monde, ...trous], { stroke: false, fillColor: "#f1f4f7", fillOpacity: 0.82, interactive: false }).addTo(map);
+    return () => { map.removeLayer(c); };
+  }, [zones, map]);
+  return null;
+};
+
 const Focus = ({ zones }: any) => {
   const map = useMap();
   const ref = useRef(zones);
@@ -831,10 +893,14 @@ const Resize = () => {
 const DefMap = ({ t, f, ap, year, years, setYear, playing, onPlay, communes, apZones, periph, regions, regionZone, apStats }: any) => {
   const [fond, setFond] = useState("topo");
   const [metric, setMetric] = useState<"cum" | "year">("cum");
-  const [show, setShow] = useState<any>({ communes: true, labels: true, bubbles: true, ap: true, periph: true, regions: false });
+  const [show, setShow] = useState<any>({ communes: true, labels: true, bubbles: true, ap: true, periph: true, regions: false, pixels: true });
   const scale = metric === "cum" ? SCALE_CUM : SCALE_YEAR;
-  const focus = apZones.length ? [...apZones, ...periph] : regionZone ? [regionZone] : [];
-  const layers: [string, string][] = [["communes", t.lCommunes], ["labels", t.lLabels], ["bubbles", t.lBubbles], ["ap", t.lAP], ["periph", t.lPeriph], ["regions", t.lRegions]];
+  // mémorisé : sinon le masque serait recréé à chaque rendu
+  const focus = useMemo(
+    () => (apZones.length ? [...apZones, ...periph] : regionZone ? [regionZone] : []),
+    [apZones, periph, regionZone]
+  );
+  const layers: [string, string][] = [["communes", t.lCommunes], ["labels", t.lLabels], ["bubbles", t.lBubbles], ["pixels", t.lPixels], ["ap", t.lAP], ["periph", t.lPeriph], ["regions", t.lRegions]];
   const tip = (z: any) =>
     `<b>${z.nom}</b><br/>${t.tipLoss} ${year} : ${f.ha(z.lossYear)}<br/>${t.tipCum} : ${f.ha(z.cum)}${z.pctCum != null ? ` (${f.pct(z.pctCum)})` : ""}<br/>${t.tipCover} : ${f.ha(z.cover)}<br/>${t.tipRemaining} : ${f.ha(z.remaining)}`;
   return (
@@ -866,8 +932,22 @@ const DefMap = ({ t, f, ap, year, years, setYear, playing, onPlay, communes, apZ
           <ZoomControl position="bottomright" />
           <Resize />
           <Focus zones={focus} />
+          {show.pixels && <CouchePerte debut={metric === "cum" ? years[0] : year} fin={year} />}
+          {show.pixels && focus.length > 0 && <MasqueZones zones={focus} />}
           {show.regions && <Layer zones={regions} cle={regionZone?.nom || "all"} style={(z: Zone) => ({ interactive: false, color: regionZone && z.nom === regionZone.nom ? "#0f766e" : "#475569", weight: regionZone && z.nom === regionZone.nom ? 2.5 : 1, fillColor: "#0f766e", fillOpacity: regionZone && z.nom === regionZone.nom ? 0.12 : 0.03 })} />}
-          {show.communes && <Layer zones={communes} cle={`c${ap}${year}${metric}`} tip={tip} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(metric === "cum" ? z.pctCum : z.pctYear, scale), fillOpacity: 0.72 })} />}
+          {show.communes && (
+            <Layer
+              zones={communes}
+              cle={`c${ap}${year}${metric}${show.pixels}`}
+              tip={tip}
+              style={(z: any) => ({
+                color: show.pixels ? "#334155" : "#fff",
+                weight: show.pixels ? 1.5 : 1.2,
+                fillColor: colorOf(metric === "cum" ? z.pctCum : z.pctYear, scale),
+                fillOpacity: show.pixels ? 0.18 : 0.72,
+              })}
+            />
+          )}
           {show.periph && <Layer zones={periph} cle={`p${ap}`} style={() => ({ interactive: false, fill: false, color: "#b45309", weight: 1.2, dashArray: "5 4" })} />}
           {show.ap && <Layer zones={apZones} cle={`a${ap}`} style={() => ({ interactive: false, fill: false, color: "#052e16", weight: 3 })} />}
           {show.bubbles && <Bubbles zones={communes} cle={`b${ap}${year}`} t={t} f={f} year={year} />}
@@ -891,6 +971,7 @@ const DefMap = ({ t, f, ap, year, years, setYear, playing, onPlay, communes, apZ
             </div>
           )}
           {show.bubbles && communes.length > 0 && <div className="df-lg"><div style={{ marginTop: 0 }}><i className="bub" />{t.bubbleLegend}</div></div>}
+          {show.pixels && <div className="df-lg"><div style={{ marginTop: 0 }}><i className="pix" />{t.lPixels} ({metric === "cum" ? `${years[0]}–${year}` : year})</div></div>}
         </div>
       </div>
       {!communes.length && <p className="df-note">{t.noGeo}</p>}
@@ -912,6 +993,7 @@ export default function Deforestation() {
   const [topMode, setTopMode] = useState<"year" | "cum">("year");
   const [topN, setTopN] = useState(5);
   const [playing, setPlaying] = useState(false);
+  const [useGfw, setUseGfw] = useState(true);
 
   /* ----- chargement ----- */
   const [baseDef, baseOk] = useGeo(DATA.deforestation);
@@ -919,13 +1001,14 @@ export default function Deforestation() {
   const [airesF] = useGeo(DATA.aires);
   const [periphF] = useGeo(DATA.peripheries);
   const [communesGeoF] = useGeo(DATA.communesGeo);
+  const gfw = useGfwCommunes(ap, useGfw);
 
   const regionsZ = useMemo(() => toZones(regionsF, PROP.region, "Région"), [regionsF]);
   const apZ = useMemo(() => toZones(airesF, PROP.ap, ""), [airesF]);
   const periphZ = useMemo(() => toZones(periphF, PROP.periph, ""), [periphF]);
   const communesGeoZ = useMemo(() => toZones(communesGeoF, PROP.commune, ""), [communesGeoF]);
 
-  // années disponibles, lues dans la base (avant : liste figée, et 2025 absent des graphiques)
+  // années disponibles, lues dans la base
   const years = useMemo(() => {
     const s = new Set<number>();
     baseDef.forEach((ft) => Object.keys(ft.properties || {}).forEach((k) => { if (/^\d{4}$/.test(k) && Number(k) >= 2001) s.add(Number(k)); }));
@@ -973,9 +1056,24 @@ export default function Deforestation() {
   }, [playing, year, maxYear]);
   const onPlay = () => { if (!playing && year >= maxYear) setYear(minYear); setPlaying((p) => !p); };
 
-  /* ===================== CALCULS (logique d'origine conservée) ===================== */
+  /* ===================== CALCULS ===================== */
   const P = useMemo(() => baseDef.filter((ft) => same(ft.properties.AP, ap)).map((ft) => ft.properties), [baseDef, ap]);
-  const com = useMemo(() => P.filter(isCommune), [P]);
+
+  // Communes riveraines : la perte annuelle de la base est remplacée, année par année,
+  // par celle de Global Forest Watch quand elle est disponible.
+  const com = useMemo(() => {
+    const base = P.filter(isCommune);
+    if (!useGfw || !gfw) return base;
+    const byName = new Map(Object.entries(gfw).map(([k, v]) => [norm(k), v]));
+    return base.map((p) => {
+      const rows = byName.get(norm(p.Commune));
+      if (!rows) return p;
+      const q = { ...p };
+      rows.forEach((r) => { q[String(r.annee)] = r.ha; });
+      return q;
+    });
+  }, [P, gfw, useGfw]);
+
   const int = useMemo(() => P.filter(isInterieur), [P]);
 
   const couverture2000 = useMemo(() => sumBy(com, (p) => num(p.Couverture2000)), [com]);
@@ -1010,7 +1108,6 @@ export default function Deforestation() {
   }, [com, year]);
 
   // communes les moins déforestées : perte de l'année / couverture restante avant l'année
-  // (les communes sans couverture restante sont écartées : elles faussaient le classement avec un 0 %)
   const moinsDeforestees = useMemo(
     () => com
       .map((p) => {
@@ -1032,7 +1129,6 @@ export default function Deforestation() {
     }),
     [com, years]
   );
-  // le pic est calculé sur la courbe affichée (avant : sur les lignes « intérieur », donc point mal placé)
   const peak = useMemo(() => evolution.reduce((m, d) => (d.taux > m.taux ? d : m), evolution[0] ?? { annee: 0, taux: 0 }), [evolution]);
 
   const topAll = useMemo(() => {
@@ -1156,6 +1252,10 @@ export default function Deforestation() {
               {(years.length ? years : [year]).map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
+          <label className="df-gfw">
+            <input type="checkbox" checked={useGfw} onChange={() => setUseGfw((v) => !v)} />
+            GFW
+          </label>
         </div>
       </header>
 
