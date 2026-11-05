@@ -40,7 +40,7 @@ const sidebarTxt = {
     costMonitoring: "Suivi des coûts",
     annualActivityMonitoring: "Suivi des activités annuelles",
 
-    fireAnalysis: "Analyse de feux",
+    fireAnalysis: "Superficie brûlée",
     deforestation: "Déforestation",
     environment: "Environnement",
     burnedZonesMap: "Cartographie des zones brûlées",
@@ -54,7 +54,7 @@ const sidebarTxt = {
 
     mapping: "Cartographie",
     paddiIntervention: "Intervention de PADDI+",
-    pressureZones: "Zones de Pression",
+    pressureZones: "Points de feux",
 
     configuration: "Configuration",
     artificialIntelligence: "Intelligence Artificielle",
@@ -93,7 +93,7 @@ const sidebarTxt = {
     costMonitoring: "Fanaraha-maso ny fandaniana",
     annualActivityMonitoring: "Fanaraha-maso ny asa isan-taona",
 
-    fireAnalysis: "Fandinihana ny doro tanety",
+    fireAnalysis: "Faritra may",
     deforestation: "Fandripahana ala",
     environment: "Tontolo iainana",
     burnedZonesMap: "Sarintanin'ny faritra may",
@@ -107,7 +107,7 @@ const sidebarTxt = {
 
     mapping: "Sarintany",
     paddiIntervention: "Fandraisan'anjaran'ny PADDI+",
-    pressureZones: "Faritra misy tsindry",
+    pressureZones: "Tebok'afo",
 
     configuration: "Fikirakirana",
     artificialIntelligence: "Faharanitan-tsaina artifisialy",
@@ -146,7 +146,7 @@ const sidebarTxt = {
     costMonitoring: "Cost Monitoring",
     annualActivityMonitoring: "Annual Activity Monitoring",
 
-    fireAnalysis: "Fire Analysis",
+    fireAnalysis: "Burned Area",
     deforestation: "Deforestation",
     environment: "Environment",
     burnedZonesMap: "Burned Areas Mapping",
@@ -160,7 +160,7 @@ const sidebarTxt = {
 
     mapping: "Mapping",
     paddiIntervention: "PADDI+ Intervention",
-    pressureZones: "Pressure Zones",
+    pressureZones: "Fire spots",
 
     configuration: "Settings",
     artificialIntelligence: "Artificial Intelligence",
@@ -199,7 +199,7 @@ const sidebarTxt = {
     costMonitoring: "Kostenüberwachung",
     annualActivityMonitoring: "Jährliche Aktivitätsüberwachung",
 
-    fireAnalysis: "Brandanalyse",
+    fireAnalysis: "Verbrannte Flächen",
     deforestation: "Entwaldung",
     environment: "Umwelt",
     burnedZonesMap: "Kartierung verbrannter Flächen",
@@ -213,7 +213,7 @@ const sidebarTxt = {
 
     mapping: "Kartierung",
     paddiIntervention: "PADDI+-Intervention",
-    pressureZones: "Druckzonen",
+    pressureZones: "Feuerstellen",
 
     configuration: "Konfiguration",
     artificialIntelligence: "Künstliche Intelligenz",
