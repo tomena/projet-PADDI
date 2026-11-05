@@ -402,7 +402,7 @@ export default function SuperficiesBrulees() {
           <h3 className="sb-card-title">{t.targetRate}</h3>
 
           <div className="sb-donut">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={170}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={170} initialDimension={{ width: 320, height: 200 }}>
               <PieChart>
                 <Pie data={dataDonut} innerRadius="65%" outerRadius="95%" startAngle={90} endAngle={-270} dataKey="value" stroke="none">
                   <Cell fill={donutColor} />
@@ -439,7 +439,7 @@ export default function SuperficiesBrulees() {
           <p className="sb-subtitle">{t.annualSubtitle}</p>
 
           <div className="sb-chart">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={170}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={170} initialDimension={{ width: 320, height: 200 }}>
               <LineChart data={evolution} margin={{ top: 20, right: 24, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="annee" tick={{ fontSize: 11 }} padding={{ left: 16, right: 16 }} interval="preserveStartEnd" minTickGap={8} />
@@ -501,7 +501,7 @@ export default function SuperficiesBrulees() {
           <h3 className="sb-card-title">{t.comparison}</h3>
 
           <div className="sb-chart sb-chart-lg">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={170}>
+            <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={170} initialDimension={{ width: 320, height: 200 }}>
               <LineChart data={comparisonData} margin={{ top: 10, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="annee" type="category" tick={{ fontSize: 11 }} padding={{ left: 12, right: 12 }} interval="preserveStartEnd" minTickGap={8} />
