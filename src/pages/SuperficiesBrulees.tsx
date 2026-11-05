@@ -1,1864 +1,699 @@
-import React,{ useRef, useEffect, useMemo, useState } from 'react';
-import { useLanguage } from "../context/LanguageContext";
-import { MapContainer, TileLayer, ScaleControl, useMap, GeoJSON } from "react-leaflet";
-import L from "leaflet";
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
+import { MapContainer, TileLayer, ScaleControl, ZoomControl, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import {ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, BarChart, Bar, Legend, PieChart, Label, Pie, Cell } from 'recharts';
-import { Flame, Target, Map, TrendingDown, Calendar, MapPin, Landmark, FileSpreadsheet } from 'lucide-react';
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
+  ReferenceLine, PieChart, Pie, Cell, Label,
+} from 'recharts';
+import { Flame, Target, Calendar, MapPin, Landmark, FileSpreadsheet, RotateCcw } from 'lucide-react';
 
-
-const getVille = (nom) => {
-  if (!nom) return "";
-  return nom.replace("Bureau à", "").trim();
-};
-
-const TEXT = {
+/* =====================================================================
+   TEXTES
+   ===================================================================== */
+const TEXT: any = {
   fr: {
-    pageTitle: "Système de suivi de feux au périphérie de 5km de l'Aire protégée",
-    year: "Année",
-    region: "Région",
-    protectedArea: "Aire protégée",
-    allRegions: "Toutes les régions",
-    allProtectedAreas: "Toutes",
-    reset: "Réinitialiser",
-    
-
-    indicator:
-      "Indicateur : Les superficies brûlées ont diminué de 25% d’ici 2030 dans les zones en périphérie des aires protégées sélectionées.",
-
-    targetRate: "TAUX D’ATTEINTE DE LA CIBLE",
-    targetReached: "de la cible atteinte",
-    reference: "Référence (2020-2024)",
-    burnedArea: "Superficie",
-    variation: "Variation",
-    objective2030: "Objectif 2030 (-25%)",
-
-    annualEvolution: "ÉVOLUTION MULTI-ANNUELLE DE L'INDICATEUR",
-    annualSubtitle:
-      "Variation (%) des superficies brûlées par rapport à l'année de référence (2020 - 2024)",
-    targetLine: "Objectif : -25%",
-    burnedVariation: "Variation des superficies brûlées (%)",
-
-    mapTitle:
-      "CARTE DES SUPERFICIES BRÛLÉES EN PÉRIPHÉRIE DES AIRES PROTÉGÉES",
-
-    comparison: "COMPARAISON MULTI-ANNUELLE DES 7 AIRES PROTÉGÉES",
-
-    legends: "LÉGENDES",
-    burnedLegend: "Superficie brûlée (ha)",
-    protectedLegend: "Aire protégée",
-    legend: "Légende",
-
-    footer:
-      "Analyse détaillée par aire protégée, commune et micro-bassin versant",
-    dashboard: "Tableaux de bord PADDI.xlsx",
-
-    ahead: "au-delà",
-    delay: "de retard",
+    pageTitle: "Suivi des feux dans la périphérie de 5 km des aires protégées",
+    pageSub: "Évolution des superficies brûlées par rapport à la référence 2020-2024",
+    year: 'Année', region: 'Région', protectedArea: 'Aire protégée',
+    allRegions: 'Toutes les régions', allProtectedAreas: 'Toutes', reset: 'Réinitialiser',
+    indicator: "Indicateur : les superficies brûlées ont diminué de 25 % d’ici 2030 dans les zones en périphérie des aires protégées sélectionnées.",
+    targetRate: 'Taux d’atteinte de la cible', targetReached: 'de la cible atteinte',
+    reference: 'Référence (2020-2024)', burnedArea: 'Superficie', variation: 'Variation',
+    objective2030: 'Objectif 2030 (-25 %)',
+    annualEvolution: "Évolution multi-annuelle de l’indicateur",
+    annualSubtitle: "Variation (%) des superficies brûlées par rapport à la référence (2020-2024)",
+    targetLine: 'Objectif : -25 %', burnedVariation: 'Variation des superficies brûlées (%)',
+    mapTitle: 'Superficies brûlées en périphérie des aires protégées',
+    comparison: 'Comparaison multi-annuelle des 7 aires protégées',
+    comparisonHint: 'Touchez un code pour afficher ou masquer une courbe',
+    legend: 'Légende', protectedLegend: 'Aire protégée', basemap: 'Fond de carte',
+    topo: 'Topographique', sat: 'Satellite', noData: 'Pas de données',
+    footer: 'Analyse détaillée par aire protégée, commune et micro-bassin versant',
+    dashboard: 'Tableaux de bord PADDI.xlsx', ahead: 'au-delà', delay: 'de retard',
   },
-
   mg: {
-    pageTitle:
-      "Rafitra fanaraha-maso ny doro tanety ao anatin’ny faritra 5 km manodidina ny Faritra Arovana",
-    year: "Taona",
-    region: "Faritra",
-    protectedArea: "Faritra arovana",
-    allRegions: "Faritra rehetra",
-    allProtectedAreas: "Rehetra",
-    reset: "Avereno",
-
-    indicator:
-      "Mari-pamantarana: Hihena 25% ny velaran-tany may hatramin'ny taona 2030 eny amin'ny faritra 5 km manodidina ireo Faritra Arovana voafantina.",
-
-    targetRate: "TAHAN'NY FAHATRATRARANA NY TANJONA",
-    targetReached: "amin'ny tanjona tratra",
-    reference: "Taona fototra (2020-2024)",
-    burnedArea: "Velarana",
-    variation: "Fiovana",
-    objective2030: "Tanjona 2030 (-25%)",
-
-    annualEvolution: "FIVOARANA ISAN-TAONA NY MARI-PAMANTARANA",
-    annualSubtitle:
-      "Fiovan'ny (%) velaran-tany may raha oharina amin'ny taona fototra (2020-2024)",
-    targetLine: "Tanjona: -25%",
-    burnedVariation: "Fiovan'ny velaran-tany may (%)",
-
-    mapTitle:
-      "SARINTANIN'NY VELARAN-TANY MAY MANODIDINA NY FARITRA AROVANA",
-
-    comparison:
-      "FAMPITAHANA ISAN-TAONA NY FARITRA AROVANA 7",
-
-    legends: "MARIBOLANA",
-    burnedLegend: "Velaran-tany may (ha)",
-    protectedLegend: "Faritra arovana",
-    legend: "Maribolana",
-
-    footer:
-      "Famakafakana amin'ny antsipiriany isaky ny Faritra Arovana, Kaominina ary mikro-basinina",
-    dashboard: "Takelaka PADDI.xlsx",
-
-    ahead: "mihoatra ny tanjona",
-    delay: "tara",
+    pageTitle: "Fanaraha-maso ny doro tanety ao anatin’ny 5 km manodidina ny Faritra Arovana",
+    pageSub: "Fivoaran’ny velaran-tany may raha oharina amin’ny taona fototra 2020-2024",
+    year: 'Taona', region: 'Faritra', protectedArea: 'Faritra arovana',
+    allRegions: 'Faritra rehetra', allProtectedAreas: 'Rehetra', reset: 'Avereno',
+    indicator: "Mari-pamantarana: Hihena 25% ny velaran-tany may hatramin'ny taona 2030 eny amin'ny faritra 5 km manodidina ireo Faritra Arovana voafantina.",
+    targetRate: "Tahan'ny fahatratrarana ny tanjona", targetReached: "amin'ny tanjona tratra",
+    reference: 'Taona fototra (2020-2024)', burnedArea: 'Velarana', variation: 'Fiovana',
+    objective2030: 'Tanjona 2030 (-25%)',
+    annualEvolution: 'Fivoarana isan-taona ny mari-pamantarana',
+    annualSubtitle: "Fiovan'ny (%) velaran-tany may raha oharina amin'ny taona fototra (2020-2024)",
+    targetLine: 'Tanjona: -25%', burnedVariation: "Fiovan'ny velaran-tany may (%)",
+    mapTitle: "Sarintanin'ny velaran-tany may manodidina ny faritra arovana",
+    comparison: "Fampitahana isan-taona ny faritra arovana 7",
+    comparisonHint: 'Tsindrio ny kaody mba haseho na afenina ny tsipika',
+    legend: 'Maribolana', protectedLegend: 'Faritra arovana', basemap: 'Sarintany fototra',
+    topo: 'Topografika', sat: 'Zanabolana', noData: 'Tsy misy angona',
+    footer: "Famakafakana amin'ny antsipiriany isaky ny Faritra Arovana, Kaominina ary mikro-basinina",
+    dashboard: 'Takelaka PADDI.xlsx', ahead: 'mihoatra ny tanjona', delay: 'tara',
   },
-
   en: {
-    pageTitle:
-      "Fire Monitoring System within the 5 km Buffer around Protected Areas",
-    year: "Year",
-    region: "Region",
-    protectedArea: "Protected Area",
-    allRegions: "All regions",
-    allProtectedAreas: "All",
-    reset: "Reset",
-
-    indicator:
-      "Indicator: Burned areas are reduced by 25% by 2030 within the 5 km buffer surrounding the selected protected areas.",
-
-    targetRate: "TARGET ACHIEVEMENT RATE",
-    targetReached: "of the target achieved",
-    reference: "Baseline (2020-2024)",
-    burnedArea: "Burned area",
-    variation: "Variation",
-    objective2030: "2030 Target (-25%)",
-
-    annualEvolution: "MULTI-YEAR EVOLUTION OF THE INDICATOR",
-    annualSubtitle:
-      "Variation (%) of burned areas compared with the baseline period (2020-2024)",
-    targetLine: "Target: -25%",
-    burnedVariation: "Burned area variation (%)",
-
-    mapTitle:
-      "MAP OF BURNED AREAS AROUND PROTECTED AREAS",
-
-    comparison:
-      "MULTI-YEAR COMPARISON OF THE 7 PROTECTED AREAS",
-
-    legends: "LEGENDS",
-    burnedLegend: "Burned area (ha)",
-    protectedLegend: "Protected area",
-    legend: "Legend",
-
-    footer:
-      "Detailed analysis by protected area, municipality and micro-watershed",
-    dashboard: "PADDI Dashboard.xlsx",
-
-    ahead: "ahead",
-    delay: "behind schedule",
+    pageTitle: 'Fire monitoring within the 5 km buffer around protected areas',
+    pageSub: 'Burned-area trend compared with the 2020-2024 baseline',
+    year: 'Year', region: 'Region', protectedArea: 'Protected area',
+    allRegions: 'All regions', allProtectedAreas: 'All', reset: 'Reset',
+    indicator: 'Indicator: burned areas are reduced by 25% by 2030 within the 5 km buffer around the selected protected areas.',
+    targetRate: 'Target achievement rate', targetReached: 'of the target achieved',
+    reference: 'Baseline (2020-2024)', burnedArea: 'Burned area', variation: 'Variation',
+    objective2030: '2030 target (-25%)',
+    annualEvolution: 'Multi-year evolution of the indicator',
+    annualSubtitle: 'Variation (%) of burned areas compared with the baseline (2020-2024)',
+    targetLine: 'Target: -25%', burnedVariation: 'Burned area variation (%)',
+    mapTitle: 'Burned areas around protected areas',
+    comparison: 'Multi-year comparison of the 7 protected areas',
+    comparisonHint: 'Tap a code to show or hide a line',
+    legend: 'Legend', protectedLegend: 'Protected area', basemap: 'Basemap',
+    topo: 'Topographic', sat: 'Satellite', noData: 'No data',
+    footer: 'Detailed analysis by protected area, municipality and micro-watershed',
+    dashboard: 'PADDI Dashboard.xlsx', ahead: 'ahead', delay: 'behind schedule',
   },
-
   de: {
-    pageTitle:
-      "System zur Überwachung von Bränden im 5-km-Puffer um Schutzgebiete",
-    year: "Jahr",
-    region: "Region",
-    protectedArea: "Schutzgebiet",
-    allRegions: "Alle Regionen",
-    allProtectedAreas: "Alle",
-    reset: "Zurücksetzen",
-
-    indicator:
-      "Indikator: Die verbrannte Fläche soll bis 2030 im 5-km-Puffer der ausgewählten Schutzgebiete um 25 % reduziert werden.",
-
-    targetRate: "ERREICHUNG DER ZIELVORGABE",
-    targetReached: "des Ziels erreicht",
-    reference: "Referenz (2020-2024)",
-    burnedArea: "Verbrannte Fläche",
-    variation: "Veränderung",
-    objective2030: "Ziel 2030 (-25%)",
-
-    annualEvolution:
-      "MEHRJÄHRIGE ENTWICKLUNG DES INDIKATORS",
-    annualSubtitle:
-      "Veränderung (%) der verbrannten Flächen gegenüber der Referenzperiode (2020-2024)",
-    targetLine: "Ziel: -25%",
-    burnedVariation: "Veränderung der verbrannten Fläche (%)",
-
-    mapTitle:
-      "KARTE DER VERBRANNTEN FLÄCHEN UM SCHUTZGEBIETE",
-
-    comparison:
-      "MEHRJÄHRIGER VERGLEICH DER 7 SCHUTZGEBIETE",
-
-    legends: "LEGENDE",
-    burnedLegend: "Verbrannte Fläche (ha)",
-    protectedLegend: "Schutzgebiet",
-    legend: "Legende",
-
-    footer:
-      "Detaillierte Analyse nach Schutzgebiet, Gemeinde und Mikroeinzugsgebiet",
-    dashboard: "PADDI-Dashboard.xlsx",
-
-    ahead: "über dem Ziel",
-    delay: "Rückstand",
+    pageTitle: 'Brandüberwachung im 5-km-Puffer um Schutzgebiete',
+    pageSub: 'Entwicklung der verbrannten Flächen gegenüber der Referenz 2020-2024',
+    year: 'Jahr', region: 'Region', protectedArea: 'Schutzgebiet',
+    allRegions: 'Alle Regionen', allProtectedAreas: 'Alle', reset: 'Zurücksetzen',
+    indicator: 'Indikator: Die verbrannte Fläche soll bis 2030 im 5-km-Puffer der ausgewählten Schutzgebiete um 25 % sinken.',
+    targetRate: 'Zielerreichung', targetReached: 'des Ziels erreicht',
+    reference: 'Referenz (2020-2024)', burnedArea: 'Verbrannte Fläche', variation: 'Veränderung',
+    objective2030: 'Ziel 2030 (-25 %)',
+    annualEvolution: 'Mehrjährige Entwicklung des Indikators',
+    annualSubtitle: 'Veränderung (%) der verbrannten Flächen gegenüber der Referenz (2020-2024)',
+    targetLine: 'Ziel: -25 %', burnedVariation: 'Veränderung der verbrannten Fläche (%)',
+    mapTitle: 'Karte der verbrannten Flächen um Schutzgebiete',
+    comparison: 'Mehrjähriger Vergleich der 7 Schutzgebiete',
+    comparisonHint: 'Kürzel antippen, um eine Linie ein- oder auszublenden',
+    legend: 'Legende', protectedLegend: 'Schutzgebiet', basemap: 'Hintergrundkarte',
+    topo: 'Topografisch', sat: 'Satellit', noData: 'Keine Daten',
+    footer: 'Detaillierte Analyse nach Schutzgebiet, Gemeinde und Mikroeinzugsgebiet',
+    dashboard: 'PADDI-Dashboard.xlsx', ahead: 'über dem Ziel', delay: 'Rückstand',
   },
 };
 
-const pinSVG = `
-<svg width="20" height="20" viewBox="0 0 24 24">
-  <path fill="#e53935" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-  <circle cx="12" cy="9" r="2.5" fill="white"/>
-</svg>
-`;
+/* =====================================================================
+   CONSTANTES
+   ===================================================================== */
+const ANNEES = [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
+const BASELINE_YEARS = [2020, 2021, 2022, 2023, 2024];
+const VALID_ANTENNES = ['Tanà', "Amoron'i Mania", 'Boeny', 'Diana', 'Atsimo-Atsinanana', 'Anosy'];
+const DEFAULT_YEAR = 2026;
+const MADAGASCAR: L.LatLngBoundsExpression = [[-26, 42.3], [-11.5, 50.9]];
 
-const officeIcon = (nom) =>
-  L.divIcon({
-    html: `
-      <div style="
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        justify-content:center;
-        line-height:1;
-      ">
+const FONDS: any = {
+  topo: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}' },
+  sat: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}' },
+};
 
-        <!-- ICON -->
-        <svg width="20" height="20" viewBox="0 0 24 24" style="display:block;">
-          <path fill="#e53935" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
-          <circle cx="12" cy="9" r="2.5" fill="white"/>
-        </svg>
+const AP_LIST = [
+  { code: 'MDA', nom: "Montagne d'Ambre", color: '#16a34a' },
+  { code: 'ANK', nom: 'Ankarana', color: '#0d9488' },
+  { code: 'ANLM', nom: 'Analamerana', color: '#84cc16' },
+  { code: 'AKF', nom: 'Ankarafantsika', color: '#f59e0b' },
+  { code: 'ADH', nom: 'Andohahela', color: '#ef4444' },
+  { code: 'MDS', nom: 'Befotaka-Midongy', color: '#9333ea' },
+  { code: 'MLB', nom: 'Marolambo', color: '#2563eb' },
+];
+const AP_CODE: Record<string, string> = Object.fromEntries(AP_LIST.map((a) => [a.nom, a.code]));
 
-        <!-- LABEL -->
-        <div style="
-          font-size:10px;
-          color:#111;
-          white-space:nowrap;
-          margin:0;
-          padding:0;
-          line-height:1;
-        ">
-          ${getVille(nom)}
-        </div>
+const COULEUR_ANTENNE: Record<string, string> = {
+  'Tanà': '#16a34a', Boeny: '#2563eb', 'Atsimo-Atsinanana': '#f59e0b', Diana: '#ef4444', Anosy: '#8b5cf6',
+};
+const getColorByAntenne = (a: string) => COULEUR_ANTENNE[a] || '#64748b';
 
-      </div>
-    `,
-    className: "",
-    iconSize: [60, 40],
-    iconAnchor: [30, 20],
-  });
+const num = (v: any) => Number(String(v ?? 0).replace(',', '.')) || 0;
+const fr1 = (v: number) => Number(v ?? 0).toFixed(1).replace('.', ',');
+const formatHa = (v: number) =>
+  Number(v ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ha';
 
-  const resetFilters = () => {
-    setSelectedYear(2026);
-    setSelectedRegion("");
-    setSelectedAP("");
-  };
-
-  function APZoom({ data, selectedAP }) {
-    const map = useMap();
-  
-    useEffect(() => {
-      if (!selectedAP || !data?.features) return;
-  
-      const feature = data.features.find(
-        f => f.properties?.nom_ap === selectedAP
-      );
-  
-      if (!feature) return;
-  
-      const layer = L.geoJSON(feature);
-      const bounds = layer.getBounds();
-  
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, {
-          padding: [20, 20],
-          maxZoom: 12,
-          animate: true,
-        });
-      }
-    }, [selectedAP, data, map]);
-  
-    return null;
-  }
-
-function AutoZoom({ geoData }) {
+/* =====================================================================
+   COUCHES LEAFLET
+   ===================================================================== */
+function Redimension() {
   const map = useMap();
-
   useEffect(() => {
-    if (!geoData?.features?.length) return;
-
-    const layer = L.geoJSON(geoData);
-    const bounds = layer.getBounds();
-
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10,
-        animate: true,
-      });
-    }
-  }, [geoData, map]);
-
+    const el = map.getContainer().parentElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [map]);
   return null;
 }
 
-function onEachRegion(feature, layer, mapRef) {
-  const name = feature?.properties?.nom_reg;
-
-  if (name) {
-    layer.bindTooltip(name, {
-      sticky: true,
-      direction: "center",
-      className: "region-label",
-      permanent: true,
-    });
-  }
-
-  layer.on("click", () => {
-    const bounds = layer.getBounds?.();
-
-    if (bounds && bounds.isValid()) {
-      mapRef.fitBounds(bounds, {
-        padding: [20, 20],
-        maxZoom: 10,
-        animate: true,
-      });
-    }
-  });
-}
-
-function LegendControl({ getColorByAntenne, antennes, t }) {
+// Un seul composant de zoom : l'aire protégée choisie, sinon les régions affichées
+function FocusCarte({ geoData, apData, selectedAP }: any) {
   const map = useMap();
-
   useEffect(() => {
-    const legend = L.control({ position: "bottomright" });
-
-    legend.onAdd = () => {
-      const div = L.DomUtil.create("div", "info legend");
-
-      div.style.background = "white";
-      div.style.padding = "8px 10px";
-      div.style.borderRadius = "8px";
-      div.style.boxShadow = "0 1px 5px rgba(0,0,0,0.2)";
-      div.style.fontSize = "12px";
-
-      div.innerHTML = `<strong>${t.legend} :</strong><br/>`;
-
-      div.innerHTML += `
-        <div style="display:flex;align-items:center;gap:6px;">
-          <svg width="18" height="18" viewBox="0 0 24 24">
-            <path
-              d="M3 18 L6 5 L14 3 L21 8 L18 20 L8 21 Z"
-              fill="rgba(34,197,94,0.30)"
-              stroke="white"
-              stroke-width="1"
-            />
-          </svg>
-          ${t.protectedArea}
-        </div>
-      `;
-
-      return div;
-    };
-
-    legend.addTo(map);
-    return () => legend.remove();
-  }, [map, antennes, getColorByAntenne, t]);
-
+    let cible: any = null;
+    let maxZoom = 10;
+    if (selectedAP && apData?.features) {
+      const f = apData.features.find((x: any) => x.properties?.nom_ap === selectedAP);
+      if (f) { cible = f; maxZoom = 12; }
+    }
+    if (!cible && geoData?.features?.length) cible = geoData;
+    if (!cible) { map.fitBounds(MADAGASCAR, { padding: [10, 10] }); return; }
+    const b = L.geoJSON(cible).getBounds();
+    if (b.isValid()) map.fitBounds(b, { padding: [24, 24], maxZoom, animate: true });
+  }, [geoData, apData, selectedAP, map]);
   return null;
 }
 
-function RegionLayer({ data, getColorByAntenne }) {
+function GeoLayer({ data, style, labels }: { data: any; style: any; labels?: boolean }) {
   const map = useMap();
-
   useEffect(() => {
-    if (!data?.features) return;
-
+    if (!data?.features?.length) return;
     const layer = L.geoJSON(data, {
-      style: (feature) => ({
-        color: "#fff",
-        weight: 1,
-        fillColor: getColorByAntenne(feature.properties?.antenne),
-        fillOpacity: 0.6,
-      }),
-    });
-
-    layer.addTo(map);
-
-    return () => {
-      layer.clearLayers();
-      map.removeLayer(layer);
-    };
-  }, [data, map, getColorByAntenne]);
-
+      style,
+      onEachFeature: (f: any, l: any) => {
+        const nom = f.properties?.nom_ap;
+        if (labels && nom) l.bindTooltip(nom, { permanent: true, direction: 'center', className: 'sb-ap-label' });
+      },
+    }).addTo(map);
+    return () => { map.removeLayer(layer); };
+  }, [data, map, style, labels]);
   return null;
 }
 
-
-function AireProtegeeLayer({ data, selectedAntenne }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!data?.features) return;
-
-    const filtered = {
-      type: "FeatureCollection",
-      features: data.features.filter(f =>
-        !selectedAntenne || f.properties?.antenne === selectedAntenne
-      )
-    };
-    
-    const layer = L.geoJSON(filtered, { 
-      style: {
-        color: "#fff",
-        weight: 0.8,
-        fillColor: "#22c55e",
-        fillOpacity: 0.30,
-      },
-      onEachFeature: (feature, layer) => {
-
-        if (selectedAntenne) {
-          layer.bindTooltip(feature.properties.nom_ap, {
-            permanent: true,
-            direction: "center",
-            className: "ap-label",
-            sticky: false,
-          });
-        }      
-      },
-    });
-
-    layer.addTo(map);
-
-    return () => {
-      layer.clearLayers();
-      map.removeLayer(layer);
-    };
-  }, [data, map, selectedAntenne]);
-
-  return null;
-}
-
+/* =====================================================================
+   COMPOSANT PRINCIPAL
+   ===================================================================== */
 export default function SuperficiesBrulees({ data }: any) {
-
   const { lang } = useLanguage();
   const t = TEXT[lang] || TEXT.fr;
 
-  const [selectedAntenne, setSelectedAntenne] = useState("");
-  const [selectedYear, setSelectedYear] = useState(2026);
-  const [selectedRegion, setSelectedRegion] = useState("");
-  const [selectedAP, setSelectedAP] = useState("");
-  const [regionsData, setRegionsData] = useState(null);
+  const [selectedAntenne, setSelectedAntenne] = useState('');
+  const [selectedYear, setSelectedYear] = useState(DEFAULT_YEAR);
+  const [selectedAP, setSelectedAP] = useState('');
+  const [fond, setFond] = useState<'topo' | 'sat'>('topo');
+  const [hidden, setHidden] = useState<string[]>([]);
+
+  const [regionsData, setRegionsData] = useState<any>(null);
+  const [aireProtegeeData, setAireProtegeeData] = useState<any>(null);
   const [feuxData, setFeuxData] = useState<any[]>([]);
 
-    useEffect(() => {
-      fetch("/data/madagascar_24_region.geojson")
-        .then(res => {
-          if (!res.ok) throw new Error("GeoJSON introuvable");
-          return res.json();
-        })
-        .then(setRegionsData)
-        .catch(err => console.error("Erreur chargement GeoJSON:", err));
-    }, []);
+  useEffect(() => {
+    fetch('/data/madagascar_24_region.geojson')
+      .then((r) => { if (!r.ok) throw new Error('GeoJSON introuvable'); return r.json(); })
+      .then(setRegionsData).catch(console.error);
+    fetch('/data/aire_protegee_paddi.geojson').then((r) => r.json()).then(setAireProtegeeData).catch(console.error);
+    fetch('/data/Bases_Feux.geojson').then((r) => r.json())
+      .then((d) => setFeuxData(d.features.map((f: any) => f.properties))).catch(console.error);
+  }, []);
 
-    useEffect(() => {
-      fetch("/data/Bases_Feux.geojson")
-      .then(res => res.json())
-      .then(data => {      
-      const features = data.features.map((f:any)=>f.properties);      
-      setFeuxData(features);      
-      })
-      .catch(err=>console.error(err));      
-      }, []);
+  /* ---------- Tableau virtuel : baseline, variation, taux d'atteinte ---------- */
+  const tableauVirtuel = useMemo(() => {
+    if (!feuxData.length) return [];
+    const data5km = feuxData.filter((d: any) => d.Source === '5km');
+    const aps = ['', ...new Set<string>(data5km.map((d: any) => d.AP))]; // '' = toutes les AP
+    const table: any[] = [];
 
+    aps.forEach((ap) => {
+      const dataAP = ap === '' ? data5km : data5km.filter((d: any) => d.AP === ap);
+      const somme = (an: number) =>
+        dataAP.filter((d: any) => Number(d['Année']) === an).reduce((s: number, d: any) => s + num(d.Total), 0);
+      const baseline = BASELINE_YEARS.reduce((s, an) => s + somme(an), 0) / BASELINE_YEARS.length;
 
-    const tableauVirtuel = useMemo(() => {
-        if (!feuxData.length) return [];      
-        const getValue = (v: any) =>
-          Number(String(v ?? 0).replace(",", "."));      
-        // uniquement les données 5 km
-        const data5km = feuxData.filter(
-          (d: any) => d.Source === "5km"
-        );      
-        // toutes les AP présentes
-        const aps = [...new Set(data5km.map((d:any)=>d.AP))];
-          aps.push("");      
-        // on ajoute la ligne "Toutes"
-        aps.push(""); 
+      ANNEES.forEach((an) => {
+        const lignes = dataAP.filter((d: any) => Number(d['Année']) === an);
+        const hasData = lignes.length > 0;
+        const superficie = somme(an);
+        const ok = hasData && baseline !== 0;
+        const variation = ok ? ((superficie - baseline) / baseline) * 100 : 0;
+        const reduction = ok ? ((baseline - superficie) / baseline) * 100 : 0;
 
-        const annees = [2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030
-                        ];
+        table.push({
+          AP: ap, Annee: an, HasData: hasData,
+          Baseline: baseline, Objectif2030: baseline * 0.75, Superficie: superficie,
+          Variation: variation, Reduction: reduction,
+          TauxAtteinte2030: Math.max(0, Math.min((reduction / 25) * 100, 100)),
+          EcartCible: reduction - 25,
+        });
+      });
+    });
+    return table;
+  }, [feuxData]);
 
-        const table: any[] = [];      
-        aps.forEach(ap => { 
-
-          const dataAP =
-              ap === ""
-              ? data5km
-              : data5km.filter(
-                  (d:any)=>d.AP===ap
-                );      
-          //----------------------------------
-          // BASELINE 2020-2024
-          //----------------------------------      
-          const baseline =
-            [2020,2021,2022,2023,2024]
-              .map(an =>      
-                dataAP
-                  .filter((d:any)=>
-                    Number(d["Année"])===an
-                  )
-                  .reduce(
-                    (s:number,d:any)=>
-                      s+getValue(d.Total),
-                    0
-                  )      
-              )
-              .reduce((a,b)=>a+b,0)/5;      
-          const objectif = baseline*0.75;      
-          //----------------------------------
-          // Une ligne par année
-          //----------------------------------      
-          annees.forEach(an=>{      
-            const lignesAnnee = dataAP.filter(
-              (d:any)=>
-                Number(d["Année"]) === an
-            );
-            
-            
-            // vérifier si on a réellement des données
-            const hasData = lignesAnnee.length > 0;
-            
-            
-            const superficie =
-            lignesAnnee.reduce(
-              (s:number,d:any)=>
-                s + getValue(d.Total),
-              0
-            );
-            
-            
-            // variation par rapport à la référence
-            const variation =
-            !hasData || baseline===0
-            ? 0
-            : ((superficie-baseline)/baseline)*100;
-            
-            
-            // réduction obtenue
-            const reduction =
-            !hasData || baseline===0
-            ? 0
-            : ((baseline-superficie)/baseline)*100;
-
-              const ecartCible =
-                  reduction - 25;
-              // ================================
-              // OBJECTIF FINAL 2030 (-25%)
-              // ================================
-              
-              const objectifReduction2030 = 25;
-              // Progression vers l'objectif final
-              const tauxAtteinte2030 =
-                Math.max(
-                  0,
-                  Math.min(
-                    (reduction / objectifReduction2030) * 100,
-                    100
-                  )
-                );
-              // ================================
-              // TRAJECTOIRE ANNUELLE
-              // ================================
-              
-              // Nombre d'années entre 2025 et 2030
-              const duree = 6;              
-              // réduction attendue cette année
-              const reductionAttendue =
-                an >= 2025
-                ? (objectifReduction2030 / duree) * (an - 2024)
-                : 0;
-              // cible superficie cette année
-              const superficieCible =
-                baseline * (1 - reductionAttendue / 100);
-              // comparaison réel vs cible annuelle
-              const tauxTrajectoire =
-                reductionAttendue === 0
-                ? 0
-                :
-                (reduction / reductionAttendue) * 100;             
-              // écart par rapport à la trajectoire
-              const ecartTrajectoire =
-                reduction - reductionAttendue;
-
-                table.push({
-                  AP: ap,                
-                  Annee: an,                
-                
-                  // valeurs principales
-                  Baseline: baseline,                
-                  Objectif2030:
-                    baseline * 0.75,                
-                
-                  Superficie:
-                    superficie,                
-                
-                  Variation:
-                    variation,                
-                
-                  Reduction:
-                    reduction,                
-                
-                  // Donut principal
-                  TauxAtteinte2030:
-                    tauxAtteinte2030,                
-                
-                  // Nouvelle mesure
-                  ReductionAttendue:
-                    reductionAttendue,               
-                
-                  SuperficieCible:
-                    superficieCible,                
-                
-                  TauxTrajectoire:
-                    tauxTrajectoire,                
-                
-                  EcartTrajectoire:
-                    ecartTrajectoire,
-
-                  EcartCible: ecartCible,                
-                });      
-          });      
-        });      
-        return table;      
-      },[feuxData]);
-
-      const donutKPI = useMemo(() => {
-        const resultat = tableauVirtuel.find(
-          d =>
-            (
-              selectedAP === ""
-              ? d.AP === ""
-              : String(d.AP).trim() === String(selectedAP).trim()
-            )
-            &&
-            Number(d.Annee) === Number(selectedYear)
-        );
-      
-        return resultat ?? {
-
-          AP:selectedAP,        
-          Annee:selectedYear,        
-          Baseline:0,        
-          Objectif2030:0,        
-          Superficie:0,        
-          Variation:0,        
-          Reduction:0,        
-          TauxAtteinte2030:0,        
-          ReductionAttendue:0,        
-          SuperficieCible:0,        
-          TauxTrajectoire:0,        
-          EcartTrajectoire:0,
-          EcartCible:0
-        
-        };
-      
-      }, [
-        tableauVirtuel,
-        selectedAP,
-        selectedYear
-      ]);
-
-
-      const evolution = useMemo(() => {
-        if (!tableauVirtuel.length) return [];      
-        const lignes = tableauVirtuel.filter(d =>
-          (
-            selectedAP === ""
-            ? d.AP === ""
-            : String(d.AP).trim() === String(selectedAP).trim()
-          )
-          &&
-          Number(d.Annee)>=2020 &&
-          Number(d.Annee)<=2030
-        );   
-      
-        const unique = lignes.reduce((acc:any[], item:any)=>{      
-          const existe = acc.find(
-            x=>x.annee===Number(item.Annee)
-          );
-      
-          if(!existe){
-
-            const reduction = 
-            item.Reduction === null ||
-            item.Reduction === undefined ||
-            item.Reduction === ""
-            ? 0
-            : Number(item.Reduction);
-          
-          
-          acc.push({
-            annee:Number(item.Annee),
-          
-            valeur:
-              reduction * -1,
-          
-            cible:-25
-          });
-          
-          }
-      
-          return acc;
-      
-        },[]);
-      
-      
-        return unique.sort(
-          (a,b)=>a.annee-b.annee
-        );
-      
-      
-      },[
-       tableauVirtuel,
-       selectedAP
-      ]);
-
-      console.log("selectedAP =", selectedAP);
-      console.log("selectedYear =", selectedYear);
-      console.log("tableauVirtuel =", tableauVirtuel);
-      console.log("DONUT KPI =", donutKPI);
-      console.log("Evolution graph =", evolution);
-      
-  
-
-  const VALID_ANTENNES = ["Tanà","Amoron'i Mania", "Boeny", "Diana", "Atsimo-Atsinanana", "Anosy"];
-
-  const antennes = useMemo(() => {
-    if (!regionsData?.features) return [];
-
-    return VALID_ANTENNES.filter(a =>
-      regionsData.features.some(f => f.properties?.antenne === a)
-    );
-  }, [regionsData]);
-
-  const showAll = selectedAntenne === "";
-
-    const [aireProtegeeData, setAireProtegeeData] = useState(null);
-
-      useEffect(() => {
-        fetch("/data/aire_protegee_paddi.geojson")
-          .then((r) => r.json())
-          .then(setAireProtegeeData)
-          .catch(console.error);
-      }, []);
-
-
-  const dashboard = useMemo(
-    () => ({
-      progression: 68,
-    }),
-    [data]
+  const donutKPI = useMemo(
+    () =>
+      tableauVirtuel.find(
+        (d) => String(d.AP).trim() === String(selectedAP).trim() && Number(d.Annee) === Number(selectedYear)
+      ) ?? { Baseline: 0, Objectif2030: 0, Superficie: 0, Variation: 0, Reduction: 0, TauxAtteinte2030: 0, EcartCible: 0 },
+    [tableauVirtuel, selectedAP, selectedYear]
   );
 
-  const regionsFiltrees = useMemo(() => {
-    if (!regionsData?.features) return [];
-  
-    return selectedAntenne === ""
-      ? regionsData.features.filter(f => f.properties?.actif)
-      : regionsData.features.filter(
-          f => f.properties?.actif &&
-               f.properties?.antenne === selectedAntenne
-        );
-  }, [regionsData, selectedAntenne]);
+  const evolution = useMemo(
+    () =>
+      tableauVirtuel
+        .filter((d) => String(d.AP).trim() === String(selectedAP).trim())
+        .map((d) => ({ annee: Number(d.Annee), valeur: d.HasData ? -d.Reduction : null, cible: -25 }))
+        .sort((a, b) => a.annee - b.annee),
+    [tableauVirtuel, selectedAP]
+  );
 
-  const norm = (v) => (v || "").toString().trim();
+  const comparisonData = useMemo(
+    () =>
+      ANNEES.map((an) => {
+        const ligne: any = { annee: an };
+        tableauVirtuel
+          .filter((d) => Number(d.Annee) === an && d.AP !== '' && d.HasData)
+          .forEach((d) => {
+            const code = AP_CODE[d.AP];
+            if (code) ligne[code] = Number(d.Variation ?? 0);
+          });
+        return ligne;
+      }),
+    [tableauVirtuel]
+  );
+
+  /* ---------- Filtres géographiques ---------- */
+  const antennes = useMemo(
+    () =>
+      regionsData?.features
+        ? VALID_ANTENNES.filter((a) => regionsData.features.some((f: any) => f.properties?.antenne === a))
+        : [],
+    [regionsData]
+  );
 
   const geoFiltered = useMemo(() => {
     if (!regionsData?.features) return null;
-  
-    const features = regionsData.features.filter(f => {
-      if (!f.properties?.actif) return false;
-    
-      if (!selectedAntenne) return true;
-    
-      return f.properties?.antenne === selectedAntenne;
-    });
-  
     return {
-      type: "FeatureCollection",
-      features,
+      type: 'FeatureCollection',
+      features: regionsData.features.filter(
+        (f: any) => f.properties?.actif && (!selectedAntenne || f.properties?.antenne === selectedAntenne)
+      ),
     };
   }, [regionsData, selectedAntenne]);
 
-  const getColorByAntenne = (antenne) => {
-    switch (antenne) {
-      case "Tanà":
-        return "#16a34a";
-      case "Boeny":
-        return "#2563eb";
-      case "Atsimo-Atsinanana":
-        return "#f59e0b";
-      case "Diana":
-        return "#ef4444";
-      case "Anosy":
-        return "#8b5cf6";
-      default:
-        return "#64748b";
-    }
-  };
-
-
   const aireProtegeeFiltered = useMemo(() => {
     if (!aireProtegeeData?.features) return null;
-  
     return {
-      type: "FeatureCollection",
-      features: aireProtegeeData.features.filter(f => {
-        const matchRegion =
-          !selectedRegion ||
-          selectedRegion === "Toutes les régions" ||
-          f.properties?.region === selectedRegion;
-  
-        const matchAntenne =
-          !selectedAntenne ||
-          f.properties?.antenne === selectedAntenne;
-  
-        const matchAP =
-          !selectedAP ||
-          f.properties?.nom_ap === selectedAP;
-  
-        return matchRegion && matchAntenne && matchAP;
-      }),
+      type: 'FeatureCollection',
+      features: aireProtegeeData.features.filter(
+        (f: any) =>
+          (!selectedAntenne || f.properties?.antenne === selectedAntenne) &&
+          (!selectedAP || f.properties?.nom_ap === selectedAP)
+      ),
     };
-  }, [aireProtegeeData, selectedRegion, selectedAntenne, selectedAP]);
-
-  console.log("features:", regionsData?.features);
-  console.log("antennes:", antennes);
-
-  const evolutionWithTarget = evolution.map(d => ({
-    ...d,
-    cible: -25,
-  }));
-
-  const regions = [
-    { name: 'MDA', v: -5 },
-    { name: 'ANK', v: -12 },
-    { name: 'ANL', v: -18 },
-    { name: 'AKF', v: -20 },
-    { name: 'ADH', v: -25 },
-    { name: 'MDS', v: -32 },
-    { name: 'MLB', v: -38 },
-  ];
-
-  const COLORS = ['#16a34a', '#22c55e', '#84cc16', '#f59e0b', '#ef4444', '#9333ea', '#2563eb'];
-
-  const kpiValue = donutKPI.TauxAtteinte2030 ?? 0;
-  const ecartCible = donutKPI.EcartCible ?? 0;
-  const variation = Number(donutKPI?.Variation ?? 0);
-
-console.log("kpiValue =", kpiValue);
-
-const dataDonut = [
-  {
-    name: "atteint",
-    value: kpiValue
-  },
-  {
-    name: "reste",
-    value: Math.max(0, 100 - kpiValue)
-  }
-];
-
-
-const donutColor =
-  variation <= -25
-    ? "#2563eb"
-    : variation <= -15
-    ? "#16a34a"
-    : variation <= -5
-    ? "#f59e0b"
-    : "#dc2626";
-
-
-const restColor = "#e5e7eb";
-
-const formatHa = (value:number) => {
-  const ha = Number(value ?? 0);
-
-  return ha
-    .toLocaleString("fr-FR", {
-      minimumFractionDigits: 1,
-      maximumFractionDigits: 1
-    }) + " ha";
-};
-
-
-const apCode: Record<string, string> = {
-  "Montagne d'Ambre": "MDA",
-  "Ankarana": "ANK",
-  "Analamerana": "ANLM",
-  "Ankarafantsika": "AKF",
-  "Andohahela": "ADH",
-  "Befotaka-Midongy": "MDS",
-  "Marolambo": "MLB"
-};
-
-const comparisonData = useMemo(() => {
-  if (!tableauVirtuel.length) return [];
-
-  const annees = [2020,2021,2022,2023,2024,2025,2026,2027,2028,2029,2030];
-  return annees.map(an => {
-
-    const ligne:any = {
-      annee: an
-    };
-    tableauVirtuel
-      .filter(d =>
-        Number(d.Annee) === an &&
-        d.AP !== "Toutes"
-      )
-      .forEach(d => {
-
-        console.log(
-          d.AP,
-          "=>",
-          apCode[d.AP]
-        );
-
-        const code = apCode[d.AP];
-
-              if(code){
-
-                ligne[code] =
-                  Number(d.Variation ?? 0);
-              }
-      });
-
-    return ligne;
-
-  });
-},[
- tableauVirtuel
-]);
-
-console.log("comparisonData =", comparisonData);
-console.log("AP disponibles =", [...new Set(tableauVirtuel.map(d => d.AP))]);
-
-
-  const filteredData = useMemo(() => {
-    if (!data?.features) return null;
-  
-    return {
-      type: "FeatureCollection",
-      features: data.features.filter(f => {
-  
-        const matchRegion =
-          !selectedRegion ||
-          selectedRegion === "Toutes les régions" ||
-          f.properties?.region === selectedRegion;
-  
-        const matchAP =
-          !selectedAP ||
-          selectedAP === "Toutes les aires protégées" ||
-          f.properties?.nom_ap === selectedAP;
-  
-        const matchYear =
-          !selectedYear ||
-          f.properties?.annee === selectedYear;
-  
-        return matchRegion && matchAP && matchYear;
-      })
-    };
-  }, [data, selectedRegion, selectedAP, selectedYear]);
+  }, [aireProtegeeData, selectedAntenne, selectedAP]);
 
   const apList = useMemo(() => {
     if (!aireProtegeeData?.features) return [];
-  
     return aireProtegeeData.features
-      .filter(f => {
-        const matchRegion =
-          !selectedRegion ||
-          selectedRegion === "Toutes les régions" ||
-          f.properties?.region === selectedRegion;
-  
-        const matchAntenne =
-          !selectedAntenne ||
-          f.properties?.antenne === selectedAntenne;
-  
-        return matchRegion && matchAntenne;
-      })
-      .map(f => f.properties?.nom_ap)
+      .filter((f: any) => !selectedAntenne || f.properties?.antenne === selectedAntenne)
+      .map((f: any) => f.properties?.nom_ap)
       .filter(Boolean);
-  }, [aireProtegeeData, selectedRegion, selectedAntenne]);
+  }, [aireProtegeeData, selectedAntenne]);
 
+  // Styles stables (évite de recréer les couches Leaflet à chaque rendu)
+  const styleRegion = useMemo(
+    () => (f: any) => ({ color: '#fff', weight: 1, fillColor: getColorByAntenne(f.properties?.antenne), fillOpacity: 0.6 }),
+    []
+  );
+  const styleAP = useMemo(() => ({ color: '#fff', weight: 0.8, fillColor: '#22c55e', fillOpacity: 0.35 }), []);
 
+  const changeAntenne = (v: string) => { setSelectedAntenne(v); setSelectedAP(''); };
+  const filtresModifies = selectedYear !== DEFAULT_YEAR || !!selectedAntenne || !!selectedAP;
+  const resetFilters = () => { setSelectedYear(DEFAULT_YEAR); setSelectedAntenne(''); setSelectedAP(''); };
+
+  /* ---------- Valeurs d'affichage ---------- */
+  const kpiValue = donutKPI.TauxAtteinte2030 ?? 0;
+  const ecartCible = donutKPI.EcartCible ?? 0;
+  const variation = Number(donutKPI.Variation ?? 0);
+  const donutColor = variation <= -25 ? '#2563eb' : variation <= -15 ? '#16a34a' : variation <= -5 ? '#f59e0b' : '#dc2626';
+  const dataDonut = [{ name: 'atteint', value: kpiValue }, { name: 'reste', value: Math.max(0, 100 - kpiValue) }];
+  const portee = selectedAP || selectedAntenne || t.allRegions;
+  const toggleSerie = (code: string) =>
+    setHidden((h) => (h.includes(code) ? h.filter((x) => x !== code) : [...h, code]));
+
+  /* =====================================================================
+     RENDU
+     ===================================================================== */
   return (
-    <div style={styles.container}>
+    <div className="sb">
+      <style>{CSS}</style>
 
-      {/* ================= HEADER ================= */}
-      <div style={styles.header}>
-            {/* LEFT */}
-            <h2 style={styles.title}>
-              {t.pageTitle}
-            </h2>
-            {/* RIGHT */}
-            <div style={styles.filterRow}>
-                <div style={styles.filterBlock}>
-                  <div style={styles.filterLabel}>
-                      <Calendar size={14} /> {t.year}
-                  </div>
-                  <select
-                    style={styles.select}
-                    value={selectedYear}
-                    onChange={(e) => setSelectedYear(Number(e.target.value))}
-                  >
-                    <option value={2020}>2020</option>
-                    <option value={2021}>2021</option>
-                    <option value={2022}>2022</option>
-                    <option value={2023}>2023</option>
-                    <option value={2024}>2024</option>
-                    <option value={2025}>2025</option>
-                    <option value={2026}>2026</option>
-                    <option value={2027}>2027</option>
-                    <option value={2028}>2028</option>
-                    <option value={2029}>2029</option>
-                    <option value={2030}>2030</option>
-                  </select>
-                </div>
-            <div style={styles.filterBlock}>
-                <div style={styles.filterLabel}>
-                    <MapPin size={14} /> {t.region}
-                </div>
-                  <select
-                    style={styles.select}
-                    value={selectedAntenne}
-                    onChange={(e) => setSelectedAntenne(e.target.value)}
-                  >
-                    <option value="">{t.allRegions}</option>
-
-                    {antennes?.length > 0 &&
-                      antennes.map((antenne) => (
-                        <option key={antenne} value={antenne}>
-                          {antenne}
-                        </option>
-                      ))}
-                  </select>
+      {/* ============ EN-TÊTE + FILTRES (même structure que Pression) ============ */}
+      <header className="sb-top">
+        <div className="sb-top-ligne">
+          <div className="sb-marque">
+            <div className="sb-logo" aria-hidden="true"><Flame size={20} /></div>
+            <div>
+              <h1 className="sb-titre">{t.pageTitle}</h1>
+              <p className="sb-sous">{t.pageSub}</p>
             </div>
-            <div style={styles.filterBlock}>
-                <div style={styles.filterLabel}>
-                    <Landmark size={14} /> {t.protectedArea}
-                </div>
-                <select
-                  style={styles.select}
-                  value={selectedAP}
-                  onChange={(e) => {
-                    const value = e.target.value;
-
-                    if (value === "") {
-                      // RESET GLOBAL
-                      setSelectedAP("");
-                      setSelectedRegion("");
-                      setSelectedAntenne("");
-                    } else {
-                      setSelectedAP(value);
-                    }
-                  }}
-                >
-                  <option value="">{t.allProtectedAreas}</option>
-
-                  {apList.map((ap, idx) => (
-                    <option key={idx} value={ap}>
-                      {ap}
-                    </option>
-                  ))}
-                </select>
-            </div>
-
-            <button style={styles.button} onClick={resetFilters}>
-            {t.reset}
-            </button>
-      </div>
-      </div>
-
-      <div style={styles.banner}>
-        <Target size={28} color="#16a34a" />
-        {t.indicator}
-      </div>
-
-      {/* ================= KPI + LINE + MAP ================= */}
-<div style={styles.gridTop}>
-
-{/* KPI DONUT */}
-<div style={styles.cardLarge}>
-  <div style={styles.cardTitle}>
-    {t.targetRate}
-  </div>
-
-  <ResponsiveContainer width="100%" height={200}>
-    <PieChart>
-      <Pie
-        data={dataDonut}
-        innerRadius={60}
-        outerRadius={90}
-        startAngle={90}
-        endAngle={-270}
-        dataKey="value"
-        stroke="none"
-      >
-        <Cell fill={donutColor} />
-        <Cell fill={restColor} />
-      </Pie>
-    </PieChart>
-  </ResponsiveContainer>
-
-  {/* TEXTE CENTRÉ DANS LE DONUT */}
-  <div style={styles.kpiCenterOverlay}>
-  <div
-      style={{
-        ...styles.kpiValue,
-        color: donutColor,
-        fontSize: "24px"
-      }}
-      >
-        {Number(kpiValue)
-          .toFixed(1)
-          .replace(".", ",")}%
-      </div>
-      <div
-      style={{
-        ...styles.kpiSubtitle,
-        fontSize:"12px"
-      }}
-      >
-        {t.targetReached}
-      </div>
-      {
-        ecartCible !== 0 &&
-        (
-          <div
-          style={{
-            fontSize:"12px",
-            fontWeight:600,
-            marginTop:3,
-            color:
-              ecartCible > 0
-              ? "#2563eb"
-              : "#dc2626"
-          }}
-          >
-          {
-            ecartCible > 0
-              ? `+${ecartCible.toFixed(1).replace(".", ",")}% ${t.ahead}`
-              : `${Math.abs(ecartCible).toFixed(1).replace(".", ",")}% ${t.delay}`
-          }
           </div>
-        )
-      }
-    </div>
+        </div>
 
-  {/* TABLEAU SYNTHÈSE SOUS LE DONUT */}
+        <div className="sb-filtres">
+          <label className="sb-champ">
+            <span><Calendar size={13} /> {t.year}</span>
+            <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+              {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </label>
 
-<div
-  style={{
-    width:"100%",
-    marginTop:-25,
-    border:"1px solid #e5e7eb",
-    borderRadius:6,
-    overflow:"hidden",
-    fontSize:13
-  }}
->
+          <label className="sb-champ">
+            <span><MapPin size={13} /> {t.region}</span>
+            <select value={selectedAntenne} onChange={(e) => changeAntenne(e.target.value)}>
+              <option value="">{t.allRegions}</option>
+              {antennes.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </label>
 
-  <div style={styles.tableRow}>
-    <span>
-      {t.reference}
-    </span>
+          <label className="sb-champ">
+            <span><Landmark size={13} /> {t.protectedArea}</span>
+            <select value={selectedAP} onChange={(e) => setSelectedAP(e.target.value)}>
+              <option value="">{t.allProtectedAreas}</option>
+              {apList.map((ap: string) => <option key={ap} value={ap}>{ap}</option>)}
+            </select>
+          </label>
 
-    <strong>
-      {formatHa(donutKPI.Baseline)}
-    </strong>
-  </div>
+          {filtresModifies && (
+            <button className="sb-reset" onClick={resetFilters}>
+              <RotateCcw size={13} /> {t.reset}
+            </button>
+          )}
+        </div>
+      </header>
 
+      {/* ============ CORPS : panneau à gauche, carte pleine hauteur à droite ============ */}
+      <div className="sb-body">
+        <aside className="sb-panel">
+          <div className="sb-banner">
+            <Target size={22} color="#16a34a" style={{ flex: 'none' }} />
+            <p>{t.indicator}</p>
+          </div>
 
-  <div style={styles.tableRow}>
-    <span>
-      {t.burnedArea} {selectedYear}
-    </span>
+          {/* KPI : donut + synthèse */}
+          <section className="sb-carte">
+            <h2>{t.targetRate}</h2>
+            <p className="sb-note">{portee} · {selectedYear}</p>
+            <div className="sb-kpi">
+              <div className="sb-donut">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={dataDonut} innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270}
+                         dataKey="value" stroke="none" isAnimationActive={false}>
+                      <Cell fill={donutColor} />
+                      <Cell fill="#e5e7eb" />
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="sb-donut-centre">
+                  <strong style={{ color: donutColor }}>{fr1(kpiValue)} %</strong>
+                  <span>{t.targetReached}</span>
+                  {ecartCible !== 0 && (
+                    <em style={{ color: ecartCible > 0 ? '#2563eb' : '#dc2626' }}>
+                      {ecartCible > 0 ? `+${fr1(ecartCible)} % ${t.ahead}` : `${fr1(Math.abs(ecartCible))} % ${t.delay}`}
+                    </em>
+                  )}
+                </div>
+              </div>
 
-    <strong>
-      {formatHa(donutKPI.Superficie)}
-    </strong>
-  </div>
+              <dl className="sb-stats">
+                <div><dt>{t.reference}</dt><dd>{formatHa(donutKPI.Baseline)}</dd></div>
+                <div><dt>{t.burnedArea} {selectedYear}</dt><dd>{formatHa(donutKPI.Superficie)}</dd></div>
+                <div>
+                  <dt>{t.variation}</dt>
+                  <dd style={{ color: variation <= 0 ? '#16a34a' : '#dc2626' }}>{fr1(variation)} %</dd>
+                </div>
+                <div><dt>{t.objective2030}</dt><dd>{formatHa(donutKPI.Objectif2030)}</dd></div>
+              </dl>
+            </div>
+          </section>
 
-
-  <div style={styles.tableRow}>
-    <span>
-    {t.variation}
-    </span>
-
-    <strong
-      style={{
-        color:
-          Number(donutKPI.Variation ?? 0) <= 0
-          ? "#16a34a"
-          : "#dc2626"
-      }}
-    >
-      {Number(donutKPI.Variation ?? 0)
-      .toFixed(1)
-      .replace(".",",")} %
-    </strong>
-  </div>
-
-
-  <div style={styles.tableRow}>
-    <span>
-    {t.objective2030}
-    </span>
-
-    <strong>
-    {formatHa(donutKPI.Objectif2030)}
-    </strong>
-  </div>
-
-</div>
-</div>
-
-{/* LINE CHART */}
-<div style={styles.cardLarge}>
-  <div style={styles.cardTitle}>
-  {t.annualEvolution}
-  </div>
-
-  <div style={{ fontSize: 12, color: '#6b7280', textAlign: "center", marginBottom: 8 }}>
-    {t.annualSubtitle}
-  </div>
-
-  <ResponsiveContainer width="100%" height={300}>
-    <LineChart
-      data={evolution}
-      margin={{ top: 20, right: 50, left: 0, bottom: 0 }}
-    >
-
-      <CartesianGrid strokeDasharray="3 3" />
-
-      {/* AXE X */}
-      <XAxis
-        dataKey="annee"
-        tick={{ fontSize: 11 }}
-        padding={{ left: 20, right: 20 }}
-      />
-
-      {/* AXE Y FIXE */}
-      <YAxis
-        domain={[-30,0]}
-        ticks={[
-          0,
-          -5,
-          -10,
-          -15,
-          -20,
-          -25,
-          -30
-        ]}
-        tick={{ fontSize: 11 }}
-      />
-
-      <Tooltip
-      formatter={(v:number)=>
-        `${Number(v)
-        .toFixed(1)
-        .replace(".",",")}%`
-      }
-      />
-
-      {/* LIGNE OBJECTIF -25% */}
-      <ReferenceLine
-        y={-25}
-        stroke="#16a34a"
-        strokeDasharray="5 5"
-        label={{
-          value: t.targetLine,
-          position: "insideLeft",
-          fill: "red",
-          fontSize: 11
-        }}
-      />
-
-      {/* COURBE */}
-      <Line
-  type="monotone"
-  dataKey="valeur"
-  name={t.burnedVariation}
-  stroke="#16a34a"
-  strokeWidth={2}
-  dot={{ r: 3 }}
-  connectNulls={false}
-  label={({ x, y, value }) => {
-
-    if (
-      value === null ||
-      value === undefined ||
-      Number(value) === 0
-    ) {
-      return null;
-    }
-
-    return (
-      <text
-        x={x}
-        y={y - 8}
-        fontSize={10}
-        fontWeight={700}
-        fill="#111827"
-        textAnchor="middle"
-      >
-        {Number(value)
-          .toFixed(1)
-          .replace(".",",")}%
-      </text>
-    );
-  }}
-/>
-
-      {/* LÉGENDE */}
-      <Legend
-        verticalAlign="bottom"
-        iconType="line"
-        wrapperStyle={{ fontSize: 11 }}
-      />
-
-    </LineChart>
-</ResponsiveContainer>
-</div>
-
-{/* MAP */}
-<div style={styles.cardLarge}>
-  <div style={styles.cardTitle}>
-      {t.mapTitle} ({selectedYear})
-  </div>
-
-  <div style={styles.mapBox}>
-          <MapContainer
-              center={[-18.8792, 47.5079]}
-              zoom={6}
-              style={{ width: "100%", height: "100%", minHeight: "320px" }}
-            >
-              <TileLayer
-                attribution="© ESRI"
-                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}"
-              />
-              <ScaleControl position="bottomleft" imperial={false} />
-
-              {geoFiltered?.features?.length > 0 && (
-                <>
-                  <RegionLayer
-                    key={`${selectedAntenne}-${geoFiltered?.features?.length}`}
-                    data={geoFiltered}
-                    getColorByAntenne={getColorByAntenne}
+          {/* Évolution */}
+          <section className="sb-carte">
+            <h2>{t.annualEvolution}</h2>
+            <p className="sb-note">{t.annualSubtitle}</p>
+            <div className="sb-graph">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={evolution} margin={{ top: 18, right: 24, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11 }} padding={{ left: 12, right: 12 }} />
+                  <YAxis
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) => `${v}%`}
+                    domain={[
+                      (m: number) => Math.floor(Math.min(m, -30) / 5) * 5,
+                      (m: number) => Math.ceil(Math.max(m, 0) / 5) * 5,
+                    ]}
                   />
+                  <Tooltip formatter={(v: any) => `${fr1(v)} %`} labelFormatter={(l) => `${t.year} ${l}`} />
+                  <ReferenceLine y={-25} stroke="#16a34a" strokeDasharray="5 5"
+                    label={{ value: t.targetLine, position: 'insideBottomLeft', fill: '#15803d', fontSize: 11 }} />
+                  <Line type="monotone" dataKey="valeur" name={t.burnedVariation} stroke="#c80f0f"
+                        strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls={false}
+                        label={({ x, y, value }: any) =>
+                          value == null || Number(value) === 0 ? null : (
+                            <text x={x} y={y - 9} fontSize={10} fontWeight={700} fill="#111827" textAnchor="middle">
+                              {fr1(value)}%
+                            </text>
+                          )} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
 
-                {aireProtegeeFiltered?.features?.length > 0 && (
-                  <AireProtegeeLayer
-                  key={`${selectedAntenne}-ap`}
-                  data={aireProtegeeFiltered}
-                  selectedAntenne={selectedAntenne}
-                />
-                )}
-<APZoom data={aireProtegeeFiltered} selectedAP={selectedAP} />
-                  <AutoZoom geoData={geoFiltered} />
-                </>
-              )}
+          {/* Comparaison des 7 AP, légende cliquable */}
+          <section className="sb-carte">
+            <h2>{t.comparison}</h2>
+            <p className="sb-note">{t.comparisonHint}</p>
+            <div className="sb-chips">
+              {AP_LIST.map((a) => (
+                <button key={a.code} title={a.nom}
+                        className={`sb-chip ${hidden.includes(a.code) ? 'off' : ''}`}
+                        onClick={() => toggleSerie(a.code)}>
+                  <i style={{ background: a.color }} />
+                  <b>{a.code}</b> {a.nom}
+                </button>
+              ))}
+            </div>
+            <div className="sb-graph sb-graph-grand">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={comparisonData} margin={{ top: 10, right: 24, left: -8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11 }} padding={{ left: 12, right: 12 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v)}%`} domain={['auto', 'auto']}>
+                    <Label value="Variation (%)" angle={-90} position="insideLeft"
+                           style={{ textAnchor: 'middle', fontSize: 11, fontWeight: 600, fill: '#475569' }} />
+                  </YAxis>
+                  <Tooltip formatter={(v: any) => `${fr1(v)} %`} labelFormatter={(l) => `${t.year} ${l}`} />
+                  <ReferenceLine y={-25} stroke="#dc2626" strokeDasharray="5 5"
+                    label={{ value: t.targetLine, position: 'insideBottomLeft', fill: '#dc2626', fontSize: 11 }} />
+                  {AP_LIST.filter((a) => !hidden.includes(a.code)).map((a) => (
+                    <Line key={a.code} dataKey={a.code} type="monotone" stroke={a.color} strokeWidth={2}
+                          name={`${a.nom} (${a.code})`} dot={{ r: 2 }} activeDot={{ r: 5 }} connectNulls />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </section>
 
-              <LegendControl
-                antennes={antennes}
-                getColorByAntenne={getColorByAntenne}
-                t={t}
-              />
-            </MapContainer>
+          <a className="sb-footer"
+             href="https://gizonline.sharepoint.com/:x:/r/sites/PADDIwithguests-01SEetSIG/Freigegebene%20Dokumente/Equipe%20Technique/03.%20Op%C3%A9rations/R%C3%A9alisation%20PO%20(par%20unit%C3%A9)/UCT%20Tan%C3%A0/Composante%200/SIG/2025-10-06_Tableau_de_Bord_Feux/TB_et_BDD/Tableau_de_Bord_PADDI.xlsx?d=w35ed3c1299264334a65aa1d2729d3042&csf=1&web=1&e=pze1XJ"
+             target="_blank" rel="noreferrer">
+            <FileSpreadsheet size={18} color="#16a34a" />
+            <span>{t.footer}</span>
+            <strong>{t.dashboard}</strong>
+          </a>
+        </aside>
+
+        {/* ---------- CARTE : toute la hauteur à droite ---------- */}
+        <main className="sb-map">
+          <MapContainer bounds={MADAGASCAR} zoomControl={false} style={{ height: '100%', width: '100%' }}>
+            <TileLayer key={fond} url={FONDS[fond].url} attribution="© Esri" />
+            <ScaleControl position="bottomleft" imperial={false} />
+            <ZoomControl position="bottomright" />
+            <Redimension />
+            {geoFiltered?.features?.length ? (
+              <>
+                <GeoLayer key={`r-${selectedAntenne}`} data={geoFiltered} style={styleRegion} />
+                {aireProtegeeFiltered?.features?.length ? (
+                  <GeoLayer key={`ap-${selectedAntenne}-${selectedAP}`} data={aireProtegeeFiltered}
+                            style={styleAP} labels={!!selectedAntenne || !!selectedAP} />
+                ) : null}
+                <FocusCarte geoData={geoFiltered} apData={aireProtegeeFiltered} selectedAP={selectedAP} />
+              </>
+            ) : null}
+          </MapContainer>
+
+          <div className="sb-map-titre">{t.mapTitle} ({selectedYear})</div>
+
+          <div className="sb-outils" role="group" aria-label={t.basemap}>
+            <button className={fond === 'topo' ? 'on' : ''} onClick={() => setFond('topo')}>{t.topo}</button>
+            <button className={fond === 'sat' ? 'on' : ''} onClick={() => setFond('sat')}>{t.sat}</button>
+          </div>
+
+          <div className="sb-legende">
+            <strong>{t.legend}</strong>
+            <div><i className="carre" style={{ background: 'rgba(34,197,94,.45)', border: '1px solid #15803d' }} />{t.protectedLegend}</div>
+            {Object.entries(COULEUR_ANTENNE)
+              .filter(([a]) => !selectedAntenne || a === selectedAntenne)
+              .map(([a, c]) => (
+                <div key={a}><i className="carre" style={{ background: c, opacity: 0.7 }} />{a}</div>
+              ))}
+          </div>
+        </main>
       </div>
     </div>
-
-  </div>
-
-{/* ================= REPARTITION (BAR STYLE LIKE IMAGE) ================= */}
-<div style={styles.gridComparison}>
-  
-  {/* GRAPHIQUE */}
-  <div style={styles.cardLarge}>
-    <div style={styles.cardTitle}>
-       {t.comparison}
-    </div>
-
-    <ResponsiveContainer width="100%" height={360}>
-      <LineChart data={comparisonData}>
-        <CartesianGrid strokeDasharray="3 3" />
-
-        <XAxis
-          dataKey="annee"
-          type="category"
-          padding={{ left: 20, right: 20 }}
-        />
-        <YAxis
-  domain={['dataMin', 'dataMax + 20']}
-  tick={{ fontSize: 11 }}
-  tickFormatter={(value) =>
-    `${Number(value).toFixed(1).replace(".", ",")}%`
-  }
->
-  <Label
-    value="Variation (%)"
-    angle={-90}
-    position="insideLeft"
-    style={{
-      textAnchor: 'middle',
-      fontSize: 12,
-      fontWeight: 600,
-      fill: '#374151',
-    }}
-  />
-</YAxis>
-
-        <Tooltip
-          formatter={(value:number)=>
-            `${Number(value)
-            .toFixed(1)
-            .replace(".",",")}%`
-          }
-          />
-
-        {/* 7 COURBES */}
-        <Line dataKey="MDA" type="natural" stroke="#16a34a" strokeWidth={2} name="Montagne d’Ambre (MDA)" dot={{ r: 2 }} activeDot={{ r: 5 }} 
-        />
-        <Line dataKey="ANK" type="natural" stroke="#22c55e" strokeWidth={2} name="Ankarana (ANK)" dot={{ r: 2 }}  activeDot={{ r: 5 }} 
-        />
-        <Line dataKey="ANLM" type="natural" stroke="#84cc16" strokeWidth={2} name="Analamerana (ANLM)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
-        />
-        <Line dataKey="AKF" type="natural" stroke="#f59e0b" strokeWidth={2} name="Ankarafantsika (AKF)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
-        />
-        <Line dataKey="ADH" type="natural" stroke="#ef4444" strokeWidth={2} name="Andohahela (ADH)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
-        />
-        <Line dataKey="MDS" type="natural" stroke="#9333ea" strokeWidth={2} name="Midongy du Sud (MDS)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
-        />
-        <Line dataKey="MLB" type="natural" stroke="#2563eb" strokeWidth={2} name="Marolambo (MLB)" dot={{ r: 2 }}  activeDot={{ r: 5 }}
-        />
-
-            <ReferenceLine
-            y={-25}
-            stroke="#dc2626"
-            strokeDasharray="5 5"
-            label={{
-              value:"Objectif 2030 : -25%",
-              position:"insideLeft",
-              fill:"#dc2626",
-              fontSize:11
-            }}
-            />
-
-      </LineChart>
-    </ResponsiveContainer>
-  </div>
-
-  {/* LÉGENDES À DROITE */}
-  <div style={styles.card}>
-    <div style={styles.cardTitle}>{t.legends}</div>
-
-    <div style={styles.mapLegend}>
-
-        <div style={styles.mapLegendTitle}>
-            {t.burnedLegend}
-        </div>
-
-        <div style={styles.mapLegendItem}>
-          <span
-            style={{
-              ...styles.mapLegendColor,
-              background: '#fef3c7',
-            }}
-          />
-          0 - 100
-        </div>
-
-        <div style={styles.mapLegendItem}>
-          <span
-            style={{
-              ...styles.mapLegendColor,
-              background: '#fcd34d',
-            }}
-          />
-          100 - 500
-        </div>
-
-        <div style={styles.mapLegendItem}>
-          <span
-            style={{
-              ...styles.mapLegendColor,
-              background: '#fb923c',
-            }}
-          />
-          500 - 1 000
-        </div>
-
-        <div style={styles.mapLegendItem}>
-          <span
-            style={{
-              ...styles.mapLegendColor,
-              background: '#ef4444',
-            }}
-          />
-          1 000 - 5 000
-        </div>
-
-        <div style={styles.mapLegendItem}>
-          <span
-            style={{
-              ...styles.mapLegendColor,
-              background: '#b91c1c',
-            }}
-          />
-          &gt; 5 000
-        </div>
-
-        <div style={{ height: 12 }} />
-
-        <div style={styles.mapLegendItem}>
-          <span
-            style={{
-              ...styles.mapLegendColor,
-              background: '#16a34a',
-            }}
-          />
-          {t.protectedLegend}
-        </div>
-      </div>
-
-    <div style={styles.legendBox}>
-
-        <div style={styles.legendItem}>
-          <span
-            style={{
-              ...styles.legendLine,
-              borderColor: '#16a34a',
-            }}
-          />
-          MDA - Montagne d'Ambre
-        </div>
-
-        <div style={styles.legendItem}>
-          <span
-            style={{
-              ...styles.legendLine,
-              borderColor: '#22c55e',
-            }}
-          />
-          ANK - Ankarana
-        </div>
-
-        <div style={styles.legendItem}>
-          <span
-            style={{
-              ...styles.legendLine,
-              borderColor: '#84cc16',
-            }}
-          />
-          ANLM - Analamerana
-        </div>
-
-        <div style={styles.legendItem}>
-          <span
-            style={{
-              ...styles.legendLine,
-              borderColor: '#f59e0b',
-            }}
-          />
-          AKF - Ankarafantsika
-        </div>
-
-        <div style={styles.legendItem}>
-          <span
-            style={{
-              ...styles.legendLine,
-              borderColor: '#ef4444',
-            }}
-          />
-          ADH - Andohahela
-        </div>
-
-        <div style={styles.legendItem}>
-          <span
-            style={{
-              ...styles.legendLine,
-              borderColor: '#9333ea',
-            }}
-          />
-          MDS - Midongy du Sud
-        </div>
-
-        <div style={styles.legendItem}>
-          <span
-            style={{
-              ...styles.legendLine,
-              borderColor: '#2563eb',
-            }}
-          />
-          MLB - Marolambo
-        </div>
-
-      </div>
-
-      
-  </div>
-
-</div>
-
-{/* ================= FOOTER EXCEL ================= */}
-<div style={styles.footer}>
-<FileSpreadsheet size={18} color="#16a34a" />
-<span>{t.footer}</span>
-<a href="https://gizonline.sharepoint.com/:x:/r/sites/PADDIwithguests-01SEetSIG/Freigegebene%20Dokumente/Equipe%20Technique/03.%20Op%C3%A9rations/R%C3%A9alisation%20PO%20(par%20unit%C3%A9)/UCT%20Tan%C3%A0/Composante%200/SIG/2025-10-06_Tableau_de_Bord_Feux/TB_et_BDD/Tableau_de_Bord_PADDI.xlsx?d=w35ed3c1299264334a65aa1d2729d3042&csf=1&web=1&e=pze1XJ" style={styles.link}>
-{t.dashboard}
-</a>
-</div>
-
-</div>
-);
+  );
 }
 
-/* ================= STYLES ================= */
-const styles: any = {
+/* =====================================================================
+   STYLES (feuille locale : media queries + même palette que Pression)
+   ===================================================================== */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
-    container: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 16,
-    },
-    
-    header: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-    },
-    
-    title: {
-      fontSize: 22,
-      fontWeight: 700,
-    },
-    
-    filters: {
-      display: 'flex',
-      gap: 12,
-      alignItems: 'flex-end',
-    },
-    
-    filterBlock: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 4,
-    },
-    
-    filterLabel: {
-      fontSize: 11,
-      display: 'flex',
-      gap: 5,
-      alignItems: 'center',
-      color: '#374151',
-    },
-    
-    select: {
-      padding: 8,
-      borderRadius: 8,
-      border: '1px solid #ddd',
-    },
-    
-    button: {
-      padding: '8px 12px',
-      background: '#16a34a',
-      color: '#fff',
-      border: 'none',
-      borderRadius: 8,
-      cursor: 'pointer',
-    },
-    
-    gridTop: {
-        display: 'grid',
-        gridTemplateColumns: '0.7fr 1.1fr 1.2fr',
-        gap: 16,
-        alignItems: 'stretch',
-      },
+.sb{
+  --fond-panneau:#f1f4f7; --fond-entete:rgba(255,255,255,.95); --carte:#fff; --ligne:#e2e8f0;
+  --txt:#0f172a; --mut:#64748b; --rouge:rgb(200,15,15); --vert:#166534;
+  --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
+  --corps:'Figtree','Segoe UI',system-ui,sans-serif;
+  height:100%;min-height:100vh;width:100%;display:flex;flex-direction:column;
+  color:var(--txt);font-family:var(--corps);font-size:14px;box-sizing:border-box;
+}
+.sb *{box-sizing:border-box}
+.sb button,.sb select{font-family:inherit}
+.sb button:focus-visible,.sb select:focus-visible,.sb a:focus-visible{outline:2px solid var(--rouge);outline-offset:2px}
 
-      gridComparison: {
-        display: 'grid',
-        gridTemplateColumns: '4fr 0.8fr', // réduit largeur
-        gap: 5,
-      },
-    
-    card: {
-      background: '#fff',
-      padding: 5,
-      borderRadius: 12,
-    },
-    
-    cardLarge: {
-      background: '#fff',
-      padding: 5,
-      borderRadius: 12,
-    },
-    
-    cardBottom: {
-      background: '#fff',
-      padding: 6,
-      borderRadius: 12,
-    },
-    
-    cardTitle: {
-      display: 'flex',
-      gap: 8,
-      alignItems: 'center',
-      textAlign: 'center',
-      justifyContent: 'center',
-      fontWeight: 600,
-      marginBottom: 5,
-      fontSize: 'clamp(11px, 1vw, 14px)',
-    },
-    
-    kpiCenter: {
-      textAlign: 'center',
-      marginTop: 20,
-    },
-    
-    kpiValue: {
-      fontSize: 22,
-      fontWeight: 700,
-    },
-    
-    kpiLabel: {
-      fontSize: 12,
-      opacity: 0.7,
-    },
-    
-    mapBox: {
-      height: 320,
-      background: '#f3f4f6',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 10,
-    },
-    
-    legend: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      marginTop: 10,
-      fontSize: 12,
-    },
-    
-    footer: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 10,
-      padding: 12,
-      background: '#ecfdf5',
-      borderRadius: 10,
-    },
-    
-    link: {
-      marginLeft: 'auto',
-      color: '#16a34a',
-      textDecoration: 'underline',
-      fontWeight: 600,
-    },
+/* ---- En-tête ---- */
+.sb-top{background:var(--fond-entete);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--ligne);padding:12px 18px;position:relative;z-index:20}
+.sb-top-ligne{display:flex;align-items:center;gap:12px}
+.sb-marque{display:flex;align-items:center;gap:12px;min-width:0}
+.sb-logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#fff;flex:none;
+  background:linear-gradient(160deg,rgb(200,15,15),#e8601c)}
+.sb-titre{margin:0;font-family:var(--titre);font-size:clamp(15px,1.5vw,20px);font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.sb-sous{margin:2px 0 0;font-size:12px;color:var(--mut)}
+.sb-filtres{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
+.sb-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sb-champ>span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mut);font-weight:500}
+.sb-champ select{padding:8px 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
+  font-size:13px;min-width:170px;max-width:260px;cursor:pointer}
+.sb-reset{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;
+  border:1px dashed #94a3b8;background:transparent;color:var(--txt);font-size:13px;font-weight:600;cursor:pointer}
+.sb-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
-    filterRow: {
-        display: 'flex',
-        alignItems: 'flex-end',
-        gap: 12,
-        flexWrap: 'nowrap',
-      },
+/* ---- Corps : panneau + carte pleine hauteur ---- */
+.sb-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(420px,50%) 1fr;
+  height:calc(100vh - 130px)}
+.sb-panel{overflow-y:auto;padding:16px;background:var(--fond-panneau);border-right:1px solid var(--ligne);
+  display:flex;flex-direction:column;gap:14px;min-width:0}
+.sb-map{position:relative;min-height:0;min-width:0;isolation:isolate;height:100%}
 
-      kpiCenterOverlay: {
-        position: 'relative',
-        top: -140,
-        textAlign: 'center',
-      },
-      
-      kpiTextBlock: {
-        marginTop: 0,
-        textAlign: 'center',
-        fontSize: 12,
-        color: '#374151',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-      },
-      
-      objectifTitle: {
-        fontWeight: 700,
-        marginBottom: 6,
-      },
-      
-      kpiLine: {
-        fontSize: 11,
-        opacity: 0.85,
-      },
+.sb-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#ecfdf5;
+  border:1px solid #bbf7d0;color:#065f46}
+.sb-banner p{margin:0;font-size:13px;font-weight:600;line-height:1.45}
 
-      banner: {
-        background: '#ecfdf5',
-        borderRadius: 12,
-        padding: '12px 14px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        fontSize: 13,
-        fontWeight: 700,
-        color: '#065f46',
-        lineHeight: 1.4,
-      },
+/* ---- Cartes ---- */
+.sb-carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:16px;min-width:0;
+  box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.sb-carte:nth-of-type(1){border-top:4px solid var(--rouge)}
+.sb-carte:nth-of-type(2){border-top:4px solid #16a34a}
+.sb-carte:nth-of-type(3){border-top:4px solid #2563eb}
+.sb-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;line-height:1.25}
+.sb-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
 
-      legendBox: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 6,
-        fontSize: 11,
-        lineHeight: 1.3,
-      },
+.sb-kpi{display:grid;grid-template-columns:minmax(170px,.9fr) 1.1fr;gap:16px;align-items:center}
+.sb-donut{position:relative;height:200px;max-width:240px;width:100%;margin:0 auto}
+.sb-donut-centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;pointer-events:none;padding:0 22%}
+.sb-donut-centre strong{font-family:var(--titre);font-size:clamp(22px,2.4vw,30px);font-weight:800;line-height:1}
+.sb-donut-centre span{font-size:11.5px;color:var(--mut);margin-top:3px}
+.sb-donut-centre em{font-style:normal;font-size:11.5px;font-weight:700;margin-top:4px}
+.sb-stats{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sb-stats>div{background:#f8fafc;border:1px solid var(--ligne);border-radius:10px;padding:9px 11px;min-width:0}
+.sb-stats dt{font-size:11.5px;color:var(--mut);line-height:1.3}
+.sb-stats dd{margin:3px 0 0;font-family:var(--titre);font-size:clamp(14px,1.3vw,17px);font-weight:700;
+  font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 
-      legendItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        fontSize: 11,
-      },
-      
-      legendLine: {
-        width: 20,
-        height: 0,
-        borderTop: '3px solid',
-        borderRadius: 2,
-      },
+.sb-graph{height:260px;width:100%}
+.sb-graph-grand{height:320px}
 
-      mapLegend: {
-        marginTop: 10,
-        paddingTop: 8,
-      },
-      
-      mapLegendTitle: {
-        fontSize: 12,
-        fontWeight: 700,
-        marginBottom: 10,
-        color: '#374151',
-      },
-      
-      mapLegendItem: {
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        fontSize: 11,
-        marginBottom: 8,
-        color: '#374151',
-      },
-      
-      mapLegendColor: {
-        width: 18,
-        height: 18,
-        borderRadius: 2,
-        flexShrink: 0,
-      },
+.sb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sb-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid #cbd5e1;
+  background:#fff;color:var(--txt);font-size:11.5px;cursor:pointer;max-width:100%}
+.sb-chip b{font-weight:700}
+.sb-chip i{width:10px;height:10px;border-radius:50%;flex:none}
+.sb-chip.off{opacity:.45;text-decoration:line-through;background:#f8fafc}
+.sb-chip:hover{background:#f1f5f9}
 
-      tableRow:{
-        display:"grid",
-        gridTemplateColumns:"1fr auto",
-        padding:"7px 10px",
-        alignItems:"center",
-        borderBottom:"1px solid #f1f5f9"
-      }
-    };
+.sb-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;
+  background:#ecfdf5;color:var(--txt);text-decoration:none;font-size:13px}
+.sb-footer strong{margin-left:auto;color:#15803d;text-decoration:underline}
+
+/* ---- Carte ---- */
+.sb .leaflet-container{background:#e5e7eb;font-family:var(--corps)}
+.sb .sb-ap-label{background:#fff;border:1px solid #94a3b8;border-radius:5px;font-size:12px;font-weight:700;
+  box-shadow:0 2px 8px rgba(0,0,0,.2);padding:3px 7px}
+.sb .sb-ap-label:before{display:none}
+.sb-map-titre{position:absolute;top:12px;left:12px;right:200px;z-index:1000;padding:9px 13px;border-radius:10px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(15,23,42,.15);font-size:12.5px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15);
+  width:fit-content;max-width:calc(100% - 210px)}
+.sb-outils{position:absolute;top:12px;right:12px;z-index:1000;display:flex;border-radius:10px;overflow:hidden;
+  border:1px solid rgba(15,23,42,.18);background:rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.sb-outils button{padding:9px 12px;border:0;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)}
+.sb-outils button+button{border-left:1px solid rgba(15,23,42,.15)}
+.sb-outils button.on{background:var(--rouge);color:#fff}
+.sb-legende{position:absolute;right:12px;bottom:64px;z-index:1000;padding:10px 13px;border-radius:12px;
+  background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(15,23,42,.15);font-size:12px;display:flex;flex-direction:column;gap:6px;
+  box-shadow:0 3px 12px rgba(0,0,0,.15);max-width:200px}
+.sb-legende div{display:flex;align-items:center;gap:8px;color:#334155;font-weight:600}
+.sb-legende .carre{width:14px;height:14px;border-radius:3px;flex:none}
+
+/* ---- Grands écrans ---- */
+@media (min-width:1600px){
+  .sb-body{grid-template-columns:minmax(560px,44%) 1fr}
+  .sb-panel{padding:20px;gap:16px}
+}
+@media (min-width:2200px){
+  .sb{font-size:16px}
+  .sb-body{grid-template-columns:minmax(760px,40%) 1fr}
+  .sb-graph{height:320px}
+}
+
+/* ---- Petits portables ---- */
+@media (max-width:1279px){
+  .sb-body{grid-template-columns:minmax(380px,52%) 1fr}
+  .sb-kpi{grid-template-columns:1fr}
+}
+
+/* ---- Tablette & mobile : carte au-dessus, la page défile ---- */
+@media (max-width:1023px){
+  .sb{min-height:0}
+  .sb-top{position:sticky;top:0}
+  .sb-body{display:flex;flex-direction:column;height:auto;flex:none}
+  .sb-map{order:-1;height:56vh;min-height:320px;flex:none}
+  .sb-panel{overflow:visible;border-right:0}
+  .sb-filtres{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .sb-champ,.sb-reset{flex:none}
+  .sb-kpi{grid-template-columns:minmax(180px,.9fr) 1.1fr}
+}
+@media (max-width:639px){
+  .sb-top{padding:10px 12px}
+  .sb-sous{display:none}
+  .sb-panel{padding:12px;gap:12px}
+  .sb-carte{padding:12px}
+  .sb-kpi{grid-template-columns:1fr}
+  .sb-map{height:48vh}
+  .sb-map-titre{right:12px;top:60px;max-width:calc(100% - 24px);font-size:11.5px}
+  .sb-legende{display:none}
+  .sb-graph{height:230px}
+  .sb-graph-grand{height:280px}
+  .sb-champ select{min-width:140px}
+  .sb-footer strong{margin-left:0}
+}
+@media (max-width:359px){
+  .sb-stats{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){ .sb *{transition:none !important;animation:none !important} }
+`;
