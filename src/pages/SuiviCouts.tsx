@@ -356,7 +356,7 @@ const RESPONSIVE_CSS = `
 .sc-select{font-size:13px}
 
 .sc-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,.9fr);gap:8px;align-items:stretch}
-.sc-bottom{display:grid;grid-template-columns:minmax(0,.55fr) minmax(0,1.15fr) minmax(0,1.9fr);gap:8px;align-items:stretch}
+.sc-bottom{display:grid;grid-template-columns:minmax(0,.55fr) minmax(0,.9fr) minmax(0,2.3fr);gap:8px;align-items:stretch}
 .sc-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.2fr);gap:8px 12px;align-items:center;
   padding:8px 12px;background:#fff;border:1px solid #dbe4f0;border-radius:10px}
 .sc-footer-head{grid-column:1/-1}
@@ -370,21 +370,20 @@ const RESPONSIVE_CSS = `
 
 /* composantes : 2 colonnes, rangées en colonne => C1 sur C2 (bleu) à gauche, C3 sur C4 (vert) à droite */
 .sc-d4{flex:1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,auto);grid-auto-flow:column;gap:6px;padding:6px}
-.sc-d5{flex:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:4px;align-items:stretch}
+.sc-d5{flex:1;display:grid;grid-template-columns:repeat(var(--n,5),minmax(0,1fr));gap:4px;padding:4px;align-items:stretch}
 .sc-donut{container-type:inline-size}
-.sc-two{display:flex;justify-content:space-between;align-items:stretch;gap:6px;width:100%;margin-top:auto;padding-top:8px}
+.sc-two{display:flex;justify-content:space-between;align-items:stretch;gap:4px;width:100%;margin-top:auto;padding-top:8px}
 .sc-two>div{flex:1;min-width:0;text-align:center}
-.sc-sep{width:1px;background:#e2e8f0;flex:none}
+.sc-two>.sc-sep{flex:none;width:1px;background:#cbd5e1}
 
-@container (max-width:639px){.sc-d5{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@container (max-width:479px){.sc-d4{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-flow:row}}
+@container (max-width:699px){.sc-d5{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container (max-width:279px){.sc-d4{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-flow:row}}
 @container (max-width:379px){.sc-d5{grid-template-columns:repeat(2,minmax(0,1fr))}.sc-amount{font-size:10px !important}}
-@container (max-width:139px){.sc-two{flex-direction:column;gap:4px}.sc-sep{width:100%;height:1px}}
 
 @container sc (max-width:1279px){
   .sc-top{grid-template-columns:repeat(2,minmax(0,1fr))}
   .sc-top>:first-child{grid-column:1/-1}
-  .sc-bottom{grid-template-columns:minmax(0,1fr) minmax(0,2fr)}
+  .sc-bottom{grid-template-columns:minmax(0,1fr) minmax(0,1.5fr)}
   .sc-bottom>:last-child{grid-column:1/-1}
 }
 @container sc (max-width:899px){
@@ -475,41 +474,48 @@ function RateCard({ title, color, percent, dec, plan, icon: Icon, labels }: any)
         {Icon && <Icon size={14} color={color} />}
       </div>
 
-      <Ring percent={percent} color={c} />
+      <Ring percent={percent} color={c} size={64} inner={16} outer={28} font={10} />
 
       <div className="sc-two">
         <div>
-          <div style={styles.smallLabel}>{labels.disbursed}</div>
-          <div style={{ ...styles.money, color }}>{formatCompactEuro(dec)}</div>
+          <div style={styles.rateLabel}>{labels.disbursed}</div>
+          <div style={{ ...styles.rateMoney, color }}>{formatCompactEuro(dec)}</div>
         </div>
         <div className="sc-sep" />
         <div>
-          <div style={styles.smallLabel}>{labels.planned}</div>
-          <div style={styles.money}>{formatCompactEuro(plan)}</div>
+          <div style={styles.rateLabel}>{labels.planned}</div>
+          <div style={styles.rateMoney}>{formatCompactEuro(plan)}</div>
         </div>
       </div>
     </div>
   );
 }
 
-/** Carte compacte des composantes : anneau à gauche, titre + montants à droite.
- *  Elle est basse (≈ 90 px) pour que 2 rangées tiennent dans la hauteur des cartes voisines. */
-function CompactRateCard({ title, color, percent, dec, plan, labels }: any) {
-  const c = getProgressColor(percent);
+/** Carte des composantes : titre + % en haut, barre de progression, puis
+ *  « Décaissé » collé au début de la barre et « Planifié » collé à son extrémité droite. */
+function BarRateCard({ title, color, percent, dec, plan, labels }: any) {
+  const p = clampPct(percent);
+  const c = getProgressColor(p);
   return (
-    <div style={{ ...styles.compactCard, border: `1.5px solid ${color}40`, background: `${color}10` }}>
-      <Ring percent={percent} color={c} size={68} inner={18} outer={31} font={10} />
-      <div style={styles.compactBody}>
+    <div style={{ ...styles.barCard, border: `1.5px solid ${color}40`, background: `${color}10` }}>
+      <div style={styles.barCardTop}>
         <div style={{ ...styles.compactTitle, color }}>{title}</div>
-        <div style={styles.compactValues}>
-          <div style={styles.compactValue}>
-            <div style={styles.smallLabel}>{labels.disbursed}</div>
-            <div style={styles.money}>{formatCompactEuro(dec)}</div>
-          </div>
-          <div style={styles.compactValue}>
-            <div style={styles.smallLabel}>{labels.planned}</div>
-            <div style={styles.money}>{formatCompactEuro(plan)}</div>
-          </div>
+        <div style={{ ...styles.barCardPct, color: c }}>{p.toFixed(1)}%</div>
+      </div>
+
+      <div style={styles.barTrack}>
+        <div style={{ ...styles.progressFill, width: `${p}%`, background: c }} />
+      </div>
+
+      <div style={styles.barCardBottom}>
+        <div style={{ flex: 1, minWidth: 0, textAlign: "left" }}>
+          <div style={styles.smallLabel}>{labels.disbursed}</div>
+          <div style={styles.money}>{formatCompactEuro(dec)}</div>
+        </div>
+        <div style={styles.vSep} />
+        <div style={{ flex: 1, minWidth: 0, textAlign: "right" }}>
+          <div style={styles.smallLabel}>{labels.planned}</div>
+          <div style={styles.money}>{formatCompactEuro(plan)}</div>
         </div>
       </div>
     </div>
@@ -631,17 +637,27 @@ export default function SuiviCouts() {
     return { title, color, dec: d, plan, percent: plan > 0 ? clampPct((d / plan) * 100) : 0 };
   });
 
+  // Colonnes présentes dans la base : les cartes « optionnelles » ne s'affichent que si leurs colonnes existent
+  const colonnes = useMemo(() => new Set(data.length ? Object.keys(data[0]) : []), [data]);
+
   const tauxInstruments = [
     { title: t.financements, icon: Handshake, d: "DF (EUR)", pa: "PAF (EUR)", color: "#2563eb" },
     { title: t.achats, icon: FaShoppingCart, d: "DA (EUR)", pa: "PAA (EUR)", color: "#16a34a" },
     { title: t.contrats, icon: FaFileContract, d: "DC (EUR)", pa: "PAC (EUR)", color: "#f59e0b" },
     { title: t.missionsInterne, icon: Plane, d: "DMI (EUR)", pa: "PAMI (EUR)", color: "#f97316" },
     { title: t.missionsPartenaires, icon: Users, d: "DMP (EUR)", pa: "PAMP (EUR)", color: "#f97316" },
-  ].map(({ title, icon, d, pa, color }) => {
-    const dv = n(coutActuel[d]);
-    const plan = planAnnuel(pa);
-    return { title, icon, color, dec: dv, plan, percent: plan > 0 ? clampPct((dv / plan) * 100) : 0 };
-  });
+    // ↓ cartes ajoutées pour arriver à 8 instruments. ADAPTER d / pa aux vrais noms de colonnes de
+    //   Base_Cout_Activite.geojson : tant qu'une colonne n'existe pas, la carte reste masquée.
+    { title: t.instExperts, icon: User, d: "DE (EUR)", pa: "PAE (EUR)", color: "#2563eb", optionnel: true },
+    { title: t.instConstruction, icon: HardHat, d: "DCO (EUR)", pa: "PACO (EUR)", color: "#b45309", optionnel: true },
+    { title: t.instFraisGeneraux, icon: Receipt, d: "DFG (EUR)", pa: "PAFG (EUR)", color: "#db2777", optionnel: true },
+  ]
+    .filter(({ pa, optionnel }) => !optionnel || colonnes.has(pa))
+    .map(({ title, icon, d, pa, color }) => {
+      const dv = n(coutActuel[d]);
+      const plan = planAnnuel(pa);
+      return { title, icon, color, dec: dv, plan, percent: plan > 0 ? clampPct((dv / plan) * 100) : 0 };
+    });
 
   const rateLabels = { disbursed: t.disbursed, planned: t.planned };
 
@@ -889,7 +905,7 @@ export default function SuiviCouts() {
             <div style={{ ...styles.subHead, color: "#1d4ed8" }}>{t.progressComponent}</div>
             <div className="sc-d4">
               {tauxComposantes.map((item, i) => (
-                <CompactRateCard key={i} {...item} labels={rateLabels} />
+                <BarRateCard key={i} {...item} labels={rateLabels} />
               ))}
             </div>
           </div>
@@ -897,7 +913,7 @@ export default function SuiviCouts() {
           {/* Par instrument */}
           <div className="sc-card">
             <div style={{ ...styles.subHead, color: "#15803d" }}>{t.progressInstrument}</div>
-            <div className="sc-d5">
+            <div className="sc-d5" style={{ "--n": tauxInstruments.length } as React.CSSProperties}>
               {tauxInstruments.map((item, i) => (
                 <RateCard key={i} {...item} labels={rateLabels} />
               ))}
@@ -1033,26 +1049,31 @@ const styles: Record<string, React.CSSProperties> = {
 
   /* cartes donuts */
   donutCard: {
-    borderRadius: 8, padding: "6px 4px", textAlign: "center", minHeight: 190, display: "flex", flexDirection: "column",
+    borderRadius: 8, padding: "6px 4px", textAlign: "center", minHeight: 176, display: "flex", flexDirection: "column",
     width: "100%", boxSizing: "border-box", overflow: "hidden", alignItems: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
   },
-  donutTitle: { fontSize: 9, fontWeight: 900, lineHeight: 1.15, minHeight: "3.5em", textAlign: "center", letterSpacing: 0.2 },
+  donutTitle: { fontSize: "clamp(7.5px, 7.5cqw, 9px)", fontWeight: 900, lineHeight: 1.15, minHeight: "3.5em", textAlign: "center", letterSpacing: 0.2 },
   smallLabel: { fontSize: 9, fontWeight: 900, color: "#64748b", lineHeight: 1.1, whiteSpace: "nowrap" },
   money: { fontWeight: 900, fontSize: 11, color: "#0f172a", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
 
-  /* carte compacte (composantes) */
-  compactCard: {
-    display: "flex", alignItems: "center", gap: 8, padding: "6px 8px", borderRadius: 8, minWidth: 0,
-    minHeight: 84, boxSizing: "border-box", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
+  /* textes des cartes « instrument » : suivent la largeur de la carte (8 cartes côte à côte) */
+  rateLabel: { fontSize: "clamp(6.5px, 6.8cqw, 9px)", fontWeight: 900, color: "#64748b", lineHeight: 1.1, whiteSpace: "nowrap" },
+  rateMoney: { fontWeight: 900, fontSize: "clamp(8px, 9.5cqw, 11px)", color: "#0f172a", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
+
+  /* carte « composante » avec barre de progression */
+  barCard: {
+    display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 6, padding: "7px 9px",
+    borderRadius: 8, minWidth: 0, boxSizing: "border-box", overflow: "hidden", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
   },
-  compactBody: { flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 5 },
+  barCardTop: { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 },
   compactTitle: {
-    fontSize: 9, fontWeight: 900, lineHeight: 1.15, letterSpacing: 0.2, textAlign: "left",
-    display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+    flex: 1, minWidth: 0, fontSize: 9, fontWeight: 900, lineHeight: 1.15, letterSpacing: 0.2, textAlign: "left",
+    display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
   },
-  // flex-wrap : si la carte est étroite, « décaissé » et « planifié » passent l'un sous l'autre
-  compactValues: { display: "flex", flexWrap: "wrap", gap: "3px 10px" },
-  compactValue: { flex: "1 1 52px", minWidth: 0, textAlign: "left" },
+  barCardPct: { fontSize: 13, fontWeight: 900, lineHeight: 1.1, flexShrink: 0 },
+  barTrack: { width: "100%", height: 10, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" },
+  barCardBottom: { display: "flex", alignItems: "stretch", gap: 8 },
+  vSep: { width: 1, background: "#cbd5e1", flex: "none" },
 
   rowsFill: { flex: 1, display: "flex", flexDirection: "column" },
 
