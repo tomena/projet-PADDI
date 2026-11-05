@@ -54,9 +54,6 @@ const ANNEE_MAX = 2025; // à mettre à jour quand GFW publie l'année suivante
 const ANNEES = Array.from({ length: ANNEE_MAX - ANNEE_MIN + 1 }, (_, i) => ANNEE_MIN + i);
 type PerteAn = { annee: number; ha: number };
 
-// Au-delà de ce nombre de zones, on ne calcule pas les hectares une par une (trop de requêtes GFW)
-const MAX_ZONES = 12;
-
 // Champ « nom » dans tes fichiers : paddi_paysage.geojson → "Paysage", paddi_mbv.geojson → "Nom"
 // (mettre les mêmes valeurs dans api/gfw-perte.ts)
 const CLE_NOM_PAYSAGE: string | null = 'Paysage';
@@ -948,12 +945,6 @@ export default function Pression() {
       region === TOUS ? ['all', 'all', ''] : [`region:${region}`, 'region', region],
     ];
     apsVisibles.forEach((a) => besoins.push([`ap:${a.nom}`, 'ap', a.nom]));
-    if (paysagesVisibles.length <= MAX_ZONES) {
-      paysagesVisibles.forEach((z) => besoins.push([`paysage:${z.nom}`, 'paysage', z.nom]));
-    }
-    if (mbvVisibles.length <= MAX_ZONES) {
-      mbvVisibles.forEach((z) => besoins.push([`mbv:${z.nom}`, 'mbv', z.nom]));
-    }
 
     besoins.forEach(([cle, type, nom]) => {
       if (perte[cle] || enCours.current.has(cle)) return;
@@ -968,7 +959,7 @@ export default function Pression() {
         .finally(() => enCours.current.delete(cle));
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showPerte, region, apsVisibles, paysagesVisibles, mbvVisibles]);
+  }, [showPerte, region, apsVisibles]);
 
   const defPerte = useMemo(() => {
     const lire = (cle: string) => (Array.isArray(perte[cle]) ? (perte[cle] as PerteAn[]) : null);
@@ -990,14 +981,14 @@ export default function Pression() {
   }, [perte, anneeDebut, anneeFin, apZone, region]);
 
   // ---- Listes fusionnées : feux + hectares déboisés sur la même ligne -------
-  const ligneDe = (z: Zone, pre: string, feuxN: number, trop = false): LigneMixte => {
+  const ligneDe = (z: Zone, pre: string, feuxN: number): LigneMixte => {
     const cle = `${pre}:${z.nom}`;
     const rows = Array.isArray(perte[cle]) ? (perte[cle] as PerteAn[]) : null;
     return {
       nom: z.nom,
       feux: feuxN,
       ha: sommeAnnees(rows, anneeDebut, anneeFin),
-      err: trop || perte[cle] === 'err',
+      err: perte[cle] === 'err',
     };
   };
 
@@ -1006,37 +997,6 @@ export default function Pression() {
     return apsVisibles.map((z, i) => ligneDe(z, 'ap', c[i])).sort(comparer(showFeux));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feuxRegionPeriode, apsVisibles, perte, anneeDebut, anneeFin, showFeux]);
-
-  const lignesPaysages = useMemo(() => {
-    const c = compterParZone(feuxAffiches, paysagesVisibles);
-    const trop = paysagesVisibles.length > MAX_ZONES;
-    return paysagesVisibles
-      .map((z, i) => ligneDe(z, 'paysage', c[i], trop))
-      .filter((x) => showPerte || (x.feux ?? 0) > 0)
-      .sort(comparer(showFeux));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feuxAffiches, paysagesVisibles, perte, anneeDebut, anneeFin, showFeux, showPerte]);
-
-  const lignesMbv = useMemo(() => {
-    const c = compterParZone(feuxAffiches, mbvVisibles);
-    const trop = mbvVisibles.length > MAX_ZONES;
-    return mbvVisibles
-      .map((z, i) => ligneDe(z, 'mbv', c[i], trop))
-      .filter((x) => showPerte || (x.feux ?? 0) > 0)
-      .sort(comparer(showFeux));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feuxAffiches, mbvVisibles, perte, anneeDebut, anneeFin, showFeux, showPerte]);
-
-  const videZone = (visibles: Zone[], tous: Zone[], mot: string, motPl: string) =>
-    !apZone
-      ? `Choisissez une aire protégée pour voir ses ${motPl}`
-      : visibles.length
-        ? showPerte
-          ? ''
-          : `Aucun feu détecté dans les ${motPl} de cette aire protégée`
-        : tous.length
-          ? `Aucun ${mot} trouvé pour cette aire protégée`
-          : 'Chargement…';
 
   // ---- Styles des zones sur la carte ------------------------------------
   const styleRegion = (z: Zone): L.PathOptions => {
@@ -1170,6 +1130,18 @@ export default function Pression() {
                   </div>
                 </div>
               )}
+              <div className="pr-inl">
+                <span>Fiabilité</span>
+                <select
+                  value={confiance}
+                  disabled={!showFeux && !showPerte}
+                  onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}
+                >
+                  <option value="l">Toutes les détections</option>
+                  <option value="n">Nominale et plus</option>
+                  <option value="h">Élevée seulement</option>
+                </select>
+              </div>
             </div>
 
             <label className={`pr-chk perte ${showPerte ? 'on' : ''}`}>
@@ -1258,25 +1230,10 @@ export default function Pression() {
               </select>
             </label>
 
-            <label className="pr-inl">
-              <span>Fiabilité</span>
-              <select
-                value={confiance}
-                disabled={!showFeux && !showPerte}
-                onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}
-              >
-                <option value="l">Toutes les détections</option>
-                <option value="n">Nominale et plus</option>
-                <option value="h">Élevée seulement</option>
-              </select>
-            </label>
-
-            {filtresModifies ? (
+            {filtresModifies && (
               <button className="pr-reset" onClick={reinitialiser}>
                 Réinitialiser
               </button>
-            ) : (
-              <span />
             )}
           </div>
         </div>
@@ -1466,36 +1423,6 @@ export default function Pression() {
                     feux={showFeux}
                     perte={showPerte}
                     vide={apZ.length ? 'Aucune aire protégée dans cette région' : 'Chargement…'}
-                  />
-                </article>
-
-                {/* CARTE 3 : paysages */}
-                <article className="pr-carte c3">
-                  <h2>Paysages</h2>
-                  <p className="pr-note">
-                    {portee} · {notePeriode}
-                  </p>
-                  <Cle feux={showFeux} perte={showPerte} />
-                  <ListeMixte
-                    items={lignesPaysages}
-                    feux={showFeux}
-                    perte={showPerte}
-                    vide={videZone(paysagesVisibles, paysagesZ, 'paysage', 'paysages')}
-                  />
-                </article>
-
-                {/* CARTE 4 : micro-bassins */}
-                <article className="pr-carte c4">
-                  <h2>Micro-bassins</h2>
-                  <p className="pr-note">
-                    {portee} · {notePeriode}
-                  </p>
-                  <Cle feux={showFeux} perte={showPerte} />
-                  <ListeMixte
-                    items={lignesMbv}
-                    feux={showFeux}
-                    perte={showPerte}
-                    vide={videZone(mbvVisibles, mbvZ, 'micro-bassin', 'micro-bassins')}
                   />
                 </article>
 
@@ -1763,7 +1690,8 @@ const CSS = `
 /* Deux groupes à deux lignes alignées : [couche + ses réglages] | [filtres] */
 .pr-fgroupe{display:grid;grid-auto-rows:36px;gap:8px 14px;align-items:center}
 .pr-fgauche{grid-template-columns:max-content max-content}
-.pr-fdroite{grid-template-columns:max-content max-content;column-gap:18px}
+.pr-fdroite{grid-template-columns:max-content max-content;column-gap:18px;margin-left:auto}
+.pr-fdroite .pr-reset{grid-column:2;justify-self:end}
 .pr-fctl{display:flex;align-items:center;gap:18px;min-width:0}
 .pr-inl{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;font-size:12px;color:var(--mut);font-weight:500}
 .pr-fgauche .pr-inl>span:first-child{min-width:46px}
