@@ -4,7 +4,7 @@ import {
   TrendingUp, TrendingDown, BarChart3, Globe2, RefreshCw,
 } from "lucide-react";
 import {
-  ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis,
+  ResponsiveContainer, ComposedChart, Area, Line, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, Legend, LabelList, Cell,
 } from "recharts";
 import { MapContainer, TileLayer, ZoomControl, useMap } from "react-leaflet";
@@ -39,6 +39,7 @@ const txt: any = {
     noData: "Aucune donnée géographique pour cette aire protégée.",
     topN: "Top", ofTotal: "du cumul brûlé de toutes les communes", lFires: "Feux actifs", lRegions: "Régions",
     fireAge: "Ancienneté des feux", fireDetected: "Détection satellite", fireUnit: "feux", fireErr: "Feux actifs indisponibles",
+    lLabels: "Noms des communes", fullYear: "Année entière", ofMonth: "du mois de", ofYear: "de l'année",
     refresh: "Actualiser", noFire: "Aucun feu actif détecté dans cette zone.", noBase: "Base de feux introuvable : vérifiez les chemins dans DATA.",
     months: { Jan: "Jan", Feb: "Fév", Mar: "Mar", Apr: "Avr", May: "Mai", Jun: "Juin", Jul: "Juil", Aug: "Août", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Déc" },
   },
@@ -66,6 +67,7 @@ const txt: any = {
     noData: "Tsy misy angona ara-jeografika ho an'ity faritra arovana ity.",
     topN: "Top", ofTotal: "amin'ny fitambaran'ny velaran-tany may amin'ny kaominina rehetra", lFires: "Doro mavitrika", lRegions: "Faritra",
     fireAge: "Faha-taonan'ny doro", fireDetected: "Fanamarihana avy amin'ny zanabolana", fireUnit: "doro", fireErr: "Tsy azo ny doro mavitrika",
+    lLabels: "Anaran'ny kaominina", fullYear: "Taona manontolo", ofMonth: "tamin'ny volana", ofYear: "tamin'ny taona",
     refresh: "Havaozina", noFire: "Tsy misy doro mavitrika hita amin'ity faritra ity.", noBase: "Tsy hita ny angona doro: jereo ny lalana ao amin'ny DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "Mey", Jun: "Jon", Jul: "Jol", Aug: "Aog", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Des" },
   },
@@ -94,6 +96,7 @@ const txt: any = {
     noData: "No geographic data for this protected area.",
     topN: "Top", ofTotal: "of the burned total of all communes", lFires: "Active fires", lRegions: "Regions",
     fireAge: "Fire age", fireDetected: "Satellite detection", fireUnit: "fires", fireErr: "Active fires unavailable",
+    lLabels: "Commune names", fullYear: "Full year", ofMonth: "for", ofYear: "for",
     refresh: "Refresh", noFire: "No active fire detected in this area.", noBase: "Fire database not found: check the paths in DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "May", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Dec" },
   },
@@ -122,6 +125,7 @@ const txt: any = {
     noData: "Keine Geodaten für dieses Schutzgebiet.",
     topN: "Top", ofTotal: "der verbrannten Gesamtfläche aller Gemeinden", lFires: "Aktive Brände", lRegions: "Regionen",
     fireAge: "Alter der Brände", fireDetected: "Satellitenerkennung", fireUnit: "Brände", fireErr: "Aktive Brände nicht verfügbar",
+    lLabels: "Gemeindenamen", fullYear: "Ganzes Jahr", ofMonth: "im Monat", ofYear: "im Jahr",
     refresh: "Aktualisieren", noFire: "Kein aktiver Brand in diesem Gebiet erkannt.", noBase: "Brand-Datenbank nicht gefunden: Pfade in DATA prüfen.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mär", Apr: "Apr", May: "Mai", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Dez" },
   },
@@ -154,8 +158,9 @@ const FONDS: Record<string, { url: string; attr: string }> = {
   satellite: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "Tiles © Esri" },
   osm: { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "© OpenStreetMap" },
 };
-const SCALE: [number, string][] = [[10, "#991b1b"], [5, "#ef4444"], [2, "#f97316"], [0.5, "#facc15"], [0, "#dcfce7"]];
-const colorOf = (pct: number | null) => (pct == null ? "#cbd5e1" : (SCALE.find(([m]) => pct >= m) || SCALE[4])[1]);
+const SCALE_Y: [number, string][] = [[10, "#991b1b"], [5, "#ef4444"], [2, "#f97316"], [0.5, "#facc15"], [0, "#dcfce7"]]; // année entière
+const SCALE_M: [number, string][] = [[2, "#991b1b"], [1, "#ef4444"], [0.5, "#f97316"], [0.1, "#facc15"], [0, "#dcfce7"]]; // un seul mois
+const colorOf = (pct: number | null, scale: [number, string][]) => (pct == null ? "#cbd5e1" : (scale.find(([m]) => pct >= m) || scale[4])[1]);
 const ageColor = (h: number) => (h <= 24 ? "rgb(200,15,15)" : h <= 48 ? "#f97316" : "#facc15");
 
 /* ============================ OUTILS ============================ */
@@ -306,6 +311,11 @@ const CSS = `
 .fx-lg div{display:flex;align-items:center;gap:6px;margin-top:2px}
 .fx-lg i{width:13px;height:10px;display:inline-block;border:1px solid #9ca3af}
 .fx-lg i.dot{width:10px;height:10px;border-radius:50%;border:1px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.35)}
+.fx-lg-chips i.dot{border-radius:50%}
+.fx-lg-h{display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
+.fx-lg-m{font-weight:700;color:#b91c1c}
+.fx-lbl{background:none;border:0}
+.fx-lbl span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-weight:700;color:#0f172a;text-shadow:0 0 2px #fff,0 0 3px #fff,0 0 4px #fff;pointer-events:none}
 .fx-load{padding:30px;text-align:center;color:#0b4ea2;font-weight:600}
 .fx .leaflet-tooltip{font-size:12px;font-weight:600}
 @media(max-width:560px){.fx-lg{font-size:10px;padding:4px 6px}.fx-legend{max-width:75%}}
@@ -368,31 +378,51 @@ const MonthTip = ({ active, payload, label, year }: any) => {
   );
 };
 
-const MonthlyChart = ({ data, year, t }: any) => (
-  <Card title={t.monthlyEvolution}>
-    <div className="fx-chart">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 6, right: 12, left: -6, bottom: 0 }}>
-          <defs>
-            <linearGradient id="gPrev" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2563eb" stopOpacity={0.3} /><stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
-            </linearGradient>
-            <linearGradient id="gCur" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#dc2626" stopOpacity={0.38} /><stop offset="100%" stopColor="#dc2626" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="mois" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={compact} width={42} />
-          <Tooltip content={<MonthTip year={year} />} cursor={{ stroke: "#94a3b8", strokeDasharray: "4 4" }} />
-          <Legend verticalAlign="top" align="right" iconType="circle" height={28} wrapperStyle={{ fontSize: 11, fontWeight: 600 }} />
-          <Area type="monotone" dataKey={`y${year - 1}`} name={`${year - 1}`} stroke="#2563eb" strokeWidth={2} fill="url(#gPrev)" dot={false} activeDot={{ r: 4 }} />
-          <Area type="monotone" dataKey={`y${year}`} name={`${year}`} stroke="#dc2626" strokeWidth={2.5} fill="url(#gCur)" dot={false} activeDot={{ r: 4.5 }} />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  </Card>
-);
+const MonthlyChart = ({ data, year, t }: any) => {
+  const rows = data.map((r: any) => ({ ...r, m: Math.max(r[`y${year - 1}`], r[`y${year}`]) }));
+  // écart du mois par rapport à l'année précédente : ▲ rouge si hausse, ▼ vert si baisse
+  const diffLabel = (p: any) => {
+    const { x, y, index } = p;
+    const d = rows[index];
+    if (!d || x == null || y == null) return null;
+    const diff = d[`y${year}`] - d[`y${year - 1}`];
+    if (!diff) return null;
+    const up = diff > 0, v = Math.abs(diff);
+    const txt = `${up ? "▲" : "▼"} ${v >= 100 ? Math.round(v).toLocaleString("fr-FR") : v.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}`;
+    return <text x={x} y={y - 6 - (index % 2) * 10} textAnchor="middle" fontSize={9} fontWeight={700} fill={up ? "#dc2626" : "#16a34a"}>{txt}</text>;
+  };
+  return (
+    <Card title={t.monthlyEvolution}>
+      <div className="fx-lg-chips" style={{ justifyContent: "center", marginBottom: 2 }}>
+        <span><i className="dot" style={{ background: "#2563eb" }} />{year - 1}</span>
+        <span><i className="dot" style={{ background: "#dc2626" }} />{year}</span>
+      </div>
+      <div className="fx-chart">
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={rows} margin={{ top: 26, right: 14, left: -6, bottom: 0 }}>
+            <defs>
+              <linearGradient id="gPrev" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#2563eb" stopOpacity={0.3} /><stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+              </linearGradient>
+              <linearGradient id="gCur" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#dc2626" stopOpacity={0.38} /><stop offset="100%" stopColor="#dc2626" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="mois" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, (max: number) => Math.ceil(max * 1.1)]} tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={compact} width={42} />
+            <Tooltip content={<MonthTip year={year} />} cursor={{ stroke: "#94a3b8", strokeDasharray: "4 4" }} />
+            <Area type="natural" dataKey={`y${year - 1}`} name={`${year - 1}`} stroke="#2563eb" strokeWidth={2} fill="url(#gPrev)" dot={false} activeDot={{ r: 4 }} />
+            <Area type="natural" dataKey={`y${year}`} name={`${year}`} stroke="#dc2626" strokeWidth={2.5} fill="url(#gCur)" dot={false} activeDot={{ r: 4.5 }} />
+            <Line type="natural" dataKey="m" stroke="none" dot={false} activeDot={false} legendType="none" tooltipType="none" isAnimationActive={false}>
+              <LabelList content={diffLabel} />
+            </Line>
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+    </Card>
+  );
+};
 
 const HistoricalChart = ({ zones, year, t }: any) => (
   <Card title={t.historicalDifference}>
@@ -596,6 +626,28 @@ const Fires = ({ fires, t }: any) => {
   return null;
 };
 
+const Labels = ({ zones }: any) => {
+  const map = useMap();
+  useEffect(() => {
+    if (!zones.length) return;
+    const items = zones.map((z: any) => { const b = L.geoJSON(z.feature).getBounds(); return { nom: String(z.nom), b, c: b.getCenter() }; });
+    const g = L.layerGroup().addTo(map);
+    const upd = () => {
+      g.clearLayers();
+      const fs = Math.max(9, Math.min(16, 6 + (map.getZoom() - 6) * 1.1)); // taille du texte selon le zoom
+      items.forEach((i: any) => {
+        const w = Math.abs(map.latLngToContainerPoint(i.b.getNorthEast()).x - map.latLngToContainerPoint(i.b.getSouthWest()).x);
+        if (w < i.nom.length * fs * 0.5) return; // commune trop petite à l'écran : on masque le nom
+        L.marker(i.c, { interactive: false, keyboard: false, icon: L.divIcon({ className: "fx-lbl", html: `<span style="font-size:${fs}px">${i.nom}</span>`, iconSize: [0, 0] }) }).addTo(g);
+      });
+    };
+    map.on("zoomend", upd);
+    upd();
+    return () => { map.off("zoomend", upd); map.removeLayer(g); };
+  }, [zones, map]);
+  return null;
+};
+
 const Focus = ({ zones }: any) => {
   const map = useMap();
   const ref = useRef(zones);
@@ -624,18 +676,22 @@ const Resize = () => {
   return null;
 };
 
-const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err }: any) => {
+const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, periodLabel, monthSel, setMonthSel, monthNames }: any) => {
   const [fond, setFond] = useState("topo");
-  const [show, setShow] = useState<any>({ fires: true, communes: true, ap: true, periph: true, zones: true, regions: false });
+  const [show, setShow] = useState<any>({ fires: true, communes: true, ap: true, periph: true, zones: true, regions: false, labels: true });
   const focus = apZones.length ? [...apZones, ...periph] : regionZone ? [regionZone] : [];
-  const layers: [string, string][] = [["fires", t.lFires], ["communes", t.lCommunes], ["ap", t.lAP], ["periph", t.peripheral5km], ["zones", t.lZones], ["regions", t.lRegions]];
-  const tipCommune = (z: any) => `<b>${z.nom}</b><br/>${fmtHa(z.burned)}${z.pct != null ? ` (${z.pct.toFixed(2)} %)` : ""}`;
+  const layers: [string, string][] = [["fires", t.lFires], ["communes", t.lCommunes], ["labels", t.lLabels], ["ap", t.lAP], ["periph", t.peripheral5km], ["zones", t.lZones], ["regions", t.lRegions]];
+  const tipCommune = (z: any) => `<b>${z.nom}</b><br/>${fmtHa(z.burned)}${z.pct != null ? ` (${z.pct.toFixed(2)} %)` : ""}<br/><span style="color:#64748b">${periodLabel}</span>${monthSel >= 0 ? `<br/>${fmtHa(z.burnedYear)} – ${year}` : ""}`;
   return (
     <Card className="fx-mapcard" title={`${t.mapTitle} – ${ap} (${year})`}>
       <div className="fx-tools">
         <Globe2 size={14} />
         <select className="fx-sel" aria-label="Fond de carte" value={fond} onChange={(e) => setFond(e.target.value)}>
           <option value="topo">Topo</option><option value="satellite">{t.satellite}</option><option value="osm">{t.street}</option>
+        </select>
+        <select className="fx-sel" aria-label={t.legend} value={monthSel} onChange={(e) => setMonthSel(Number(e.target.value))}>
+          <option value={-1}>{t.fullYear}</option>
+          {monthNames.map((m: string, i: number) => <option key={i} value={i}>{m}</option>)}
         </select>
         <div className="fx-seg" role="group" aria-label="Période">
           {[24, 48, 72].map((h) => <button key={h} className={hours === h ? "on" : ""} onClick={() => setHours(h)}>{h} h</button>)}
@@ -653,7 +709,8 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           <Resize />
           <Focus zones={focus} />
           {show.regions && <Layer zones={regions} cle={regionZone?.nom || "all"} style={(z: Zone) => ({ color: regionZone && z.nom === regionZone.nom ? "#0f766e" : "#475569", weight: regionZone && z.nom === regionZone.nom ? 2.5 : 1, fillColor: "#0f766e", fillOpacity: regionZone && z.nom === regionZone.nom ? 0.12 : 0.03 })} />}
-          {show.communes && <Layer zones={communes} cle={`c${ap}${year}`} tip={tipCommune} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(z.pct), fillOpacity: 0.6 })} />}
+          {show.communes && <Layer zones={communes} cle={`c${ap}${year}${monthSel}`} tip={tipCommune} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(z.pct, scale), fillOpacity: 0.6 })} />}
+          {show.labels && show.communes && <Labels zones={communes} />}
           {show.periph && <Layer zones={periph} cle={`p${ap}`} style={() => ({ color: "#b45309", weight: 1, dashArray: "4 4", fillColor: "#d97706", fillOpacity: 0.07 })} />}
           {show.zones && <Layer zones={zones} cle={`z${ap}${year}`} style={() => ({ color: "#b91c1c", weight: 1, fillColor: "#ff0000", fillOpacity: 0.7 })} />}
           {show.ap && <Layer zones={apZones} cle={`a${ap}`} style={() => ({ color: "#052e16", weight: 2.5, fillColor: "#22c55e", fillOpacity: 0.25 })} />}
@@ -666,8 +723,8 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
             </div>
           )}
           {show.communes && communes.length > 0 && (
-            <div className="fx-lg"><strong>{t.legend}</strong>
-              {SCALE.slice().reverse().map(([m, c], i, a) => <div key={c}><i style={{ background: c }} />{i === a.length - 1 ? `≥ ${m} %` : i === 0 ? `< ${a[1][0]} %` : `${m} – ${a[i + 1][0]} %`}</div>)}
+            <div className="fx-lg"><div className="fx-lg-h"><strong>{t.legend}</strong><span className="fx-lg-m">{periodLabel}</span></div>
+              {scale.slice().reverse().map(([m, c], i, a) => <div key={c}><i style={{ background: c }} />{i === a.length - 1 ? `≥ ${m} %` : i === 0 ? `< ${a[1][0]} %` : `${m} – ${a[i + 1][0]} %`}</div>)}
             </div>
           )}
         </div>
@@ -688,6 +745,7 @@ export default function AnalyseFeux() {
   const [ap, setAp] = useState("Ankarafantsika");
   const [hours, setHours] = useState(72);
   const [topN, setTopN] = useState(11);
+  const [mapMonth, setMapMonth] = useState((new Date().getMonth() + 11) % 12); // -1 = année entière
 
   // Données statistiques + géographiques
   const [baseFeux, baseOk] = useGeo(DATA.feux);
@@ -758,6 +816,12 @@ export default function AnalyseFeux() {
     communeRows.forEach((f) => { const k = norm(f.properties.Commune); m[k] = (m[k] || 0) + num(f.properties.Total); });
     return m;
   }, [communeRows]);
+  const burnedByM = useMemo(() => {
+    const m: Record<string, number> = {};
+    if (mapMonth < 0) return m;
+    communeRows.forEach((f) => { const k = norm(f.properties.Commune); m[k] = (m[k] || 0) + num(f.properties[MOIS[mapMonth]]); });
+    return m;
+  }, [communeRows, mapMonth]);
   const supBy = useMemo(() => {
     const m: Record<string, number> = {};
     communesSup.filter((c) => same(c.properties.AP, ap)).forEach((c) => { m[norm(c.properties.Commune)] = num(c.properties.Superficie); });
@@ -782,10 +846,10 @@ export default function AnalyseFeux() {
     let list = near.filter((z) => names.has(norm(z.nom)));
     if (!list.length) list = near.filter((z) => apZones.some((a) => around(z, a)));
     return list.map((z) => {
-      const k = norm(z.nom), burned = burnedBy[k] || 0, sup = supBy[k] || 0;
-      return { ...z, burned, pct: sup > 0 ? (burned / sup) * 100 : null };
+      const k = norm(z.nom), by = burnedBy[k] || 0, burned = mapMonth < 0 ? by : burnedByM[k] || 0, sup = supBy[k] || 0;
+      return { ...z, burned, burnedYear: by, pct: sup > 0 ? (burned / sup) * 100 : null };
     });
-  }, [communesGeoZ, apZones, periphSel, rowsAP, burnedBy, supBy]);
+  }, [communesGeoZ, apZones, periphSel, rowsAP, burnedBy, burnedByM, mapMonth, supBy]);
 
   const zonesBrulees = useMemo(
     () => toZones(zonesF.filter((z) => (!z.properties?.AP || same(z.properties.AP, ap)) && (!z.properties?.Année || Number(z.properties.Année) === year)), "AP", ""),
@@ -852,6 +916,9 @@ export default function AnalyseFeux() {
     return moy === 0 ? 0 : Number((((ha(year, "5km") - moy) / moy) * 100).toFixed(1));
   }, [rowsAP, year, ap]);
 
+  const monthNames = MOIS_KEYS.map((k, i) => (lang === "mg" ? t.months[k] : new Date(2000, i, 1).toLocaleDateString(({ fr: "fr-FR", en: "en-GB", de: "de-DE" } as any)[lang] || "fr-FR", { month: "long" })));
+  const periodLabel = mapMonth < 0 ? `${t.ofYear} ${year}` : `${t.ofMonth} ${monthNames[mapMonth]} ${year}`;
+  const scale = mapMonth < 0 ? SCALE_Y : SCALE_M;
   const evoColor = (evolution ?? 0) >= 0 ? "#d32f2f" : "#2e7d32";
 
   return (
@@ -935,6 +1002,7 @@ export default function AnalyseFeux() {
               t={t} ap={ap} year={year} communes={communesMap} zones={zonesBrulees} apZones={apZones} periph={periphSel}
               regions={regionsZ} regionZone={regionZone} fires={fires} hours={hours} setHours={setHours}
               onRefresh={loadFires} err={firesErr}
+              scale={scale} periodLabel={periodLabel} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
             />
           </div>
         </>
