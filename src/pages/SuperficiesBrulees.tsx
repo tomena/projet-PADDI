@@ -181,7 +181,7 @@ function GeoLayer({ data, style, labels }: { data: any; style: any; labels?: boo
       style,
       onEachFeature: (f: any, l: any) => {
         const nom = f.properties?.nom_ap;
-        if (labels && nom) l.bindTooltip(nom, { permanent: true, direction: 'center', className: 'sb-ap-label' });
+        if (labels && nom) l.bindTooltip(nom, { permanent: true, direction: 'center', className: 'sbr-ap-label' });
       },
     }).addTo(map);
     return () => { map.removeLayer(layer); };
@@ -361,31 +361,30 @@ export default function SuperficiesBrulees({ data }: any) {
      RENDU
      ===================================================================== */
   return (
-    <div className="sb">
-      <div className="sb-in">
+    <div className="sbr">
+      <div className="sbr-in">
       <style>{CSS}</style>
 
       {/* ============ EN-TÊTE + FILTRES (même structure que Pression) ============ */}
-      <header className="sb-top">
-        <div className="sb-top-ligne">
-          <div className="sb-marque">
-            <div className="sb-logo" aria-hidden="true"><Flame size={20} /></div>
+      <header className="sbr-top">
+        <div className="sbr-top-ligne">
+          <div className="sbr-marque">
+            <div className="sbr-logo" aria-hidden="true"><Flame size={20} /></div>
             <div>
-              <h1 className="sb-titre">{t.pageTitle}</h1>
-              <p className="sb-sous">{t.pageSub}</p>
+              <h1 className="sbr-titre">{t.pageTitle}</h1>
+              <p className="sbr-sous">{t.pageSub}</p>
             </div>
           </div>
-        </div>
 
-        <div className="sb-filtres">
-          <label className="sb-champ">
+        <div className="sbr-filtres">
+          <label className="sbr-champ">
             <span><Calendar size={13} /> {t.year}</span>
             <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
               {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
             </select>
           </label>
 
-          <label className="sb-champ">
+          <label className="sbr-champ">
             <span><MapPin size={13} /> {t.region}</span>
             <select value={selectedAntenne} onChange={(e) => changeAntenne(e.target.value)}>
               <option value="">{t.allRegions}</option>
@@ -393,7 +392,7 @@ export default function SuperficiesBrulees({ data }: any) {
             </select>
           </label>
 
-          <label className="sb-champ">
+          <label className="sbr-champ">
             <span><Landmark size={13} /> {t.protectedArea}</span>
             <select value={selectedAP} onChange={(e) => setSelectedAP(e.target.value)}>
               <option value="">{t.allProtectedAreas}</option>
@@ -402,72 +401,78 @@ export default function SuperficiesBrulees({ data }: any) {
           </label>
 
           {filtresModifies && (
-            <button className="sb-reset" onClick={resetFilters}>
+            <button className="sbr-reset" onClick={resetFilters}>
               <RotateCcw size={13} /> {t.reset}
             </button>
           )}
         </div>
+        </div>
       </header>
 
       {/* ============ CORPS : panneau à gauche, carte pleine hauteur à droite ============ */}
-      <div className="sb-body">
-        <aside className="sb-panel">
-          <div className="sb-grid">
-          <div className="sb-banner">
+      <div className="sbr-body">
+        <aside className="sbr-panel">
+          <div className="sbr-grid">
+          <div className="sbr-banner">
             <Target size={22} color="#16a34a" style={{ flex: 'none' }} />
             <p>{t.indicator}</p>
           </div>
 
           {/* KPI : donut + synthèse */}
-          <section className="sb-carte">
+          <section className="sbr-carte">
             <h2>{t.targetRate}</h2>
-            <p className="sb-note">{portee} · {selectedYear}{!donutKPI.HasData && ` · ${t.noData}`}</p>
-            <div className="sb-kpi">
-              <div className="sb-donut">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie data={dataDonut} innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270}
-                         dataKey="value" stroke="none" isAnimationActive={false}>
-                      <Cell fill={donutColor} />
-                      <Cell fill="#e5e7eb" />
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="sb-donut-centre">
-                  <strong style={{ color: donutColor }}>{fr1(kpiValue)} %</strong>
-                  <span>{t.targetReached}</span>
-                  {ecartCible !== 0 && (
-                    <em style={{ color: ecartCible > 0 ? '#2563eb' : '#dc2626' }}>
-                      {ecartCible > 0 ? `+${fr1(ecartCible)} % ${t.ahead}` : `${fr1(Math.abs(ecartCible))} % ${t.delay}`}
-                    </em>
-                  )}
+            <p className="sbr-note">{portee} · {selectedYear}{!donutKPI.HasData && ` · ${t.noData}`}</p>
+            <div className="sbr-kpi">
+              <div className="sbr-kpi-haut">
+                <div className="sbr-stats-col">
+                  <div className="sbr-tuile"><span>{t.reference}</span><strong>{formatHa(donutKPI.Baseline)}</strong></div>
+                  <div className="sbr-tuile"><span>{t.burnedArea} {selectedYear}</span><strong>{formatHa(donutKPI.Superficie)}</strong></div>
+                  <div className="sbr-tuile"><span>{t.objective2030}</span><strong>{formatHa(donutKPI.Objectif2030)}</strong></div>
+                </div>
+
+                <div className="sbr-donut">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={dataDonut} innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270}
+                           dataKey="value" stroke="none" isAnimationActive={false}>
+                        <Cell fill={donutColor} />
+                        <Cell fill="#e5e7eb" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="sbr-donut-centre">
+                    <strong style={{ color: donutColor }}>{fr1(kpiValue)} %</strong>
+                    <span>{t.targetReached}</span>
+                    {ecartCible !== 0 && (
+                      <em style={{ color: ecartCible > 0 ? '#2563eb' : '#dc2626' }}>
+                        {ecartCible > 0 ? `+${fr1(ecartCible)} % ${t.ahead}` : `${fr1(Math.abs(ecartCible))} % ${t.delay}`}
+                      </em>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              <dl className="sb-stats">
-                <div><dt>{t.reference}</dt><dd>{formatHa(donutKPI.Baseline)}</dd></div>
-                <div><dt>{t.burnedArea} {selectedYear}</dt><dd>{formatHa(donutKPI.Superficie)}</dd></div>
-                <div>
-                  <dt>{t.variation}</dt>
-                  <dd style={{ color: variation <= 0 ? '#16a34a' : '#dc2626' }}>{fr1(variation)} %</dd>
+              <div className="sbr-stats-bas">
+                <div className="sbr-tuile">
+                  <span>{t.variation}</span>
+                  <strong style={{ color: variation <= 0 ? '#16a34a' : '#dc2626' }}>{fr1(variation)} %</strong>
                 </div>
-                <div><dt>{t.objective2030}</dt><dd>{formatHa(donutKPI.Objectif2030)}</dd></div>
-                <div>
-                  <dt>{t.remaining}</dt>
-                  <dd>{donutKPI.HasData ? formatHa(Math.max(0, donutKPI.Superficie - donutKPI.Objectif2030)) : '—'}</dd>
+                <div className="sbr-tuile">
+                  <span>{t.remaining}</span>
+                  <strong>{donutKPI.HasData ? formatHa(Math.max(0, donutKPI.Superficie - donutKPI.Objectif2030)) : '—'}</strong>
                 </div>
                 {!selectedAP && (
-                  <div><dt>{t.apsReached}</dt><dd>{nbAtteintes} / {AP_LIST.length}</dd></div>
+                  <div className="sbr-tuile"><span>{t.apsReached}</span><strong>{nbAtteintes} / {AP_LIST.length}</strong></div>
                 )}
-              </dl>
+              </div>
             </div>
           </section>
 
           {/* Évolution */}
-          <section className="sb-carte">
+          <section className="sbr-carte">
             <h2>{t.annualEvolution}</h2>
-            <p className="sb-note">{t.annualSubtitle}</p>
-            <div className="sb-graph">
+            <p className="sbr-note">{t.annualSubtitle}</p>
+            <div className="sbr-graph">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={evolution} margin={{ top: 18, right: 24, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -500,20 +505,20 @@ export default function SuperficiesBrulees({ data }: any) {
           </section>
 
           {/* Comparaison des 7 AP, légende cliquable */}
-          <section className="sb-carte sb-large">
+          <section className="sbr-carte sbr-large">
             <h2>{t.comparison}</h2>
-            <p className="sb-note">{t.comparisonHint}</p>
-            <div className="sb-chips">
+            <p className="sbr-note">{t.comparisonHint}</p>
+            <div className="sbr-chips">
               {AP_LIST.map((a) => (
                 <button key={a.code} title={a.nom}
-                        className={`sb-chip ${hidden.includes(a.code) ? 'off' : ''}`}
+                        className={`sbr-chip ${hidden.includes(a.code) ? 'off' : ''}`}
                         onClick={() => toggleSerie(a.code)}>
                   <i style={{ background: a.color }} />
                   <b>{a.code}</b> {a.nom}
                 </button>
               ))}
             </div>
-            <div className="sb-graph sb-graph-grand">
+            <div className="sbr-graph sbr-graph-grand">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonData} margin={{ top: 10, right: 24, left: -8, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -534,10 +539,10 @@ export default function SuperficiesBrulees({ data }: any) {
             </div>
           </section>
 
-          <section className="sb-carte sb-large">
+          <section className="sbr-carte sbr-large">
             <h2>{t.ranking}</h2>
-            <p className="sb-note">{t.rankingSub} · {selectedYear}</p>
-            <ul className="sb-rang">
+            <p className="sbr-note">{t.rankingSub} · {selectedYear}</p>
+            <ul className="sbr-rang">
               {apRows.map((r) => {
                 const st = ST[r.statut];
                 return (
@@ -547,8 +552,8 @@ export default function SuperficiesBrulees({ data }: any) {
                       <strong className="val" style={{ color: r.has ? (r.variation <= 0 ? '#16a34a' : '#dc2626') : '#94a3b8' }}>
                         {r.has ? `${fr1(r.variation)} %` : '—'}
                       </strong>
-                      <span className="sb-statut" style={{ color: st.c, background: st.bg }}>{t[st.k]}</span>
-                      <span className="sb-piste">
+                      <span className="sbr-statut" style={{ color: st.c, background: st.bg }}>{t[st.k]}</span>
+                      <span className="sbr-piste">
                         <i style={{ width: `${(Math.max(0, Math.min(r.reduction, 40)) / 40) * 100}%`, background: st.bar }} />
                         <u />
                       </span>
@@ -559,7 +564,7 @@ export default function SuperficiesBrulees({ data }: any) {
             </ul>
           </section>
 
-          <a className="sb-footer"
+          <a className="sbr-footer"
              href="https://gizonline.sharepoint.com/:x:/r/sites/PADDIwithguests-01SEetSIG/Freigegebene%20Dokumente/Equipe%20Technique/03.%20Op%C3%A9rations/R%C3%A9alisation%20PO%20(par%20unit%C3%A9)/UCT%20Tan%C3%A0/Composante%200/SIG/2025-10-06_Tableau_de_Bord_Feux/TB_et_BDD/Tableau_de_Bord_PADDI.xlsx?d=w35ed3c1299264334a65aa1d2729d3042&csf=1&web=1&e=pze1XJ"
              target="_blank" rel="noreferrer">
             <FileSpreadsheet size={18} color="#16a34a" />
@@ -570,7 +575,7 @@ export default function SuperficiesBrulees({ data }: any) {
         </aside>
 
         {/* ---------- CARTE : toute la hauteur à droite ---------- */}
-        <main className="sb-map">
+        <main className="sbr-map">
           <MapContainer bounds={MADAGASCAR} zoomControl={false} style={{ height: '100%', width: '100%' }}>
             <TileLayer key={fond} url={FONDS[fond].url} attribution="© Esri" />
             <ScaleControl position="bottomleft" imperial={false} />
@@ -588,14 +593,14 @@ export default function SuperficiesBrulees({ data }: any) {
             ) : null}
           </MapContainer>
 
-          <div className="sb-map-titre">{t.mapTitle} ({selectedYear})</div>
+          <div className="sbr-map-titre">{t.mapTitle} ({selectedYear})</div>
 
-          <div className="sb-outils" role="group" aria-label={t.basemap}>
+          <div className="sbr-outils" role="group" aria-label={t.basemap}>
             <button className={fond === 'topo' ? 'on' : ''} onClick={() => setFond('topo')}>{t.topo}</button>
             <button className={fond === 'sat' ? 'on' : ''} onClick={() => setFond('sat')}>{t.sat}</button>
           </div>
 
-          <div className="sb-legende">
+          <div className="sbr-legende">
             <strong>{t.legend}</strong>
             <div><i className="carre" style={{ background: 'rgba(34,197,94,.45)', border: '1px solid #15803d' }} />{t.protectedLegend}</div>
             {Object.entries(COULEUR_ANTENNE)
@@ -617,180 +622,181 @@ export default function SuperficiesBrulees({ data }: any) {
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
-/* .sb est un « conteneur » : tout s'adapte à la largeur réellement disponible
+/* .sbr est un « conteneur » : tout s'adapte à la largeur réellement disponible
    (sidebar ouverte ou réduite), pas à la largeur de la fenêtre. */
-.sb{
+.sbr{
   --fond-panneau:#f1f4f7; --fond-entete:rgba(255,255,255,.95); --carte:#fff; --ligne:#e2e8f0;
   --txt:#0f172a; --mut:#64748b; --rouge:rgb(200,15,15);
   --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --corps:'Figtree','Segoe UI',system-ui,sans-serif;
-  width:100%;max-width:100%;container-type:inline-size;container-name:sb;
+  width:100%;min-width:0;max-width:100%;container-type:inline-size;container-name:sbr;
   color:var(--txt);font-family:var(--corps);font-size:14px;box-sizing:border-box;
 }
-.sb *{box-sizing:border-box}
-.sb button,.sb select{font-family:inherit}
-.sb button:focus-visible,.sb select:focus-visible,.sb a:focus-visible{outline:2px solid var(--rouge);outline-offset:2px}
-/* --sb-offset : hauteur d'un éventuel en-tête global de ton application (ex. 64px) */
-.sb-in{height:calc(100dvh - var(--sb-offset,0px));min-height:560px;display:flex;flex-direction:column}
+.sbr *{box-sizing:border-box}
+.sbr button,.sbr select{font-family:inherit}
+.sbr button:focus-visible,.sbr select:focus-visible,.sbr a:focus-visible{outline:2px solid var(--rouge);outline-offset:2px}
+/* --sbr-offset : hauteur d'un éventuel en-tête global de ton application (ex. 64px) */
+.sbr-in{height:calc(100dvh - var(--sbr-offset,0px));min-height:560px;display:flex;flex-direction:column}
 
 /* ---- En-tête ---- */
-.sb-top{background:var(--fond-entete);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+.sbr-top{background:var(--fond-entete);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
   border-bottom:1px solid var(--ligne);padding:12px 18px;position:relative;z-index:20;flex:none}
-.sb-top-ligne{display:flex;align-items:center;gap:12px}
-.sb-marque{display:flex;align-items:center;gap:12px;min-width:0}
-.sb-logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#fff;flex:none;
+.sbr-top-ligne{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px 20px}
+.sbr-marque{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 300px}
+.sbr-logo{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;color:#fff;flex:none;
   background:linear-gradient(160deg,rgb(200,15,15),#e8601c)}
-.sb-titre{margin:0;font-family:var(--titre);font-size:clamp(15px,1.5vw,20px);font-weight:700;letter-spacing:-.01em;line-height:1.2}
-.sb-sous{margin:2px 0 0;font-size:12px;color:var(--mut)}
-.sb-filtres{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-top:12px}
-.sb-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
-.sb-champ>span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mut);font-weight:500}
-.sb-champ select{padding:8px 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
-  font-size:13px;min-width:170px;max-width:260px;cursor:pointer}
-.sb-reset{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;
+.sbr-titre{margin:0;font-family:var(--titre);font-size:clamp(15px,1.5vw,20px);font-weight:700;letter-spacing:-.01em;line-height:1.2}
+.sbr-sous{margin:2px 0 0;font-size:12px;color:var(--mut)}
+.sbr-filtres{display:flex;gap:12px;align-items:flex-end;flex-wrap:nowrap;margin-top:0;margin-left:auto}
+.sbr-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sbr-champ>span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mut);font-weight:500}
+.sbr-champ select{padding:8px 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
+  font-size:13px;min-width:150px;max-width:210px;cursor:pointer}
+.sbr-reset{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;
   border:1px dashed #94a3b8;background:transparent;color:var(--txt);font-size:13px;font-weight:600;cursor:pointer}
-.sb-reset:hover{border-color:var(--rouge);color:var(--rouge)}
+.sbr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
 /* ---- Corps : panneau (plus large) + carte (plus étroite, pleine hauteur) ---- */
-.sb-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,58%) minmax(0,1fr)}
-.sb-panel{container-type:inline-size;container-name:sbp;overflow-y:auto;padding:16px;
+.sbr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,58%) minmax(0,1fr)}
+.sbr-panel{container-type:inline-size;container-name:sbrp;overflow-y:auto;padding:16px;
   background:var(--fond-panneau);border-right:1px solid var(--ligne);min-width:0}
-.sb-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
-.sb-map{position:relative;min-height:0;min-width:0;isolation:isolate;height:100%}
+.sbr-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.sbr-map{position:relative;min-height:0;min-width:0;isolation:isolate;height:100%}
 
-.sb-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#ecfdf5;
+.sbr-banner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;background:#ecfdf5;
   border:1px solid #bbf7d0;color:#065f46;grid-column:1/-1}
-.sb-banner p{margin:0;font-size:13px;font-weight:600;line-height:1.45}
-.sb-large,.sb-footer{grid-column:1/-1}
+.sbr-banner p{margin:0;font-size:13px;font-weight:600;line-height:1.45}
+.sbr-large,.sbr-footer{grid-column:1/-1}
 
 /* ---- Cartes ---- */
-.sb-carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:16px;min-width:0;
+.sbr-carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:16px;min-width:0;
   box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column}
-.sb-carte:nth-of-type(1){border-top:4px solid var(--rouge)}
-.sb-carte:nth-of-type(2){border-top:4px solid #16a34a}
-.sb-carte:nth-of-type(3){border-top:4px solid #2563eb}
-.sb-carte:nth-of-type(4){border-top:4px solid #f59e0b}
-.sb-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;line-height:1.25}
-.sb-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
+.sbr-carte:nth-of-type(1){border-top:4px solid var(--rouge)}
+.sbr-carte:nth-of-type(2){border-top:4px solid #16a34a}
+.sbr-carte:nth-of-type(3){border-top:4px solid #2563eb}
+.sbr-carte:nth-of-type(4){border-top:4px solid #f59e0b}
+.sbr-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;line-height:1.25}
+.sbr-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
 
-.sb-kpi{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:center}
-.sb-donut{position:relative;height:200px;max-width:240px;width:100%;margin:0 auto}
-.sb-donut-centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;pointer-events:none;padding:0 22%}
-.sb-donut-centre strong{font-family:var(--titre);font-size:clamp(22px,2.4vw,30px);font-weight:800;line-height:1}
-.sb-donut-centre span{font-size:11.5px;color:var(--mut);margin-top:3px}
-.sb-donut-centre em{font-style:normal;font-size:11.5px;font-weight:700;margin-top:4px}
-.sb-stats{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.sb-stats>div{background:#f8fafc;border:1px solid var(--ligne);border-radius:10px;padding:9px 11px;min-width:0}
-.sb-stats dt{font-size:11.5px;color:var(--mut);line-height:1.3}
-.sb-stats dd{margin:3px 0 0;font-family:var(--titre);font-size:clamp(14px,1.3vw,17px);font-weight:700;
+.sbr-kpi{display:flex;flex-direction:column;gap:10px}
+.sbr-kpi-haut{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;align-items:stretch}
+.sbr-stats-col{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:8px}
+.sbr-stats-bas{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
+.sbr-tuile{background:#f8fafc;border:1px solid var(--ligne);border-radius:10px;padding:8px 10px;min-width:0;
+  display:flex;flex-direction:column;justify-content:center;gap:2px}
+.sbr-tuile span{font-size:11px;color:var(--mut);line-height:1.25}
+.sbr-tuile strong{font-family:var(--titre);font-size:clamp(13px,1.15vw,16px);font-weight:700;
   font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.sbr-donut{position:relative;height:176px;width:100%;max-width:210px;margin:auto}
+.sbr-donut-centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;pointer-events:none;padding:0 22%}
+.sbr-donut-centre strong{font-family:var(--titre);font-size:clamp(22px,2.4vw,30px);font-weight:800;line-height:1}
+.sbr-donut-centre span{font-size:11.5px;color:var(--mut);margin-top:3px}
+.sbr-donut-centre em{font-style:normal;font-size:11.5px;font-weight:700;margin-top:4px}
 
-.sb-graph{flex:1;min-height:270px;width:100%}
-.sb-graph-grand{flex:none;height:340px}
+.sbr-graph{flex:1;min-height:270px;width:100%}
+.sbr-graph-grand{flex:none;height:340px}
 
-.sb-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.sb-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid #cbd5e1;
+.sbr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.sbr-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid #cbd5e1;
   background:#fff;color:var(--txt);font-size:11.5px;cursor:pointer;max-width:100%}
-.sb-chip b{font-weight:700}
-.sb-chip i{width:10px;height:10px;border-radius:50%;flex:none}
-.sb-chip.off{opacity:.45;text-decoration:line-through;background:#f8fafc}
-.sb-chip:hover{background:#f1f5f9}
+.sbr-chip b{font-weight:700}
+.sbr-chip i{width:10px;height:10px;border-radius:50%;flex:none}
+.sbr-chip.off{opacity:.45;text-decoration:line-through;background:#f8fafc}
+.sbr-chip:hover{background:#f1f5f9}
 
 /* ---- Classement ---- */
-.sb-rang{list-style:none;margin:0;padding:0;display:grid;gap:4px}
-.sb-rang button{display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,2fr) auto auto;gap:6px 12px;
+.sbr-rang{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.sbr-rang button{display:grid;grid-template-columns:minmax(110px,1.1fr) minmax(0,2fr) auto auto;gap:6px 12px;
   align-items:center;width:100%;padding:8px 10px;border:0;border-radius:8px;background:transparent;
   cursor:pointer;text-align:left;font-size:12.5px;color:var(--txt)}
-.sb-rang button:hover{background:#f1f5f9}
-.sb-rang button.on{background:#dcfce7;outline:1px solid #16a34a}
-.sb-rang .nom{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0;overflow:hidden;
+.sbr-rang button:hover{background:#f1f5f9}
+.sbr-rang button.on{background:#dcfce7;outline:1px solid #16a34a}
+.sbr-rang .nom{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
-.sb-rang .nom i{width:10px;height:10px;border-radius:50%;flex:none}
-.sb-rang .val{font-variant-numeric:tabular-nums;order:3;min-width:60px;text-align:right}
-.sb-piste{order:2;position:relative;height:8px;background:#e2e8f0;border-radius:4px}
-.sb-piste i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width .3s}
-.sb-piste u{position:absolute;top:-3px;bottom:-3px;left:62.5%;width:2px;background:#0f172a;opacity:.65}
-.sb-statut{order:4;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
+.sbr-rang .nom i{width:10px;height:10px;border-radius:50%;flex:none}
+.sbr-rang .val{font-variant-numeric:tabular-nums;order:3;min-width:60px;text-align:right}
+.sbr-piste{order:2;position:relative;height:8px;background:#e2e8f0;border-radius:4px}
+.sbr-piste i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width .3s}
+.sbr-piste u{position:absolute;top:-3px;bottom:-3px;left:62.5%;width:2px;background:#0f172a;opacity:.65}
+.sbr-statut{order:4;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
 
-.sb-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;
+.sbr-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;
   background:#ecfdf5;color:var(--txt);text-decoration:none;font-size:13px}
-.sb-footer strong{margin-left:auto;color:#15803d;text-decoration:underline}
+.sbr-footer strong{margin-left:auto;color:#15803d;text-decoration:underline}
 
 /* ---- Carte ---- */
-.sb .leaflet-container{background:#e5e7eb;font-family:var(--corps)}
-.sb .sb-ap-label{background:#fff;border:1px solid #94a3b8;border-radius:5px;font-size:12px;font-weight:700;
+.sbr .leaflet-container{background:#e5e7eb;font-family:var(--corps)}
+.sbr .sbr-ap-label{background:#fff;border:1px solid #94a3b8;border-radius:5px;font-size:12px;font-weight:700;
   box-shadow:0 2px 8px rgba(0,0,0,.2);padding:3px 7px}
-.sb .sb-ap-label:before{display:none}
-.sb-map-titre{position:absolute;top:12px;left:12px;z-index:1000;padding:9px 13px;border-radius:10px;
+.sbr .sbr-ap-label:before{display:none}
+.sbr-map-titre{position:absolute;top:12px;left:12px;z-index:1000;padding:9px 13px;border-radius:10px;
   background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   border:1px solid rgba(15,23,42,.15);font-size:12.5px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.15);
   width:fit-content;max-width:calc(100% - 200px)}
-.sb-outils{position:absolute;top:12px;right:12px;z-index:1000;display:flex;border-radius:10px;overflow:hidden;
+.sbr-outils{position:absolute;top:12px;right:12px;z-index:1000;display:flex;border-radius:10px;overflow:hidden;
   border:1px solid rgba(15,23,42,.18);background:rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.sb-outils button{padding:9px 12px;border:0;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)}
-.sb-outils button+button{border-left:1px solid rgba(15,23,42,.15)}
-.sb-outils button.on{background:var(--rouge);color:#fff}
-.sb-legende{position:absolute;right:12px;bottom:64px;z-index:1000;padding:10px 13px;border-radius:12px;
+.sbr-outils button{padding:9px 12px;border:0;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)}
+.sbr-outils button+button{border-left:1px solid rgba(15,23,42,.15)}
+.sbr-outils button.on{background:var(--rouge);color:#fff}
+.sbr-legende{position:absolute;right:12px;bottom:64px;z-index:1000;padding:10px 13px;border-radius:12px;
   background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   border:1px solid rgba(15,23,42,.15);font-size:12px;display:flex;flex-direction:column;gap:6px;
   box-shadow:0 3px 12px rgba(0,0,0,.15);max-width:200px}
-.sb-legende div{display:flex;align-items:center;gap:8px;color:#334155;font-weight:600}
-.sb-legende .carre{width:14px;height:14px;border-radius:3px;flex:none}
+.sbr-legende div{display:flex;align-items:center;gap:8px;color:#334155;font-weight:600}
+.sbr-legende .carre{width:14px;height:14px;border-radius:3px;flex:none}
 
 /* ---- Adaptation au PANNEAU (largeur réelle disponible) ---- */
-@container sbp (min-width:620px){
-  .sb-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@container sbrp (min-width:620px){
+  .sbr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@container sbp (min-width:460px) and (max-width:619px){
-  .sb-kpi{grid-template-columns:minmax(180px,.9fr) 1.1fr}
+@container sbrp (max-width:520px){
+  .sbr-rang button{grid-template-columns:minmax(0,1fr) auto auto}
+  .sbr-piste{grid-column:1/-1;order:5}
 }
-@container sbp (max-width:520px){
-  .sb-rang button{grid-template-columns:minmax(0,1fr) auto auto}
-  .sb-piste{grid-column:1/-1;order:5}
-}
-@container sbp (max-width:340px){
-  .sb-stats{grid-template-columns:1fr}
+@container sbrp (max-width:360px){
+  .sbr-kpi-haut{grid-template-columns:1fr}
+  .sbr-stats-col{grid-template-rows:none}
 }
 
 /* ---- Adaptation à la ZONE (sidebar ouverte ou réduite) ---- */
-@container sb (max-width:1279px){
-  .sb-body{grid-template-columns:minmax(0,54%) minmax(0,1fr)}
+@container sbr (max-width:1279px){
+  .sbr-body{grid-template-columns:minmax(0,54%) minmax(0,1fr)}
 }
-@container sb (min-width:1600px){
-  .sb-body{grid-template-columns:minmax(0,60%) minmax(0,1fr)}
-  .sb-panel{padding:20px}
-  .sb-grid{gap:16px}
+@container sbr (min-width:1600px){
+  .sbr-body{grid-template-columns:minmax(0,60%) minmax(0,1fr)}
+  .sbr-panel{padding:20px}
+  .sbr-grid{gap:16px}
 }
-@container sb (min-width:2200px){
-  .sb-in{font-size:16px}
-  .sb-body{grid-template-columns:minmax(0,62%) minmax(0,1fr)}
-  .sb-graph{min-height:340px}
-  .sb-graph-grand{height:420px}
+@container sbr (min-width:2200px){
+  .sbr-in{font-size:16px}
+  .sbr-body{grid-template-columns:minmax(0,62%) minmax(0,1fr)}
+  .sbr-graph{min-height:340px}
+  .sbr-graph-grand{height:420px}
 }
 /* Tablette & mobile : carte au-dessus, la page défile */
-@container sb (max-width:1023px){
-  .sb-in{height:auto;min-height:0}
-  .sb-top{position:sticky;top:0}
-  .sb-body{display:flex;flex-direction:column;flex:none}
-  .sb-map{order:-1;height:56vh;min-height:320px;flex:none}
-  .sb-panel{overflow:visible;border-right:0}
-  .sb-filtres{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-  .sb-champ,.sb-reset{flex:none}
+@container sbr (max-width:1023px){
+  .sbr-in{height:auto;min-height:0}
+  .sbr-top{position:sticky;top:0}
+  .sbr-body{display:flex;flex-direction:column;flex:none}
+  .sbr-map{order:-1;height:56vh;min-height:320px;flex:none}
+  .sbr-panel{overflow:visible;border-right:0}
+  .sbr-filtres{width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
+  .sbr-champ,.sbr-reset{flex:none}
 }
-@container sb (max-width:639px){
-  .sb-top{padding:10px 12px}
-  .sb-sous{display:none}
-  .sb-panel{padding:12px}
-  .sb-grid{gap:12px}
-  .sb-carte{padding:12px}
-  .sb-map{height:48vh}
-  .sb-map-titre{top:60px;max-width:calc(100% - 24px);font-size:11.5px}
-  .sb-legende{display:none}
-  .sb-graph{min-height:230px}
-  .sb-graph-grand{height:290px}
-  .sb-champ select{min-width:140px}
-  .sb-footer strong{margin-left:0}
+@container sbr (max-width:639px){
+  .sbr-top{padding:10px 12px}
+  .sbr-sous{display:none}
+  .sbr-panel{padding:12px}
+  .sbr-grid{gap:12px}
+  .sbr-carte{padding:12px}
+  .sbr-map{height:48vh}
+  .sbr-map-titre{top:60px;max-width:calc(100% - 24px);font-size:11.5px}
+  .sbr-legende{display:none}
+  .sbr-graph{min-height:230px}
+  .sbr-graph-grand{height:290px}
+  .sbr-champ select{min-width:140px}
+  .sbr-footer strong{margin-left:0}
 }
-@media (prefers-reduced-motion:reduce){ .sb *{transition:none !important;animation:none !important} }
+@media (prefers-reduced-motion:reduce){ .sbr *{transition:none !important;animation:none !important} }
 `;
