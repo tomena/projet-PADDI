@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState } from "react";
+import React, { memo, useEffect, useMemo, useState } from "react";
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid,
   ReferenceLine, BarChart, Bar, Cell, LabelList, Legend, PieChart, Pie,
@@ -74,6 +74,38 @@ function exportCsv(rows: Region[]) {
   URL.revokeObjectURL(a.href);
 }
 
+/* ===================== CHARGEMENT DES DONNÉES (mise à jour) =====================
+   La page lit DATA_URL au chargement. Pour mettre à jour : modifier ce fichier JSON
+   (même structure que REGIONS), sans toucher au code. Si le fichier est absent,
+   les données de démonstration ci-dessus s'affichent. */
+const DATA_URL = "/data/regions.json"; // peut aussi être l'URL d'une API
+
+function useRegions() {
+  const [data, setData] = useState<Region[]>(REGIONS);
+  const [state, setState] = useState<"loading" | "ok" | "demo">("loading");
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch(DATA_URL, { signal: ctrl.signal, cache: "no-cache" })
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((d: Region[]) => { setData(d); setState("ok"); })
+      .catch(() => { if (!ctrl.signal.aborted) setState("demo"); });
+    return () => ctrl.abort();
+  }, []);
+  return { data, state };
+}
+
+/* Logo : radar (suivi) + point repéré sur le territoire (région équipée) */
+const Logo = () => (
+  <svg width="46" height="46" viewBox="0 0 48 48" aria-hidden="true" style={{ flexShrink: 0 }}>
+    <rect width="48" height="48" rx="12" fill="#16a34a" />
+    <circle cx="24" cy="24" r="15" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth="2" />
+    <circle cx="24" cy="24" r="8" fill="none" stroke="#fff" strokeOpacity=".6" strokeWidth="2" />
+    <path d="M24 24 L36 13" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" />
+    <circle cx="24" cy="24" r="3" fill="#fff" />
+    <circle cx="35.5" cy="14" r="3.4" fill="#fde047" />
+  </svg>
+);
+
 /* ============================ SOUS-COMPOSANTS ============================ */
 const StatusChip = memo(({ status }: { status: Status }) => {
   const { label, color, bg, Icon } = STATUS[status];
@@ -103,6 +135,7 @@ const Card = ({ title, children, className = "" }: { title: string; children: Re
 const INITIAL = { year: 2026, region: "all", status: "all", q: "", include7: false };
 
 export default function SuiviSystemes() {
+  const { data, state } = useRegions();
   const [f, setF] = useState(INITIAL);
   const [sort, setSort] = useState<{ key: keyof Region; dir: 1 | -1 }>({ key: "avancement", dir: -1 });
   const [page, setPage] = useState(1);
@@ -113,7 +146,7 @@ export default function SuiviSystemes() {
     setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }));
 
   /* Tout est dérivé d'une seule source → aucune incohérence possible entre KPI, graphiques et tableau */
-  const scope = useMemo(() => REGIONS.filter((r) => r.counted || f.include7), [f.include7]);
+  const scope = useMemo(() => data.filter((r) => r.counted || f.include7), [data, f.include7]);
 
   const view = useMemo(() => {
     const q = f.q.trim().toLowerCase();
@@ -137,7 +170,7 @@ export default function SuiviSystemes() {
   const alerts = useMemo(() => [
     ...view.filter((r) => statusOf(r.avancement) === "late")
       .map((r) => `${r.name} : avancement de ${nf(r.avancement)} %, sous le seuil de 50 %.`),
-    ...view.filter((r) => !r.org).map((r) => `${r.name} : aucune entité n'héberge encore le système.`),
+    ...view.filter((r) => !r.org).map((r) => `${r.name} : aucune entité n'héberge encore le système de suivi.`),
   ], [view]);
 
   const sorted = useMemo(() => [...view].sort((a, b) => {
@@ -163,9 +196,12 @@ export default function SuiviSystemes() {
 
       {/* ----- En-tête + filtres ----- */}
       <header className="sv-head">
-        <div>
+        <div className="sv-brand">
+          <Logo />
+          <div>
           <h1>Système de suivi</h1>
-          <p className="sv-muted">Suivi-évaluation des services écosystémiques · {stats.total} région{stats.total > 1 ? "s" : ""} affichée{stats.total > 1 ? "s" : ""}</p>
+          <p className="sv-muted">Régions disposant déjà d'un système de suivi · {stats.total} région{stats.total > 1 ? "s" : ""} affichée{stats.total > 1 ? "s" : ""}</p>
+          </div>
         </div>
         <div className="sv-filters" role="search">
           <label><span><Calendar size={13} /> Année</span>
@@ -194,13 +230,13 @@ export default function SuiviSystemes() {
 
       <div className="sv-banner">
         <Target size={22} aria-hidden />
-        <span>Indicateur : toutes les régions d'intervention disposent d'un système de suivi et d'évaluation des services écosystémiques.</span>
+        <span>Indicateur : nombre de régions d'intervention qui disposent déjà d'un système de suivi.</span>
       </div>
 
       {/* ----- KPI ----- */}
       <div className="sv-kpis">
-        <Kpi label="Couverture" value={`${nf(stats.couverture)} %`} tone="#15803d"
-          sub={`${stats.deployed}/${stats.total} systèmes en place (${f.year})`} />
+        <Kpi label="Régions disposant d'un système" value={`${stats.deployed} / ${stats.total}`} tone="#15803d"
+          sub={`${nf(stats.couverture)} % de couverture · situation ${f.year}`} />
         <Kpi label="Avancement moyen" value={`${nf(stats.moyenne)} %`} sub="Moyenne des régions affichées" />
         <Kpi label="Écart à la trajectoire"
           value={stats.ecart === null ? "—" : `${stats.ecart > 0 ? "+" : ""}${nf(stats.ecart)} pts`}
@@ -223,7 +259,7 @@ export default function SuiviSystemes() {
             </ResponsiveContainer>
             <div className="sv-donut-center"><strong>{nf(stats.couverture)} %</strong><small>Cible : 100 %</small></div>
           </div>
-          <p className="sv-center"><b>{stats.deployed} / {stats.total}</b> régions disposent d'un système opérationnel</p>
+          <p className="sv-center"><b>{stats.deployed} / {stats.total}</b> régions disposent déjà d'un système de suivi</p>
         </Card>
 
         <Card title="Trajectoire prévue et réalisée">
@@ -241,7 +277,7 @@ export default function SuiviSystemes() {
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Comparaison des régions (%)" className="sv-span">
+        <Card title="Comparaison des régions (%)">
           {barData.length === 0 ? <p className="sv-empty">Aucune région ne correspond aux filtres.</p> : (
             <>
               <ResponsiveContainer width="100%" height={barData.length * 42 + 30}>
@@ -328,7 +364,10 @@ export default function SuiviSystemes() {
         </footer>
       </section>
 
-      <p className="sv-muted sv-note">Données fictives à des fins de démonstration · dernière actualisation : {fdate(REGIONS.map((r) => r.maj).sort().at(-1)!)}</p>
+      <p className="sv-muted sv-note">
+        {state === "ok" ? `Source : ${DATA_URL}` : state === "loading" ? "Chargement des données…" : "Données fictives de démonstration"}
+        {" "}· dernière actualisation : {fdate(data.map((r) => r.maj).sort().pop() ?? null)}
+      </p>
     </main>
   );
 }
@@ -340,6 +379,7 @@ const CSS = `
   padding:clamp(10px,2vw,24px);display:flex;flex-direction:column;gap:16px;box-sizing:border-box;min-height:100%}
 .sv *,.sv *::before,.sv *::after{box-sizing:border-box}
 .sv h1{font-size:clamp(20px,3vw,28px);margin:0}
+.sv-brand{display:flex;gap:12px;align-items:center}
 .sv-muted{color:var(--muted);font-size:13px;margin:2px 0 0}
 .sv-head{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-end}
 .sv-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
@@ -387,8 +427,8 @@ const CSS = `
 .sv-pager button:disabled{opacity:.4;cursor:not-allowed}
 .sv-page{padding:0 6px}
 .sv-note{text-align:center}
-@media(min-width:720px){.sv-charts{grid-template-columns:1fr 1fr}.sv-span{grid-column:1/-1}}
-@media(min-width:1180px){.sv-charts{grid-template-columns:.8fr 1.2fr 1.2fr}.sv-span{grid-column:auto}}
+@media(min-width:720px){.sv-charts{grid-template-columns:1fr 1fr}}
+@media(min-width:1280px){.sv-charts{grid-template-columns:.8fr 1.15fr 1.2fr .85fr}}
 @media(max-width:760px){
   .sv-filters{width:100%}.sv-filters label:not(.sv-check){flex:1 1 140px}.sv-filters select,.sv-filters input{width:100%}
   .sv-table thead{display:none}
@@ -399,8 +439,3 @@ const CSS = `
 }
 @media(prefers-reduced-motion:reduce){.sv *{transition:none!important;animation:none!important}}
 `;
-
-/* ============================ ÉTAPE SUIVANTE : API ============================
-   Remplacer REGIONS par un hook de données (ex. TanStack Query) :
-   const { data = [], isLoading, error } = useQuery({ queryKey: ["regions"], queryFn: () => fetch("/api/regions").then(r => r.json()) });
-   puis afficher un squelette de chargement (isLoading) et un message d'erreur (error). */
