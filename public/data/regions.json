@@ -1,0 +1,13 @@
+[
+  { "name": "Boeny", "counted": true, "avancement": 100, "date": "2024-03-15", "maj": "2026-10-28",
+    "org": "DREDD – Direction Régionale de l'Environnement et du Développement Durable", "link": "https://suivi-boeny.mg" },
+  { "name": "DIANA", "counted": true, "avancement": 100, "date": "2024-06-10", "maj": "2026-10-30",
+    "org": "DREDD – Direction Régionale de l'Environnement et du Développement Durable", "link": "https://suivi-diana.mg" },
+  { "name": "Amoron'i Mania", "counted": true, "avancement": 75, "date": "2024-11-22", "maj": "2026-09-12",
+    "org": "BREDD – Bureau Régional de l'Environnement et du Développement Durable", "link": "https://suivi-amoroni-mania.mg" },
+  { "name": "Vakinankaratra", "counted": true, "avancement": 50, "date": "2025-02-05", "maj": "2026-08-03",
+    "org": "BREDD – Bureau Régional de l'Environnement et du Développement Durable", "link": "https://suivi-vakinankaratra.mg" },
+  { "name": "Anôsy", "counted": true, "avancement": 25, "date": null, "maj": "2026-06-20", "org": null, "link": null },
+  { "name": "Atsimo Atsinanana", "counted": true, "avancement": 10.5, "date": null, "maj": "2026-05-02", "org": null, "link": null },
+  { "name": "Menabe (7e région)", "counted": false, "avancement": 40, "date": null, "maj": "2026-07-15", "org": null, "link": null }
+]
