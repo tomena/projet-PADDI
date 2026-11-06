@@ -297,7 +297,7 @@ const CSS = `
 .bc-kt{font-size:9.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--c);line-height:1.2}
 .bc-kv{font-size:clamp(15px,1.3vw,19px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
 .bc-bar{height:9px;border-radius:999px;background:#f1f5f9;overflow:hidden;margin-top:3px}
-.bc-bar i{display:block;height:100%;border-radius:999px;background:color-mix(in srgb,var(--c) 22%,transparent);border:2px solid var(--c);box-sizing:border-box;transition:width .5s}
+.bc-bar i{display:block;height:100%;border-radius:999px;background:color-mix(in srgb,var(--c) 30%,transparent);border:1px solid var(--c);box-sizing:border-box;transition:width .5s}
 .bc-ks{font-size:10px;color:var(--mut);line-height:1.3}
 .bc-delta{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;margin-top:1px}
 
@@ -440,7 +440,7 @@ const RankTip = ({ active, payload, unit }: any) => {
   );
 };
 
-// Barres de progression : fond translucide + bordure marquée, couleur = classe de la carte, taille adaptée à l'espace disponible
+// Barres de progression : remplissage uni sans bordure, couleur = classe de la carte, taille adaptée à l'espace disponible
 const RankBars = ({ data, obj, unit, scale, avail = 0, width = 0 }: any) => {
   const rows = data.length;
   const top = 16, bottom = 4;
@@ -463,7 +463,7 @@ const RankBars = ({ data, obj, unit, scale, avail = 0, width = 0 }: any) => {
           <ReferenceLine x={obj} stroke="#dc2626" strokeDasharray="4 3" strokeWidth={1.5}
                          label={{ value: `Objectif ${obj} %`, position: 'top', fill: '#dc2626', fontSize: 9.5, fontWeight: 700 }} />
           <Bar dataKey="value" radius={[0, 7, 7, 0]} barSize={bar} background={{ fill: '#f1f5f9', radius: [0, 7, 7, 0] } as any}>
-            {data.map((d: any, i: number) => { const c = colorOf(d); return <Cell key={i} fill={c} fillOpacity={0.2} stroke={c} strokeWidth={2} />; })}
+            {data.map((d: any, i: number) => { const c = colorOf(d); return <Cell key={i} fill={c} fillOpacity={0.85} stroke="none" strokeWidth={0} />; })}
             <LabelList dataKey="value" position="right" formatter={(v: number) => `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}%`} style={{ fontSize: fs - 0.5, fontWeight: 700, fill: '#334155' }} />
           </Bar>
         </BarChart>
@@ -1038,7 +1038,7 @@ export default function BudgetCommunaux() {
                 <p className="bc-cs" style={{ margin: 0 }}>100 % = objectif atteint (SE : {OBJ_SE} % du budget · F/J : {OBJ_FJ} % du budget SE)</p>
               </div>
               <div className="bc-lg" aria-hidden="true">
-                <span><i style={{ background: 'rgba(21,128,61,.18)', border: '2px solid #15803d' }} />Budget SE (M Ar)</span>
+                <span><i style={{ background: 'rgba(21,128,61,.18)', border: '1.2px solid #15803d' }} />Budget SE (M Ar)</span>
                 <span><b style={{ background: '#15803d' }} />Budget SE</span>
                 <span><b style={{ background: '#7b1fa2' }} />Femmes et jeunes</span>
               </div>
@@ -1047,16 +1047,16 @@ export default function BudgetCommunaux() {
               <div className="bc-chart">
                 <div style={{ position: 'absolute', inset: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart data={trend} margin={{ top: 8, right: 2, left: -16, bottom: 0 }}>
+                    <ComposedChart data={trend} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
                       <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
                       <XAxis dataKey="annee" tick={{ fontSize: 10.5, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                      <YAxis yAxisId="a" domain={[0, evoMax]} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${v}%`} />
-                      <YAxis yAxisId="b" orientation="right" hide={evSz.w < 400} domain={[0, (m: number) => Math.ceil(m * 2.2)]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={34} tickFormatter={(v) => `${v}M`} />
+                      <YAxis yAxisId="a" domain={[0, evoMax]} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={46} tickFormatter={(v) => `${v}%`} />
+                      <YAxis yAxisId="b" orientation="right" hide={evSz.w < 400} domain={[0, (m: number) => Math.ceil(m * 2.2)]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${v}M`} />
                       <Tooltip content={<EvoTip />} cursor={{ fill: 'rgba(22,101,52,.05)' }} />
                       <ReferenceArea yAxisId="a" y1={100} y2={evoMax} fill="#16a34a" fillOpacity={0.07} />
                       <ReferenceLine yAxisId="a" y={100} stroke="#15803d" strokeWidth={1.5} strokeDasharray="5 4"
                                      label={{ value: 'Objectif', position: 'insideTopLeft', fill: '#15803d', fontSize: 10, fontWeight: 700 }} />
-                      <Bar yAxisId="b" dataKey="se" name="Budget SE (M Ar)" fill="#16a34a" fillOpacity={0.14} stroke="#15803d" strokeWidth={2} radius={[6, 6, 0, 0]} barSize={26} />
+                      <Bar yAxisId="b" dataKey="se" name="Budget SE (M Ar)" fill="#16a34a" fillOpacity={0.14} stroke="#15803d" strokeWidth={1.2} radius={[6, 6, 0, 0]} barSize={26} />
                       <Line yAxisId="a" type="monotone" dataKey="aSe" name="SE (% de l’objectif)" stroke="#15803d" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
                       <Line yAxisId="a" type="monotone" dataKey="aFj" name="F/J (% de l’objectif)" stroke="#7b1fa2" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
                     </ComposedChart>
@@ -1090,7 +1090,7 @@ export default function BudgetCommunaux() {
               )}
               {mapCommunes.length > 0 && (
                 <GeoLayer zones={mapCommunes} cle={`c${indic}${yr}${commune}${mapCommunes.length}`} tip={tipCommune}
-                  style={(z: any) => ({ color: commune && z.agg.commune === commune ? '#052e16' : '#fff', weight: commune && z.agg.commune === commune ? 3 : 1.2, fillColor: colorFor(I.val(z.agg), I.scale), fillOpacity: 0.78 })}
+                  style={(z: any) => ({ color: commune && z.agg.commune === commune ? '#052e16' : '#fff', weight: commune && z.agg.commune === commune ? 3 : 1.2, fillColor: colorFor(I.val(z.agg), I.scale), fillOpacity: 0.35 })}
                   onClick={(z: any) => pickCommune(z.agg)} />
               )}
               <CommuneLabels items={mapCommunes} selected={commune} valKey={`${indic}${yr}`} valFn={(a: CAgg) => fmtP(I.val(a))} />
