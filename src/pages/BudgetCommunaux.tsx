@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
   Search, Calendar, RotateCcw, MapPin, Mountain, Building2, Users, Landmark, Coins, Leaf,
-  PieChart as PieIcon, Download, Upload, FileSpreadsheet, TrendingUp, TrendingDown, X,
-  ArrowUpDown, ChevronLeft, ChevronRight, Info, CheckCircle2, AlertTriangle,
+  PieChart as PieIcon, Download, Upload, FileJson, RefreshCw, TrendingUp, TrendingDown, X,
+  ArrowUpDown, ChevronLeft, ChevronRight, Info, CheckCircle2, AlertTriangle, SlidersHorizontal,
 } from 'lucide-react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
@@ -16,12 +16,18 @@ import {
    CONFIGURATION (à adapter)
    ===================================================================== */
 const DATA = {
-  budgets: '/data/budgets_communaux.csv', // ← votre base (modèle fourni : budgets_communaux.csv)
-  regions: '/data/madagascar_24_region.geojson', // champ « nom_reg » (comme les autres pages)
+  budgets: '/data/budgets_communaux.geojson', // ← base GeoJSON (modèle fourni : budgets_communaux.geojson)
+  regions: '/data/madagascar_24_region.geojson', // champ « nom_reg »
   districts: '/data/madagascar_district.json', // champs « NAME_3 » (district) et « NAME_2 » (région)
   communes: '/data/madagascar_communes.json', // champs « NAME_4 » (commune) et « NAME_3 » (district)
 };
-const PROP = { region: 'nom_reg', district: 'NAME_3', commune: 'NAME_4', communeDistrict: 'NAME_3' };
+const PROP = {
+  region: 'nom_reg',
+  district: 'NAME_3', districtRegion: 'NAME_2',
+  commune: 'NAME_4', communeDistrict: 'NAME_3',
+  communeCode: '', // ex. 'pcode' : si renseigné ET présent dans la base (propriété « Code_Commune »), la jointure se fait par code et non par nom
+};
+const REFRESH_MS = 0; // actualisation automatique du fichier (en millisecondes). 0 = désactivée, ex. 300000 = toutes les 5 min
 
 // Objectifs de suivi
 const OBJ_SE = 5; // % du budget total consacré aux services écosystémiques (SE)
@@ -38,12 +44,12 @@ const FONDS: Record<string, { url: string; attr: string }> = {
 type IndicId = 'se' | 'fj';
 const INDIC: Record<IndicId, any> = {
   se: {
-    label: 'Budget SE', long: 'Budget SE (% du budget total)', obj: OBJ_SE, unit: 'du budget total',
+    label: 'Budget SE', short: `SE ≥ ${OBJ_SE} %`, long: 'Budget SE (% du budget total)', obj: OBJ_SE, unit: 'du budget total',
     scale: [[5, '#15803d'], [2.5, '#84cc16'], [1, '#f59e0b'], [0, '#dc2626']] as [number, string][],
     val: (a: any) => a.pSe, ok: (a: any) => a.okSe,
   },
   fj: {
-    label: 'Femmes et jeunes', long: 'Femmes et jeunes (% du budget SE)', obj: OBJ_FJ, unit: 'du budget SE',
+    label: 'Femmes et jeunes', short: `F/J ≥ ${OBJ_FJ} %`, long: 'Femmes et jeunes (% du budget SE)', obj: OBJ_FJ, unit: 'du budget SE',
     scale: [[25, '#15803d'], [15, '#84cc16'], [5, '#f59e0b'], [0, '#dc2626']] as [number, string][],
     val: (a: any) => a.pFj, ok: (a: any) => a.okFj,
   },
@@ -63,8 +69,8 @@ const fmtAr = (v: number) =>
 const uniq = (a: string[]) => Array.from(new Set(a.filter(Boolean))).sort((x, y) => x.localeCompare(y, 'fr'));
 const colorFor = (v: number, scale: [number, string][]) => (scale.find(([m]) => v >= m) || scale[scale.length - 1])[1];
 
-function download(name: string, content: string, mime = 'text/csv;charset=utf-8') {
-  const url = URL.createObjectURL(new Blob(['\ufeff' + content], { type: mime }));
+function download(name: string, content: string, mime = 'text/csv;charset=utf-8', bom = true) {
+  const url = URL.createObjectURL(new Blob([(bom ? '\ufeff' : '') + content], { type: mime }));
   const a = document.createElement('a');
   a.href = url; a.download = name; a.click();
   URL.revokeObjectURL(url);
@@ -72,63 +78,82 @@ function download(name: string, content: string, mime = 'text/csv;charset=utf-8'
 const csvLine = (cells: (string | number)[]) => cells.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';');
 
 /* =====================================================================
-   BASE DE DONNÉES : lecture du CSV (séparateur ; , ou tabulation auto-détecté)
-   Colonnes : Annee ; Region ; District ; Commune ; Aire_Protegee ; Fokontany ;
-              Budget_Total ; Budget_SE ; Budget_SE_Femmes_Jeunes ; Date_MAJ
-   (Annee, Commune, Budget_Total et Budget_SE sont obligatoires, le reste est facultatif)
+   BASE DE DONNÉES GEOJSON
+   ---------------------------------------------------------------------
+   Une « Feature » = une commune. La géométrie (Polygon / MultiPolygon) est
+   facultative : si elle est absente (null), la commune est cherchée dans la
+   couche communes (par code ou par nom).
+
+   Propriétés d'une commune :
+     Region, District, Commune, Aire_Protegee, Fokontany, Code_Commune (facultatif)
+     budgets : [ { Annee, Budget_Total, Budget_SE, Budget_SE_Femmes_Jeunes, Date_MAJ }, ... ]
+
+   Format « plat » également accepté : une Feature par commune ET par année,
+   avec Annee, Budget_Total, Budget_SE, Budget_SE_Femmes_Jeunes, Date_MAJ
+   directement dans les propriétés.
+   Obligatoires : Commune, Annee, Budget_Total, Budget_SE. Le reste est facultatif.
    ===================================================================== */
-type Row = { annee: number; region: string; district: string; commune: string; ap: string; fokontany: string; total: number; se: number; fj: number; maj: string };
+type Row = { annee: number; region: string; district: string; commune: string; ap: string; fokontany: string; code: string; total: number; se: number; fj: number; maj: string };
 
 const ALIASES: Record<string, string[]> = {
   annee: ['annee', 'year'], region: ['region'], district: ['district'], commune: ['commune'],
-  ap: ['aire protegee', 'ap'], fokontany: ['fokontany'],
+  ap: ['aire protegee', 'ap'], fokontany: ['fokontany'], code: ['code commune', 'code', 'pcode'],
   total: ['budget total', 'total', 'budget'], se: ['budget se', 'se'],
   fj: ['budget se femmes jeunes', 'budget se fj', 'se femmes jeunes', 'fj'], maj: ['date maj', 'maj', 'mise a jour'],
 };
 
-const TEMPLATE = [
-  'Annee;Region;District;Commune;Aire_Protegee;Fokontany;Budget_Total;Budget_SE;Budget_SE_Femmes_Jeunes;Date_MAJ',
-  '2025;Boeny;Soalala;Nom de la commune;Ankarafantsika;;870000000;48720000;18270000;2025-12-31',
-  '2025;Betsiboka;Maevatanana;Nom de la commune;;;980000000;69580000;25480000;2025-12-31',
-].join('\n');
-
-function parseCSV(text: string): string[][] {
-  const t = text.replace(/^\ufeff/, '');
-  const first = t.split(/\r?\n/, 1)[0] || '';
-  const delim = [';', '\t', ','].map((d) => [d, first.split(d).length] as [string, number]).sort((a, b) => b[1] - a[1])[0][0];
-  const rows: string[][] = [];
-  let row: string[] = [], cell = '', q = false;
-  for (let i = 0; i < t.length; i++) {
-    const c = t[i];
-    if (q) {
-      if (c === '"') { if (t[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c;
-    } else if (c === '"') q = true;
-    else if (c === delim) { row.push(cell); cell = ''; }
-    else if (c === '\n' || c === '\r') { if (c === '\r' && t[i + 1] === '\n') i++; row.push(cell); rows.push(row); row = []; cell = ''; }
-    else cell += c;
-  }
-  if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
-  return rows.filter((r) => r.some((x) => x.trim() !== ''));
-}
+const TEMPLATE = JSON.stringify({
+  type: 'FeatureCollection',
+  features: [{
+    type: 'Feature',
+    properties: {
+      Region: 'Boeny', District: 'Soalala', Commune: 'Nom de la commune', Aire_Protegee: 'Ankarafantsika', Fokontany: '', Code_Commune: '',
+      budgets: [
+        { Annee: 2024, Budget_Total: 850000000, Budget_SE: 40000000, Budget_SE_Femmes_Jeunes: 12000000, Date_MAJ: '2024-12-31' },
+        { Annee: 2025, Budget_Total: 870000000, Budget_SE: 48720000, Budget_SE_Femmes_Jeunes: 18270000, Date_MAJ: '2025-12-31' },
+      ],
+    },
+    geometry: null, // ← remplacez par le Polygon / MultiPolygon de la commune (ou laissez null)
+  }],
+}, null, 2);
 
 const toNum = (v: any) => Number(String(v ?? '').replace(/[\s\u00a0]/g, '').replace(',', '.').replace(/[^0-9.\-]/g, '')) || 0;
 
-function rowsFromCSV(text: string): Row[] {
-  const grid = parseCSV(text);
-  if (grid.length < 2) throw new Error('Fichier vide ou illisible.');
-  const head = grid[0].map(norm);
-  const idx: Record<string, number> = {};
-  Object.keys(ALIASES).forEach((k) => { idx[k] = head.findIndex((h) => ALIASES[k].includes(h)); });
-  const manque = ['annee', 'commune', 'total', 'se'].filter((k) => idx[k] < 0);
-  if (manque.length) throw new Error(`Colonnes obligatoires introuvables : ${manque.join(', ')}.`);
-  const get = (r: string[], k: string) => (idx[k] >= 0 ? (r[idx[k]] ?? '').trim() : '');
-  return grid.slice(1)
-    .map((r) => ({
-      annee: Math.round(toNum(get(r, 'annee'))), region: get(r, 'region') || '—', district: get(r, 'district') || '—',
-      commune: get(r, 'commune'), ap: get(r, 'ap'), fokontany: get(r, 'fokontany'),
-      total: toNum(get(r, 'total')), se: toNum(get(r, 'se')), fj: toNum(get(r, 'fj')), maj: get(r, 'maj'),
-    }))
-    .filter((r) => r.annee > 1990 && r.commune);
+// Lecteur de propriétés insensible à la casse, aux accents et aux « _ »
+const reader = (obj: any) => {
+  const nk: Record<string, any> = {};
+  Object.keys(obj || {}).forEach((k) => { nk[norm(k)] = obj[k]; });
+  return (k: string) => {
+    const a = ALIASES[k].find((x) => nk[x] !== undefined && nk[x] !== null);
+    return a ? String(nk[a]).trim() : '';
+  };
+};
+
+const rowKey = (r: { code?: string; region: string; district: string; commune: string }) =>
+  r.code ? `c:${norm(r.code)}` : `${norm(r.region)}|${norm(r.district)}|${norm(r.commune)}`;
+
+function rowsFromGeo(json: any): { rows: Row[]; geoms: Map<string, any> } {
+  const feats = json && Array.isArray(json.features) ? json.features : null;
+  if (!feats) throw new Error('Fichier GeoJSON invalide : une « FeatureCollection » est attendue.');
+  const rows: Row[] = [];
+  const geoms = new Map<string, any>();
+  feats.forEach((f: any) => {
+    const p = f?.properties || {};
+    const get = reader(p);
+    const commune = get('commune');
+    if (!commune) return;
+    const head = { region: get('region') || '—', district: get('district') || '—', commune, ap: get('ap'), fokontany: get('fokontany'), code: get('code') };
+    const budgetsKey = Object.keys(p).find((k) => norm(k) === 'budgets');
+    const items: any[] = budgetsKey && Array.isArray(p[budgetsKey]) ? p[budgetsKey] : [p];
+    items.forEach((it) => {
+      const g = reader(it);
+      const annee = Math.round(toNum(g('annee')));
+      if (annee > 1990) rows.push({ ...head, annee, total: toNum(g('total')), se: toNum(g('se')), fj: toNum(g('fj')), maj: g('maj') });
+    });
+    if (f.geometry) geoms.set(rowKey(head), f.geometry);
+  });
+  if (!rows.length) throw new Error('Aucune ligne exploitable : vérifiez les propriétés Commune, Annee, Budget_Total et Budget_SE.');
+  return { rows, geoms };
 }
 
 // Données de démonstration (affichées tant que le fichier n'est pas en place)
@@ -150,7 +175,7 @@ function demoRows(): Row[] {
     const total = Math.round((3e8 + rnd() * 1.1e9) / 1e4) * 1e4;
     const se = Math.round((total * (1 + rnd() * 10 + (y - 2022) * 0.4)) / 100 / 1e3) * 1e3;
     const fj = Math.round((se * (0.12 + rnd() * 0.35)) / 1e3) * 1e3;
-    out.push({ annee: y, region, district, commune, ap, fokontany: '', total, se, fj, maj: `${y}-12-31` });
+    out.push({ annee: y, region, district, commune, ap, fokontany: '', code: '', total, se, fj, maj: `${y}-12-31` });
   }));
   return out;
 }
@@ -161,13 +186,13 @@ const aggOf = (total: number, se: number, fj: number) => {
   const pFj = se > 0 ? (fj / se) * 100 : 0;
   return { total, se, fj, pSe, pFj, okSe: pSe >= OBJ_SE, okFj: pFj >= OBJ_FJ };
 };
-type CAgg = ReturnType<typeof aggOf> & { key: string; region: string; district: string; commune: string; ap: string };
+type CAgg = ReturnType<typeof aggOf> & { key: string; region: string; district: string; commune: string; ap: string; code: string };
 
 function byCommune(rows: Row[]): CAgg[] {
   const m = new Map<string, any>();
   rows.forEach((r) => {
-    const k = `${norm(r.region)}|${norm(r.district)}|${norm(r.commune)}`;
-    const e = m.get(k) || { region: r.region, district: r.district, commune: r.commune, ap: '', total: 0, se: 0, fj: 0 };
+    const k = rowKey(r);
+    const e = m.get(k) || { region: r.region, district: r.district, commune: r.commune, code: r.code, ap: '', total: 0, se: 0, fj: 0 };
     e.total += r.total; e.se += r.se; e.fj += r.fj;
     if (!e.ap && r.ap) e.ap = r.ap;
     m.set(k, e);
@@ -199,7 +224,7 @@ function useGeo(url: string) {
 const toZones = (feats: any[], key: string): Zone[] => feats.filter((f) => f?.geometry).map((f) => ({ nom: String(f.properties?.[key] ?? ''), feature: f }));
 
 /* =====================================================================
-   STYLES RESPONSIVES (le composant s'adapte à la largeur réellement disponible)
+   STYLES RESPONSIVES
    ===================================================================== */
 const CSS = `
 .bc{--g:#166534;--g2:#15803d;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--card:#fff;
@@ -225,9 +250,12 @@ const CSS = `
 .bc-btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:10px;border:1px solid #d1d5db;
   background:#fff;color:var(--ink);font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
 .bc-btn:hover{background:#f1f5f9}
+.bc-btn:disabled{opacity:.55;cursor:not-allowed}
 .bc-btn.pri{background:var(--g2);border-color:var(--g2);color:#fff}
 .bc-btn.pri:hover{background:var(--g)}
 .bc-hidden{display:none}
+.bc-spin{animation:bcspin .9s linear infinite}
+@keyframes bcspin{to{transform:rotate(360deg)}}
 
 /* Bandeaux d'information */
 .bc-note{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:12px;font-size:12.5px;line-height:1.45}
@@ -248,6 +276,9 @@ const CSS = `
 .bc-f select,.bc-search{width:100%;height:38px;padding:0 10px;border-radius:10px;border:1px solid #d1d5db;background:#fff;font-size:12.5px;font-weight:600;color:var(--ink)}
 .bc-f select{cursor:pointer}
 .bc-f select:disabled{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}
+.bc-f.ind{min-width:min(100%,240px)}
+.bc-f.ind .bc-seg{width:100%;height:38px}
+.bc-f.ind .bc-seg button{flex:1;padding:0 8px;white-space:nowrap}
 .bc-searchbox{grid-column:1/-1;position:relative}
 .bc-searchbox svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8}
 .bc-search{padding-left:33px;font-weight:500}
@@ -269,9 +300,7 @@ const CSS = `
 .bc-ks{font-size:11px;color:var(--mut);line-height:1.35}
 .bc-delta{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;margin-top:2px}
 
-/* Barre d'outils indicateur */
-.bc-toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 12px;background:#fff;border:1px solid var(--line);border-radius:12px}
-.bc-toolbar b{font-size:12px;color:#334155}
+/* Segments (boutons groupés) */
 .bc-seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#fff}
 .bc-seg button{padding:7px 12px;border:0;background:transparent;font-size:12px;font-weight:700;color:#475569;cursor:pointer}
 .bc-seg button+button{border-left:1px solid #cbd5e1}
@@ -342,8 +371,8 @@ const CSS = `
   .bc-kt,.bc-ks,.bc-cs{font-size:12px}
   .bc-mapwrap{height:clamp(420px,56vh,720px)}
 }
-@media print{.bc-actions,.bc-filters,.bc-toolbar,.bc-pg{display:none!important}.bc{background:#fff}}
-@media (prefers-reduced-motion:reduce){.bc *{transition:none!important}}
+@media print{.bc-actions,.bc-filters,.bc-pg{display:none!important}.bc{background:#fff}}
+@media (prefers-reduced-motion:reduce){.bc *{transition:none!important;animation:none!important}}
 `;
 
 /* =====================================================================
@@ -412,7 +441,7 @@ const RankBars = ({ data, obj, unit }: any) => {
 };
 
 /* =====================================================================
-   CARTE : régions (comme les autres pages) + districts + communes colorées
+   CARTE : régions + districts + communes colorées
    ===================================================================== */
 function GeoLayer({ zones, style, cle, tip, onClick }: any) {
   const map = useMap();
@@ -465,23 +494,42 @@ function Resize() {
    PAGE
    ===================================================================== */
 type SortKey = 'commune' | 'district' | 'region' | 'ap' | 'total' | 'se' | 'pSe' | 'fj' | 'pFj';
+type DS = { rows: Row[]; geoms: Map<string, any>; mode: 'loading' | 'file' | 'demo' | 'import'; label: string; at: Date | null };
 
 export default function BudgetCommunaux() {
-  /* ---------- Base de données ---------- */
-  const [ds, setDs] = useState<{ rows: Row[]; mode: 'loading' | 'file' | 'demo' | 'import'; label: string }>({ rows: [], mode: 'loading', label: '' });
+  /* ---------- Base de données (GeoJSON) ---------- */
+  const [ds, setDs] = useState<DS>({ rows: [], geoms: new Map(), mode: 'loading', label: '', at: null });
   const [loadErr, setLoadErr] = useState('');
+  const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const modeRef = useRef(ds.mode);
+  modeRef.current = ds.mode;
+
+  // Charge (ou recharge) le fichier. Le paramètre ?v= et cache:'no-store' évitent d'afficher une ancienne version en cache.
+  const load = useCallback((silent = false) => {
+    setBusy(true);
+    return fetch(`${DATA.budgets}?v=${Date.now()}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error('introuvable'))))
+      .then((j) => {
+        const { rows, geoms } = rowsFromGeo(j);
+        setDs({ rows, geoms, mode: 'file', label: DATA.budgets, at: new Date() });
+        setLoadErr('');
+      })
+      .catch((e: any) => {
+        const absent = e?.message === 'introuvable' || e instanceof TypeError || e instanceof SyntaxError;
+        setDs((s) => (s.mode === 'file' || s.mode === 'import' ? s : { rows: demoRows(), geoms: new Map(), mode: 'demo', label: '', at: null }));
+        if (!silent || !absent) setLoadErr(absent ? (modeRef.current === 'file' ? 'Actualisation impossible : fichier introuvable ou illisible.' : '') : e.message);
+      })
+      .finally(() => setBusy(false));
+  }, []);
 
   useEffect(() => {
-    fetch(DATA.budgets)
-      .then((r) => (r.ok ? r.text() : Promise.reject(new Error('introuvable'))))
-      .then((t) => {
-        const rows = rowsFromCSV(t);
-        if (!rows.length) throw new Error('vide');
-        setDs({ rows, mode: 'file', label: DATA.budgets });
-      })
-      .catch(() => setDs({ rows: demoRows(), mode: 'demo', label: '' }));
-  }, []);
+    load(true);
+    if (REFRESH_MS > 0) {
+      const t = setInterval(() => { if (modeRef.current !== 'import') load(true); }, REFRESH_MS);
+      return () => clearInterval(t);
+    }
+  }, [load]);
 
   const onImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
@@ -489,16 +537,15 @@ export default function BudgetCommunaux() {
     if (!f) return;
     f.text().then((txt) => {
       try {
-        const rows = rowsFromCSV(txt);
-        if (!rows.length) throw new Error('Aucune ligne exploitable dans ce fichier.');
-        setDs({ rows, mode: 'import', label: f.name });
+        const { rows, geoms } = rowsFromGeo(JSON.parse(txt));
+        setDs({ rows, geoms, mode: 'import', label: f.name, at: new Date() });
         setLoadErr('');
-      } catch (err: any) { setLoadErr(err.message || 'Fichier illisible.'); }
+      } catch (err: any) { setLoadErr(err instanceof SyntaxError ? 'Fichier JSON illisible.' : err.message || 'Fichier illisible.'); }
     });
   };
   const rows = ds.rows;
 
-  /* ---------- Géographie ---------- */
+  /* ---------- Géographie (couches de référence) ---------- */
   const [regionsF] = useGeo(DATA.regions);
   const [districtsF] = useGeo(DATA.districts);
   const [communesF, communesDone] = useGeo(DATA.communes);
@@ -574,28 +621,39 @@ export default function BudgetCommunaux() {
     [base, years]
   );
 
-  /* ---------- Carte : communes de la sélection associées à leur géométrie ---------- */
+  /* ---------- Carte : communes de la sélection associées à leur géométrie ----------
+     Ordre de recherche : 1) géométrie contenue dans la base GeoJSON,
+     2) couche communes par code, 3) par district + nom, 4) par nom unique. */
   const geoIndex = useMemo(() => {
     const exact = new Map<string, Zone>();
     const byName = new Map<string, Zone[]>();
+    const byCode = new Map<string, Zone>();
     communesZ.forEach((z) => {
       const d = norm(z.feature.properties?.[PROP.communeDistrict]);
       exact.set(`${d}|${norm(z.nom)}`, z);
       const k = norm(z.nom);
       byName.set(k, [...(byName.get(k) || []), z]);
+      if (PROP.communeCode) {
+        const code = z.feature.properties?.[PROP.communeCode];
+        if (code != null && code !== '') byCode.set(norm(code), z);
+      }
     });
-    return { exact, byName };
+    return { exact, byName, byCode };
   }, [communesZ]);
 
   const mapCommunes = useMemo(() => {
     const out: any[] = [];
     communesAgg.forEach((c) => {
-      const z = geoIndex.exact.get(`${norm(c.district)}|${norm(c.commune)}`) || (geoIndex.byName.get(norm(c.commune))?.length === 1 ? geoIndex.byName.get(norm(c.commune))![0] : undefined);
+      const g = ds.geoms.get(c.key);
+      let z: Zone | undefined = g ? { nom: c.commune, feature: { type: 'Feature', geometry: g, properties: {} } } : undefined;
+      if (!z && PROP.communeCode && c.code) z = geoIndex.byCode.get(norm(c.code));
+      if (!z) z = geoIndex.exact.get(`${norm(c.district)}|${norm(c.commune)}`);
+      if (!z) { const l = geoIndex.byName.get(norm(c.commune)); if (l?.length === 1) z = l[0]; }
       if (z) out.push({ ...z, agg: c });
     });
     return out;
-  }, [communesAgg, geoIndex]);
-  const missingGeo = communesDone && communesZ.length > 0 ? communesAgg.length - mapCommunes.length : 0;
+  }, [communesAgg, geoIndex, ds.geoms]);
+  const missingGeo = communesDone && (communesZ.length > 0 || ds.geoms.size > 0) ? communesAgg.length - mapCommunes.length : 0;
 
   const districtNames = useMemo(() => new Set(communesAgg.map((c) => norm(c.district))), [communesAgg]);
   const mapDistricts = useMemo(() => districtsZ.filter((z) => districtNames.has(norm(z.nom))), [districtsZ, districtNames]);
@@ -604,8 +662,16 @@ export default function BudgetCommunaux() {
     [communesZ, district]
   );
   const regionZone = useMemo(() => (region ? regionsZ.find((z) => norm(z.nom) === norm(region)) || null : null), [regionsZ, region]);
-  const focusZones = mapCommunes.length ? mapCommunes : regionZone ? [regionZone] : [];
+  const districtZone = useMemo(() => (district ? districtsZ.find((z) => norm(z.nom) === norm(district)) || null : null), [districtsZ, district]);
+  const focusZones = mapCommunes.length ? mapCommunes : districtZone ? [districtZone] : regionZone ? [regionZone] : [];
   const focusKey = [region, district, commune, ap, mapCommunes.length].join('|');
+
+  // Clic sur un district de la carte : sélectionne le district (et sa région)
+  const pickDistrictFromMap = (z: Zone) => {
+    const regName = z.feature.properties?.[PROP.districtRegion];
+    const row = rows.find((r) => norm(r.district) === norm(z.nom) && (!regName || norm(r.region) === norm(regName))) || rows.find((r) => norm(r.district) === norm(z.nom));
+    if (row) { setRegion(row.region); setDistrict(row.district); setCommune(''); }
+  };
 
   const tipCommune = (z: any) => {
     const a = z.agg as CAgg;
@@ -662,6 +728,7 @@ export default function BudgetCommunaux() {
   const progSe = Math.min(100, (tot.pSe / OBJ_SE) * 100);
   const progFj = Math.min(100, (tot.pFj / OBJ_FJ) * 100);
   const dCmp = hasPrev ? String(yr - 1) : '';
+  const hhmm = ds.at ? ds.at.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
 
   /* =====================================================================
      RENDU
@@ -690,12 +757,15 @@ export default function BudgetCommunaux() {
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <button className="bc-btn" onClick={() => fileRef.current?.click()} title="Importer un fichier CSV (le temps de la session)">
+          <button className="bc-btn" onClick={() => load(false)} disabled={busy} title="Recharger le fichier GeoJSON depuis le serveur">
+            <RefreshCw size={14} className={busy ? 'bc-spin' : ''} /><span className="t">Actualiser</span>
+          </button>
+          <button className="bc-btn" onClick={() => fileRef.current?.click()} title="Importer un fichier GeoJSON (le temps de la session)">
             <Upload size={14} /><span className="t">Importer</span>
           </button>
-          <input ref={fileRef} type="file" accept=".csv,text/csv" className="bc-hidden" onChange={onImport} />
-          <button className="bc-btn" onClick={() => download('budgets_communaux_modele.csv', TEMPLATE)} title="Télécharger le modèle de fichier à remplir">
-            <FileSpreadsheet size={14} /><span className="t">Modèle</span>
+          <input ref={fileRef} type="file" accept=".geojson,.json,application/geo+json,application/json" className="bc-hidden" onChange={onImport} />
+          <button className="bc-btn" onClick={() => download('budgets_communaux_modele.geojson', TEMPLATE, 'application/geo+json', false)} title="Télécharger le modèle GeoJSON à remplir">
+            <FileJson size={14} /><span className="t">Modèle</span>
           </button>
           <button className="bc-btn pri" onClick={reset} disabled={!filtered && !q}>
             <RotateCcw size={13} /><span className="t">Réinitialiser</span>
@@ -708,17 +778,20 @@ export default function BudgetCommunaux() {
         <div className="bc-note warn" role="status">
           <AlertTriangle size={17} />
           <div>
-            <strong>Données de démonstration.</strong> Placez votre base dans <code>public{DATA.budgets}</code> (modèle fourni : <code>budgets_communaux.csv</code>)
-            ou utilisez le bouton « Importer ». Les noms de région, district et commune doivent correspondre à ceux des fichiers cartographiques pour s’afficher sur la carte.
+            <strong>Données de démonstration.</strong> Placez votre base GeoJSON dans <code>public{DATA.budgets}</code> (modèle : bouton « Modèle »)
+            ou utilisez « Importer ». Les noms de région, district et commune doivent correspondre à ceux des couches cartographiques si la base ne contient pas les géométries.
           </div>
         </div>
       )}
       {ds.mode === 'import' && (
-        <div className="bc-note ok" role="status"><CheckCircle2 size={17} /><div>Fichier importé : <strong>{ds.label}</strong> (valable jusqu’à l’actualisation de la page).</div></div>
+        <div className="bc-note ok" role="status"><CheckCircle2 size={17} /><div>Fichier importé : <strong>{ds.label}</strong> (valable jusqu’à l’actualisation de la page). Cliquez sur « Actualiser » pour revenir au fichier du serveur.</div></div>
+      )}
+      {ds.mode === 'file' && hhmm && (
+        <div className="bc-note ok" role="status"><CheckCircle2 size={17} /><div>Base chargée : <code>{ds.label}</code> · {rows.length} ligne(s) · {ds.geoms.size} géométrie(s) · actualisée à {hhmm}.</div></div>
       )}
       {loadErr && <div className="bc-note err" role="alert"><AlertTriangle size={17} /><div>{loadErr}</div></div>}
 
-      {/* ============ FILTRES ============ */}
+      {/* ============ FILTRES + INDICATEUR (même ligne) ============ */}
       <section className="bc-filters" aria-label="Filtres">
         <div className="bc-f">
           <label htmlFor="bc-reg"><MapPin size={13} color="#1e3a8a" />Région</label>
@@ -743,6 +816,14 @@ export default function BudgetCommunaux() {
           <select id="bc-ap" value={ap} onChange={(e) => setAp(e.target.value)} disabled={!optAps.length}>
             <option value="">Toutes</option>{optAps.map((v) => <option key={v}>{v}</option>)}
           </select>
+        </div>
+        <div className="bc-f ind">
+          <label id="bc-ind-l"><SlidersHorizontal size={13} color="#1e3a8a" />Indicateur (carte et classement)</label>
+          <div className="bc-seg" role="group" aria-labelledby="bc-ind-l">
+            {(Object.keys(INDIC) as IndicId[]).map((k) => (
+              <button key={k} className={indic === k ? 'on' : ''} onClick={() => setIndic(k)} aria-pressed={indic === k} title={INDIC[k].long}>{INDIC[k].short}</button>
+            ))}
+          </div>
         </div>
         <div className="bc-searchbox">
           <Search size={15} />
@@ -791,20 +872,11 @@ export default function BudgetCommunaux() {
              progress={tot.n ? (tot.nFj / tot.n) * 100 : 0} delta={hasPrev ? <Delta v={tot.nFj - prev.nFj} unit="" label={dCmp} /> : null} />
       </section>
 
-      {/* ============ INDICATEUR AFFICHÉ (carte + classement) ============ */}
-      <div className="bc-toolbar">
-        <b>Indicateur affiché sur la carte et le classement :</b>
-        <div className="bc-seg" role="group" aria-label="Indicateur">
-          <button className={indic === 'se' ? 'on' : ''} onClick={() => setIndic('se')}>Budget SE ≥ {OBJ_SE} %</button>
-          <button className={indic === 'fj' ? 'on' : ''} onClick={() => setIndic('fj')}>Femmes et jeunes ≥ {OBJ_FJ} %</button>
-        </div>
-      </div>
-
       {/* ============ CARTE + CLASSEMENT ============ */}
       <div className="bc-mid">
         <section className="bc-card">
           <h2 className="bc-ct">Carte interactive – Madagascar</h2>
-          <p className="bc-cs">{I.long} · {yr}. Cliquez sur une commune pour la sélectionner.</p>
+          <p className="bc-cs">{I.long} · {yr}. Cliquez sur une région, un district ou une commune pour la sélectionner.</p>
           <div className="bc-mapwrap">
             <MapContainer bounds={MADAGASCAR} zoomControl={false} style={{ height: '100%', width: '100%' }} preferCanvas>
               <TileLayer key={fond} url={FONDS[fond].url} attribution={FONDS[fond].attr} />
@@ -820,8 +892,8 @@ export default function BudgetCommunaux() {
                 <GeoLayer zones={contextCommunes} cle={`ctx${district}`} style={() => ({ color: '#94a3b8', weight: 0.8, fillColor: '#cbd5e1', fillOpacity: 0.25 })} />
               )}
               {mapDistricts.length > 0 && (
-                <GeoLayer zones={mapDistricts} cle={`d${district}`}
-                  style={(z: Zone) => ({ color: norm(z.nom) === norm(district) ? '#dc2626' : '#475569', weight: norm(z.nom) === norm(district) ? 2.5 : 1, fillColor: 'transparent', fillOpacity: 0, dashArray: '4 3' })} />
+                <GeoLayer zones={mapDistricts} cle={`d${district}`} onClick={pickDistrictFromMap}
+                  style={(z: Zone) => ({ color: norm(z.nom) === norm(district) ? '#dc2626' : '#475569', weight: norm(z.nom) === norm(district) ? 2.5 : 1, fillColor: '#000', fillOpacity: 0, dashArray: '4 3' })} />
               )}
               {mapCommunes.length > 0 && (
                 <GeoLayer zones={mapCommunes} cle={`c${indic}${yr}${commune}${mapCommunes.length}`} tip={tipCommune}
@@ -843,7 +915,7 @@ export default function BudgetCommunaux() {
             </div>
           </div>
           {missingGeo > 0 && (
-            <p className="bc-mapnote">{missingGeo} commune{missingGeo > 1 ? 's' : ''} de la base n’ont pas été retrouvée{missingGeo > 1 ? 's' : ''} sur la carte (vérifiez l’orthographe du nom de commune et de district).</p>
+            <p className="bc-mapnote">{missingGeo} commune{missingGeo > 1 ? 's' : ''} de la base n’ont pas été retrouvée{missingGeo > 1 ? 's' : ''} sur la carte (ajoutez la géométrie dans la base, ou vérifiez l’orthographe / le code de la commune).</p>
           )}
         </section>
 
