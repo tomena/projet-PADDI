@@ -35,7 +35,7 @@ const txt: any = {
     unchanged: "La superficie brûlée est identique à la moyenne de référence.",
     mapTitle: "Carte interactive des zones brûlées", street: "Plan", satellite: "Satellite",
     lCommunes: "Communes", lZones: "Zones brûlées", lAP: "Limite de l'AP",
-    legend: "Part de la commune brûlée", noZones: "Aucune zone brûlée géolocalisée pour cette sélection : les communes sont affichées.",
+    legend: "Superficie brûlée par commune", noZones: "Aucune zone brûlée géolocalisée pour cette sélection : les communes sont affichées.",
     noData: "Aucune donnée géographique pour cette aire protégée.",
     topN: "Top", ofTotal: "du cumul brûlé de toutes les communes", lFires: "Feux actifs", lRegions: "Régions",
     fireAge: "Ancienneté des feux", fireDetected: "Détection satellite", fireUnit: "feux", fireErr: "Feux actifs indisponibles",
@@ -63,7 +63,7 @@ const txt: any = {
     decreased: "Nihena", increased: "Nitombo", unchanged: "Mitovy amin'ny salan'isa fanondroana ny velaran-tany may.",
     mapTitle: "Sarintany mifandray amin'ny faritra may", street: "Sarintany", satellite: "Zanabolana",
     lCommunes: "Kaominina", lZones: "Faritra may", lAP: "Sisin'ny AP",
-    legend: "Ampahany may amin'ny kaominina", noZones: "Tsy misy faritra may voasoratra amin'ny sarintany ho an'ity safidy ity: aseho ny kaominina.",
+    legend: "Velaran-tany may isaky ny kaominina", noZones: "Tsy misy faritra may voasoratra amin'ny sarintany ho an'ity safidy ity: aseho ny kaominina.",
     noData: "Tsy misy angona ara-jeografika ho an'ity faritra arovana ity.",
     topN: "Top", ofTotal: "amin'ny fitambaran'ny velaran-tany may amin'ny kaominina rehetra", lFires: "Doro mavitrika", lRegions: "Faritra",
     fireAge: "Faha-taonan'ny doro", fireDetected: "Fanamarihana avy amin'ny zanabolana", fireUnit: "doro", fireErr: "Tsy azo ny doro mavitrika",
@@ -92,7 +92,7 @@ const txt: any = {
     unchanged: "The burned area is identical to the reference average.",
     mapTitle: "Interactive map of burned areas", street: "Streets", satellite: "Satellite",
     lCommunes: "Communes", lZones: "Burned areas", lAP: "PA boundary",
-    legend: "Share of commune burned", noZones: "No georeferenced burned area for this selection: communes are displayed.",
+    legend: "Burned area per commune", noZones: "No georeferenced burned area for this selection: communes are displayed.",
     noData: "No geographic data for this protected area.",
     topN: "Top", ofTotal: "of the burned total of all communes", lFires: "Active fires", lRegions: "Regions",
     fireAge: "Fire age", fireDetected: "Satellite detection", fireUnit: "fires", fireErr: "Active fires unavailable",
@@ -121,7 +121,7 @@ const txt: any = {
     unchanged: "Die verbrannte Fläche entspricht dem Referenzdurchschnitt.",
     mapTitle: "Interaktive Karte der verbrannten Flächen", street: "Straßen", satellite: "Satellit",
     lCommunes: "Gemeinden", lZones: "Verbrannte Flächen", lAP: "Grenze des Schutzgebiets",
-    legend: "Verbrannter Anteil der Gemeinde", noZones: "Keine georeferenzierte Brandfläche für diese Auswahl: Gemeinden werden angezeigt.",
+    legend: "Verbrannte Fläche je Gemeinde", noZones: "Keine georeferenzierte Brandfläche für diese Auswahl: Gemeinden werden angezeigt.",
     noData: "Keine Geodaten für dieses Schutzgebiet.",
     topN: "Top", ofTotal: "der verbrannten Gesamtfläche aller Gemeinden", lFires: "Aktive Brände", lRegions: "Regionen",
     fireAge: "Alter der Brände", fireDetected: "Satellitenerkennung", fireUnit: "Brände", fireErr: "Aktive Brände nicht verfügbar",
@@ -158,9 +158,11 @@ const FONDS: Record<string, { url: string; attr: string }> = {
   satellite: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "Tiles © Esri" },
   osm: { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "© OpenStreetMap" },
 };
-const SCALE_Y: [number, string][] = [[10, "#991b1b"], [5, "#ef4444"], [2, "#f97316"], [0.5, "#facc15"], [0, "#dcfce7"]]; // année entière
-const SCALE_M: [number, string][] = [[2, "#991b1b"], [1, "#ef4444"], [0.5, "#f97316"], [0.1, "#facc15"], [0, "#dcfce7"]]; // un seul mois
-const colorOf = (pct: number | null, scale: [number, string][]) => (pct == null ? "#cbd5e1" : (scale.find(([m]) => pct >= m) || scale[4])[1]);
+// Échelles de couleur en HECTARES brûlés par commune : [seuil minimum (ha), couleur]
+// À ajuster selon l'ordre de grandeur réel de vos données.
+const SCALE_Y: [number, string][] = [[2000, "#991b1b"], [1000, "#ef4444"], [500, "#f97316"], [100, "#facc15"], [0, "#dcfce7"]]; // année entière
+const SCALE_M: [number, string][] = [[500, "#991b1b"], [200, "#ef4444"], [100, "#f97316"], [20, "#facc15"], [0, "#dcfce7"]]; // un seul mois
+const colorOf = (ha: number | null, scale: [number, string][]) => (ha == null ? "#cbd5e1" : (scale.find(([m]) => ha >= m) || scale[scale.length - 1])[1]);
 const ageColor = (h: number) => (h <= 24 ? "rgb(200,15,15)" : h <= 48 ? "#f97316" : "#facc15");
 
 /* ============================ OUTILS ============================ */
@@ -168,6 +170,7 @@ const num = (v: any) => Number(String(v ?? 0).replace(",", ".")) || 0;
 const same = (a: any, b: any) => String(a).trim() === String(b).trim();
 const src = (p: any) => String(p.Source).trim().toLowerCase();
 const fmtHa = (v: number) => v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ha";
+const nHa = (v: number) => v.toLocaleString("fr-FR"); // seuils de la légende
 const compact = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(Math.round(v)));
 const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const sameArea = (a: unknown, b: unknown) => {
@@ -711,7 +714,7 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           <Resize />
           <Focus zones={focus} />
           {show.regions && <Layer zones={regions} cle={regionZone?.nom || "all"} style={(z: Zone) => ({ color: regionZone && z.nom === regionZone.nom ? "#0f766e" : "#475569", weight: regionZone && z.nom === regionZone.nom ? 2.5 : 1, fillColor: "#0f766e", fillOpacity: regionZone && z.nom === regionZone.nom ? 0.12 : 0.03 })} />}
-          {show.communes && <Layer zones={communes} cle={`c${ap}${year}${monthSel}`} tip={tipCommune} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(z.pct, scale), fillOpacity: 0.6 })} />}
+          {show.communes && <Layer zones={communes} cle={`c${ap}${year}${monthSel}`} tip={tipCommune} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(z.burned, scale), fillOpacity: 0.6 })} />}
           {show.labels && show.communes && <Labels zones={communes} />}
           {show.periph && <Layer zones={periph} cle={`p${ap}`} style={() => ({ color: "#b45309", weight: 1, dashArray: "4 4", fillColor: "#d97706", fillOpacity: 0.07 })} />}
           {show.zones && <Layer zones={zones} cle={`z${ap}${year}`} style={() => ({ color: "#b91c1c", weight: 1, fillColor: "#ff0000", fillOpacity: 0.7 })} />}
@@ -728,7 +731,12 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
             <div className="fx-lg"><strong>{t.legend}</strong>
               <div className="fx-lg-cols">
                 <div className="fx-lg-scale">
-                  {scale.slice().reverse().map(([m, c], i, a) => <div key={c}><i style={{ background: c }} />{i === a.length - 1 ? `≥ ${m} %` : i === 0 ? `< ${a[1][0]} %` : `${m} – ${a[i + 1][0]} %`}</div>)}
+                  {scale.slice().reverse().map(([m, c]: [number, string], i: number, a: [number, string][]) => (
+                    <div key={c}>
+                      <i style={{ background: c }} />
+                      {i === a.length - 1 ? `≥ ${nHa(m)} ha` : i === 0 ? `< ${nHa(a[1][0])} ha` : `${nHa(m)} – ${nHa(a[i + 1][0])} ha`}
+                    </div>
+                  ))}
                 </div>
                 <div className="fx-lg-per">
                   <span>{periodParts[0]}</span><b>{periodParts[1]}</b>{periodParts[2] && <span>{periodParts[2]}</span>}
@@ -845,7 +853,8 @@ export default function AnalyseFeux() {
     [communesSup, ap, burnedBy]
   );
 
-  // Communes tracées sur la carte (même nom que la base + proches de l'AP), colorées par % brûlé
+  // Communes tracées sur la carte (même nom que la base + proches de l'AP).
+  // `burned` (ha) sert à la couleur et à la légende ; `pct` reste disponible pour l'infobulle.
   const communesMap = useMemo(() => {
     if (!communesGeoZ.length || !apZones.length) return [];
     const boxes = [...apZones, ...periphSel].map((z) => z.bbox);
