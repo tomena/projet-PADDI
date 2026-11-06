@@ -1,0 +1,677 @@
+{
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Atsinanana",
+    "District": "Toamasina II",
+    "Commune": "Commune A",
+    "Aire_Protegee": "Marolambo",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1003370000,
+      "Budget_SE": 12543000,
+      "Budget_SE_Femmes_Jeunes": 2713000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 999250000,
+      "Budget_SE": 50445000,
+      "Budget_SE_Femmes_Jeunes": 12589000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1395730000,
+      "Budget_SE": 98973000,
+      "Budget_SE_Femmes_Jeunes": 45515000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 765450000,
+      "Budget_SE": 33052000,
+      "Budget_SE_Femmes_Jeunes": 10205000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Atsinanana",
+    "District": "Toamasina II",
+    "Commune": "Commune B",
+    "Aire_Protegee": "Marolambo",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 545530000,
+      "Budget_SE": 45632000,
+      "Budget_SE_Femmes_Jeunes": 16284000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 530460000,
+      "Budget_SE": 21589000,
+      "Budget_SE_Femmes_Jeunes": 9668000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1246860000,
+      "Budget_SE": 23875000,
+      "Budget_SE_Femmes_Jeunes": 8888000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 1102920000,
+      "Budget_SE": 46450000,
+      "Budget_SE_Femmes_Jeunes": 10642000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Betsiboka",
+    "District": "Maevatanana",
+    "Commune": "Commune C",
+    "Aire_Protegee": "Ankarafantsika",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1281400000,
+      "Budget_SE": 23954000,
+      "Budget_SE_Femmes_Jeunes": 6412000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 1012840000,
+      "Budget_SE": 75875000,
+      "Budget_SE_Femmes_Jeunes": 13650000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1049880000,
+      "Budget_SE": 75273000,
+      "Budget_SE_Femmes_Jeunes": 16062000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 1394660000,
+      "Budget_SE": 121318000,
+      "Budget_SE_Femmes_Jeunes": 33160000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Boeny",
+    "District": "Soalala",
+    "Commune": "Commune D",
+    "Aire_Protegee": "Ankarafantsika",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 332780000,
+      "Budget_SE": 10604000,
+      "Budget_SE_Femmes_Jeunes": 3148000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 1102040000,
+      "Budget_SE": 33436000,
+      "Budget_SE_Femmes_Jeunes": 8453000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1005060000,
+      "Budget_SE": 29303000,
+      "Budget_SE_Femmes_Jeunes": 7975000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 869330000,
+      "Budget_SE": 29645000,
+      "Budget_SE_Femmes_Jeunes": 5889000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Boeny",
+    "District": "Soalala",
+    "Commune": "Commune E",
+    "Aire_Protegee": "Ankarafantsika",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 329190000,
+      "Budget_SE": 9837000,
+      "Budget_SE_Femmes_Jeunes": 3418000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 1388480000,
+      "Budget_SE": 108301000,
+      "Budget_SE_Femmes_Jeunes": 34107000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 799100000,
+      "Budget_SE": 90603000,
+      "Budget_SE_Femmes_Jeunes": 38647000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 671890000,
+      "Budget_SE": 54309000,
+      "Budget_SE_Femmes_Jeunes": 10891000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Itasy",
+    "District": "Miarinarivo",
+    "Commune": "Commune F",
+    "Aire_Protegee": "",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 899440000,
+      "Budget_SE": 28822000,
+      "Budget_SE_Femmes_Jeunes": 9403000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 1053080000,
+      "Budget_SE": 103502000,
+      "Budget_SE_Femmes_Jeunes": 40531000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 589730000,
+      "Budget_SE": 40136000,
+      "Budget_SE_Femmes_Jeunes": 7326000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 542240000,
+      "Budget_SE": 15779000,
+      "Budget_SE_Femmes_Jeunes": 5379000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Melaky",
+    "District": "Maintirano",
+    "Commune": "Commune G",
+    "Aire_Protegee": "",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1190370000,
+      "Budget_SE": 12677000,
+      "Budget_SE_Femmes_Jeunes": 5097000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 551950000,
+      "Budget_SE": 9499000,
+      "Budget_SE_Femmes_Jeunes": 2189000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1303890000,
+      "Budget_SE": 136976000,
+      "Budget_SE_Femmes_Jeunes": 30745000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 551840000,
+      "Budget_SE": 62105000,
+      "Budget_SE_Femmes_Jeunes": 26138000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Sava",
+    "District": "Sambava",
+    "Commune": "Commune H",
+    "Aire_Protegee": "",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1067950000,
+      "Budget_SE": 47017000,
+      "Budget_SE_Femmes_Jeunes": 8201000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 594510000,
+      "Budget_SE": 20866000,
+      "Budget_SE_Femmes_Jeunes": 9390000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1002840000,
+      "Budget_SE": 79121000,
+      "Budget_SE_Femmes_Jeunes": 13727000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 377940000,
+      "Budget_SE": 17310000,
+      "Budget_SE_Femmes_Jeunes": 6130000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Diana",
+    "District": "Antsiranana II",
+    "Commune": "Commune I",
+    "Aire_Protegee": "Montagne d'Ambre",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1352930000,
+      "Budget_SE": 59068000,
+      "Budget_SE_Femmes_Jeunes": 9006000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 1264000000,
+      "Budget_SE": 57471000,
+      "Budget_SE_Femmes_Jeunes": 20081000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1138760000,
+      "Budget_SE": 81920000,
+      "Budget_SE_Femmes_Jeunes": 32155000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 535660000,
+      "Budget_SE": 18872000,
+      "Budget_SE_Femmes_Jeunes": 8444000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Diana",
+    "District": "Antsiranana II",
+    "Commune": "Commune J",
+    "Aire_Protegee": "Ankarana",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 406390000,
+      "Budget_SE": 38505000,
+      "Budget_SE_Femmes_Jeunes": 12757000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 735200000,
+      "Budget_SE": 77530000,
+      "Budget_SE_Femmes_Jeunes": 21755000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 883390000,
+      "Budget_SE": 15952000,
+      "Budget_SE_Femmes_Jeunes": 3724000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 928150000,
+      "Budget_SE": 64290000,
+      "Budget_SE_Femmes_Jeunes": 25370000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Diana",
+    "District": "Ambilobe",
+    "Commune": "Commune K",
+    "Aire_Protegee": "Analamerana",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1187840000,
+      "Budget_SE": 98559000,
+      "Budget_SE_Femmes_Jeunes": 30325000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 591370000,
+      "Budget_SE": 22864000,
+      "Budget_SE_Femmes_Jeunes": 7236000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 321420000,
+      "Budget_SE": 35649000,
+      "Budget_SE_Femmes_Jeunes": 15242000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 1188250000,
+      "Budget_SE": 48767000,
+      "Budget_SE_Femmes_Jeunes": 7506000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Vakinankaratra",
+    "District": "Antsirabe II",
+    "Commune": "Commune L",
+    "Aire_Protegee": "",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1370430000,
+      "Budget_SE": 65580000,
+      "Budget_SE_Femmes_Jeunes": 20541000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 589020000,
+      "Budget_SE": 42680000,
+      "Budget_SE_Femmes_Jeunes": 18533000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1214830000,
+      "Budget_SE": 59225000,
+      "Budget_SE_Femmes_Jeunes": 8308000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 774160000,
+      "Budget_SE": 49823000,
+      "Budget_SE_Femmes_Jeunes": 14123000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Atsimo Andrefana",
+    "District": "Toliara I",
+    "Commune": "Commune M",
+    "Aire_Protegee": "",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 1212350000,
+      "Budget_SE": 87110000,
+      "Budget_SE_Femmes_Jeunes": 36725000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 739340000,
+      "Budget_SE": 26566000,
+      "Budget_SE_Femmes_Jeunes": 12463000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1265810000,
+      "Budget_SE": 142650000,
+      "Budget_SE_Femmes_Jeunes": 21394000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 1101980000,
+      "Budget_SE": 98447000,
+      "Budget_SE_Femmes_Jeunes": 45724000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Anosy",
+    "District": "Amboasary Atsimo",
+    "Commune": "Commune N",
+    "Aire_Protegee": "Andohahela",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 935090000,
+      "Budget_SE": 75235000,
+      "Budget_SE_Femmes_Jeunes": 10235000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 860480000,
+      "Budget_SE": 19869000,
+      "Budget_SE_Femmes_Jeunes": 2712000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 834590000,
+      "Budget_SE": 20799000,
+      "Budget_SE_Femmes_Jeunes": 8033000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 408260000,
+      "Budget_SE": 25419000,
+      "Budget_SE_Femmes_Jeunes": 6069000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Atsimo Atsinanana",
+    "District": "Befotaka",
+    "Commune": "Commune O",
+    "Aire_Protegee": "Befotaka-Midongy",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 550690000,
+      "Budget_SE": 21443000,
+      "Budget_SE_Femmes_Jeunes": 3172000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 420610000,
+      "Budget_SE": 32280000,
+      "Budget_SE_Femmes_Jeunes": 12823000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 1142420000,
+      "Budget_SE": 35231000,
+      "Budget_SE_Femmes_Jeunes": 10088000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 1247840000,
+      "Budget_SE": 58481000,
+      "Budget_SE_Femmes_Jeunes": 10911000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  },
+  {
+   "type": "Feature",
+   "properties": {
+    "Region": "Analamanga",
+    "District": "Antananarivo Atsimondrano",
+    "Commune": "Commune P",
+    "Aire_Protegee": "",
+    "Fokontany": "",
+    "Code_Commune": "",
+    "budgets": [
+     {
+      "Annee": 2022,
+      "Budget_Total": 556070000,
+      "Budget_SE": 11177000,
+      "Budget_SE_Femmes_Jeunes": 2429000,
+      "Date_MAJ": "2022-12-31"
+     },
+     {
+      "Annee": 2023,
+      "Budget_Total": 764380000,
+      "Budget_SE": 15557000,
+      "Budget_SE_Femmes_Jeunes": 3945000,
+      "Date_MAJ": "2023-12-31"
+     },
+     {
+      "Annee": 2024,
+      "Budget_Total": 904780000,
+      "Budget_SE": 40268000,
+      "Budget_SE_Femmes_Jeunes": 17128000,
+      "Date_MAJ": "2024-12-31"
+     },
+     {
+      "Annee": 2025,
+      "Budget_Total": 793470000,
+      "Budget_SE": 50931000,
+      "Budget_SE_Femmes_Jeunes": 11077000,
+      "Date_MAJ": "2025-12-31"
+     }
+    ]
+   },
+   "geometry": null
+  }
+ ]
+}
