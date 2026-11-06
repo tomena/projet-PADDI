@@ -311,9 +311,13 @@ const CSS = `
 .bc-ct{margin:0;font-size:12.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#111827}
 .bc-cs{margin:2px 0 8px;font-size:11.5px;color:var(--mut)}
 .bc-head2{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:6px 12px;margin-bottom:6px}
-.bc-mid{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-.bc-two{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
-.bc-mapwrap{position:relative;flex:1;min-height:360px;height:clamp(360px,52vh,560px);border-radius:10px;overflow:hidden;border:1px solid var(--line);isolation:isolate}
+.bc-main{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.bc-left{display:flex;flex-direction:column;gap:10px;min-width:0;order:2}
+.bc-left>.bc-card{min-height:340px}
+.bc-mapcard{order:1;min-height:420px}
+.bc-scroll{flex:1;min-height:0;overflow:auto;scrollbar-width:thin}
+.bc-chart{flex:1 1 240px;min-height:220px;position:relative}
+.bc-mapwrap{position:relative;flex:1;min-height:380px;border-radius:10px;overflow:hidden;border:1px solid var(--line);isolation:isolate}
 .bc-mapwrap .leaflet-container{position:absolute;inset:0;background:#e5e7eb;font-family:inherit}
 .bc-legend{position:absolute;left:8px;bottom:8px;z-index:1000;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.95);
   box-shadow:0 1px 5px rgba(0,0,0,.25);font-size:11px;max-width:70%}
@@ -352,24 +356,26 @@ const CSS = `
 
 /* Adaptation à la largeur disponible */
 @container bc (min-width:760px){
-  .bc-two{grid-template-columns:repeat(2,minmax(0,1fr))}
   .bc-searchbox{grid-column:span 2}
 }
-@container bc (min-width:1040px){
-  .bc-mid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+/* Grand écran : gauche = classement/comparaison (haut) + évolution (bas) ; droite = carte pleine hauteur */
+@container bc (min-width:960px){
+  .bc-main{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);height:clamp(680px,calc(100vh - 150px),940px)}
+  .bc-left{order:1}
+  .bc-left>.bc-card{flex:1 1 0;min-height:0}
+  .bc-mapcard{order:2;min-height:0}
 }
 @container bc (max-width:560px){
   .bc-head{padding:10px 12px}
   .bc-actions{width:100%}
   .bc-actions .bc-btn span.t{display:none}
-  .bc-mapwrap{min-height:300px;height:50vh}
+  .bc-mapwrap{min-height:300px}
   .bc-legend{max-width:85%}
   .bc-kpis{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
 }
 @container bc (min-width:1800px){
   .bc-t{font-size:13px}
   .bc-kt,.bc-ks,.bc-cs{font-size:12px}
-  .bc-mapwrap{height:clamp(420px,56vh,720px)}
 }
 @media print{.bc-actions,.bc-filters,.bc-pg{display:none!important}.bc{background:#fff}}
 @media (prefers-reduced-motion:reduce){.bc *{transition:none!important;animation:none!important}}
@@ -563,6 +569,7 @@ export default function BudgetCommunaux() {
   const [indic, setIndic] = useState<IndicId>('se');
   const [rankMode, setRankMode] = useState<'best' | 'worst'>('worst');
   const [rankN, setRankN] = useState(10);
+  const [rankView, setRankView] = useState<'communes' | 'regions'>('communes');
   const [fond, setFond] = useState('topo');
 
   const years = useMemo(() => Array.from(new Set(rows.map((r) => r.annee))).sort((a, b) => b - a), [rows]);
@@ -728,7 +735,6 @@ export default function BudgetCommunaux() {
   const progSe = Math.min(100, (tot.pSe / OBJ_SE) * 100);
   const progFj = Math.min(100, (tot.pFj / OBJ_FJ) * 100);
   const dCmp = hasPrev ? String(yr - 1) : '';
-  const hhmm = ds.at ? ds.at.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
 
   /* =====================================================================
      RENDU
@@ -785,9 +791,6 @@ export default function BudgetCommunaux() {
       )}
       {ds.mode === 'import' && (
         <div className="bc-note ok" role="status"><CheckCircle2 size={17} /><div>Fichier importé : <strong>{ds.label}</strong> (valable jusqu’à l’actualisation de la page). Cliquez sur « Actualiser » pour revenir au fichier du serveur.</div></div>
-      )}
-      {ds.mode === 'file' && hhmm && (
-        <div className="bc-note ok" role="status"><CheckCircle2 size={17} /><div>Base chargée : <code>{ds.label}</code> · {rows.length} ligne(s) · {ds.geoms.size} géométrie(s) · actualisée à {hhmm}.</div></div>
       )}
       {loadErr && <div className="bc-note err" role="alert"><AlertTriangle size={17} /><div>{loadErr}</div></div>}
 
@@ -872,9 +875,67 @@ export default function BudgetCommunaux() {
              progress={tot.n ? (tot.nFj / tot.n) * 100 : 0} delta={hasPrev ? <Delta v={tot.nFj - prev.nFj} unit="" label={dCmp} /> : null} />
       </section>
 
-      {/* ============ CARTE + CLASSEMENT ============ */}
-      <div className="bc-mid">
-        <section className="bc-card">
+      {/* ============ GAUCHE : classement / comparaison (haut) + évolution (bas) · DROITE : carte ============ */}
+      <div className="bc-main">
+        <div className="bc-left">
+          <section className="bc-card">
+            <div className="bc-head2">
+              <div>
+                <h2 className="bc-ct">{rankView === 'communes' ? 'Classement des communes' : 'Comparaison par région'}</h2>
+                <p className="bc-cs" style={{ margin: 0 }}>{I.long} · {yr}</p>
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div className="bc-seg" role="group" aria-label="Vue">
+                  <button className={rankView === 'communes' ? 'on' : ''} onClick={() => setRankView('communes')}>Communes</button>
+                  <button className={rankView === 'regions' ? 'on' : ''} onClick={() => setRankView('regions')}>Régions</button>
+                </div>
+                {rankView === 'communes' && (
+                  <>
+                    <div className="bc-seg" role="group" aria-label="Ordre">
+                      <button className={rankMode === 'worst' ? 'on' : ''} onClick={() => setRankMode('worst')}>À renforcer</button>
+                      <button className={rankMode === 'best' ? 'on' : ''} onClick={() => setRankMode('best')}>Meilleures</button>
+                    </div>
+                    <div className="bc-seg" role="group" aria-label="Nombre de communes">
+                      {[10, 20].map((n) => <button key={n} className={rankN === n ? 'on' : ''} onClick={() => setRankN(n)}>Top {n}</button>)}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="bc-scroll">
+              {rankView === 'communes'
+                ? (ranking.length ? <RankBars data={ranking} obj={I.obj} unit={I.unit} /> : <div className="bc-empty">Aucune donnée pour cette sélection.</div>)
+                : (regionRank.length > 1 ? <RankBars data={regionRank} obj={I.obj} unit={I.unit} /> : <div className="bc-empty">Une seule région dans la sélection : la comparaison apparaît lorsque plusieurs régions sont concernées.</div>)}
+            </div>
+          </section>
+
+          <section className="bc-card">
+            <h2 className="bc-ct">Évolution annuelle</h2>
+            <p className="bc-cs">Budget SE (barres, en M Ar) et taux d’atteinte des deux objectifs (lignes)</p>
+            {trend.length > 1 ? (
+              <div className="bc-chart">
+                <div style={{ position: 'absolute', inset: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={trend} margin={{ top: 14, right: 8, left: -6, bottom: 0 }}>
+                      <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="a" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `${v}M`} />
+                      <YAxis yAxisId="b" orientation="right" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${v}%`} />
+                      <Tooltip formatter={(v: any, n: any) => (n === 'Budget SE (M Ar)' ? `${Number(v).toLocaleString('fr-FR')} M Ar` : `${Number(v).toLocaleString('fr-FR')} %`)} />
+                      <ReferenceLine yAxisId="b" y={OBJ_SE} stroke="#15803d" strokeDasharray="5 4" />
+                      <ReferenceLine yAxisId="b" y={OBJ_FJ} stroke="#7b1fa2" strokeDasharray="5 4" />
+                      <Bar yAxisId="a" dataKey="se" name="Budget SE (M Ar)" fill="#bbf7d0" radius={[6, 6, 0, 0]} barSize={34} />
+                      <Line yAxisId="b" type="monotone" dataKey="pSe" name="% SE / budget total" stroke="#15803d" strokeWidth={2.5} dot={{ r: 3 }} />
+                      <Line yAxisId="b" type="monotone" dataKey="pFj" name="% F/J / budget SE" stroke="#7b1fa2" strokeWidth={2.5} dot={{ r: 3 }} />
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : <div className="bc-empty">Au moins deux années de données sont nécessaires pour afficher l’évolution.</div>}
+          </section>
+        </div>
+
+        <section className="bc-card bc-mapcard">
           <h2 className="bc-ct">Carte interactive – Madagascar</h2>
           <p className="bc-cs">{I.long} · {yr}. Cliquez sur une région, un district ou une commune pour la sélectionner.</p>
           <div className="bc-mapwrap">
@@ -917,57 +978,6 @@ export default function BudgetCommunaux() {
           {missingGeo > 0 && (
             <p className="bc-mapnote">{missingGeo} commune{missingGeo > 1 ? 's' : ''} de la base n’ont pas été retrouvée{missingGeo > 1 ? 's' : ''} sur la carte (ajoutez la géométrie dans la base, ou vérifiez l’orthographe / le code de la commune).</p>
           )}
-        </section>
-
-        <section className="bc-card">
-          <div className="bc-head2">
-            <div>
-              <h2 className="bc-ct">Classement des communes</h2>
-              <p className="bc-cs" style={{ margin: 0 }}>{I.long} · {yr}</p>
-            </div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <div className="bc-seg" role="group" aria-label="Ordre">
-                <button className={rankMode === 'worst' ? 'on' : ''} onClick={() => setRankMode('worst')}>À renforcer</button>
-                <button className={rankMode === 'best' ? 'on' : ''} onClick={() => setRankMode('best')}>Meilleures</button>
-              </div>
-              <div className="bc-seg" role="group" aria-label="Nombre de communes">
-                {[10, 20].map((n) => <button key={n} className={rankN === n ? 'on' : ''} onClick={() => setRankN(n)}>Top {n}</button>)}
-              </div>
-            </div>
-          </div>
-          {ranking.length ? <RankBars data={ranking} obj={I.obj} unit={I.unit} /> : <div className="bc-empty">Aucune donnée pour cette sélection.</div>}
-        </section>
-      </div>
-
-      {/* ============ ÉVOLUTION + RÉGIONS ============ */}
-      <div className="bc-two">
-        <section className="bc-card">
-          <h2 className="bc-ct">Évolution annuelle</h2>
-          <p className="bc-cs">Budget SE (barres, en M Ar) et taux d’atteinte des deux objectifs (lignes)</p>
-          {trend.length > 1 ? (
-            <div style={{ height: 270 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <ComposedChart data={trend} margin={{ top: 14, right: 8, left: -6, bottom: 0 }}>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="a" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={44} tickFormatter={(v) => `${v}M`} />
-                  <YAxis yAxisId="b" orientation="right" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${v}%`} />
-                  <Tooltip formatter={(v: any, n: any) => (n === 'Budget SE (M Ar)' ? `${Number(v).toLocaleString('fr-FR')} M Ar` : `${Number(v).toLocaleString('fr-FR')} %`)} />
-                  <ReferenceLine yAxisId="b" y={OBJ_SE} stroke="#15803d" strokeDasharray="5 4" />
-                  <ReferenceLine yAxisId="b" y={OBJ_FJ} stroke="#7b1fa2" strokeDasharray="5 4" />
-                  <Bar yAxisId="a" dataKey="se" name="Budget SE (M Ar)" fill="#bbf7d0" radius={[6, 6, 0, 0]} barSize={34} />
-                  <Line yAxisId="b" type="monotone" dataKey="pSe" name="% SE / budget total" stroke="#15803d" strokeWidth={2.5} dot={{ r: 3 }} />
-                  <Line yAxisId="b" type="monotone" dataKey="pFj" name="% F/J / budget SE" stroke="#7b1fa2" strokeWidth={2.5} dot={{ r: 3 }} />
-                </ComposedChart>
-              </ResponsiveContainer>
-            </div>
-          ) : <div className="bc-empty">Au moins deux années de données sont nécessaires pour afficher l’évolution.</div>}
-        </section>
-
-        <section className="bc-card">
-          <h2 className="bc-ct">Comparaison par région</h2>
-          <p className="bc-cs">{I.long} · {yr}</p>
-          {regionRank.length > 1 ? <RankBars data={regionRank} obj={I.obj} unit={I.unit} /> : <div className="bc-empty">Une seule région dans la sélection : la comparaison apparaît lorsque plusieurs régions sont concernées.</div>}
         </section>
       </div>
 
