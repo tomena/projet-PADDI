@@ -18,15 +18,16 @@ import {
 const DATA = {
   budgets: '/data/budgets_communaux.geojson', // ← base GeoJSON (modèle fourni : budgets_communaux.geojson)
   regions: '/data/madagascar_24_region.geojson', // champ « nom_reg »
-  districts: '/data/madagascar_district.json', // champs « NAME_3 » (district) et « NAME_2 » (région)
-  communes: '/data/madagascar_communes.json', // champs « NAME_4 » (commune) et « NAME_3 » (district)
+  districts: '/data/District_Paddi_2024.geojson', // champs REGION, DISTRICT, Aires_Prot
+  communes: '/data/Commune_Paddi_2024.geojson', // champs REGION_2, DISTRICT_2, COMMUNE, Aires_Prot, fid
 };
 const PROP = {
-  region: 'nom_reg',
-  district: 'NAME_3', districtRegion: 'NAME_2',
-  commune: 'NAME_4', communeDistrict: 'NAME_3',
-  communeCode: '', // ex. 'pcode' : si renseigné ET présent dans la base (propriété « Code_Commune »), la jointure se fait par code et non par nom
+  region: 'nom_reg', // couche régions
+  district: 'DISTRICT', districtRegion: 'REGION', // couche districts (District_Paddi_2024)
+  commune: 'COMMUNE', communeDistrict: 'DISTRICT_2', communeRegion: 'REGION_2', // couche communes (Commune_Paddi_2024)
+  communeCode: '', // optionnel : champ unique de la couche communes = « Code_Commune » de la base (le « fid » actuel n'est PAS unique) ; '' = jointure par Région|District|Commune
 };
+const NONE = '__hors_ap__'; // valeur du filtre « Hors aire protégée »
 const REFRESH_MS = 0; // actualisation automatique du fichier (en millisecondes). 0 = désactivée, ex. 300000 = toutes les 5 min
 
 // Objectifs de suivi
@@ -576,20 +577,24 @@ export default function BudgetCommunaux() {
   const yr = years.includes(year) ? year : years[0] ?? new Date().getFullYear();
   const qn = norm(q);
 
-  const optRegions = useMemo(() => uniq(rows.map((r) => r.region)), [rows]);
-  const optDistricts = useMemo(() => uniq(rows.filter((r) => !region || r.region === region).map((r) => r.district)), [rows, region]);
-  const optCommunes = useMemo(() => uniq(rows.filter((r) => (!region || r.region === region) && (!district || r.district === district)).map((r) => r.commune)), [rows, region, district]);
-  const optAps = useMemo(() => uniq(rows.filter((r) => (!region || r.region === region) && (!district || r.district === district)).map((r) => r.ap)), [rows, region, district]);
+  const apOk = (r: Row) => !ap || (ap === NONE ? !r.ap : r.ap === ap);
+  const hasNoAp = useMemo(() => rows.some((r) => !r.ap), [rows]);
+  const optAps = useMemo(() => uniq(rows.map((r) => r.ap)), [rows]);
+  const optRegions = useMemo(() => uniq(rows.filter(apOk).map((r) => r.region)), [rows, ap]);
+  const optDistricts = useMemo(() => uniq(rows.filter((r) => apOk(r) && (!region || r.region === region)).map((r) => r.district)), [rows, ap, region]);
+  const optCommunes = useMemo(() => uniq(rows.filter((r) => apOk(r) && (!region || r.region === region) && (!district || r.district === district)).map((r) => r.commune)), [rows, ap, region, district]);
 
-  const onRegion = (v: string) => { setRegion(v); setDistrict(''); setCommune(''); setAp(''); };
+  // Cascade : choisir un niveau vide les niveaux inférieurs
+  const onAp = (v: string) => { setAp(v); setRegion(''); setDistrict(''); setCommune(''); };
+  const onRegion = (v: string) => { setRegion(v); setDistrict(''); setCommune(''); };
   const onDistrict = (v: string) => { setDistrict(v); setCommune(''); };
-  const reset = () => { setRegion(''); setDistrict(''); setCommune(''); setAp(''); setQ(''); setYear(0); };
+  const reset = () => { setAp(''); setRegion(''); setDistrict(''); setCommune(''); setQ(''); setYear(0); };
   const pickCommune = (c: { region: string; district: string; commune: string }) => { setRegion(c.region); setDistrict(c.district); setCommune(c.commune); };
 
   const base = useMemo(
     () => rows.filter((r) =>
       (!region || r.region === region) && (!district || r.district === district) && (!commune || r.commune === commune) &&
-      (!ap || r.ap === ap) && (!qn || norm(`${r.region} ${r.district} ${r.commune} ${r.ap} ${r.fokontany}`).includes(qn))),
+      apOk(r) && (!qn || norm(`${r.region} ${r.district} ${r.commune} ${r.ap} ${r.fokontany}`).includes(qn))),
     [rows, region, district, commune, ap, qn]
   );
   const communesAgg = useMemo(() => byCommune(base.filter((r) => r.annee === yr)), [base, yr]);
@@ -636,8 +641,8 @@ export default function BudgetCommunaux() {
     const byName = new Map<string, Zone[]>();
     const byCode = new Map<string, Zone>();
     communesZ.forEach((z) => {
-      const d = norm(z.feature.properties?.[PROP.communeDistrict]);
-      exact.set(`${d}|${norm(z.nom)}`, z);
+      const pr = z.feature.properties || {};
+      exact.set(`${norm(pr[PROP.communeRegion])}|${norm(pr[PROP.communeDistrict])}|${norm(z.nom)}`, z);
       const k = norm(z.nom);
       byName.set(k, [...(byName.get(k) || []), z]);
       if (PROP.communeCode) {
@@ -653,8 +658,8 @@ export default function BudgetCommunaux() {
     communesAgg.forEach((c) => {
       const g = ds.geoms.get(c.key);
       let z: Zone | undefined = g ? { nom: c.commune, feature: { type: 'Feature', geometry: g, properties: {} } } : undefined;
-      if (!z && PROP.communeCode && c.code) z = geoIndex.byCode.get(norm(c.code));
-      if (!z) z = geoIndex.exact.get(`${norm(c.district)}|${norm(c.commune)}`);
+      if (!z && PROP.communeCode && c.code) { const zc = geoIndex.byCode.get(norm(c.code)); if (zc && norm(zc.nom) === norm(c.commune)) z = zc; } // le code n'est retenu que si le nom concorde
+      if (!z) z = geoIndex.exact.get(`${norm(c.region)}|${norm(c.district)}|${norm(c.commune)}`);
       if (!z) { const l = geoIndex.byName.get(norm(c.commune)); if (l?.length === 1) z = l[0]; }
       if (z) out.push({ ...z, agg: c });
     });
@@ -662,14 +667,16 @@ export default function BudgetCommunaux() {
   }, [communesAgg, geoIndex, ds.geoms]);
   const missingGeo = communesDone && (communesZ.length > 0 || ds.geoms.size > 0) ? communesAgg.length - mapCommunes.length : 0;
 
-  const districtNames = useMemo(() => new Set(communesAgg.map((c) => norm(c.district))), [communesAgg]);
-  const mapDistricts = useMemo(() => districtsZ.filter((z) => districtNames.has(norm(z.nom))), [districtsZ, districtNames]);
+  const districtKeys = useMemo(() => new Set(communesAgg.map((c) => `${norm(c.region)}|${norm(c.district)}`)), [communesAgg]);
+  const dKey = (z: Zone) => `${norm(z.feature.properties?.[PROP.districtRegion])}|${norm(z.nom)}`;
+  const mapDistricts = useMemo(() => districtsZ.filter((z) => districtKeys.has(dKey(z))), [districtsZ, districtKeys]);
+  const isSelDistrict = (z: Zone) => !!district && norm(z.nom) === norm(district) && (!region || norm(z.feature.properties?.[PROP.districtRegion]) === norm(region));
   const contextCommunes = useMemo(
-    () => (district ? communesZ.filter((z) => norm(z.feature.properties?.[PROP.communeDistrict]) === norm(district)) : []),
-    [communesZ, district]
+    () => (district ? communesZ.filter((z) => norm(z.feature.properties?.[PROP.communeDistrict]) === norm(district) && (!region || norm(z.feature.properties?.[PROP.communeRegion]) === norm(region))) : []),
+    [communesZ, district, region]
   );
   const regionZone = useMemo(() => (region ? regionsZ.find((z) => norm(z.nom) === norm(region)) || null : null), [regionsZ, region]);
-  const districtZone = useMemo(() => (district ? districtsZ.find((z) => norm(z.nom) === norm(district)) || null : null), [districtsZ, district]);
+  const districtZone = useMemo(() => (district ? districtsZ.find((z) => isSelDistrict(z)) || null : null), [districtsZ, district, region]);
   const focusZones = mapCommunes.length ? mapCommunes : districtZone ? [districtZone] : regionZone ? [regionZone] : [];
   const focusKey = [region, district, commune, ap, mapCommunes.length].join('|');
 
@@ -725,10 +732,10 @@ export default function BudgetCommunaux() {
 
   const lastMaj = useMemo(() => rows.map((r) => r.maj).filter(Boolean).sort().pop() || '', [rows]);
   const chips: [string, string, () => void][] = [];
+  if (ap) chips.push(['Aire protégée', ap === NONE ? 'Hors aire protégée' : ap, () => onAp('')]);
   if (region) chips.push(['Région', region, () => onRegion('')]);
   if (district) chips.push(['District', district, () => onDistrict('')]);
   if (commune) chips.push(['Commune', commune, () => setCommune('')]);
-  if (ap) chips.push(['Aire protégée', ap, () => setAp('')]);
   if (q) chips.push(['Recherche', q, () => setQ('')]);
   const filtered = chips.length > 0 || year !== 0;
 
@@ -797,6 +804,13 @@ export default function BudgetCommunaux() {
       {/* ============ FILTRES + INDICATEUR (même ligne) ============ */}
       <section className="bc-filters" aria-label="Filtres">
         <div className="bc-f">
+          <label htmlFor="bc-ap"><Mountain size={13} color="#1e3a8a" />Aire protégée</label>
+          <select id="bc-ap" value={ap} onChange={(e) => onAp(e.target.value)}>
+            <option value="">Toutes</option>{optAps.map((v) => <option key={v}>{v}</option>)}
+            {hasNoAp && <option value={NONE}>Hors aire protégée</option>}
+          </select>
+        </div>
+        <div className="bc-f">
           <label htmlFor="bc-reg"><MapPin size={13} color="#1e3a8a" />Région</label>
           <select id="bc-reg" value={region} onChange={(e) => onRegion(e.target.value)}>
             <option value="">Toutes</option>{optRegions.map((v) => <option key={v}>{v}</option>)}
@@ -804,20 +818,14 @@ export default function BudgetCommunaux() {
         </div>
         <div className="bc-f">
           <label htmlFor="bc-dis"><Building2 size={13} color="#1e3a8a" />District</label>
-          <select id="bc-dis" value={district} onChange={(e) => onDistrict(e.target.value)}>
+          <select id="bc-dis" value={district} onChange={(e) => onDistrict(e.target.value)} disabled={!optDistricts.length}>
             <option value="">Tous</option>{optDistricts.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f">
           <label htmlFor="bc-com"><Users size={13} color="#1e3a8a" />Commune</label>
-          <select id="bc-com" value={commune} onChange={(e) => setCommune(e.target.value)}>
+          <select id="bc-com" value={commune} onChange={(e) => setCommune(e.target.value)} disabled={!optCommunes.length}>
             <option value="">Toutes</option>{optCommunes.map((v) => <option key={v}>{v}</option>)}
-          </select>
-        </div>
-        <div className="bc-f">
-          <label htmlFor="bc-ap"><Mountain size={13} color="#1e3a8a" />Aire protégée</label>
-          <select id="bc-ap" value={ap} onChange={(e) => setAp(e.target.value)} disabled={!optAps.length}>
-            <option value="">Toutes</option>{optAps.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f ind">
@@ -947,14 +955,14 @@ export default function BudgetCommunaux() {
               {regionsZ.length > 0 && (
                 <GeoLayer zones={regionsZ} cle={region}
                   style={(z: Zone) => { const sel = region && norm(z.nom) === norm(region); return { color: sel ? '#0f766e' : '#64748b', weight: sel ? 2.5 : 0.8, fillColor: '#0f766e', fillOpacity: sel ? 0.1 : 0.03 }; }}
-                  onClick={(z: Zone) => { const m = optRegions.find((r) => norm(r) === norm(z.nom)); if (m) onRegion(m); }} />
+                  onClick={(z: Zone) => { const m = uniq(rows.map((r) => r.region)).find((r) => norm(r) === norm(z.nom)); if (!m) return; if (!rows.some((r) => apOk(r) && r.region === m)) setAp(''); onRegion(m); }} />
               )}
               {contextCommunes.length > 0 && (
                 <GeoLayer zones={contextCommunes} cle={`ctx${district}`} style={() => ({ color: '#94a3b8', weight: 0.8, fillColor: '#cbd5e1', fillOpacity: 0.25 })} />
               )}
               {mapDistricts.length > 0 && (
-                <GeoLayer zones={mapDistricts} cle={`d${district}`} onClick={pickDistrictFromMap}
-                  style={(z: Zone) => ({ color: norm(z.nom) === norm(district) ? '#dc2626' : '#475569', weight: norm(z.nom) === norm(district) ? 2.5 : 1, fillColor: '#000', fillOpacity: 0, dashArray: '4 3' })} />
+                <GeoLayer zones={mapDistricts} cle={`d${region}|${district}`} onClick={pickDistrictFromMap}
+                  style={(z: Zone) => ({ color: isSelDistrict(z) ? '#dc2626' : '#475569', weight: isSelDistrict(z) ? 2.5 : 1, fillColor: '#000', fillOpacity: 0, dashArray: '4 3' })} />
               )}
               {mapCommunes.length > 0 && (
                 <GeoLayer zones={mapCommunes} cle={`c${indic}${yr}${commune}${mapCommunes.length}`} tip={tipCommune}
