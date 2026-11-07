@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid,
   Legend, LabelList, ReferenceLine, PieChart, Pie, Cell,
@@ -6,7 +6,7 @@ import {
 import {
   Users, Target, GraduationCap, ClipboardCheck, CheckCircle2, Printer, Download, RotateCcw, Search, SlidersHorizontal, RefreshCw, TrendingUp, TrendingDown, FileText, User,
 } from 'lucide-react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, Pane, GeoJSON, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useLanguage } from '../context/LanguageContext';
 
@@ -24,7 +24,22 @@ interface Act {
 }
 
 /* ---------- Paramètres du projet ---------- */
-const GEO_URL = '/data/beneficiaires.geojson'; // à placer dans public/data/
+/* =====================================================================
+   CONFIGURATION (à adapter) : mêmes couches que vos autres pages
+   ===================================================================== */
+const DATA = {
+  beneficiaires: '/data/beneficiaires.geojson', // base GeoJSON des activités
+  regions: '/data/madagascar_24_region.geojson', // champ « nom_reg »
+  districts: '/data/District_Paddi_2024.geojson', // champs REGION, DISTRICT, Aires_Prot
+  communes: '/data/Commune_Paddi_2024.geojson', // champs REGION_2, DISTRICT_2, COMMUNE, Aires_Prot
+};
+const PROP = {
+  region: 'nom_reg', // couche régions
+  district: 'DISTRICT', districtRegion: 'REGION', // couche districts
+  commune: 'COMMUNE', communeDistrict: 'DISTRICT_2', communeRegion: 'REGION_2', // couche communes
+  ap: 'Aires_Prot', // aire protégée (districts et communes)
+};
+const NONE = '__hors_ap__'; // valeur du filtre « Hors aire protégée »
 const DEF_TARGET = 25000;   // cible (surchargée par metadata.cible_total)
 const DEF_CONF = 80;        // % confirmation (metadata.cible_confirmation)
 const DEF_START = 2025;     // metadata.debut
@@ -62,7 +77,7 @@ const SK: string[][] = [
 /* ---------- Traductions ---------- */
 const fr = {
   title: 'Suivi des petits exploitants', print: 'Imprimer', reset: 'Réinitialiser', all: 'Tous', lang: 'Langue',
-  map: 'Localisation des activités', ld: 'Chargement des activités…', er: 'Chargement impossible. Vérifiez que {0} est accessible, puis actualisez.', rf: 'Actualiser', more: 'Plus de filtres',
+  map: 'Localisation des activités', ld: 'Chargement des activités…', er: 'Chargement impossible. Vérifiez que {0} est accessible, puis actualisez.', rf: 'Actualiser', more: 'Plus de filtres', noap: 'Hors aire protégée', hint: 'Cliquez sur une limite pour filtrer (région, district, commune).',
   f: { year: 'Année', region: 'Région', ap: 'Aire protégée', paysage: 'Paysage', district: 'District', commune: 'Commune', fokontany: 'Fokontany', mbv: 'Micro-bassin versant', cat: 'Catégorie', st: 'Statut' },
   st: { valid: 'Validé', pending: 'En attente', rejected: 'Rejeté' },
   s1: '1. Atteinte de l’objectif : {0} petits exploitants agricoles (C2, C3 et C4)',
@@ -80,7 +95,7 @@ const fr = {
 type D = typeof fr;
 const mg: D = {
   title: 'Fanaraha-maso ny mpamboly madinika', print: 'Hanonta', reset: 'Averina', all: 'Rehetra', lang: 'Fiteny',
-  map: 'Toerana misy ny hetsika', ld: 'Mampiditra ny hetsika…', er: 'Tsy afaka naka ny angona. Jereo raha azo vakiana ny {0}, avy eo havaozy.', rf: 'Havaozina', more: 'Sivana hafa',
+  map: 'Toerana misy ny hetsika', ld: 'Mampiditra ny hetsika…', er: 'Tsy afaka naka ny angona. Jereo raha azo vakiana ny {0}, avy eo havaozy.', rf: 'Havaozina', more: 'Sivana hafa', noap: 'Ivelan’ny faritra arovana', hint: 'Tsindrio ny sisintany mba hanivana (faritra, distrika, kaominina).',
   f: { year: 'Taona', region: 'Faritra', ap: 'Faritra arovana', paysage: 'Tontolo', district: 'Distrika', commune: 'Kaominina', fokontany: 'Fokontany', mbv: 'Tambatra-drano kely', cat: 'Sokajy', st: 'Sata' },
   st: { valid: 'Nekena', pending: 'Miandry', rejected: 'Nolavina' },
   s1: '1. Fahatratrarana ny tanjona : mpamboly madinika {0} (C2, C3 ary C4)',
@@ -97,7 +112,7 @@ const mg: D = {
 };
 const en: D = {
   title: 'Smallholder farmers monitoring', print: 'Print', reset: 'Reset', all: 'All', lang: 'Language',
-  map: 'Activity locations', ld: 'Loading activities…', er: 'Unable to load data. Check that {0} is reachable, then refresh.', rf: 'Refresh', more: 'More filters',
+  map: 'Activity locations', ld: 'Loading activities…', er: 'Unable to load data. Check that {0} is reachable, then refresh.', rf: 'Refresh', more: 'More filters', noap: 'Outside protected area', hint: 'Click a boundary to filter (region, district, municipality).',
   f: { year: 'Year', region: 'Region', ap: 'Protected area', paysage: 'Landscape', district: 'District', commune: 'Municipality', fokontany: 'Fokontany', mbv: 'Micro-watershed', cat: 'Category', st: 'Status' },
   st: { valid: 'Validated', pending: 'Pending', rejected: 'Rejected' },
   s1: '1. Target achievement: {0} smallholder farmers (C2, C3 and C4)',
@@ -114,7 +129,7 @@ const en: D = {
 };
 const de: D = {
   title: 'Überwachung der Kleinbauern', print: 'Drucken', reset: 'Zurücksetzen', all: 'Alle', lang: 'Sprache',
-  map: 'Standorte der Aktivitäten', ld: 'Aktivitäten werden geladen…', er: 'Laden nicht möglich. Prüfen Sie, ob {0} erreichbar ist, und aktualisieren Sie dann.', rf: 'Aktualisieren', more: 'Weitere Filter',
+  map: 'Standorte der Aktivitäten', ld: 'Aktivitäten werden geladen…', er: 'Laden nicht möglich. Prüfen Sie, ob {0} erreichbar ist, und aktualisieren Sie dann.', rf: 'Aktualisieren', more: 'Weitere Filter', noap: 'Außerhalb von Schutzgebieten', hint: 'Klicken Sie auf eine Grenze, um zu filtern (Region, Distrikt, Gemeinde).',
   f: { year: 'Jahr', region: 'Region', ap: 'Schutzgebiet', paysage: 'Landschaft', district: 'Distrikt', commune: 'Gemeinde', fokontany: 'Fokontany', mbv: 'Mikro-Einzugsgebiet', cat: 'Kategorie', st: 'Status' },
   st: { valid: 'Validiert', pending: 'Ausstehend', rejected: 'Abgelehnt' },
   s1: '1. Zielerreichung: {0} Kleinbauern (C2, C3 und C4)',
@@ -156,9 +171,28 @@ const toAct = (x: any): Act | null => {
 };
 const hasXY = (r: Act) => Number.isFinite(r.lat) && Number.isFinite(r.lng);
 
+// Comparaison de noms tolérante (accents, majuscules, apostrophes)
+const norm = (v: any) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+// Emprise [[latMin, lngMin], [latMax, lngMax]] d'une liste d'entités GeoJSON
+const bbox = (fs: any[]): [number, number][] => {
+  let a = 90, b = 180, c = -90, d = -180;
+  const walk = (x: any) => {
+    if (typeof x[0] === 'number') { if (x[1] < a) a = x[1]; if (x[1] > c) c = x[1]; if (x[0] < b) b = x[0]; if (x[0] > d) d = x[0]; }
+    else x.forEach(walk);
+  };
+  fs.forEach((ft) => ft?.geometry?.coordinates && walk(ft.geometry.coordinates));
+  return a <= c ? [[a, b], [c, d]] : [];
+};
+type Lvl = 'region' | 'district' | 'commune';
+interface Ly { key: string; features: any[]; style: any; click?: Lvl }
+const ST_REG = { color: '#546e7a', weight: 1, fillColor: '#90a4ae', fillOpacity: 0.04 };
+const ST_CTX = { color: '#78909c', weight: 1, dashArray: '3', fillColor: '#90a4ae', fillOpacity: 0.05 };
+const ST_AP = { color: '#ef6c00', weight: 2, fillColor: '#ef6c00', fillOpacity: 0.15 };
+const ST_HL = { color: '#1b5e20', weight: 3, fillColor: '#2e7d32', fillOpacity: 0.12 };
+
 const Fit = ({ pts }: { pts: [number, number][] }) => {
   const map = useMap();
-  useEffect(() => { if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 11 }); }, [pts, map]);
+  useEffect(() => { if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 12 }); }, [pts, map]);
   return null;
 };
 
@@ -297,7 +331,7 @@ const Beneficiaires: React.FC = () => {
   const load = () => {
     setErr(false);
     setBusy(true);
-    fetch(GEO_URL, { cache: 'no-store' })
+    fetch(DATA.beneficiaires, { cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((g) => { setMeta(g.metadata || {}); setRaw((g.features || []).map(toAct).filter(Boolean) as Act[]); })
       .catch(() => setErr(true))
@@ -310,23 +344,94 @@ const Beneficiaires: React.FC = () => {
   const [page, setPage] = useState(1);
   const [per, setPer] = useState(10);
   const [more, setMore] = useState(false);
+  const [adm, setAdm] = useState<{ reg: any; dis: any; com: any }>({ reg: null, dis: null, com: null });
+  useEffect(() => {
+    const get = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    Promise.all([get(DATA.regions), get(DATA.districts), get(DATA.communes)]).then(([reg, dis, com]) => setAdm({ reg, dis, com }));
+  }, []);
 
-  const match = (a: Act, skip?: K) => FK.every((k) => k === skip || !f[k] || String(a[k === 'st' ? 'st' : k]) === f[k]);
+  const match = (a: Act, skip?: K) => FK.every((k) => {
+    if (k === skip || !f[k]) return true;
+    if (k === 'ap' && f[k] === NONE) return !a.ap;
+    return String(a[k]) === f[k];
+  });
   const rows = useMemo(() => acts.filter((a) => match(a)), [f, acts]); // eslint-disable-line
-  const opts = (k: K) => [...new Set(acts.filter((a) => match(a, k)).map((a) => String(a[k])))].sort();
+  const opts = (k: K) => {
+    const l = [...new Set(acts.filter((a) => match(a, k)).map((a) => (k === 'ap' && !a.ap ? NONE : String(a[k]))))].filter(Boolean).sort();
+    if (f[k] && !l.includes(f[k])) l.push(f[k]); // valeur choisie sur la carte absente des activités
+    return l;
+  };
   const reset = () => { setF({}); setQ(''); setPage(1); setPer(10); };
+  // Hiérarchie : changer un niveau réinitialise les niveaux inférieurs
+  const CHILD: Partial<Record<K, K[]>> = { region: ['district', 'commune', 'fokontany', 'mbv'], district: ['commune', 'fokontany', 'mbv'], commune: ['fokontany', 'mbv'] };
+  const setFilter = (k: K, v: string) => {
+    setF((p) => { const n = { ...p, [k]: v }; (CHILD[k] || []).forEach((c) => { delete n[c]; }); return n; });
+    setPage(1);
+  };
+  // Clic sur une limite de la carte -> filtres région / district / commune
+  const canon = (k: Lvl, name: string) => { const h = acts.find((a) => norm(a[k]) === norm(name)); return h ? String(h[k]) : name; };
+  const pick = (lvl: Lvl, p: any) => {
+    const reg = lvl === 'region' ? p?.[PROP.region] : lvl === 'district' ? p?.[PROP.districtRegion] : p?.[PROP.communeRegion];
+    const dis = lvl === 'district' ? p?.[PROP.district] : lvl === 'commune' ? p?.[PROP.communeDistrict] : '';
+    const com = lvl === 'commune' ? p?.[PROP.commune] : '';
+    setF((prev) => {
+      const n = { ...prev };
+      (['region', 'district', 'commune', 'fokontany', 'mbv'] as K[]).forEach((c) => { delete n[c]; });
+      if (reg) n.region = canon('region', reg);
+      if (dis) n.district = canon('district', dis);
+      if (com) n.commune = canon('commune', com);
+      return n;
+    });
+    setPage(1);
+  };
+  const pickRef = useRef(pick);
+  pickRef.current = pick;
   const nAct = FK.filter((k) => f[k]).length;
   const nSec = SECOND.filter((k) => f[k]).length;
   const sel = (k: K) => (
     <label key={k}>{t.f[k]}
-      <select value={f[k] || ''} onChange={(e) => { setF({ ...f, [k]: e.target.value }); setPage(1); }}>
+      <select value={f[k] || ''} onChange={(e) => setFilter(k, e.target.value)}>
         <option value="">{t.all}</option>
-        {opts(k).map((o) => <option key={o} value={o}>{k === 'st' ? t.st[o as St] : o}</option>)}
+        {opts(k).map((o) => <option key={o} value={o}>{k === 'st' ? t.st[o as St] : o === NONE ? t.noap : o}</option>)}
       </select>
     </label>
   );
 
+
   const pts = useMemo<[number, number][]>(() => rows.filter(hasXY).map((r) => [r.lat, r.lng]), [rows]);
+  const layers = useMemo<Ly[]>(() => {
+    const out: Ly[] = [];
+    const reg: any[] = adm.reg?.features ?? [], dis: any[] = adm.dis?.features ?? [], com: any[] = adm.com?.features ?? [];
+    const nr = norm(f.region), nd = norm(f.district), nc = norm(f.commune);
+    const na = f.ap && f.ap !== NONE ? norm(f.ap) : '';
+    const inR = (x: any) => !nr || norm(x) === nr;
+    const inD = (x: any) => !nd || norm(x) === nd;
+    const P = PROP;
+    if (reg.length) out.push({ key: 'reg', features: reg, style: ST_REG, click: 'region' });
+    if (nd && com.length) {
+      out.push({ key: `cc-${nr}-${nd}`, features: com.filter((x) => inR(x.properties?.[P.communeRegion]) && inD(x.properties?.[P.communeDistrict])), style: ST_CTX, click: 'commune' });
+    } else if (nr && dis.length) {
+      out.push({ key: `cd-${nr}`, features: dis.filter((x) => norm(x.properties?.[P.districtRegion]) === nr), style: ST_CTX, click: 'district' });
+    }
+    if (na) {
+      const useCom = com.length > 0;
+      const src = useCom ? com : dis;
+      const rk = useCom ? P.communeRegion : P.districtRegion, dk = useCom ? P.communeDistrict : P.district;
+      const a = src.filter((x) => norm(x.properties?.[P.ap]).includes(na) && inR(x.properties?.[rk]) && inD(x.properties?.[dk]));
+      if (a.length) out.push({ key: `ap-${na}-${nr}-${nd}`, features: a, style: ST_AP });
+    }
+    let hl: any[] = [];
+    if (nc) hl = com.filter((x) => norm(x.properties?.[P.commune]) === nc && inR(x.properties?.[P.communeRegion]) && inD(x.properties?.[P.communeDistrict]));
+    else if (nd) hl = dis.filter((x) => norm(x.properties?.[P.district]) === nd && inR(x.properties?.[P.districtRegion]));
+    else if (nr) hl = reg.filter((x) => norm(x.properties?.[P.region]) === nr);
+    if (hl.length) out.push({ key: `hl-${nr}-${nd}-${nc}`, features: hl, style: ST_HL });
+    return out;
+  }, [adm, f.region, f.district, f.commune, f.ap]);
+  const fitPts = useMemo(() => {
+    const tg = layers.find((l) => l.key.startsWith('hl')) || layers.find((l) => l.key.startsWith('ap'));
+    const b = tg ? bbox(tg.features) : [];
+    return b.length ? b : pts;
+  }, [layers, pts]);
 
   /* ----- Indicateur 1 ----- */
   const val = rows.filter((r) => r.st === 'valid');
@@ -420,7 +525,7 @@ const Beneficiaires: React.FC = () => {
       </header>
 
       <main className="sv-w">
-        {err && <div className="c" role="alert">{fmt(t.er, GEO_URL)}</div>}
+        {err && <div className="c" role="alert">{fmt(t.er, DATA.beneficiaires)}</div>}
         {!raw && !err && <div className="c">{t.ld}</div>}
         {raw && (<>
 
@@ -518,18 +623,26 @@ const Beneficiaires: React.FC = () => {
             <div style={{ height: narrow ? 260 : 300, borderRadius: 8, overflow: 'hidden' }}>
               <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} style={{ height: '100%', width: '100%' }}>
                 <TileLayer attribution="Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" />
+                <Pane name="admin" style={{ zIndex: 350 }}>
+                  {layers.map((ly) => (
+                    <GeoJSON key={ly.key} data={{ type: 'FeatureCollection', features: ly.features } as any} pane="admin" interactive={!!ly.click}
+                      style={() => ly.style}
+                      onEachFeature={ly.click ? (ft: any, lay: any) => lay.on({ click: () => pickRef.current(ly.click as Lvl, ft.properties) }) : undefined} />
+                  ))}
+                </Pane>
                 {rows.filter(hasXY).map((r) => (
                   <CircleMarker key={r.id} center={[r.lat, r.lng]} radius={Math.max(5, Math.min(22, Math.sqrt(r.p) / 1.2))}
                     pathOptions={{ color: CATC[r.cat], fillColor: CATC[r.cat], fillOpacity: 0.55, weight: 2 }}>
                     <Popup><b>{r.id}</b><br />{sk(r.sk)}<br />{r.commune}, {r.region}<br />{nf(r.p)} · {t.st[r.st]}</Popup>
                   </CircleMarker>
                 ))}
-                <Fit pts={pts} />
+                <Fit pts={fitPts} />
               </MapContainer>
             </div>
             <div className="row" style={{ justifyContent: 'center', gap: 14 }}>
               {CATS.map((c) => <span key={c}><i style={{ background: CATC[c] }} />{c}</span>)}
             </div>
+            <div className="sub" style={{ textAlign: 'center' }}>{t.hint}</div>
           </div>
         </section>
 
