@@ -4,10 +4,11 @@ import {
   Legend, LabelList, ReferenceLine, PieChart, Pie, Cell,
 } from 'recharts';
 import {
-  Users, Target, GraduationCap, ClipboardCheck, CheckCircle2, Printer, Download, RotateCcw, Search, Globe, RefreshCw,
+  Users, Target, GraduationCap, ClipboardCheck, CheckCircle2, Printer, Download, RotateCcw, Search, SlidersHorizontal, RefreshCw,
 } from 'lucide-react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useLanguage } from '../context/LanguageContext';
 
 /* =====================================================================
    SUIVI DES PETITS EXPLOITANTS – page unique (Indicateur 1 + Indicateur 2)
@@ -55,7 +56,7 @@ const SK: string[][] = [
 /* ---------- Traductions ---------- */
 const fr = {
   title: 'Suivi des petits exploitants', print: 'Imprimer', reset: 'Réinitialiser', all: 'Tous', lang: 'Langue',
-  map: 'Localisation des activités', ld: 'Chargement des activités…', er: 'Chargement impossible. Vérifiez que {0} est accessible, puis actualisez.', rf: 'Actualiser',
+  map: 'Localisation des activités', ld: 'Chargement des activités…', er: 'Chargement impossible. Vérifiez que {0} est accessible, puis actualisez.', rf: 'Actualiser', more: 'Plus de filtres',
   f: { year: 'Année', region: 'Région', ap: 'Aire protégée', paysage: 'Paysage', district: 'District', commune: 'Commune', fokontany: 'Fokontany', mbv: 'Micro-bassin versant', cat: 'Catégorie', st: 'Statut' },
   st: { valid: 'Validé', pending: 'En attente', rejected: 'Rejeté' },
   s1: '1. Atteinte de l’objectif : {0} petits exploitants agricoles (C2, C3 et C4)',
@@ -73,7 +74,7 @@ const fr = {
 type D = typeof fr;
 const mg: D = {
   title: 'Fanaraha-maso ny mpamboly madinika', print: 'Hanonta', reset: 'Averina', all: 'Rehetra', lang: 'Fiteny',
-  map: 'Toerana misy ny hetsika', ld: 'Mampiditra ny hetsika…', er: 'Tsy afaka naka ny angona. Jereo raha azo vakiana ny {0}, avy eo havaozy.', rf: 'Havaozina',
+  map: 'Toerana misy ny hetsika', ld: 'Mampiditra ny hetsika…', er: 'Tsy afaka naka ny angona. Jereo raha azo vakiana ny {0}, avy eo havaozy.', rf: 'Havaozina', more: 'Sivana hafa',
   f: { year: 'Taona', region: 'Faritra', ap: 'Faritra arovana', paysage: 'Tontolo', district: 'Distrika', commune: 'Kaominina', fokontany: 'Fokontany', mbv: 'Tambatra-drano kely', cat: 'Sokajy', st: 'Sata' },
   st: { valid: 'Nekena', pending: 'Miandry', rejected: 'Nolavina' },
   s1: '1. Fahatratrarana ny tanjona : mpamboly madinika {0} (C2, C3 ary C4)',
@@ -90,7 +91,7 @@ const mg: D = {
 };
 const en: D = {
   title: 'Smallholder farmers monitoring', print: 'Print', reset: 'Reset', all: 'All', lang: 'Language',
-  map: 'Activity locations', ld: 'Loading activities…', er: 'Unable to load data. Check that {0} is reachable, then refresh.', rf: 'Refresh',
+  map: 'Activity locations', ld: 'Loading activities…', er: 'Unable to load data. Check that {0} is reachable, then refresh.', rf: 'Refresh', more: 'More filters',
   f: { year: 'Year', region: 'Region', ap: 'Protected area', paysage: 'Landscape', district: 'District', commune: 'Municipality', fokontany: 'Fokontany', mbv: 'Micro-watershed', cat: 'Category', st: 'Status' },
   st: { valid: 'Validated', pending: 'Pending', rejected: 'Rejected' },
   s1: '1. Target achievement: {0} smallholder farmers (C2, C3 and C4)',
@@ -107,7 +108,7 @@ const en: D = {
 };
 const de: D = {
   title: 'Überwachung der Kleinbauern', print: 'Drucken', reset: 'Zurücksetzen', all: 'Alle', lang: 'Sprache',
-  map: 'Standorte der Aktivitäten', ld: 'Aktivitäten werden geladen…', er: 'Laden nicht möglich. Prüfen Sie, ob {0} erreichbar ist, und aktualisieren Sie dann.', rf: 'Aktualisieren',
+  map: 'Standorte der Aktivitäten', ld: 'Aktivitäten werden geladen…', er: 'Laden nicht möglich. Prüfen Sie, ob {0} erreichbar ist, und aktualisieren Sie dann.', rf: 'Aktualisieren', more: 'Weitere Filter',
   f: { year: 'Jahr', region: 'Region', ap: 'Schutzgebiet', paysage: 'Landschaft', district: 'Distrikt', commune: 'Gemeinde', fokontany: 'Fokontany', mbv: 'Mikro-Einzugsgebiet', cat: 'Kategorie', st: 'Status' },
   st: { valid: 'Validiert', pending: 'Ausstehend', rejected: 'Abgelehnt' },
   s1: '1. Zielerreichung: {0} Kleinbauern (C2, C3 und C4)',
@@ -160,6 +161,8 @@ const sum = (a: Act[], k: 'p' | 'w' | 'y' | 'enq' | 'ok') => a.reduce((t, r) => 
 const pc = (a: number, b: number) => (b ? (a / b) * 100 : 0);
 const FK = ['year', 'region', 'ap', 'paysage', 'district', 'commune', 'fokontany', 'mbv', 'cat', 'st'] as const;
 type K = (typeof FK)[number];
+const PRIMARY: K[] = ['year', 'region', 'cat', 'st'];
+const SECOND: K[] = ['ap', 'paysage', 'district', 'commune', 'fokontany', 'mbv'];
 
 const CSS = `
 .sv{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#f3f5f1;min-height:100vh;color:#1c2b24;font-size:14px}
@@ -167,9 +170,6 @@ const CSS = `
 .sv-h{position:sticky;top:0;z-index:20;background:#0b5d1e;color:#fff;padding:10px clamp(10px,2vw,24px);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .sv-h h2{margin:0;font-size:clamp(16px,2.4vw,22px);display:flex;align-items:center;gap:8px}
 .sv-hb{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.sv-lg{display:inline-flex;border:1px solid rgba(255,255,255,.6);border-radius:8px;overflow:hidden}
-.sv-lg button{background:transparent;color:#fff;border:0;padding:7px 10px;font-weight:700;font-size:12px;cursor:pointer;min-height:34px}
-.sv-lg button[aria-pressed=true]{background:#fff;color:#0b5d1e}
 .sv-b{display:inline-flex;align-items:center;gap:6px;border-radius:8px;border:1px solid transparent;padding:7px 12px;font-weight:700;font-size:13px;cursor:pointer;min-height:36px;background:#2e7d32;color:#fff}
 .sv-b.o{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
 .sv-b.l{background:#fff;color:#1c2b24;border-color:#c9d1cb}
@@ -180,6 +180,8 @@ const CSS = `
 .sv-f label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#374151}
 .sv select,.sv input{height:38px;border-radius:8px;border:1px solid #c9d1cb;padding:0 10px;background:#fff;font-size:13px;width:100%;min-width:0}
 .sv-s{display:flex;align-items:center;gap:8px;background:#2e7d32;color:#fff;margin:6px 0 0;padding:9px 12px;border-radius:8px;font-size:clamp(13px,1.6vw,16px)}
+.sv-f2{margin-top:8px;padding:10px;background:#fff;border:1px solid #e1e6e2;border-radius:10px}
+.sv-n{background:#f9a825;color:#1c2b24;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
 .g{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
 .g2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
 .c{background:#fff;border-radius:10px;padding:12px;border:1px solid #e1e6e2;min-width:0}
@@ -218,11 +220,12 @@ const CSS = `
 const Sec = ({ icon: Ic, text }: { icon: React.ComponentType<any>; text: string }) => (
   <h3 className="sv-s"><Ic size={18} style={{ flexShrink: 0 }} />{text}</h3>
 );
-const Kpi = ({ title, big, sub, color = '#2e7d32', bar }: { title: string; big: string; sub?: string; color?: string; bar?: number }) => (
+const Kpi = ({ title, big, sub, color = '#2e7d32', bar, sub2 }: { title: string; big: string; sub?: string; sub2?: string; color?: string; bar?: number }) => (
   <div className="c">
     <h4>{title}</h4>
     <div className="big" style={{ color }}>{big}</div>
     {sub && <div className="sub">{sub}</div>}
+    {sub2 && <div className="sub" style={{ marginTop: 0 }}>{sub2}</div>}
     {bar !== undefined && <div className="bar"><b style={{ width: `${Math.min(100, bar)}%`, background: color }} /></div>}
   </div>
 );
@@ -251,11 +254,10 @@ const useNarrow = () => {
 
 /* ===================================================================== */
 const Beneficiaires: React.FC = () => {
-  const [lang, setLang] = useState<Lang>(() => {
-    try { const l = localStorage.getItem('lang'); if (l === 'fr' || l === 'mg' || l === 'en' || l === 'de') return l; } catch { /* ignore */ }
-    return 'fr';
-  });
-  const pick = (l: Lang) => { setLang(l); try { localStorage.setItem('lang', l); } catch { /* ignore */ } };
+  // Langue choisie au démarrage de l'application (LanguageContext)
+  const ctx: any = useLanguage() || {};
+  const lc = ctx.lang ?? ctx.language;
+  const lang: Lang = lc === 'mg' || lc === 'en' || lc === 'de' ? lc : 'fr';
   const t = TR[lang];
   const narrow = useNarrow();
   const nf = (n: number, d = 0) => n.toLocaleString(LOC[lang], { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -287,11 +289,22 @@ const Beneficiaires: React.FC = () => {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [per, setPer] = useState(10);
+  const [more, setMore] = useState(false);
 
   const match = (a: Act, skip?: K) => FK.every((k) => k === skip || !f[k] || String(a[k === 'st' ? 'st' : k]) === f[k]);
   const rows = useMemo(() => acts.filter((a) => match(a)), [f, acts]); // eslint-disable-line
   const opts = (k: K) => [...new Set(acts.filter((a) => match(a, k)).map((a) => String(a[k])))].sort();
   const reset = () => { setF({}); setQ(''); setPage(1); setPer(10); };
+  const nAct = FK.filter((k) => f[k]).length;
+  const nSec = SECOND.filter((k) => f[k]).length;
+  const sel = (k: K) => (
+    <label key={k}>{t.f[k]}
+      <select value={f[k] || ''} onChange={(e) => { setF({ ...f, [k]: e.target.value }); setPage(1); }}>
+        <option value="">{t.all}</option>
+        {opts(k).map((o) => <option key={o} value={o}>{k === 'st' ? t.st[o as St] : o}</option>)}
+      </select>
+    </label>
+  );
 
   const pts = useMemo<[number, number][]>(() => rows.filter(hasXY).map((r) => [r.lat, r.lng]), [rows]);
 
@@ -370,12 +383,6 @@ const Beneficiaires: React.FC = () => {
       <header className="sv-h">
         <h2><Users size={22} />{t.title}</h2>
         <div className="sv-hb np">
-          <span className="sv-lg" role="group" aria-label={t.lang}>
-            <Globe size={14} style={{ margin: '0 4px 0 8px', alignSelf: 'center' }} />
-            {(['fr', 'mg', 'en', 'de'] as Lang[]).map((l) => (
-              <button key={l} aria-pressed={lang === l} onClick={() => pick(l)}>{l.toUpperCase()}</button>
-            ))}
-          </span>
           <button className="sv-b o" onClick={() => window.print()} aria-label={t.print}><Printer size={16} /><span>{t.print}</span></button>
           <button className="sv-b o" onClick={() => { reset(); load(); }} disabled={busy} aria-label={t.rf}><RefreshCw size={16} /><span>{t.rf}</span></button>
         </div>
@@ -386,41 +393,93 @@ const Beneficiaires: React.FC = () => {
         {!raw && !err && <div className="c">{t.ld}</div>}
         {raw && (<>
 
-        {/* Filtres */}
-        <section className="sv-f np">
-          {FK.map((k) => (
-            <label key={k}>{t.f[k]}
-              <select value={f[k] || ''} onChange={(e) => { setF({ ...f, [k]: e.target.value }); setPage(1); }}>
-                <option value="">{t.all}</option>
-                {opts(k).map((o) => <option key={o} value={o}>{k === 'st' ? t.st[o as St] : o}</option>)}
-              </select>
-            </label>
-          ))}
-          <button className="sv-b l" style={{ height: 38 }} onClick={reset}><RotateCcw size={16} /><span>{t.reset}</span></button>
+        {/* Filtres : 4 principaux + panneau « plus de filtres » */}
+        <section className="np">
+          <div className="sv-f">
+            {PRIMARY.map(sel)}
+            <button className="sv-b l" style={{ height: 38 }} aria-expanded={more} aria-label={t.more} onClick={() => setMore(!more)}>
+              <SlidersHorizontal size={16} /><span>{t.more}</span>{nSec > 0 && <em className="sv-n">{nSec}</em>}
+            </button>
+            {nAct > 0 && <button className="sv-b l" style={{ height: 38 }} aria-label={t.reset} onClick={reset}><RotateCcw size={16} /><span>{t.reset}</span></button>}
+          </div>
+          {more && <div className="sv-f sv-f2">{SECOND.map(sel)}</div>}
         </section>
 
         {/* ===== 1. Atteinte de l'objectif ===== */}
         <Sec icon={Target} text={fmt(t.s1, nf(TARGET))} />
         <section className="g">
-          <Kpi title={t.k.total} big={nf(reach)} sub={fmt(t.k.of, nf(TARGET))} bar={pc(reach, TARGET)} />
-          <div className="c"><h4>{t.k.rate}</h4><Donut v={pc(reach, TARGET)} color="#2e7d32" label={pct(pc(reach, TARGET))} /></div>
+          <div className="c">
+            <h4>{t.k.total}</h4>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 130px', minWidth: 120 }} aria-label={t.k.rate}>
+                <Donut v={pc(reach, TARGET)} color="#2e7d32" label={pct(pc(reach, TARGET))} />
+              </div>
+              <div style={{ flex: '1 1 110px' }}>
+                <div className="big">{nf(reach)}</div>
+                <div className="sub">{fmt(t.k.of, nf(TARGET))}</div>
+              </div>
+            </div>
+          </div>
           <Kpi title={t.k.gap} big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? '#2e7d32' : RED} />
-          <Kpi title={t.k.decl} big={nf(decl)} sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
-          <Kpi title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
-          <Kpi title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
+          <div className="c">
+            <h4>{t.c.qual}</h4>
+            <div className="sub" style={{ marginTop: 0 }}>{t.k.decl} : <b>{nf(decl)}</b></div>
+            {quality.map((x) => (
+              <div key={x.s}>
+                <div className="row"><span><i style={{ background: STC[x.s] }} />{t.st[x.s]}</span><span><b>{nf(x.v)}</b> ({pct(pc(x.v, decl))})</span></div>
+                <div className="bar" style={{ marginTop: 4 }}><b style={{ width: `${pc(x.v, decl)}%`, background: STC[x.s] }} /></div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="g2">
+          <div className="c">
+            <h4>{t.c.evol}</h4>
+            <ResponsiveContainer width="100%" height={narrow ? 240 : 300}>
+              <LineChart data={evol} margin={{ left: 0, right: 16, top: 8 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="y" tick={{ fontSize: 11 }} padding={{ left: 15, right: 15 }} />
+                <YAxis tick={{ fontSize: 11 }} domain={[0, TARGET]} tickFormatter={(v: number) => nf(v)} width={60} />
+                <Tooltip formatter={(v: any) => nf(v)} />
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Line name={t.ev.decl} dataKey="decl" stroke="#f9a825" strokeWidth={2} dot={{ r: 3 }} />
+                <Line name={t.ev.val} dataKey="val" stroke="#2e7d32" strokeWidth={3} dot={{ r: 4 }} />
+                <Line name={`${t.ev.tar} (${nf(TARGET)})`} dataKey="tar" stroke="#9e9e9e" strokeDasharray="5 5" dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="c">
+            <h4>{t.map}</h4>
+            <div style={{ height: narrow ? 260 : 300, borderRadius: 8, overflow: 'hidden' }}>
+              <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} style={{ height: '100%', width: '100%' }}>
+                <TileLayer attribution="Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" />
+                {rows.filter(hasXY).map((r) => (
+                  <CircleMarker key={r.id} center={[r.lat, r.lng]} radius={Math.max(5, Math.min(22, Math.sqrt(r.p) / 1.2))}
+                    pathOptions={{ color: CATC[r.cat], fillColor: CATC[r.cat], fillOpacity: 0.55, weight: 2 }}>
+                    <Popup><b>{r.id}</b><br />{sk(r.sk)}<br />{r.commune}, {r.region}<br />{nf(r.p)} · {t.st[r.st]}</Popup>
+                  </CircleMarker>
+                ))}
+                <Fit pts={pts} />
+              </MapContainer>
+            </div>
+            <div className="row" style={{ justifyContent: 'center', gap: 14 }}>
+              {CATS.map((c) => <span key={c}><i style={{ background: CATC[c] }} />{c}</span>)}
+            </div>
+          </div>
         </section>
 
         <section className="g2">
           <div className="c">
             <h4>{t.c.cat}</h4>
             <div className="tw">
-              <table style={{ minWidth: 380 }}>
-                <thead><tr>{[t.cols.cat, t.cols.act, t.cols.ben, t.cols.share, t.cols.w, t.cols.y].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <table style={{ minWidth: 300 }}>
+                <thead><tr>{[t.cols.cat, t.cols.act, t.cols.ben, t.cols.share].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>
                   {byCat.map((r) => (
-                    <tr key={r.c}><td><b style={{ color: CATC[r.c] }}>{r.c}</b></td><td>{nf(r.n)}</td><td>{nf(r.p)}</td><td>{pct(r.share)}</td><td>{pct(r.w)}</td><td>{pct(r.j)}</td></tr>
+                    <tr key={r.c}><td><b style={{ color: CATC[r.c] }}>{r.c}</b></td><td>{nf(r.n)}</td><td>{nf(r.p)}</td><td>{pct(r.share)}</td></tr>
                   ))}
-                  <tr className="tot"><td>{t.cols.tot}</td><td>{nf(val.length)}</td><td>{nf(reach)}</td><td>{pct(reach ? 100 : 0)}</td><td>{pct(women)}</td><td>{pct(youth)}</td></tr>
+                  <tr className="tot"><td>{t.cols.tot}</td><td>{nf(val.length)}</td><td>{nf(reach)}</td><td>{pct(reach ? 100 : 0)}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -434,15 +493,8 @@ const Beneficiaires: React.FC = () => {
             </ResponsiveContainer>
           </div>
           <div className="c">
-            <h4>{t.c.qual}</h4>
-            {quality.map((x) => (
-              <div key={x.s}>
-                <div className="row"><span><i style={{ background: STC[x.s] }} />{t.st[x.s]}</span><span><b>{nf(x.v)}</b> ({pct(pc(x.v, decl))})</span></div>
-                <div className="bar" style={{ marginTop: 4 }}><b style={{ width: `${pc(x.v, decl)}%`, background: STC[x.s] }} /></div>
-              </div>
-            ))}
-            <h4 style={{ marginTop: 18 }}>{t.c.reg}</h4>
-            <ResponsiveContainer width="100%" height={Math.max(200, regions.length * 34 + 20)}>
+            <h4>{t.c.reg}</h4>
+            <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 34 + 20)}>
               <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 40 }}>
                 <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => nf(v)} />
                 <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11 }} interval={0} />
@@ -455,43 +507,12 @@ const Beneficiaires: React.FC = () => {
           </div>
         </section>
 
-        <section className="c">
-          <h4>{t.c.evol}</h4>
-          <ResponsiveContainer width="100%" height={narrow ? 240 : 300}>
-            <LineChart data={evol} margin={{ left: 0, right: 16, top: 8 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="y" tick={{ fontSize: 11 }} padding={{ left: 15, right: 15 }} />
-              <YAxis tick={{ fontSize: 11 }} domain={[0, TARGET]} tickFormatter={(v: number) => nf(v)} width={60} />
-              <Tooltip formatter={(v: any) => nf(v)} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Line name={t.ev.decl} dataKey="decl" stroke="#f9a825" strokeWidth={2} dot={{ r: 3 }} />
-              <Line name={t.ev.val} dataKey="val" stroke="#2e7d32" strokeWidth={3} dot={{ r: 4 }} />
-              <Line name={`${t.ev.tar} (${nf(TARGET)})`} dataKey="tar" stroke="#9e9e9e" strokeDasharray="5 5" dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
-        </section>
-
-        <section className="c">
-          <h4>{t.map}</h4>
-          <div style={{ height: narrow ? 280 : 420, borderRadius: 8, overflow: 'hidden' }}>
-            <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} style={{ height: '100%', width: '100%' }}>
-              <TileLayer attribution="Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" />
-              {rows.filter(hasXY).map((r) => (
-                <CircleMarker key={r.id} center={[r.lat, r.lng]} radius={Math.max(5, Math.min(22, Math.sqrt(r.p) / 1.2))}
-                  pathOptions={{ color: CATC[r.cat], fillColor: CATC[r.cat], fillOpacity: 0.55, weight: 2 }}>
-                  <Popup><b>{r.id}</b><br />{sk(r.sk)}<br />{r.commune}, {r.region}<br />{nf(r.p)} · {t.st[r.st]}</Popup>
-                </CircleMarker>
-              ))}
-              <Fit pts={pts} />
-            </MapContainer>
-          </div>
-          <div className="row" style={{ justifyContent: 'center', gap: 14 }}>
-            {CATS.map((c) => <span key={c}><i style={{ background: CATC[c] }} />{c}</span>)}
-          </div>
-        </section>
-
         {/* ===== 2. Inclusion ===== */}
         <Sec icon={Users} text={t.s2} />
+        <section className="g">
+          <Kpi title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
+          <Kpi title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
+        </section>
         <section className="g2">
           {inclCharts.map((ch) => (
             <div className="c" key={ch.title}>
@@ -514,8 +535,7 @@ const Beneficiaires: React.FC = () => {
         {/* ===== 3. Confirmation ===== */}
         <Sec icon={GraduationCap} text={t.s3} />
         <section className="g">
-          <Kpi title={t.cf.enq} big={nf(enq)} color={YOUTH} sub={`${t.cf.cov} : ${pct(cov)}`} />
-          <Kpi title={t.cf.ok} big={nf(ok)} color="#f9a825" />
+          <Kpi title={t.cf.enq} big={nf(enq)} color={YOUTH} sub={`${t.cf.ok} : ${nf(ok)}`} sub2={`${t.cf.cov} : ${pct(cov)}`} />
           <div className="c">
             <h4>{t.cf.rate}</h4>
             <div className="big" style={{ color: rc, display: 'flex', alignItems: 'center', gap: 8 }}>
