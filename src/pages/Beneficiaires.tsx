@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LineChart, Line, CartesianGrid,
   Legend, LabelList, ReferenceLine, PieChart, Pie, Cell,
 } from 'recharts';
 import {
-  Users, Target, GraduationCap, ClipboardCheck, CheckCircle2, Printer, Download, RotateCcw, Search, Globe,
+  Users, Target, GraduationCap, ClipboardCheck, CheckCircle2, Printer, Download, RotateCcw, Search, Globe, RefreshCw,
 } from 'lucide-react';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 /* =====================================================================
    SUIVI DES PETITS EXPLOITANTS – page unique (Indicateur 1 + Indicateur 2)
@@ -16,15 +18,17 @@ type Lang = 'fr' | 'mg' | 'en' | 'de';
 type Cat = 'C2' | 'C3' | 'C4';
 type St = 'valid' | 'pending' | 'rejected';
 interface Act {
-  id: string; cat: Cat; region: string; ap: string; district: string; commune: string; sk: number;
-  year: number; date: string; p: number; w: number; y: number; enq: number; ok: number; st: St;
+  id: string; cat: Cat; region: string; ap: string; paysage: string; district: string; commune: string; fokontany: string; mbv: string; sk: number;
+  year: number; date: string; p: number; w: number; y: number; enq: number; ok: number; st: St; lat: number; lng: number;
 }
 
 /* ---------- Paramètres du projet ---------- */
-const TARGET = 25000;      // cible de bénéficiaires
-const TARGET_CONF = 80;    // % de confirmation visé
-const START = 2025;
-const END = 2030;
+const GEO_URL = '/data/beneficiaires.geojson'; // à placer dans public/data/
+const DEF_TARGET = 25000;   // cible (surchargée par metadata.cible_total)
+const DEF_CONF = 80;        // % confirmation (metadata.cible_confirmation)
+const DEF_START = 2025;     // metadata.debut
+const DEF_END = 2030;       // metadata.fin
+interface Meta { cible_total?: number; cible_confirmation?: number; debut?: number; fin?: number }
 const CATS: Cat[] = ['C2', 'C3', 'C4'];
 const CATC: Record<Cat, string> = { C2: '#2e7d32', C3: '#1976d2', C4: '#f9a825' };
 const STC: Record<St, string> = { valid: '#2e7d32', pending: '#f9a825', rejected: '#c62828' };
@@ -51,8 +55,8 @@ const SK: string[][] = [
 /* ---------- Traductions ---------- */
 const fr = {
   title: 'Suivi des petits exploitants', print: 'Imprimer', reset: 'Réinitialiser', all: 'Tous', lang: 'Langue',
-  demo: 'Données de démonstration : remplacez ACTS par vos données réelles (API ou GeoJSON).',
-  f: { year: 'Année', region: 'Région', ap: 'Aire protégée', district: 'District', cat: 'Catégorie', st: 'Statut' },
+  map: 'Localisation des activités', ld: 'Chargement des activités…', er: 'Chargement impossible. Vérifiez que {0} est accessible, puis actualisez.', rf: 'Actualiser',
+  f: { year: 'Année', region: 'Région', ap: 'Aire protégée', paysage: 'Paysage', district: 'District', commune: 'Commune', fokontany: 'Fokontany', mbv: 'Micro-bassin versant', cat: 'Catégorie', st: 'Statut' },
   st: { valid: 'Validé', pending: 'En attente', rejected: 'Rejeté' },
   s1: '1. Atteinte de l’objectif : {0} petits exploitants agricoles (C2, C3 et C4)',
   s2: '2. Inclusion : femmes et jeunes (< 35 ans)',
@@ -69,8 +73,8 @@ const fr = {
 type D = typeof fr;
 const mg: D = {
   title: 'Fanaraha-maso ny mpamboly madinika', print: 'Hanonta', reset: 'Averina', all: 'Rehetra', lang: 'Fiteny',
-  demo: 'Angona fanoharana : soloy ny angona marina ny ACTS (API na GeoJSON).',
-  f: { year: 'Taona', region: 'Faritra', ap: 'Faritra arovana', district: 'Distrika', cat: 'Sokajy', st: 'Sata' },
+  map: 'Toerana misy ny hetsika', ld: 'Mampiditra ny hetsika…', er: 'Tsy afaka naka ny angona. Jereo raha azo vakiana ny {0}, avy eo havaozy.', rf: 'Havaozina',
+  f: { year: 'Taona', region: 'Faritra', ap: 'Faritra arovana', paysage: 'Tontolo', district: 'Distrika', commune: 'Kaominina', fokontany: 'Fokontany', mbv: 'Tambatra-drano kely', cat: 'Sokajy', st: 'Sata' },
   st: { valid: 'Nekena', pending: 'Miandry', rejected: 'Nolavina' },
   s1: '1. Fahatratrarana ny tanjona : mpamboly madinika {0} (C2, C3 ary C4)',
   s2: '2. Fampidirana : vehivavy sy tanora (< 35 taona)',
@@ -86,8 +90,8 @@ const mg: D = {
 };
 const en: D = {
   title: 'Smallholder farmers monitoring', print: 'Print', reset: 'Reset', all: 'All', lang: 'Language',
-  demo: 'Demo data: replace ACTS with your real data (API or GeoJSON).',
-  f: { year: 'Year', region: 'Region', ap: 'Protected area', district: 'District', cat: 'Category', st: 'Status' },
+  map: 'Activity locations', ld: 'Loading activities…', er: 'Unable to load data. Check that {0} is reachable, then refresh.', rf: 'Refresh',
+  f: { year: 'Year', region: 'Region', ap: 'Protected area', paysage: 'Landscape', district: 'District', commune: 'Municipality', fokontany: 'Fokontany', mbv: 'Micro-watershed', cat: 'Category', st: 'Status' },
   st: { valid: 'Validated', pending: 'Pending', rejected: 'Rejected' },
   s1: '1. Target achievement: {0} smallholder farmers (C2, C3 and C4)',
   s2: '2. Inclusion: women and youth (< 35 years)',
@@ -103,8 +107,8 @@ const en: D = {
 };
 const de: D = {
   title: 'Überwachung der Kleinbauern', print: 'Drucken', reset: 'Zurücksetzen', all: 'Alle', lang: 'Sprache',
-  demo: 'Demodaten: ersetzen Sie ACTS durch Ihre echten Daten (API oder GeoJSON).',
-  f: { year: 'Jahr', region: 'Region', ap: 'Schutzgebiet', district: 'Distrikt', cat: 'Kategorie', st: 'Status' },
+  map: 'Standorte der Aktivitäten', ld: 'Aktivitäten werden geladen…', er: 'Laden nicht möglich. Prüfen Sie, ob {0} erreichbar ist, und aktualisieren Sie dann.', rf: 'Aktualisieren',
+  f: { year: 'Jahr', region: 'Region', ap: 'Schutzgebiet', paysage: 'Landschaft', district: 'Distrikt', commune: 'Gemeinde', fokontany: 'Fokontany', mbv: 'Mikro-Einzugsgebiet', cat: 'Kategorie', st: 'Status' },
   st: { valid: 'Validiert', pending: 'Ausstehend', rejected: 'Abgelehnt' },
   s1: '1. Zielerreichung: {0} Kleinbauern (C2, C3 und C4)',
   s2: '2. Inklusion: Frauen und Jugendliche (< 35 Jahre)',
@@ -121,41 +125,40 @@ const de: D = {
 const TR: Record<Lang, D> = { fr, mg, en, de };
 const fmt = (s: string, ...a: (string | number)[]) => s.replace(/\{(\d)\}/g, (_, i) => String(a[+i]));
 
-/* ---------- Données de démonstration (à remplacer) ---------- */
-const REG = [
-  { r: 'Boeny', ap: 'Ankarafantsika', d: 'Marovoay', c: 'Ambato-Boeny' },
-  { r: 'DIANA', ap: 'Montagne d’Ambre', d: 'Antsiranana II', c: 'Joffreville' },
-  { r: 'Anôsy', ap: 'Andohahela', d: 'Amboasary', c: 'Ranopiso' },
-  { r: 'Vakinankaratra', ap: 'Ankaratra', d: 'Antsirabe II', c: 'Antanifotsy' },
-  { r: 'Amoron’i Mania', ap: 'Ambositra', d: 'Ambositra', c: 'Ambohimahazo' },
-  { r: 'Atsimo Atsinanana', ap: 'Befotaka-Midongy', d: 'Befotaka', c: 'Midongy Sud' },
-];
-const ACTS: Act[] = (() => {
-  let s = 7;
-  const rnd = () => (s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296;
-  return Array.from({ length: 72 }, (_, i) => {
-    const g = REG[Math.floor(rnd() * REG.length)];
-    const cat = CATS[Math.floor(rnd() * 3)];
-    const year = i < 30 ? 2025 : 2026;
-    const mm = String(1 + Math.floor(rnd() * (year === 2026 ? 10 : 12))).padStart(2, '0');
-    const dd = String(1 + Math.floor(rnd() * 28)).padStart(2, '0');
-    const p = 80 + Math.floor(rnd() * 180);
-    const r = rnd();
-    const st: St = r < 0.82 ? 'valid' : r < 0.94 ? 'pending' : 'rejected';
-    const enq = st === 'valid' ? Math.round(p * (0.25 + rnd() * 0.15)) : 0;
-    return {
-      id: `ACT-${cat}-${year}-${String(i + 1).padStart(3, '0')}`, cat, region: g.r, ap: g.ap, district: g.d, commune: g.c,
-      sk: Math.floor(rnd() * SK.length), year, date: `${year}-${mm}-${dd}`, p,
-      w: Math.round(p * (0.4 + rnd() * 0.12)), y: Math.round(p * (0.28 + rnd() * 0.1)),
-      enq, ok: Math.round(enq * (0.62 + rnd() * 0.22)), st,
-    };
-  });
-})();
+/* ---------- Conversion GeoJSON -> activités ---------- */
+const ST_MAP: Record<string, St> = { 'Validé': 'valid', 'Valide': 'valid', 'En attente': 'pending', 'Rejeté': 'rejected', valid: 'valid', pending: 'pending', rejected: 'rejected' };
+// Un intitulé inconnu est ajouté tel quel (non traduit) à la liste des compétences.
+const skIdx = (name: string) => {
+  let i = SK.findIndex((x) => x[0] === name);
+  if (i < 0) { SK.push([name, name, name, name]); i = SK.length - 1; }
+  return i;
+};
+const toAct = (x: any): Act | null => {
+  const p = x?.properties;
+  const c = x?.geometry?.coordinates;
+  if (!p || !CATS.includes(p.categorie)) return null;
+  const s = (v: any) => (v == null ? '' : String(v));
+  return {
+    id: s(p.id), cat: p.categorie, region: s(p.region), ap: s(p.aire_protegee), paysage: s(p.paysage), district: s(p.district),
+    commune: s(p.commune), fokontany: s(p.fokontany), mbv: s(p.mbv), sk: skIdx(s(p.intitule)),
+    year: Number(p.annee) || new Date(p.date).getUTCFullYear(), date: s(p.date),
+    p: Number(p.participants) || 0, w: Number(p.femmes) || 0, y: Number(p.jeunes) || 0,
+    enq: Number(p.enquetes) || 0, ok: Number(p.confirmes) || 0, st: ST_MAP[s(p.statut)] ?? 'pending',
+    lat: Array.isArray(c) ? Number(c[1]) : NaN, lng: Array.isArray(c) ? Number(c[0]) : NaN,
+  };
+};
+const hasXY = (r: Act) => Number.isFinite(r.lat) && Number.isFinite(r.lng);
+
+const Fit = ({ pts }: { pts: [number, number][] }) => {
+  const map = useMap();
+  useEffect(() => { if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 11 }); }, [pts, map]);
+  return null;
+};
 
 /* ---------- Helpers ---------- */
 const sum = (a: Act[], k: 'p' | 'w' | 'y' | 'enq' | 'ok') => a.reduce((t, r) => t + r[k], 0);
 const pc = (a: number, b: number) => (b ? (a / b) * 100 : 0);
-const FK = ['year', 'region', 'ap', 'district', 'cat', 'st'] as const;
+const FK = ['year', 'region', 'ap', 'paysage', 'district', 'commune', 'fokontany', 'mbv', 'cat', 'st'] as const;
 type K = (typeof FK)[number];
 
 const CSS = `
@@ -259,15 +262,38 @@ const Beneficiaires: React.FC = () => {
   const pct = (n: number) => `${nf(n, 1)} %`;
   const sk = (i: number) => SK[i][LI[lang]];
 
+  const [raw, setRaw] = useState<Act[] | null>(null);
+  const [meta, setMeta] = useState<Meta>({});
+  const [err, setErr] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const acts = useMemo(() => raw ?? [], [raw]);
+  const TARGET = meta.cible_total ?? DEF_TARGET;
+  const TARGET_CONF = meta.cible_confirmation ?? DEF_CONF;
+  const START = meta.debut ?? DEF_START;
+  const END = meta.fin ?? DEF_END;
+
+  const load = () => {
+    setErr(false);
+    setBusy(true);
+    fetch(GEO_URL, { cache: 'no-store' })
+      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then((g) => { setMeta(g.metadata || {}); setRaw((g.features || []).map(toAct).filter(Boolean) as Act[]); })
+      .catch(() => setErr(true))
+      .finally(() => setBusy(false));
+  };
+  useEffect(load, []);
+
   const [f, setF] = useState<Record<string, string>>({});
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [per, setPer] = useState(10);
 
   const match = (a: Act, skip?: K) => FK.every((k) => k === skip || !f[k] || String(a[k === 'st' ? 'st' : k]) === f[k]);
-  const rows = useMemo(() => ACTS.filter((a) => match(a)), [f]); // eslint-disable-line
-  const opts = (k: K) => [...new Set(ACTS.filter((a) => match(a, k)).map((a) => String(a[k])))].sort();
+  const rows = useMemo(() => acts.filter((a) => match(a)), [f, acts]); // eslint-disable-line
+  const opts = (k: K) => [...new Set(acts.filter((a) => match(a, k)).map((a) => String(a[k])))].sort();
   const reset = () => { setF({}); setQ(''); setPage(1); setPer(10); };
+
+  const pts = useMemo<[number, number][]>(() => rows.filter(hasXY).map((r) => [r.lat, r.lng]), [rows]);
 
   /* ----- Indicateur 1 ----- */
   const val = rows.filter((r) => r.st === 'valid');
@@ -276,11 +302,11 @@ const Beneficiaires: React.FC = () => {
   const cy = new Date().getFullYear();
   const nY = END - START + 1;
   const expected = TARGET * Math.max(0, Math.min(1, (cy - START + 1) / nY));
-  const gap = sum(ACTS.filter((r) => r.st === 'valid'), 'p') - expected;
+  const gap = sum(acts.filter((r) => r.st === 'valid'), 'p') - expected;
   const women = pc(sum(val, 'w'), reach);
   const youth = pc(sum(val, 'y'), reach);
 
-  const base = ACTS.filter((a) => match(a, 'year'));
+  const base = acts.filter((a) => match(a, 'year'));
   const evol = Array.from({ length: nY }, (_, i) => {
     const y = START + i;
     const past = y <= cy;
@@ -351,11 +377,14 @@ const Beneficiaires: React.FC = () => {
             ))}
           </span>
           <button className="sv-b o" onClick={() => window.print()} aria-label={t.print}><Printer size={16} /><span>{t.print}</span></button>
+          <button className="sv-b o" onClick={() => { reset(); load(); }} disabled={busy} aria-label={t.rf}><RefreshCw size={16} /><span>{t.rf}</span></button>
         </div>
       </header>
 
       <main className="sv-w">
-        <div className="sv-demo np">{t.demo}</div>
+        {err && <div className="c" role="alert">{fmt(t.er, GEO_URL)}</div>}
+        {!raw && !err && <div className="c">{t.ld}</div>}
+        {raw && (<>
 
         {/* Filtres */}
         <section className="sv-f np">
@@ -440,6 +469,25 @@ const Beneficiaires: React.FC = () => {
               <Line name={`${t.ev.tar} (${nf(TARGET)})`} dataKey="tar" stroke="#9e9e9e" strokeDasharray="5 5" dot={false} />
             </LineChart>
           </ResponsiveContainer>
+        </section>
+
+        <section className="c">
+          <h4>{t.map}</h4>
+          <div style={{ height: narrow ? 280 : 420, borderRadius: 8, overflow: 'hidden' }}>
+            <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} style={{ height: '100%', width: '100%' }}>
+              <TileLayer attribution="Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" />
+              {rows.filter(hasXY).map((r) => (
+                <CircleMarker key={r.id} center={[r.lat, r.lng]} radius={Math.max(5, Math.min(22, Math.sqrt(r.p) / 1.2))}
+                  pathOptions={{ color: CATC[r.cat], fillColor: CATC[r.cat], fillOpacity: 0.55, weight: 2 }}>
+                  <Popup><b>{r.id}</b><br />{sk(r.sk)}<br />{r.commune}, {r.region}<br />{nf(r.p)} · {t.st[r.st]}</Popup>
+                </CircleMarker>
+              ))}
+              <Fit pts={pts} />
+            </MapContainer>
+          </div>
+          <div className="row" style={{ justifyContent: 'center', gap: 14 }}>
+            {CATS.map((c) => <span key={c}><i style={{ background: CATC[c] }} />{c}</span>)}
+          </div>
         </section>
 
         {/* ===== 2. Inclusion ===== */}
@@ -590,6 +638,7 @@ const Beneficiaires: React.FC = () => {
             </label>
           </div>
         </section>
+        </>)}
       </main>
     </div>
   );
