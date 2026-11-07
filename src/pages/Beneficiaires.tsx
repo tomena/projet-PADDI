@@ -36,6 +36,12 @@ const STC: Record<St, string> = { valid: '#2e7d32', pending: '#f9a825', rejected
 const WOMEN = '#2e7d32';
 const YOUTH = '#1976d2';
 const RED = '#c62828';
+// Couleurs des cartes « Jalons de collecte » (reprises de l'ancienne page)
+const MC = [
+  { Ic: Users, c: '#2e7d32', bg: 'rgba(46,125,50,0.06)' },
+  { Ic: ClipboardCheck, c: '#1976d2', bg: 'rgba(25,118,210,0.06)' },
+  { Ic: CheckCircle2, c: '#f9a825', bg: 'rgba(245,124,0,0.06)' },
+];
 const LOC: Record<Lang, string> = { fr: 'fr-FR', mg: 'fr-FR', en: 'en-US', de: 'de-DE' };
 const LI: Record<Lang, number> = { fr: 0, mg: 1, en: 2, de: 3 };
 
@@ -182,6 +188,10 @@ const CSS = `
 .sv-s{display:flex;align-items:center;gap:8px;background:#2e7d32;color:#fff;margin:6px 0 0;padding:9px 12px;border-radius:8px;font-size:clamp(13px,1.6vw,16px)}
 .sv-f2{margin-top:8px;padding:10px;background:#fff;border:1px solid #e1e6e2;border-radius:10px}
 .sv-n{background:#f9a825;color:#1c2b24;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
+.g3{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.r4{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.r4>.wide{grid-column:span 2}
+.y3{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
 .g{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
 .g2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
 .c{background:#fff;border-radius:10px;padding:12px;border:1px solid #e1e6e2;min-width:0}
@@ -212,6 +222,7 @@ const CSS = `
 .pg button:disabled{opacity:.4;cursor:default}
 .pg label{display:flex;align-items:center;gap:6px}
 .pg select{width:auto}
+@media (max-width:560px){.r4>.wide{grid-column:auto}}
 @media (max-width:600px){.sv-b span{display:none}.sv-s{align-items:flex-start}.tb input{width:100%}}
 @media (prefers-reduced-motion:reduce){.sv *{transition:none!important;animation:none!important}}
 @media print{.np{display:none!important}.sv{background:#fff}.sv-h{position:static}.c{break-inside:avoid}}
@@ -352,7 +363,12 @@ const Beneficiaires: React.FC = () => {
   const cov = pc(enq, sum(val.filter((r) => r.enq > 0), 'p'));
   const skills = Object.entries(val.reduce<Record<number, number>>((m, r) => ({ ...m, [r.sk]: (m[r.sk] || 0) + r.ok }), {}))
     .map(([i, v]) => ({ name: sk(+i), value: Math.round(pc(v, ok) * 10) / 10 })).sort((a, b) => b.value - a.value).slice(0, 10);
-  const waves = [{ y: 2026, k: t.cf.m1 }, { y: 2027, k: t.cf.m2 }, { y: 2030, k: t.cf.m3 }];
+  const miles = [{ y: 2026, k: t.cf.m1 }, { y: 2027, k: t.cf.m2 }, { y: 2030, k: t.cf.m3 }].map((w) => {
+    const a = base.filter((r) => r.st === 'valid' && r.year <= w.y);
+    const e = sum(a, 'enq');
+    return { ...w, done: w.y <= cy, ben: sum(a, 'p'), enq: e, rate: pc(sum(a, 'ok'), e), traj: Math.round((TARGET * (w.y - START + 1)) / nY) };
+  });
+  const mLabels = [t.cols.ben, t.cf.enq, t.cf.rate];
   const rc = rate >= TARGET_CONF ? '#2e7d32' : RED;
 
   /* ----- Tableau ----- */
@@ -424,6 +440,9 @@ const Beneficiaires: React.FC = () => {
           <Kpi title={t.k.decl} big={nf(decl)} sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
           <Kpi title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
           <Kpi title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
+        </section>
+
+        <section className="g3">
           <div className="c">
             <h4>{t.c.qual}</h4>
             {quality.map((x) => (
@@ -433,9 +452,6 @@ const Beneficiaires: React.FC = () => {
               </div>
             ))}
           </div>
-        </section>
-
-        <section className="g2">
           <div className="c">
             <h4>{t.c.evol}</h4>
             <ResponsiveContainer width="100%" height={narrow ? 240 : 300}>
@@ -452,22 +468,17 @@ const Beneficiaires: React.FC = () => {
             </ResponsiveContainer>
           </div>
           <div className="c">
-            <h4>{t.map}</h4>
-            <div style={{ height: narrow ? 260 : 300, borderRadius: 8, overflow: 'hidden' }}>
-              <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} style={{ height: '100%', width: '100%' }}>
-                <TileLayer attribution="Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" />
-                {rows.filter(hasXY).map((r) => (
-                  <CircleMarker key={r.id} center={[r.lat, r.lng]} radius={Math.max(5, Math.min(22, Math.sqrt(r.p) / 1.2))}
-                    pathOptions={{ color: CATC[r.cat], fillColor: CATC[r.cat], fillOpacity: 0.55, weight: 2 }}>
-                    <Popup><b>{r.id}</b><br />{sk(r.sk)}<br />{r.commune}, {r.region}<br />{nf(r.p)} · {t.st[r.st]}</Popup>
-                  </CircleMarker>
-                ))}
-                <Fit pts={pts} />
-              </MapContainer>
-            </div>
-            <div className="row" style={{ justifyContent: 'center', gap: 14 }}>
-              {CATS.map((c) => <span key={c}><i style={{ background: CATC[c] }} />{c}</span>)}
-            </div>
+            <h4>{t.c.reg}</h4>
+            <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 34 + 20)}>
+              <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 40 }}>
+                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => nf(v)} />
+                <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11 }} interval={0} />
+                <Tooltip formatter={(v: any) => nf(v)} />
+                <Bar dataKey="value" fill="#2e7d32" barSize={18} radius={[0, 3, 3, 0]}>
+                  <LabelList dataKey="value" position="right" formatter={(v: any) => nf(v)} style={{ fontSize: 11, fontWeight: 600 }} />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </section>
 
@@ -495,17 +506,22 @@ const Beneficiaires: React.FC = () => {
             </ResponsiveContainer>
           </div>
           <div className="c">
-            <h4>{t.c.reg}</h4>
-            <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 34 + 20)}>
-              <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 40 }}>
-                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => nf(v)} />
-                <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11 }} interval={0} />
-                <Tooltip formatter={(v: any) => nf(v)} />
-                <Bar dataKey="value" fill="#2e7d32" barSize={18} radius={[0, 3, 3, 0]}>
-                  <LabelList dataKey="value" position="right" formatter={(v: any) => nf(v)} style={{ fontSize: 11, fontWeight: 600 }} />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <h4>{t.map}</h4>
+            <div style={{ height: narrow ? 260 : 300, borderRadius: 8, overflow: 'hidden' }}>
+              <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} style={{ height: '100%', width: '100%' }}>
+                <TileLayer attribution="Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" />
+                {rows.filter(hasXY).map((r) => (
+                  <CircleMarker key={r.id} center={[r.lat, r.lng]} radius={Math.max(5, Math.min(22, Math.sqrt(r.p) / 1.2))}
+                    pathOptions={{ color: CATC[r.cat], fillColor: CATC[r.cat], fillOpacity: 0.55, weight: 2 }}>
+                    <Popup><b>{r.id}</b><br />{sk(r.sk)}<br />{r.commune}, {r.region}<br />{nf(r.p)} · {t.st[r.st]}</Popup>
+                  </CircleMarker>
+                ))}
+                <Fit pts={pts} />
+              </MapContainer>
+            </div>
+            <div className="row" style={{ justifyContent: 'center', gap: 14 }}>
+              {CATS.map((c) => <span key={c}><i style={{ background: CATC[c] }} />{c}</span>)}
+            </div>
           </div>
         </section>
 
@@ -532,7 +548,7 @@ const Beneficiaires: React.FC = () => {
 
         {/* ===== 3. Confirmation ===== */}
         <Sec icon={GraduationCap} text={t.s3} />
-        <section className="g">
+        <section className="r4">
           <Kpi title={t.cf.enq} big={nf(enq)} color={YOUTH} sub={`${t.cf.cov} : ${pct(cov)}`} />
           <Kpi title={t.cf.ok} big={nf(ok)} color="#f9a825" />
           <div className="c">
@@ -544,27 +560,38 @@ const Beneficiaires: React.FC = () => {
             <div className="bar"><b style={{ width: `${Math.min(100, rate)}%`, background: rc }} /></div>
             <div className="sub">{enq ? fmt(t.cf.ci, nf(margin, 1)) : ''}</div>
           </div>
-        </section>
-
-        <section className="c">
-          <h4><ClipboardCheck size={14} style={{ verticalAlign: -2, marginRight: 6 }} />{t.cf.ms}</h4>
-          <div className="ms">
-            {waves.map((w) => {
-              const done = w.y <= cy && enq > 0;
-              return (
-                <div key={w.y} style={{ borderColor: done ? '#2e7d32' : '#d0d0d0' }}>
-                  <div style={{ fontWeight: 800, fontSize: 15 }}>{w.y}</div>
-                  <div style={{ fontSize: 12 }}>{w.k}</div>
-                  <div style={{ fontWeight: 700, color: done ? '#2e7d32' : '#757575', marginTop: 4 }}>
-                    {done ? `${t.cf.done} · ${pct(rate)}` : `${t.cf.soon} · ${TARGET_CONF} %`}
+          <div className="c wide">
+            <h4>{t.cf.ms}</h4>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {miles.map((m) => {
+                const vals = m.done
+                  ? [nf(m.ben), m.enq ? nf(m.enq) : '—', m.enq ? pct(m.rate) : '—']
+                  : [`≥ ${nf(m.traj)}`, '—', `≥ ${TARGET_CONF} %`];
+                return (
+                  <div key={m.y} style={{ border: '1px solid #d0d0d0', borderRadius: 10, padding: 8 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8, fontSize: 13 }}>
+                      <span><b style={{ fontSize: 15 }}>{m.y}</b> · {m.k}</span>
+                      <b style={{ color: m.done ? '#2e7d32' : '#757575' }}>{m.done ? t.cf.done : t.cf.soon}</b>
+                    </div>
+                    <div className="y3">
+                      {MC.map((x, k) => (
+                        <div key={k} style={{ border: `1px solid ${x.c}`, background: x.bg, borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center', gap: 8, opacity: m.done ? 1 : 0.7 }}>
+                          <x.Ic size={22} color={x.c} style={{ flexShrink: 0 }} />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600 }}>{mLabels[k]}</div>
+                            <div style={{ fontSize: 16, fontWeight: 800, color: x.c }}>{vals[k]}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </section>
 
-        <section className="g2">
+        <section className="g3">
           <div className="c">
             <h4>{t.cf.byCat}</h4>
             {enq ? (
@@ -596,13 +623,12 @@ const Beneficiaires: React.FC = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </section>
-
-        <section className="c ab">
+          <div className="c ab">
           <h4>{t.ab.t}</h4>
           <p>{t.ab.p1}</p>
           <p>{t.ab.p2}</p>
           {CATS.map((c) => <p key={c}><b style={{ color: CATC[c] }}>{c} :</b> {t.ab[c]}</p>)}
+          </div>
         </section>
 
         {/* ===== 4. Données détaillées ===== */}
