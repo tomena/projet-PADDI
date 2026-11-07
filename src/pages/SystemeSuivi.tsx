@@ -7,6 +7,127 @@ import {
   Target, Calendar, MapPin, ExternalLink, Check, Clock, AlertTriangle,
   Download, RotateCcw, Search, ChevronLeft, ChevronRight, ArrowUpDown,
 } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+
+/* ================= TRADUCTIONS =================
+   `fr` sert de modèle : TypeScript impose que mg / en / de contiennent exactement les mêmes clés. */
+const fr = {
+  title: "Système de suivi",
+  subtitle: (n: number) => `Régions disposant déjà d'un système de suivi · ${n} région${n > 1 ? "s" : ""} affichée${n > 1 ? "s" : ""}`,
+  year: "Année", region: "Région", status: "Statut", search: "Recherche", searchPh: "Région ou entité…",
+  allRegions: "Toutes les régions", allStatus: "Tous", include7: "Inclure la 7e région", reset: "Réinitialiser", exportCsv: "Exporter CSV",
+  banner: "Indicateur : nombre de régions d'intervention qui disposent déjà d'un système de suivi.",
+  statusL: { done: "Atteint", progress: "En cours", late: "En retard" },
+  legend: { done: "≥ 80 % Atteint", progress: "50–79 % En cours", late: "< 50 % En retard" },
+  kCover: "Régions disposant d'un système",
+  kCoverSub: (p: string, y: number) => `${p} % de couverture · situation ${y}`,
+  kAvg: "Avancement moyen", kAvgSub: "Moyenne des régions affichées",
+  kGap: "Écart à la trajectoire", pts: "pts", noTarget: "Pas de cible pour cette année",
+  targetYear: (y: number, v: string) => `Cible ${y} : ${v} %`,
+  kLate: "Régions en retard", kLateSub: (d: number, p: number) => `${d} atteintes · ${p} en cours`,
+  rate: "Taux d'atteinte de la cible", target100: "Cible : 100 %", regionsEquipped: "régions disposent déjà d'un système de suivi",
+  trajTitle: "Trajectoire prévue et réalisée", yearLine: "Année", planned: "Cible prévue", actual: "Réalisé",
+  compare: "Comparaison des régions (%)", noRegion: "Aucune région ne correspond aux filtres.", progress: "Avancement",
+  alertsTitle: (n: number) => `Points d'attention (${n})`, noAlert: "Aucune alerte : tout est dans les temps.",
+  alertLate: (name: string, v: string) => `${name} : avancement de ${v} %, sous le seuil de 50 %.`,
+  alertOrg: (name: string) => `${name} : aucune entité n'héberge encore le système de suivi.`,
+  tableTitle: "Systèmes de suivi par région", colSetup: "Mise en place", colOrg: "Entité hébergeante", colLink: "Lien", colState: "État", colUpdate: "Dernière MAJ",
+  noResult: "Aucun résultat. Modifiez ou réinitialisez les filtres.", show: "Afficher", rowsWord: "lignes",
+  range: (a: number, b: number, n: number) => `${a} – ${b} sur ${n}`,
+  prev: "Page précédente", next: "Page suivante",
+  source: "Source :", loading: "Chargement des données…", demo: "Données fictives de démonstration", lastUpdate: "dernière actualisation :",
+  csv: ["Région", "Avancement (%)", "Date de mise en place", "Entité", "Lien", "Statut", "Dernière MAJ"],
+};
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: "Rafitra fanaraha-maso",
+  subtitle: (n) => `Faritra manana rafitra fanaraha-maso efa misy · faritra ${n} aseho`,
+  year: "Taona", region: "Faritra", status: "Toetra", search: "Fikarohana", searchPh: "Faritra na andrim-panjakana…",
+  allRegions: "Faritra rehetra", allStatus: "Rehetra", include7: "Ampidirina ny faritra faha-7", reset: "Averina", exportCsv: "Hamoaka CSV",
+  banner: "Tondro : isan'ny faritra iasana manana rafitra fanaraha-maso efa misy.",
+  statusL: { done: "Tratra", progress: "Mandeha", late: "Tara" },
+  legend: { done: "≥ 80 % Tratra", progress: "50–79 % Mandeha", late: "< 50 % Tara" },
+  kCover: "Faritra manana rafitra",
+  kCoverSub: (p, y) => `${p} % ny fandrakofana · toe-javatra ${y}`,
+  kAvg: "Fandrosoana salan'isa", kAvgSub: "Salan'isan'ny faritra aseho",
+  kGap: "Elanelana amin'ny làlana nokasaina", pts: "teboka", noTarget: "Tsy misy tanjona amin'ity taona ity",
+  targetYear: (y, v) => `Tanjona ${y} : ${v} %`,
+  kLate: "Faritra tara", kLateSub: (d, p) => `${d} tratra · ${p} mandeha`,
+  rate: "Tahan'ny fahatratrarana ny tanjona", target100: "Tanjona : 100 %", regionsEquipped: "faritra no manana rafitra fanaraha-maso efa misy",
+  trajTitle: "Làlana nokasaina sy vita", yearLine: "Taona", planned: "Tanjona nokasaina", actual: "Vita",
+  compare: "Fampitahana ny faritra (%)", noRegion: "Tsy misy faritra mifanaraka amin'ny sivana.", progress: "Fandrosoana",
+  alertsTitle: (n) => `Zavatra tokony hojerena (${n})`, noAlert: "Tsy misy fampitandremana : mandeha ara-potoana ny zava-drehetra.",
+  alertLate: (name, v) => `${name} : fandrosoana ${v} %, ambanin'ny tahan'ny 50 %.`,
+  alertOrg: (name) => `${name} : mbola tsy misy andrim-panjakana mampiantrano ny rafitra fanaraha-maso.`,
+  tableTitle: "Rafitra fanaraha-maso isam-paritra", colSetup: "Daty nananganana", colOrg: "Andrim-panjakana mampiantrano", colLink: "Rohy", colState: "Toetra", colUpdate: "Fanavaozana farany",
+  noResult: "Tsy misy valiny. Ovay na averina ny sivana.", show: "Asehoy", rowsWord: "andalana",
+  range: (a, b, n) => `${a} – ${b} amin'ny ${n}`,
+  prev: "Pejy teo aloha", next: "Pejy manaraka",
+  source: "Loharano :", loading: "Ampidirina ny angona…", demo: "Angona noforonina ho fanehoana", lastUpdate: "fanavaozana farany :",
+  csv: ["Faritra", "Fandrosoana (%)", "Daty nananganana", "Andrim-panjakana", "Rohy", "Toetra", "Fanavaozana farany"],
+};
+
+const en: Txt = {
+  title: "Monitoring system",
+  subtitle: (n) => `Regions that already have a monitoring system · ${n} region${n > 1 ? "s" : ""} shown`,
+  year: "Year", region: "Region", status: "Status", search: "Search", searchPh: "Region or entity…",
+  allRegions: "All regions", allStatus: "All", include7: "Include the 7th region", reset: "Reset", exportCsv: "Export CSV",
+  banner: "Indicator: number of intervention regions that already have a monitoring system.",
+  statusL: { done: "Reached", progress: "In progress", late: "Delayed" },
+  legend: { done: "≥ 80 % Reached", progress: "50–79 % In progress", late: "< 50 % Delayed" },
+  kCover: "Regions with a system",
+  kCoverSub: (p, y) => `${p} % coverage · situation in ${y}`,
+  kAvg: "Average progress", kAvgSub: "Average of the regions shown",
+  kGap: "Gap to trajectory", pts: "pts", noTarget: "No target for this year",
+  targetYear: (y, v) => `Target ${y}: ${v} %`,
+  kLate: "Delayed regions", kLateSub: (d, p) => `${d} reached · ${p} in progress`,
+  rate: "Target achievement rate", target100: "Target: 100 %", regionsEquipped: "regions already have a monitoring system",
+  trajTitle: "Planned and actual trajectory", yearLine: "Year", planned: "Planned target", actual: "Actual",
+  compare: "Regional comparison (%)", noRegion: "No region matches the filters.", progress: "Progress",
+  alertsTitle: (n) => `Points of attention (${n})`, noAlert: "No alerts: everything is on schedule.",
+  alertLate: (name, v) => `${name}: progress of ${v} %, below the 50 % threshold.`,
+  alertOrg: (name) => `${name}: no entity hosts the monitoring system yet.`,
+  tableTitle: "Monitoring systems by region", colSetup: "Set-up date", colOrg: "Hosting entity", colLink: "Link", colState: "Status", colUpdate: "Last update",
+  noResult: "No result. Change or reset the filters.", show: "Show", rowsWord: "rows",
+  range: (a, b, n) => `${a} – ${b} of ${n}`,
+  prev: "Previous page", next: "Next page",
+  source: "Source:", loading: "Loading data…", demo: "Demonstration data (fictional)", lastUpdate: "last updated:",
+  csv: ["Region", "Progress (%)", "Set-up date", "Entity", "Link", "Status", "Last update"],
+};
+
+const de: Txt = {
+  title: "Monitoringsystem",
+  subtitle: (n) => `Regionen mit bereits vorhandenem Monitoringsystem · ${n} Region${n > 1 ? "en" : ""} angezeigt`,
+  year: "Jahr", region: "Region", status: "Status", search: "Suche", searchPh: "Region oder Einrichtung…",
+  allRegions: "Alle Regionen", allStatus: "Alle", include7: "7. Region einbeziehen", reset: "Zurücksetzen", exportCsv: "CSV exportieren",
+  banner: "Indikator: Anzahl der Interventionsregionen, die bereits über ein Monitoringsystem verfügen.",
+  statusL: { done: "Erreicht", progress: "In Arbeit", late: "Im Rückstand" },
+  legend: { done: "≥ 80 % Erreicht", progress: "50–79 % In Arbeit", late: "< 50 % Im Rückstand" },
+  kCover: "Regionen mit System",
+  kCoverSub: (p, y) => `${p} % Abdeckung · Stand ${y}`,
+  kAvg: "Durchschnittlicher Fortschritt", kAvgSub: "Durchschnitt der angezeigten Regionen",
+  kGap: "Abweichung vom Zielpfad", pts: "Pkt.", noTarget: "Kein Ziel für dieses Jahr",
+  targetYear: (y, v) => `Ziel ${y}: ${v} %`,
+  kLate: "Regionen im Rückstand", kLateSub: (d, p) => `${d} erreicht · ${p} in Arbeit`,
+  rate: "Zielerreichungsgrad", target100: "Ziel: 100 %", regionsEquipped: "Regionen verfügen bereits über ein Monitoringsystem",
+  trajTitle: "Geplanter und tatsächlicher Verlauf", yearLine: "Jahr", planned: "Geplantes Ziel", actual: "Erreicht",
+  compare: "Regionenvergleich (%)", noRegion: "Keine Region entspricht den Filtern.", progress: "Fortschritt",
+  alertsTitle: (n) => `Aufmerksamkeitspunkte (${n})`, noAlert: "Keine Warnungen: alles im Zeitplan.",
+  alertLate: (name, v) => `${name}: Fortschritt von ${v} %, unter der Schwelle von 50 %.`,
+  alertOrg: (name) => `${name}: noch keine Einrichtung betreibt das Monitoringsystem.`,
+  tableTitle: "Monitoringsysteme nach Region", colSetup: "Einrichtungsdatum", colOrg: "Trägereinrichtung", colLink: "Link", colState: "Status", colUpdate: "Letzte Aktualisierung",
+  noResult: "Kein Ergebnis. Filter ändern oder zurücksetzen.", show: "Anzeigen", rowsWord: "Zeilen",
+  range: (a, b, n) => `${a} – ${b} von ${n}`,
+  prev: "Vorherige Seite", next: "Nächste Seite",
+  source: "Quelle:", loading: "Daten werden geladen…", demo: "Fiktive Demonstrationsdaten", lastUpdate: "zuletzt aktualisiert:",
+  csv: ["Region", "Fortschritt (%)", "Einrichtungsdatum", "Einrichtung", "Link", "Status", "Letzte Aktualisierung"],
+};
+
+const TXT: Record<string, Txt> = { fr, mg, en, de };
+const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
+const makeNf = (loc: string) => (n: number) => n.toLocaleString(loc, { maximumFractionDigits: 1 });
+
 
 /* ============================ TYPES & DONNÉES ============================ */
 type Status = "done" | "progress" | "late";
@@ -48,24 +169,22 @@ const YEARS = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 const PAGE_SIZES = [5, 10, 20];
 
 // Une seule source de vérité pour les statuts (remplace 3 blocs JSX dupliqués)
-const STATUS: Record<Status, { label: string; color: string; bg: string; Icon: typeof Check }> = {
-  done: { label: "Atteint", color: "#15803d", bg: "#dcfce7", Icon: Check },
-  progress: { label: "En cours", color: "#b45309", bg: "#fef3c7", Icon: Clock },
-  late: { label: "En retard", color: "#b91c1c", bg: "#fee2e2", Icon: AlertTriangle },
+const STATUS: Record<Status, { color: string; bg: string; Icon: typeof Check }> = {
+  done: { color: "#15803d", bg: "#dcfce7", Icon: Check },
+  progress: { color: "#b45309", bg: "#fef3c7", Icon: Clock },
+  late: { color: "#b91c1c", bg: "#fee2e2", Icon: AlertTriangle },
 };
 const statusOf = (v: number): Status => (v >= 80 ? "done" : v >= 50 ? "progress" : "late");
 
 /* ================================ HELPERS ================================ */
-const nf = (n: number) => n.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
-const fdate = (d: string | null) => (d ? new Date(d + "T00:00:00").toLocaleDateString("fr-FR") : "—");
+const fdate = (d: string | null, loc: string) => (d ? new Date(d + "T00:00:00").toLocaleDateString(loc) : "—");
 const host = (u: string) => { try { return new URL(u).hostname; } catch { return u; } };
 const isDeployed = (r: Region, year: number) => !!r.date && Number(r.date.slice(0, 4)) <= year;
 
-function exportCsv(rows: Region[]) {
-  const head = ["Région", "Avancement (%)", "Date de mise en place", "Entité", "Lien", "Statut", "Dernière MAJ"];
+function exportCsv(rows: Region[], head: string[], label: (s: Status) => string) {
   const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
   const body = rows.map((r) =>
-    [r.name, r.avancement, r.date ?? "", r.org ?? "", r.link ?? "", STATUS[statusOf(r.avancement)].label, r.maj].map(esc).join(";"));
+    [r.name, r.avancement, r.date ?? "", r.org ?? "", r.link ?? "", label(statusOf(r.avancement)), r.maj].map(esc).join(";"));
   const blob = new Blob(["\uFEFF" + [head.map(esc).join(";"), ...body].join("\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -107,8 +226,8 @@ const Logo = () => (
 );
 
 /* ============================ SOUS-COMPOSANTS ============================ */
-const StatusChip = memo(({ status }: { status: Status }) => {
-  const { label, color, bg, Icon } = STATUS[status];
+const StatusChip = memo(({ status, label }: { status: Status; label: string }) => {
+  const { color, bg, Icon } = STATUS[status];
   return (
     <span className="sv-chip" style={{ color, background: bg }}>
       <Icon size={14} aria-hidden /> {label}
@@ -135,6 +254,10 @@ const Card = ({ title, children, className = "" }: { title: string; children: Re
 const INITIAL = { year: 2026, region: "all", status: "all", q: "", include7: false };
 
 export default function SuiviSystemes() {
+  const { lang } = useLanguage();               // adapte si ton hook expose "language"
+  const t = TXT[lang] ?? fr;
+  const loc = DATE_LOCALES[lang] ?? "fr-FR";
+  const nf = useMemo(() => makeNf(loc), [loc]);
   const { data, state } = useRegions();
   const [f, setF] = useState(INITIAL);
   const [sort, setSort] = useState<{ key: keyof Region; dir: 1 | -1 }>({ key: "avancement", dir: -1 });
@@ -169,9 +292,9 @@ export default function SuiviSystemes() {
 
   const alerts = useMemo(() => [
     ...view.filter((r) => statusOf(r.avancement) === "late")
-      .map((r) => `${r.name} : avancement de ${nf(r.avancement)} %, sous le seuil de 50 %.`),
-    ...view.filter((r) => !r.org).map((r) => `${r.name} : aucune entité n'héberge encore le système de suivi.`),
-  ], [view]);
+      .map((r) => t.alertLate(r.name, nf(r.avancement))),
+    ...view.filter((r) => !r.org).map((r) => t.alertOrg(r.name)),
+  ], [view, t, nf]);
 
   const sorted = useMemo(() => [...view].sort((a, b) => {
     const x = a[sort.key] ?? "", y = b[sort.key] ?? "";
@@ -199,56 +322,56 @@ export default function SuiviSystemes() {
         <div className="sv-brand">
           <Logo />
           <div>
-          <h1>Système de suivi</h1>
-          <p className="sv-muted">Régions disposant déjà d'un système de suivi · {stats.total} région{stats.total > 1 ? "s" : ""} affichée{stats.total > 1 ? "s" : ""}</p>
+          <h1>{t.title}</h1>
+          <p className="sv-muted">{t.subtitle(stats.total)}</p>
           </div>
         </div>
         <div className="sv-filters" role="search">
-          <label><span><Calendar size={13} /> Année</span>
+          <label><span><Calendar size={13} /> {t.year}</span>
             <select value={f.year} onChange={(e) => update({ year: +e.target.value })}>
               {YEARS.map((y) => <option key={y}>{y}</option>)}
             </select></label>
-          <label><span><MapPin size={13} /> Région</span>
+          <label><span><MapPin size={13} /> {t.region}</span>
             <select value={f.region} onChange={(e) => update({ region: e.target.value })}>
-              <option value="all">Toutes les régions</option>
+              <option value="all">{t.allRegions}</option>
               {scope.map((r) => <option key={r.name}>{r.name}</option>)}
             </select></label>
-          <label><span>Statut</span>
+          <label><span>{t.status}</span>
             <select value={f.status} onChange={(e) => update({ status: e.target.value })}>
-              <option value="all">Tous</option>
-              {(Object.keys(STATUS) as Status[]).map((s) => <option key={s} value={s}>{STATUS[s].label}</option>)}
+              <option value="all">{t.allStatus}</option>
+              {(Object.keys(STATUS) as Status[]).map((s) => <option key={s} value={s}>{t.statusL[s]}</option>)}
             </select></label>
-          <label className="sv-search"><span><Search size={13} /> Recherche</span>
-            <input value={f.q} onChange={(e) => update({ q: e.target.value })} placeholder="Région ou entité…" /></label>
+          <label className="sv-search"><span><Search size={13} /> {t.search}</span>
+            <input value={f.q} onChange={(e) => update({ q: e.target.value })} placeholder={t.searchPh} /></label>
           <label className="sv-check">
             <input type="checkbox" checked={f.include7} onChange={(e) => update({ include7: e.target.checked, region: "all" })} />
-            Inclure la 7e région</label>
-          <button className="sv-btn" onClick={() => { setF(INITIAL); setPage(1); }}><RotateCcw size={14} /> Réinitialiser</button>
-          <button className="sv-btn sv-btn-ghost" onClick={() => exportCsv(sorted)}><Download size={14} /> Exporter CSV</button>
+            {t.include7}</label>
+          <button className="sv-btn" onClick={() => { setF(INITIAL); setPage(1); }}><RotateCcw size={14} /> {t.reset}</button>
+          <button className="sv-btn sv-btn-ghost" onClick={() => exportCsv(sorted, t.csv, (x) => t.statusL[x])}><Download size={14} /> {t.exportCsv}</button>
         </div>
       </header>
 
       <div className="sv-banner">
         <Target size={22} aria-hidden />
-        <span>Indicateur : nombre de régions d'intervention qui disposent déjà d'un système de suivi.</span>
+        <span>{t.banner}</span>
       </div>
 
       {/* ----- KPI ----- */}
       <div className="sv-kpis">
-        <Kpi label="Régions disposant d'un système" value={`${stats.deployed} / ${stats.total}`} tone="#15803d"
-          sub={`${nf(stats.couverture)} % de couverture · situation ${f.year}`} />
-        <Kpi label="Avancement moyen" value={`${nf(stats.moyenne)} %`} sub="Moyenne des régions affichées" />
-        <Kpi label="Écart à la trajectoire"
-          value={stats.ecart === null ? "—" : `${stats.ecart > 0 ? "+" : ""}${nf(stats.ecart)} pts`}
+        <Kpi label={t.kCover} value={`${stats.deployed} / ${stats.total}`} tone="#15803d"
+          sub={t.kCoverSub(nf(stats.couverture), f.year)} />
+        <Kpi label={t.kAvg} value={`${nf(stats.moyenne)} %`} sub={t.kAvgSub} />
+        <Kpi label={t.kGap}
+          value={stats.ecart === null ? "—" : `${stats.ecart > 0 ? "+" : ""}${nf(stats.ecart)} ${t.pts}`}
           tone={stats.ecart !== null && stats.ecart < 0 ? "#b91c1c" : "#15803d"}
-          sub={stats.ecart === null ? "Pas de cible pour cette année" : `Cible ${f.year} : ${nf(TRAJECTOIRE.find((t) => t.annee === f.year)!.prevu)} %`} />
-        <Kpi label="Régions en retard" value={String(stats.late)} tone={stats.late ? "#b91c1c" : "#15803d"}
-          sub={`${stats.done} atteintes · ${stats.progress} en cours`} />
+          sub={stats.ecart === null ? t.noTarget : t.targetYear(f.year, nf(TRAJECTOIRE.find((x) => x.annee === f.year)!.prevu))} />
+        <Kpi label={t.kLate} value={String(stats.late)} tone={stats.late ? "#b91c1c" : "#15803d"}
+          sub={t.kLateSub(stats.done, stats.progress)} />
       </div>
 
       {/* ----- Graphiques ----- */}
       <div className="sv-charts">
-        <Card title="Taux d'atteinte de la cible">
+        <Card title={t.rate}>
           <div className="sv-donut">
             <ResponsiveContainer width="100%" height={210}>
               <PieChart>
@@ -257,12 +380,12 @@ export default function SuiviSystemes() {
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-            <div className="sv-donut-center"><strong>{nf(stats.couverture)} %</strong><small>Cible : 100 %</small></div>
+            <div className="sv-donut-center"><strong>{nf(stats.couverture)} %</strong><small>{t.target100}</small></div>
           </div>
-          <p className="sv-center"><b>{stats.deployed} / {stats.total}</b> régions disposent déjà d'un système de suivi</p>
+          <p className="sv-center"><b>{stats.deployed} / {stats.total}</b> {t.regionsEquipped}</p>
         </Card>
 
-        <Card title="Trajectoire prévue et réalisée">
+        <Card title={t.trajTitle}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={TRAJECTOIRE} margin={{ top: 16, right: 24, left: -8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -270,15 +393,15 @@ export default function SuiviSystemes() {
               <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
               <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={{ fontSize: 12 }} />
               <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine x={f.year} stroke="#6b7280" strokeDasharray="4 4" label={{ value: "Année", fontSize: 10, position: "top" }} />
-              <Line dataKey="prevu" name="Cible prévue" stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-              <Line dataKey="realise" name="Réalisé" stroke="#16a34a" strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
+              <ReferenceLine x={f.year} stroke="#6b7280" strokeDasharray="4 4" label={{ value: t.yearLine, fontSize: 10, position: "top" }} />
+              <Line dataKey="prevu" name={t.planned} stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+              <Line dataKey="realise" name={t.actual} stroke="#16a34a" strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card title="Comparaison des régions (%)">
-          {barData.length === 0 ? <p className="sv-empty">Aucune région ne correspond aux filtres.</p> : (
+        <Card title={t.compare}>
+          {barData.length === 0 ? <p className="sv-empty">{t.noRegion}</p> : (
             <>
               <ResponsiveContainer width="100%" height={barData.length * 42 + 30}>
                 <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 36, left: 0, bottom: 0 }} barCategoryGap="30%">
@@ -287,7 +410,7 @@ export default function SuiviSystemes() {
                   <YAxis type="category" dataKey="name" width={104} tick={{ fontSize: 11 }} interval={0} />
                   <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={{ fontSize: 12 }} />
                   <ReferenceLine x={80} stroke="#16a34a" strokeDasharray="4 4" />
-                  <Bar dataKey="avancement" name="Avancement" radius={[0, 4, 4, 0]} isAnimationActive={false}>
+                  <Bar dataKey="avancement" name={t.progress} radius={[0, 4, 4, 0]} isAnimationActive={false}>
                     {barData.map((r) => <Cell key={r.name} fill={STATUS[statusOf(r.avancement)].color} />)}
                     <LabelList dataKey="avancement" position="right" formatter={(v: number) => `${nf(v)}%`} style={{ fontSize: 11, fontWeight: 700 }} />
                   </Bar>
@@ -296,77 +419,77 @@ export default function SuiviSystemes() {
               <div className="sv-legend">
                 {(Object.keys(STATUS) as Status[]).map((s) => (
                   <span key={s}><i style={{ background: STATUS[s].color }} />
-                    {s === "done" ? "≥ 80 % Atteint" : s === "progress" ? "50–79 % En cours" : "< 50 % En retard"}</span>
+                    {t.legend[s]}</span>
                 ))}
               </div>
             </>
           )}
         </Card>
 
-        <Card title={`Points d'attention (${alerts.length})`}>
+        <Card title={t.alertsTitle(alerts.length)}>
           {alerts.length === 0
-            ? <p className="sv-empty">Aucune alerte : tout est dans les temps.</p>
+            ? <p className="sv-empty">{t.noAlert}</p>
             : <ul className="sv-alerts">{alerts.map((a) => <li key={a}><AlertTriangle size={15} aria-hidden />{a}</li>)}</ul>}
         </Card>
       </div>
 
       {/* ----- Tableau ----- */}
       <section className="sv-card">
-        <h3 className="sv-card-title">Systèmes de suivi par région</h3>
+        <h3 className="sv-card-title">{t.tableTitle}</h3>
         <div className="sv-scroll">
           <table className="sv-table">
             <thead>
               <tr>
-                <SortTh k="name">Région</SortTh>
-                <SortTh k="avancement">Avancement</SortTh>
-                <SortTh k="date">Mise en place</SortTh>
-                <th>Entité hébergeante</th>
-                <th>Lien</th>
-                <th>État</th>
-                <SortTh k="maj">Dernière MAJ</SortTh>
+                <SortTh k="name">{t.region}</SortTh>
+                <SortTh k="avancement">{t.progress}</SortTh>
+                <SortTh k="date">{t.colSetup}</SortTh>
+                <th>{t.colOrg}</th>
+                <th>{t.colLink}</th>
+                <th>{t.colState}</th>
+                <SortTh k="maj">{t.colUpdate}</SortTh>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.name}>
-                  <td data-label="Région"><b>{r.name}</b></td>
-                  <td data-label="Avancement">
+                  <td data-label={t.region}><b>{r.name}</b></td>
+                  <td data-label={t.progress}>
                     <div className="sv-bar" title={`${nf(r.avancement)} %`}>
                       <i style={{ width: `${r.avancement}%`, background: STATUS[statusOf(r.avancement)].color }} />
                     </div>
                     <small>{nf(r.avancement)} %</small>
                   </td>
-                  <td data-label="Mise en place">{fdate(r.date)}</td>
-                  <td data-label="Entité">{r.org ?? "—"}</td>
-                  <td data-label="Lien">
+                  <td data-label={t.colSetup}>{fdate(r.date, loc)}</td>
+                  <td data-label={t.colOrg}>{r.org ?? "—"}</td>
+                  <td data-label={t.colLink}>
                     {r.link ? <a href={r.link} target="_blank" rel="noopener noreferrer">{host(r.link)} <ExternalLink size={13} aria-hidden /></a> : "—"}
                   </td>
-                  <td data-label="État"><StatusChip status={statusOf(r.avancement)} /></td>
-                  <td data-label="Dernière MAJ">{fdate(r.maj)}</td>
+                  <td data-label={t.colState}><StatusChip status={statusOf(r.avancement)} label={t.statusL[statusOf(r.avancement)]} /></td>
+                  <td data-label={t.colUpdate}>{fdate(r.maj, loc)}</td>
                 </tr>
               ))}
-              {rows.length === 0 && <tr><td colSpan={7} className="sv-empty">Aucun résultat. Modifiez ou réinitialisez les filtres.</td></tr>}
+              {rows.length === 0 && <tr><td colSpan={7} className="sv-empty">{t.noResult}</td></tr>}
             </tbody>
           </table>
         </div>
 
         <footer className="sv-pager">
-          <label>Afficher
+          <label>{t.show}
             <select value={pageSize} onChange={(e) => { setPageSize(+e.target.value); setPage(1); }}>
               {PAGE_SIZES.map((n) => <option key={n}>{n}</option>)}
-            </select> lignes</label>
-          <span>{sorted.length ? `${(cur - 1) * pageSize + 1} – ${Math.min(cur * pageSize, sorted.length)}` : "0"} sur {sorted.length}</span>
+            </select> {t.rowsWord}</label>
+          <span>{t.range(sorted.length ? (cur - 1) * pageSize + 1 : 0, Math.min(cur * pageSize, sorted.length), sorted.length)}</span>
           <div>
-            <button aria-label="Page précédente" disabled={cur <= 1} onClick={() => setPage(cur - 1)}><ChevronLeft size={16} /></button>
+            <button aria-label={t.prev} disabled={cur <= 1} onClick={() => setPage(cur - 1)}><ChevronLeft size={16} /></button>
             <b className="sv-page">{cur} / {pages}</b>
-            <button aria-label="Page suivante" disabled={cur >= pages} onClick={() => setPage(cur + 1)}><ChevronRight size={16} /></button>
+            <button aria-label={t.next} disabled={cur >= pages} onClick={() => setPage(cur + 1)}><ChevronRight size={16} /></button>
           </div>
         </footer>
       </section>
 
       <p className="sv-muted sv-note">
-        {state === "ok" ? `Source : ${DATA_URL}` : state === "loading" ? "Chargement des données…" : "Données fictives de démonstration"}
-        {" "}· dernière actualisation : {fdate(data.map((r) => r.maj).sort().pop() ?? null)}
+        {state === "ok" ? `${t.source} ${DATA_URL}` : state === "loading" ? t.loading : t.demo}
+        {" "}· {t.lastUpdate} {fdate(data.map((r) => r.maj).sort().pop() ?? null, loc)}
       </p>
     </main>
   );
