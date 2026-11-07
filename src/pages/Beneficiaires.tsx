@@ -4,7 +4,7 @@ import {
   Legend, LabelList, ReferenceLine, PieChart, Pie, Cell,
 } from 'recharts';
 import {
-  Users, Target, GraduationCap, ClipboardCheck, CheckCircle2, Printer, Download, RotateCcw, Search, SlidersHorizontal, RefreshCw,
+  Users, Target, GraduationCap, ClipboardCheck, CheckCircle2, Printer, Download, RotateCcw, Search, SlidersHorizontal, RefreshCw, TrendingUp, TrendingDown, FileText, User,
 } from 'lucide-react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -73,7 +73,7 @@ const fr = {
   c: { cat: 'Répartition par catégorie', evol: 'Évolution cumulée et trajectoire cible', reg: 'Bénéficiaires validés par région', inclC: 'Femmes et jeunes par catégorie (%)', inclY: 'Femmes et jeunes par année (%)', qual: 'Qualité des données (statut de validation)' },
   cols: { cat: 'Catégorie', act: 'Activités', ben: 'Bénéficiaires', share: '% du total', w: '% Femmes', y: '% Jeunes', tot: 'Total' },
   ev: { decl: 'Déclaré', val: 'Validé', tar: 'Trajectoire cible' },
-  cf: { enq: 'Personnes enquêtées', ok: 'Amélioration confirmée', rate: 'Taux de confirmation', tar: 'Cible : {0} %', cov: 'Couverture de l’enquête', ci: 'IC 95 % : ± {0} pts', met: 'Cible atteinte', not: 'Cible non atteinte', ms: 'Jalons de collecte', m1: 'Suivi', m2: 'Mi-parcours', m3: 'Finale', done: 'Réalisé', soon: 'À venir', byCat: 'Taux de confirmation par catégorie (%)', sk: 'Compétences confirmées (Top 10, % des confirmations)', none: 'Aucune enquête pour ces filtres.' },
+  cf: { sum: 'Synthèse de la confirmation', enq: 'Personnes enquêtées', ok: 'Amélioration confirmée', rate: 'Taux de confirmation', tar: 'Cible : {0} %', cov: 'Couverture de l’enquête', ci: 'IC 95 % : ± {0} pts', met: 'Cible atteinte', not: 'Cible non atteinte', ms: 'Jalons de collecte', m1: 'Suivi', m2: 'Mi-parcours', m3: 'Finale', done: 'Réalisé', soon: 'À venir', byCat: 'Taux de confirmation par catégorie (%)', sk: 'Compétences confirmées (Top 10, % des confirmations)', none: 'Aucune enquête pour ces filtres.' },
   ab: { t: 'À propos de l’indicateur', p1: 'Indicateur 2 : 80 % des bénéficiaires confirment, exemples à l’appui, avoir amélioré leurs compétences techniques et entrepreneuriales pour mettre en œuvre des pratiques durables et valoriser les produits de l’agriculture, de la sylviculture et de l’élevage.', p2: 'La confirmation repose sur des enquêtes auprès d’un échantillon représentatif de bénéficiaires. Seules les activités validées sont comptées.', C2: 'Formations collectives', C3: 'Appui individuel / groupements', C4: 'Appui aux entrepreneurs' },
   tb: { title: 'Activités et bénéficiaires ({0})', search: 'Rechercher…', exp: 'Exporter CSV', cols: ['ID activité', 'Catégorie', 'Région', 'Aire protégée', 'District', 'Commune', 'Intitulé', 'Participants', 'Femmes', 'Jeunes < 35 ans', 'Date', 'Statut'], none: 'Aucune activité pour ces filtres.', show: '{0}–{1} sur {2}', rows: 'Lignes par page', first: 'Première page', prev: 'Page précédente', next: 'Page suivante', last: 'Dernière page' },
 };
@@ -91,7 +91,7 @@ const mg: D = {
   c: { cat: 'Fizarana araka ny sokajy', evol: 'Fivoaran’ny fitambarana sy làlana tanjona', reg: 'Mpahazo tombontsoa nekena isaky ny faritra', inclC: 'Vehivavy sy tanora araka ny sokajy (%)', inclY: 'Vehivavy sy tanora isan-taona (%)', qual: 'Kalitaon’ny angona (sata fankatoavana)' },
   cols: { cat: 'Sokajy', act: 'Hetsika', ben: 'Mpahazo tombontsoa', share: '% amin’ny total', w: '% Vehivavy', y: '% Tanora', tot: 'Total' },
   ev: { decl: 'Voambara', val: 'Nekena', tar: 'Làlana tanjona' },
-  cf: { enq: 'Olona nanontaniana', ok: 'Fanatsarana voamarina', rate: 'Tahan’ny fanamarinana', tar: 'Tanjona : {0} %', cov: 'Fetran’ny fanadihadiana', ci: 'IC 95 % : ± {0} teboka', met: 'Tratra ny tanjona', not: 'Tsy tratra ny tanjona', ms: 'Dingana fanangonana', m1: 'Fanaraha-maso', m2: 'Antonony', m3: 'Farany', done: 'Vita', soon: 'Ho avy', byCat: 'Tahan’ny fanamarinana araka ny sokajy (%)', sk: 'Fahaizana voamarina (Top 10, % amin’ny fanamarinana)', none: 'Tsy misy fanadihadiana ho an’ireo sivana ireo.' },
+  cf: { sum: 'Famintinana ny fanamarinana', enq: 'Olona nanontaniana', ok: 'Fanatsarana voamarina', rate: 'Tahan’ny fanamarinana', tar: 'Tanjona : {0} %', cov: 'Fetran’ny fanadihadiana', ci: 'IC 95 % : ± {0} teboka', met: 'Tratra ny tanjona', not: 'Tsy tratra ny tanjona', ms: 'Dingana fanangonana', m1: 'Fanaraha-maso', m2: 'Antonony', m3: 'Farany', done: 'Vita', soon: 'Ho avy', byCat: 'Tahan’ny fanamarinana araka ny sokajy (%)', sk: 'Fahaizana voamarina (Top 10, % amin’ny fanamarinana)', none: 'Tsy misy fanadihadiana ho an’ireo sivana ireo.' },
   ab: { t: 'Mikasika ny tondro', p1: 'Tondro 2 : 80 % amin’ny mpahazo tombontsoa no manamarina, miaraka amin’ny ohatra, fa nanatsara ny fahaizany ara-teknika sy ara-pandraharahana mba hampihatra fomba maharitra sy hanomezam-boka ny vokatra avy amin’ny fambolena, ny ala ary ny fiompiana.', p2: 'Ny fanamarinana dia miorina amin’ny fanadihadiana ny santionan’ny mpahazo tombontsoa maneho ny rehetra. Ny hetsika nekena ihany no isaina.', C2: 'Fampianarana iraisana', C3: 'Fanampiana manokana / vondrona', C4: 'Fanampiana ho an’ny mpandraharaha' },
   tb: { title: 'Hetsika sy mpahazo tombontsoa ({0})', search: 'Hikaroka…', exp: 'Hamoaka CSV', cols: ['ID hetsika', 'Sokajy', 'Faritra', 'Faritra arovana', 'Distrika', 'Kaominina', 'Lohateny', 'Mpandray anjara', 'Vehivavy', 'Tanora < 35 taona', 'Daty', 'Sata'], none: 'Tsy misy hetsika mifanaraka amin’ireo sivana ireo.', show: '{0} – {1} amin’ny {2}', rows: 'Andalana isaky ny pejy', first: 'Pejy voalohany', prev: 'Pejy teo aloha', next: 'Pejy manaraka', last: 'Pejy farany' },
 };
@@ -108,7 +108,7 @@ const en: D = {
   c: { cat: 'Breakdown by category', evol: 'Cumulative trend and target trajectory', reg: 'Validated beneficiaries by region', inclC: 'Women and youth by category (%)', inclY: 'Women and youth by year (%)', qual: 'Data quality (validation status)' },
   cols: { cat: 'Category', act: 'Activities', ben: 'Beneficiaries', share: '% of total', w: '% Women', y: '% Youth', tot: 'Total' },
   ev: { decl: 'Reported', val: 'Validated', tar: 'Target trajectory' },
-  cf: { enq: 'People surveyed', ok: 'Improvement confirmed', rate: 'Confirmation rate', tar: 'Target: {0} %', cov: 'Survey coverage', ci: '95 % CI: ± {0} pts', met: 'Target met', not: 'Target not met', ms: 'Data collection milestones', m1: 'Follow-up', m2: 'Mid-term', m3: 'Final', done: 'Completed', soon: 'Upcoming', byCat: 'Confirmation rate by category (%)', sk: 'Confirmed skills (Top 10, % of confirmations)', none: 'No survey for these filters.' },
+  cf: { sum: 'Confirmation summary', enq: 'People surveyed', ok: 'Improvement confirmed', rate: 'Confirmation rate', tar: 'Target: {0} %', cov: 'Survey coverage', ci: '95 % CI: ± {0} pts', met: 'Target met', not: 'Target not met', ms: 'Data collection milestones', m1: 'Follow-up', m2: 'Mid-term', m3: 'Final', done: 'Completed', soon: 'Upcoming', byCat: 'Confirmation rate by category (%)', sk: 'Confirmed skills (Top 10, % of confirmations)', none: 'No survey for these filters.' },
   ab: { t: 'About the indicator', p1: 'Indicator 2: 80 % of beneficiaries confirm, with examples, that they have improved their technical and entrepreneurial skills to implement sustainable practices and add value to agricultural, forestry and livestock products.', p2: 'Confirmation is based on surveys of a representative sample of beneficiaries. Only validated activities are counted.', C2: 'Group training', C3: 'Individual support / groups', C4: 'Support to entrepreneurs' },
   tb: { title: 'Activities and beneficiaries ({0})', search: 'Search…', exp: 'Export CSV', cols: ['Activity ID', 'Category', 'Region', 'Protected area', 'District', 'Municipality', 'Title', 'Participants', 'Women', 'Youth < 35', 'Date', 'Status'], none: 'No activity matches these filters.', show: '{0}–{1} of {2}', rows: 'Rows per page', first: 'First page', prev: 'Previous page', next: 'Next page', last: 'Last page' },
 };
@@ -125,7 +125,7 @@ const de: D = {
   c: { cat: 'Verteilung nach Kategorie', evol: 'Kumulierte Entwicklung und Zielpfad', reg: 'Validierte Begünstigte nach Region', inclC: 'Frauen und Jugendliche nach Kategorie (%)', inclY: 'Frauen und Jugendliche nach Jahr (%)', qual: 'Datenqualität (Validierungsstatus)' },
   cols: { cat: 'Kategorie', act: 'Aktivitäten', ben: 'Begünstigte', share: '% des Gesamtwerts', w: '% Frauen', y: '% Jugend', tot: 'Gesamt' },
   ev: { decl: 'Gemeldet', val: 'Validiert', tar: 'Zielpfad' },
-  cf: { enq: 'Befragte Personen', ok: 'Verbesserung bestätigt', rate: 'Bestätigungsquote', tar: 'Ziel: {0} %', cov: 'Erhebungsabdeckung', ci: '95-%-KI: ± {0} Pkt.', met: 'Ziel erreicht', not: 'Ziel nicht erreicht', ms: 'Erhebungsmeilensteine', m1: 'Nachverfolgung', m2: 'Halbzeit', m3: 'Abschluss', done: 'Abgeschlossen', soon: 'Bevorstehend', byCat: 'Bestätigungsquote nach Kategorie (%)', sk: 'Bestätigte Kompetenzen (Top 10, % der Bestätigungen)', none: 'Keine Erhebung für diese Filter.' },
+  cf: { sum: 'Zusammenfassung der Bestätigung', enq: 'Befragte Personen', ok: 'Verbesserung bestätigt', rate: 'Bestätigungsquote', tar: 'Ziel: {0} %', cov: 'Erhebungsabdeckung', ci: '95-%-KI: ± {0} Pkt.', met: 'Ziel erreicht', not: 'Ziel nicht erreicht', ms: 'Erhebungsmeilensteine', m1: 'Nachverfolgung', m2: 'Halbzeit', m3: 'Abschluss', done: 'Abgeschlossen', soon: 'Bevorstehend', byCat: 'Bestätigungsquote nach Kategorie (%)', sk: 'Bestätigte Kompetenzen (Top 10, % der Bestätigungen)', none: 'Keine Erhebung für diese Filter.' },
   ab: { t: 'Zum Indikator', p1: 'Indikator 2: 80 % der Begünstigten bestätigen anhand von Beispielen, ihre technischen und unternehmerischen Kompetenzen verbessert zu haben, um nachhaltige Praktiken umzusetzen und Erzeugnisse aus Landwirtschaft, Forstwirtschaft und Viehhaltung aufzuwerten.', p2: 'Die Bestätigung beruht auf Befragungen einer repräsentativen Stichprobe der Begünstigten. Nur validierte Aktivitäten werden gezählt.', C2: 'Gruppenschulungen', C3: 'Einzelberatung / Gruppen', C4: 'Unterstützung von Unternehmern' },
   tb: { title: 'Aktivitäten und Begünstigte ({0})', search: 'Suchen…', exp: 'CSV exportieren', cols: ['Aktivitäts-ID', 'Kategorie', 'Region', 'Schutzgebiet', 'Distrikt', 'Gemeinde', 'Titel', 'Teilnehmende', 'Frauen', 'Jugend < 35', 'Datum', 'Status'], none: 'Keine Aktivität für diese Filter.', show: '{0}–{1} von {2}', rows: 'Zeilen pro Seite', first: 'Erste Seite', prev: 'Vorherige Seite', next: 'Nächste Seite', last: 'Letzte Seite' },
 };
@@ -188,6 +188,13 @@ const CSS = `
 .sv-s{display:flex;align-items:center;gap:8px;background:#2e7d32;color:#fff;margin:6px 0 0;padding:9px 12px;border-radius:8px;font-size:clamp(13px,1.6vw,16px)}
 .sv-f2{margin-top:8px;padding:10px;background:#fff;border:1px solid #e1e6e2;border-radius:10px}
 .sv-n{background:#f9a825;color:#1c2b24;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
+.k5{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
+.kc{display:flex;flex-direction:column;border-top:4px solid #2e7d32}
+.kc .kh{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.kc .kh h4{margin:0}
+.kc .sub{margin-bottom:8px}
+.kc .bar{margin-top:auto}
+.ki{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;flex-shrink:0}
 .g3{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
 .r4{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
 .r4>.wide{grid-column:span 2}
@@ -231,12 +238,14 @@ const CSS = `
 const Sec = ({ icon: Ic, text }: { icon: React.ComponentType<any>; text: string }) => (
   <h3 className="sv-s"><Ic size={18} style={{ flexShrink: 0 }} />{text}</h3>
 );
-const Kpi = ({ title, big, sub, color = '#2e7d32', bar, sub2 }: { title: string; big: string; sub?: string; sub2?: string; color?: string; bar?: number }) => (
-  <div className="c">
-    <h4>{title}</h4>
+const Kpi = ({ title, big, sub, color = '#2e7d32', bar, icon: Ic }: { title: string; big: string; sub?: string; color?: string; bar?: number; icon?: React.ComponentType<any> }) => (
+  <div className="c kc" style={{ borderTopColor: color }}>
+    <div className="kh">
+      {Ic && <span className="ki" style={{ background: `${color}1a`, color }}><Ic size={18} /></span>}
+      <h4>{title}</h4>
+    </div>
     <div className="big" style={{ color }}>{big}</div>
     {sub && <div className="sub">{sub}</div>}
-    {sub2 && <div className="sub" style={{ marginTop: 0 }}>{sub2}</div>}
     {bar !== undefined && <div className="bar"><b style={{ width: `${Math.min(100, bar)}%`, background: color }} /></div>}
   </div>
 );
@@ -370,6 +379,12 @@ const Beneficiaires: React.FC = () => {
   });
   const mLabels = [t.cols.ben, t.cf.enq, t.cf.rate];
   const rc = rate >= TARGET_CONF ? '#2e7d32' : RED;
+  const cfItems: { Ic: React.ComponentType<any>; c: string; bg: string; title: string; value: string; subs: string[]; bar?: number }[] = [
+    { Ic: ClipboardCheck, c: '#1976d2', bg: 'rgba(25,118,210,0.06)', title: t.cf.enq, value: nf(enq), subs: [`${t.cf.cov} : ${pct(cov)}`] },
+    { Ic: CheckCircle2, c: '#f9a825', bg: 'rgba(245,124,0,0.06)', title: t.cf.ok, value: nf(ok), subs: [] },
+    { Ic: Target, c: rc, bg: rate >= TARGET_CONF ? 'rgba(46,125,50,0.06)' : 'rgba(198,40,40,0.06)', title: t.cf.rate, value: enq ? pct(rate) : '—',
+      subs: [`${fmt(t.cf.tar, TARGET_CONF)}${enq ? ` · ${rate >= TARGET_CONF ? t.cf.met : t.cf.not}` : ''}`, enq ? fmt(t.cf.ci, nf(margin, 1)) : ''], bar: enq ? rate : undefined },
+  ];
 
   /* ----- Tableau ----- */
   const ql = q.trim().toLowerCase();
@@ -423,23 +438,22 @@ const Beneficiaires: React.FC = () => {
 
         {/* ===== 1. Atteinte de l'objectif ===== */}
         <Sec icon={Target} text={fmt(t.s1, nf(TARGET))} />
-        <section className="g">
-          <div className="c">
-            <h4>{t.k.total}</h4>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ flex: '1 1 130px', minWidth: 120 }} aria-label={t.k.rate}>
-                <Donut v={pc(reach, TARGET)} color="#2e7d32" label={pct(pc(reach, TARGET))} />
-              </div>
-              <div style={{ flex: '1 1 110px' }}>
-                <div className="big">{nf(reach)}</div>
-                <div className="sub">{fmt(t.k.of, nf(TARGET))}</div>
-              </div>
+        <section className="k5">
+          <div className="c kc" style={{ borderTopColor: '#2e7d32' }}>
+            <div className="kh">
+              <span className="ki" style={{ background: '#2e7d321a', color: '#2e7d32' }}><Target size={18} /></span>
+              <h4>{t.k.total}</h4>
+            </div>
+            <div aria-label={t.k.rate}><Donut v={pc(reach, TARGET)} color="#2e7d32" label={pct(pc(reach, TARGET))} /></div>
+            <div style={{ textAlign: 'center', marginTop: 6 }}>
+              <div className="big" style={{ color: '#2e7d32' }}>{nf(reach)}</div>
+              <div className="sub" style={{ marginBottom: 0 }}>{fmt(t.k.of, nf(TARGET))}</div>
             </div>
           </div>
-          <Kpi title={t.k.gap} big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? '#2e7d32' : RED} />
-          <Kpi title={t.k.decl} big={nf(decl)} sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
-          <Kpi title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
-          <Kpi title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
+          <Kpi icon={gap >= 0 ? TrendingUp : TrendingDown} title={t.k.gap} big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? '#2e7d32' : RED} />
+          <Kpi icon={FileText} title={t.k.decl} big={nf(decl)} sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
+          <Kpi icon={Users} title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
+          <Kpi icon={User} title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
         </section>
 
         <section className="g3">
@@ -548,19 +562,24 @@ const Beneficiaires: React.FC = () => {
 
         {/* ===== 3. Confirmation ===== */}
         <Sec icon={GraduationCap} text={t.s3} />
-        <section className="r4">
-          <Kpi title={t.cf.enq} big={nf(enq)} color={YOUTH} sub={`${t.cf.cov} : ${pct(cov)}`} />
-          <Kpi title={t.cf.ok} big={nf(ok)} color="#f9a825" />
+        <section className="g3">
           <div className="c">
-            <h4>{t.cf.rate}</h4>
-            <div className="big" style={{ color: rc, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {enq > 0 && <CheckCircle2 size={24} />}{enq ? pct(rate) : '—'}
+            <h4>{t.cf.sum}</h4>
+            <div style={{ border: '1px solid #d0d0d0', borderRadius: 10, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {cfItems.map((x, k) => (
+                <div key={k} style={{ border: `1px solid ${x.c}`, background: x.bg, borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <x.Ic size={22} color={x.c} style={{ flexShrink: 0 }} />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 600 }}>{x.title}</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: x.c }}>{x.value}</div>
+                    {x.subs.filter(Boolean).map((l) => <div key={l} className="sub" style={{ marginTop: 2 }}>{l}</div>)}
+                    {x.bar !== undefined && <div className="bar"><b style={{ width: `${Math.min(100, x.bar)}%`, background: x.c }} /></div>}
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="sub">{fmt(t.cf.tar, TARGET_CONF)}{enq ? ` · ${rate >= TARGET_CONF ? t.cf.met : t.cf.not}` : ''}</div>
-            <div className="bar"><b style={{ width: `${Math.min(100, rate)}%`, background: rc }} /></div>
-            <div className="sub">{enq ? fmt(t.cf.ci, nf(margin, 1)) : ''}</div>
           </div>
-          <div className="c wide">
+          <div className="c">
             <h4>{t.cf.ms}</h4>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {miles.map((m) => {
@@ -589,9 +608,15 @@ const Beneficiaires: React.FC = () => {
               })}
             </div>
           </div>
+          <div className="c ab">
+          <h4>{t.ab.t}</h4>
+          <p>{t.ab.p1}</p>
+          <p>{t.ab.p2}</p>
+          {CATS.map((c) => <p key={c}><b style={{ color: CATC[c] }}>{c} :</b> {t.ab[c]}</p>)}
+          </div>
         </section>
 
-        <section className="g3">
+        <section className="g2">
           <div className="c">
             <h4>{t.cf.byCat}</h4>
             {enq ? (
@@ -622,12 +647,6 @@ const Beneficiaires: React.FC = () => {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-          </div>
-          <div className="c ab">
-          <h4>{t.ab.t}</h4>
-          <p>{t.ab.p1}</p>
-          <p>{t.ab.p2}</p>
-          {CATS.map((c) => <p key={c}><b style={{ color: CATC[c] }}>{c} :</b> {t.ab[c]}</p>)}
           </div>
         </section>
 
