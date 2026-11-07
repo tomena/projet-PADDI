@@ -421,9 +421,11 @@ const Beneficiaires: React.FC = () => {
             </div>
           </div>
           <Kpi title={t.k.gap} big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? '#2e7d32' : RED} />
+          <Kpi title={t.k.decl} big={nf(decl)} sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
+          <Kpi title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
+          <Kpi title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
           <div className="c">
             <h4>{t.c.qual}</h4>
-            <div className="sub" style={{ marginTop: 0 }}>{t.k.decl} : <b>{nf(decl)}</b></div>
             {quality.map((x) => (
               <div key={x.s}>
                 <div className="row"><span><i style={{ background: STC[x.s] }} />{t.st[x.s]}</span><span><b>{nf(x.v)}</b> ({pct(pc(x.v, decl))})</span></div>
@@ -473,13 +475,13 @@ const Beneficiaires: React.FC = () => {
           <div className="c">
             <h4>{t.c.cat}</h4>
             <div className="tw">
-              <table style={{ minWidth: 300 }}>
-                <thead><tr>{[t.cols.cat, t.cols.act, t.cols.ben, t.cols.share].map((h) => <th key={h}>{h}</th>)}</tr></thead>
+              <table style={{ minWidth: 380 }}>
+                <thead><tr>{[t.cols.cat, t.cols.act, t.cols.ben, t.cols.share, t.cols.w, t.cols.y].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>
                   {byCat.map((r) => (
-                    <tr key={r.c}><td><b style={{ color: CATC[r.c] }}>{r.c}</b></td><td>{nf(r.n)}</td><td>{nf(r.p)}</td><td>{pct(r.share)}</td></tr>
+                    <tr key={r.c}><td><b style={{ color: CATC[r.c] }}>{r.c}</b></td><td>{nf(r.n)}</td><td>{nf(r.p)}</td><td>{pct(r.share)}</td><td>{pct(r.w)}</td><td>{pct(r.j)}</td></tr>
                   ))}
-                  <tr className="tot"><td>{t.cols.tot}</td><td>{nf(val.length)}</td><td>{nf(reach)}</td><td>{pct(reach ? 100 : 0)}</td></tr>
+                  <tr className="tot"><td>{t.cols.tot}</td><td>{nf(val.length)}</td><td>{nf(reach)}</td><td>{pct(reach ? 100 : 0)}</td><td>{pct(women)}</td><td>{pct(youth)}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -509,10 +511,6 @@ const Beneficiaires: React.FC = () => {
 
         {/* ===== 2. Inclusion ===== */}
         <Sec icon={Users} text={t.s2} />
-        <section className="g">
-          <Kpi title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
-          <Kpi title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
-        </section>
         <section className="g2">
           {inclCharts.map((ch) => (
             <div className="c" key={ch.title}>
@@ -535,7 +533,8 @@ const Beneficiaires: React.FC = () => {
         {/* ===== 3. Confirmation ===== */}
         <Sec icon={GraduationCap} text={t.s3} />
         <section className="g">
-          <Kpi title={t.cf.enq} big={nf(enq)} color={YOUTH} sub={`${t.cf.ok} : ${nf(ok)}`} sub2={`${t.cf.cov} : ${pct(cov)}`} />
+          <Kpi title={t.cf.enq} big={nf(enq)} color={YOUTH} sub={`${t.cf.cov} : ${pct(cov)}`} />
+          <Kpi title={t.cf.ok} big={nf(ok)} color="#f9a825" />
           <div className="c">
             <h4>{t.cf.rate}</h4>
             <div className="big" style={{ color: rc, display: 'flex', alignItems: 'center', gap: 8 }}>
