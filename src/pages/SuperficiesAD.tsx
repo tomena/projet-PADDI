@@ -1,13 +1,17 @@
 import React from 'react';
 import SuiviDashboard from './SuiviDashboard';
+import type { DashboardConfig } from './SuiviDashboard';
 
-const config = {
-  title: 'Suivi des superficies aménagées durablement',
+const config: DashboardConfig = {
+  titleKey: 'global',
   themes: ['agropastoral', 'forestier'],
   cible: 110000, debut: 2025, fin: 2030,
-  enonce: 'Sur 110 000 ha, des pratiques agropastorales et forestières durables sont appliquées.',
-  donuts: [['theme_label', 'Part par type d’aménagement (ha)'], ['pratique_cat', 'Répartition par type de pratique (ha)']],
-  extras: [],
+  enonceKey: 'global',
+  donuts: ['theme_label', 'pratique_cat'],
+  extras: [
+    { key: 'cep', flag: 'is_cep', icon: 'cep' },
+    { key: 'feu', flag: 'is_pare_feu', icon: 'feu' },
+  ],
 };
 
 export default function SuiviAmenagementGlobal() {
