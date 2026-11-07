@@ -183,7 +183,9 @@ export default function MesuresCommunales() {
   const { data, state, reload } = useCommunes();
   const [year, setYear] = useState(CUR_YEAR);
   const [sel, setSel] = useState<Record<Key, string>>({ region: "all", aire: "all", paysage: "all", district: "all", name: "all" });
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState("");            // recherche dans le tableau (mesures)
+  const [cq, setCq] = useState("");                      // recherche de commune (toute la page)
+  const [pub, setPub] = useState<"all" | "inc">("all");   // public visé : Tous / Femmes et jeunes
   const [sort, setSort] = useState<{ k: SK; dir: 1 | -1 }>({ k: "date", dir: -1 });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -201,7 +203,10 @@ export default function MesuresCommunales() {
     [k, [...new Set(data.filter((c) => matches(c, sel, i)).map((c) => c[k]))].sort((a, b) => a.localeCompare(b, "fr"))])) as Record<Key, string[]>,
   [data, sel]);
 
-  const view = useMemo(() => data.filter((c) => matches(c, sel, KEYS.length)), [data, sel]);
+  const view = useMemo(() => {
+    const s = cq.trim().toLowerCase();
+    return data.filter((c) => matches(c, sel, KEYS.length) && (!s || c.name.toLowerCase().includes(s)));
+  }, [data, sel, cq]);
   const ev = useMemo(() => view.map((c) => evalC(c, year)), [view, year]);
 
   const S = useMemo(() => {
@@ -233,7 +238,7 @@ export default function MesuresCommunales() {
       ],
       femmes: sum("p") ? (sum("f") / sum("p")) * 100 : 0, nF: sum("f"),
       jeunes: sum("p") ? (sum("j") / sum("p")) * 100 : 0, nJ: sum("j"),
-      prio: ev.filter((e) => !e.ok).sort((a, b) => a.taux - b.taux || a.n - b.n).slice(0, 10),
+      prio: ev.filter((e) => !e.ok).sort((a, b) => a.taux - b.taux || a.n - b.n),
     };
   }, [ev, view]);
 
@@ -242,9 +247,11 @@ export default function MesuresCommunales() {
   const flat = useMemo(() => ev.flatMap((e) => e.ms.map((m) => ({ ...m, commune: e.c.name, region: e.c.region }))), [ev]);
   const rowsAll = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const r = q ? flat.filter((x) => `${x.commune} ${x.spec} ${x.id}`.toLowerCase().includes(q)) : flat;
+    const base = pub === "inc" ? flat.filter((x) => x.inc) : flat;
+    const r = q ? base.filter((x) => `${x.commune} ${x.spec} ${x.id}`.toLowerCase().includes(q)) : base;
     return [...r].sort((a, b) => (a[sort.k] < b[sort.k] ? -1 : a[sort.k] > b[sort.k] ? 1 : 0) * sort.dir);
-  }, [flat, search, sort]);
+  }, [flat, search, sort, pub]);
+  const nInc = useMemo(() => flat.filter((x) => x.inc).length, [flat]);
   const pages = Math.max(1, Math.ceil(rowsAll.length / pageSize));
   const cur = Math.min(page, pages);
   const rows = rowsAll.slice((cur - 1) * pageSize, cur * pageSize);
@@ -294,7 +301,13 @@ export default function MesuresCommunales() {
         </div>
 
         {/* ----- Message clé pour décider ----- */}
-        <div className="mc-insight" role="status"><b>À retenir</b><span>{message}</span></div>
+        <div className="mc-insight">
+          <b>À retenir</b>
+          <span className="mc-insight-t" role="status">{message}</span>
+          <label className="mc-search mc-insight-s"><Search size={14} aria-hidden />
+            <input placeholder="Rechercher une commune…" value={cq} aria-label="Rechercher une commune"
+              onChange={(e) => { setCq(e.target.value); setPage(1); }} /></label>
+        </div>
         <details className="mc-enonce">
           <summary>Énoncé de l'indicateur</summary>
           <p>3 mesures prioritaires pour améliorer les services écosystémiques d'approvisionnement sont adoptées par les conseils communaux dans {CIBLE} % des communes d'intervention, à partir des plans d'aménagement existants, dont 1 mesure tenant compte des besoins spécifiques des femmes et des jeunes.</p>
@@ -365,7 +378,8 @@ export default function MesuresCommunales() {
 
           <Card title="Communes à accompagner en priorité">
             {S.prio.length === 0 ? <p className="mc-empty">Toutes les communes affichées ont atteint la cible.</p> : (
-              <ol className="mc-prio">
+              <>
+              <ol className="mc-prio" tabIndex={0} aria-label="Communes à accompagner, liste défilante">
                 {S.prio.map((e) => (
                   <li key={e.c.name}>
                     <div><b>{e.c.name}</b><small>{e.c.region}, {e.c.district}</small></div>
@@ -374,6 +388,8 @@ export default function MesuresCommunales() {
                   </li>
                 ))}
               </ol>
+              {S.prio.length > 5 && <p className="mc-hint">{S.prio.length} communes à accompagner : faites défiler pour voir la suite</p>}
+              </>
             )}
           </Card>
         </div>
@@ -384,8 +400,14 @@ export default function MesuresCommunales() {
             <h3 className="mc-card-title mc-left">Détail des mesures adoptées par les communes</h3>
             <div className="mc-tools-r">
               <label className="mc-search"><Search size={14} aria-hidden />
-                <input placeholder="Rechercher une commune, une mesure…" value={search}
+                <input placeholder="Rechercher une mesure…" value={search}
                   onChange={(e) => { setSearch(e.target.value); setPage(1); }} aria-label="Rechercher" /></label>
+              <div className="mc-seg" role="group" aria-label="Public visé">
+                {([["all", "Tous", flat.length], ["inc", "Femmes et jeunes", nInc]] as const).map(([v, l, n]) => (
+                  <button key={v} className={pub === v ? "on" : ""} aria-pressed={pub === v}
+                    onClick={() => { setPub(v); setPage(1); }}>{l} <small>{n}</small></button>
+                ))}
+              </div>
               <button className="mc-btn" onClick={() => exportCsv(rowsAll)}><Download size={14} aria-hidden /> Exporter</button>
             </div>
           </div>
@@ -457,8 +479,10 @@ const CSS = `
 .mc-filters label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;color:#374151;min-width:0}
 .mc select,.mc input{padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:13px;min-width:0;width:100%}
 .mc button:focus-visible,.mc select:focus-visible,.mc input:focus-visible,.mc summary:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
-.mc-insight{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;background:#fff;border-left:5px solid var(--g);border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.mc-insight{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;border-left:5px solid var(--g);border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .mc-insight b{color:var(--gd)}
+.mc-insight-t{flex:1 1 320px}
+.mc-insight-s{margin-left:auto;flex:0 1 260px;max-width:none}
 .mc-enonce{background:rgba(46,125,50,.06);border-radius:8px;padding:10px 14px;font-size:13px;color:#374151}
 .mc-enonce summary{cursor:pointer;font-weight:700;color:var(--gd)}
 .mc-enonce p{margin:8px 0 0;line-height:1.6}
@@ -479,7 +503,8 @@ const CSS = `
 .mc-leg{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:12px}
 .mc-leg li{display:grid;grid-template-columns:12px 1fr auto 52px;gap:8px;align-items:center}
 .mc-leg i{width:12px;height:12px;border-radius:3px}.mc-leg small{text-align:right;color:var(--muted)}
-.mc-prio{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.mc-prio{list-style:none;margin:0;padding:0 8px 0 0;display:flex;flex-direction:column;gap:10px;max-height:372px;overflow-y:auto;scrollbar-width:thin}
+.mc-hint{margin:0;text-align:center;font-size:11px;color:var(--muted)}
 .mc-prio li{display:grid;grid-template-columns:1fr;gap:4px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:13px}
 .mc-prio li>div:first-child{display:flex;flex-direction:column}
 .mc-prio small,.mc-table small{color:var(--muted);font-size:11px;display:block}
@@ -503,6 +528,10 @@ const CSS = `
 .mc-pager div,.mc-pager label{display:flex;align-items:center;gap:8px}
 .mc-pager select{width:auto;padding:5px 8px}
 .mc-pager button{padding:4px 8px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer;display:flex}
+.mc-seg{display:inline-flex;border:1px solid var(--g);border-radius:8px;overflow:hidden}
+.mc-seg button{display:flex;gap:6px;align-items:center;padding:8px 12px;border:0;background:#fff;color:var(--gd);font-size:13px;font-weight:600;cursor:pointer}
+.mc-seg button.on{background:var(--g);color:#fff}
+.mc-seg small{font-size:11px;opacity:.85}
 .mc-note{text-align:center;color:var(--muted);font-size:12px;margin:0}
 @media(min-width:720px){.mc-row3{grid-template-columns:1fr 1fr}.mc-wide{grid-column:1/-1}.mc-row2{grid-template-columns:1fr 1fr}}
 @media(min-width:1180px){.mc-row3{grid-template-columns:1fr 1fr 1.25fr}.mc-wide{grid-column:auto}.mc-row2{grid-template-columns:1fr 1.2fr}}
@@ -512,7 +541,8 @@ const CSS = `
   .mc-table td{display:flex;justify-content:space-between;gap:14px;border:0;padding:6px 0;text-align:right}
   .mc-table td::before{content:attr(data-label);font-weight:600;color:var(--muted);text-align:left;flex-shrink:0}
   .mc-spec{min-width:0}.mc-table td[colspan]{display:block}.mc-table td[colspan]::before{content:none}
-  .mc-tools-r,.mc-search{max-width:none;flex-basis:100%}
+  .mc-tools-r,.mc-search,.mc-insight-s{max-width:none;flex-basis:100%}
+  .mc-seg{flex:1 1 100%}.mc-seg button{flex:1;justify-content:center}
 }
 @media(prefers-reduced-motion:reduce){.mc *{animation:none!important;transition:none!important}}
 `;
