@@ -11,6 +11,7 @@ import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine,
   LabelList, Cell, ComposedChart, Line, ReferenceArea,
 } from 'recharts';
+import { useLanguage } from '../context/LanguageContext';
 
 /* =====================================================================
    CONFIGURATION (à adapter)
@@ -33,7 +34,283 @@ const REFRESH_MS = 0; // actualisation automatique du fichier (en millisecondes)
 // Objectifs de suivi
 const OBJ_SE = 5; // % du budget total consacré aux services écosystémiques (SE)
 const OBJ_FJ = 25; // % du budget SE destiné aux femmes et aux jeunes
-const SOURCE = 'Données communales';
+
+/* ================= TRADUCTIONS =================
+   `fr` sert de modèle : TypeScript impose les mêmes clés dans mg / en / de. */
+const fr = {
+  title: 'SUIVI DES BUDGETS COMMUNAUX',
+  subtitle: 'Allocation des budgets pour l’amélioration des services écosystémiques',
+  year: 'Année',
+  refresh: 'Actualiser', refreshTip: 'Recharger le fichier GeoJSON depuis le serveur',
+  import: 'Importer', importTip: 'Importer un fichier GeoJSON (le temps de la session)',
+  template: 'Modèle', templateTip: 'Télécharger le modèle GeoJSON à remplir',
+  reset: 'Réinitialiser',
+  demoTitle: 'Données de démonstration.',
+  demoA: 'Placez votre base GeoJSON dans',
+  demoB: '(modèle : bouton « Modèle ») ou utilisez « Importer ». Les noms de région, district et commune doivent correspondre à ceux des couches cartographiques si la base ne contient pas les géométries.',
+  importedA: 'Fichier importé :',
+  importedB: '(valable jusqu’à l’actualisation de la page). Cliquez sur « Actualiser » pour revenir au fichier du serveur.',
+  errRefresh: 'Actualisation impossible : fichier introuvable ou illisible.',
+  errJson: 'Fichier JSON illisible.', errFile: 'Fichier illisible.',
+  errInvalid: 'Fichier GeoJSON invalide : une « FeatureCollection » est attendue.',
+  errNoRows: 'Aucune ligne exploitable : vérifiez les propriétés Commune, Annee, Budget_Total et Budget_SE.',
+  filters: 'Filtres', ap: 'Aire protégée', region: 'Région', district: 'District', commune: 'Commune',
+  allF: 'Toutes', allM: 'Tous', noAp: 'Hors aire protégée',
+  indicator: 'Indicateur (carte et classements)',
+  search: 'Rechercher', searchPh: 'Rechercher une commune, un fokontany, un district…',
+  ind: {
+    se: { label: 'Budget SE', short: `SE ≥ ${OBJ_SE} %`, long: 'Budget SE (% du budget total)', unit: 'du budget total' },
+    fj: { label: 'Femmes et jeunes', short: `F/J ≥ ${OBJ_FJ} %`, long: 'Femmes et jeunes (% du budget SE)', unit: 'du budget SE' },
+  },
+  insightMain: (s: number, n: number, p: number, y: number) => `${s} commune${s > 1 ? 's' : ''} sur ${n} (${p} %) atteigne${s > 1 ? 'nt' : ''} l’objectif de ${OBJ_SE} % du budget consacré aux services écosystémiques en ${y}.`,
+  insightPrev: (py: number, d: number) => `Par rapport à ${py} : ${d >= 0 ? '+' : ''}${d} point(s) de communes ayant atteint l’objectif. `,
+  insightWeak: (w: number, half: string) => `${w} commune${w > 1 ? 's sont' : ' est'} sous la moitié de l’objectif (< ${half}) et nécessite${w > 1 ? 'nt' : ''} un accompagnement prioritaire.`,
+  insightNone: 'Aucune commune sous la moitié de l’objectif.',
+  kTotal: 'Budget total (sélection)', kTotalSub: (n: number, y: number) => `${n} commune${n > 1 ? 's' : ''} · ${y}`,
+  kSe: 'Budget SE total', kSeSub: 'Total alloué aux services écosystémiques',
+  kPSe: '% Budget SE (global)', kPSeSub: (p: string) => `Objectif : ${OBJ_SE} % · ${p} % de la cible`,
+  kPFj: '% Budget SE (femmes et jeunes)', kPFjSub: `Objectif : ≥ ${OBJ_FJ} % du budget SE`,
+  kNSe: `Communes ≥ ${OBJ_SE} %`, kNFj: `Communes avec F/J ≥ ${OBJ_FJ} %`, kShare: (p: string) => `${p} des communes`,
+  vs: 'vs', deltaTitle: (l: string) => `Variation par rapport à ${l}`,
+  orderAria: 'Ordre', worst: 'À renforcer', best: 'Meilleures', nAria: 'Nombre d’éléments', top: 'Top',
+  rankCommunes: 'Classement des communes', rankRegions: 'Comparaison par région',
+  emptyRank: 'Aucune donnée pour cette sélection.',
+  emptyRegion: 'Une seule région dans la sélection : la comparaison apparaît lorsque plusieurs régions sont concernées.',
+  value: 'Valeur', objective: (o: number) => `Objectif ${o} %`, tipTotal: 'Budget total', tipSe: 'Budget SE',
+  evoTitle: 'Évolution annuelle · progression vers l’objectif',
+  evoSub: `100 % = objectif atteint (SE : ${OBJ_SE} % du budget · F/J : ${OBJ_FJ} % du budget SE)`,
+  evoSeM: 'Budget SE (M Ar)', evoSe: 'Budget SE', evoFj: 'Femmes et jeunes',
+  evoSeLine: 'SE (% de l’objectif)', evoFjLine: 'F/J (% de l’objectif)', objectif: 'Objectif',
+  evoEmpty: 'Au moins deux années de données sont nécessaires pour afficher l’évolution.',
+  tipSeRatio: 'SE / budget total', tipFjRatio: 'F/J / budget SE', ofObj: (n: string) => `${n} % de l’objectif`,
+  mapTitle: 'Carte interactive – Madagascar',
+  mapHintOn: (l: string, y: number) => `${l} · ${y}. Cliquez sur une commune ou un district pour le sélectionner.`,
+  mapHintOff: 'Choisissez une aire protégée ou une région (ou cliquez sur une région de la carte) pour afficher les communes.',
+  plan: 'Plan', sat: 'Satellite', baseAria: 'Fond de carte',
+  missing: (n: number) => `${n} commune${n > 1 ? 's' : ''} de la base n’ont pas été retrouvée${n > 1 ? 's' : ''} sur la carte (ajoutez la géométrie dans la base, ou vérifiez l’orthographe / le code de la commune).`,
+  mTotal: 'Budget total :', mSe: 'Budget SE :', mFj: (p: string) => `Femmes et jeunes : ${p} du budget SE`,
+  tableTitle: 'Tableau détaillé – communes',
+  tableCount: (n: number, y: number, maj: string) => `${n} commune${n > 1 ? 's' : ''} · ${y}${maj ? ` · mise à jour : ${maj}` : ''}`,
+  statusAria: (l: string) => `Statut ${l}`, ok: 'Atteint', ko: 'Non atteint', exportCsv: 'Exporter CSV',
+  cols: ['Commune', 'District', 'Région', 'Aire protégée', 'Budget total (Ar)', 'Budget SE (Ar)', '% Budget SE (global)', 'Budget SE femmes et jeunes (Ar)', '% Budget SE (femmes et jeunes)'],
+  objSe: `Objectif ${OBJ_SE} %`, objFj: `Objectif F/J ≥ ${OBJ_FJ} %`,
+  rowTip: 'Cliquer pour voir la commune sur la carte', noMatch: 'Aucune commune ne correspond à ces filtres.',
+  total: 'Total', nCom: (n: number) => `${n} commune${n > 1 ? 's' : ''}`,
+  range: (a: number, b: number, n: number) => `${a}–${b} sur ${n}`, noResult: '0 résultat', rowsPer: 'lignes par page',
+  pagAria: 'Pagination', prev: 'Page précédente', next: 'Page suivante',
+  csv: ['Annee', 'Region', 'District', 'Commune', 'Aire protegee', 'Budget total (Ar)', 'Budget SE (Ar)', '% Budget SE', 'Budget SE femmes et jeunes (Ar)', '% F/J du budget SE', `Objectif ${OBJ_SE} %`, `Objectif F/J >= ${OBJ_FJ} %`],
+  source: (y: number, demo: boolean) => `Source : Données communales ${y}${demo ? ' (données fictives de démonstration)' : ''}`,
+  objectives: `Objectifs : ${OBJ_SE} % du budget en SE · ${OBJ_FJ} % du budget SE pour les femmes et les jeunes`,
+  unitB: 'Md Ar', unitM: 'M Ar',
+};
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: 'FANARAHA-MASO NY TETI-BOLA KAOMININA',
+  subtitle: 'Fizarana ny teti-bola hanatsarana ny serivisy avy amin’ny tontolo iainana',
+  year: 'Taona',
+  refresh: 'Havaozina', refreshTip: 'Averina alaina ny rakitra GeoJSON avy amin’ny mpizara',
+  import: 'Hampiditra', importTip: 'Hampiditra rakitra GeoJSON (mandritra ny session ihany)',
+  template: 'Modely', templateTip: 'Hisintona ny modely GeoJSON hofenoina',
+  reset: 'Averina',
+  demoTitle: 'Angona fanehoana.',
+  demoA: 'Apetraho ny angonao GeoJSON ao amin’ny',
+  demoB: '(modely : bokotra « Modely ») na ampiasao ny « Hampiditra ». Tsy maintsy mifanaraka amin’ny sehatra ao amin’ny sarintany ny anaran’ny faritra, distrika ary kaominina raha tsy ahitana ny endrika ny angona.',
+  importedA: 'Rakitra nampidirina :',
+  importedB: '(mandra-pamaharana ny pejy). Tsindrio ny « Havaozina » hiverenana amin’ny rakitry ny mpizara.',
+  errRefresh: 'Tsy afaka havaozina : tsy hita na tsy vakiana ny rakitra.',
+  errJson: 'Tsy vakiana ny rakitra JSON.', errFile: 'Tsy vakiana ny rakitra.',
+  errInvalid: 'Tsy mety ny rakitra GeoJSON : « FeatureCollection » no andrasana.',
+  errNoRows: 'Tsy misy andalana azo ampiasaina : hamarino ny fananana Commune, Annee, Budget_Total ary Budget_SE.',
+  filters: 'Sivana', ap: 'Faritra arovana', region: 'Faritra', district: 'Distrika', commune: 'Kaominina',
+  allF: 'Rehetra', allM: 'Rehetra', noAp: 'Ivelan’ny faritra arovana',
+  indicator: 'Tondro (sarintany sy filaharana)',
+  search: 'Hitady', searchPh: 'Hitady kaominina, fokontany, distrika…',
+  ind: {
+    se: { label: 'Teti-bola SE', short: `SE ≥ ${OBJ_SE} %`, long: 'Teti-bola SE (% amin’ny teti-bola feno)', unit: 'amin’ny teti-bola feno' },
+    fj: { label: 'Vehivavy sy tanora', short: `V/T ≥ ${OBJ_FJ} %`, long: 'Vehivavy sy tanora (% amin’ny teti-bola SE)', unit: 'amin’ny teti-bola SE' },
+  },
+  insightMain: (s, n, p, y) => `Kaominina ${s} amin’ny ${n} (${p} %) no tratra ny tanjona ${OBJ_SE} % amin’ny teti-bola natokana ho an’ny serivisy avy amin’ny tontolo iainana tamin’ny ${y}.`,
+  insightPrev: (py, d) => `Raha ampitahaina amin’ny ${py} : ${d >= 0 ? '+' : ''}${d} isa amin’ny kaominina nahatratra ny tanjona. `,
+  insightWeak: (w, half) => `Kaominina ${w} no latsaky ny antsasaky ny tanjona (< ${half}) ka mila fanampiana laharam-pahamehana.`,
+  insightNone: 'Tsy misy kaominina latsaky ny antsasaky ny tanjona.',
+  kTotal: 'Teti-bola feno (voafidy)', kTotalSub: (n, y) => `Kaominina ${n} · ${y}`,
+  kSe: 'Teti-bola SE feno', kSeSub: 'Natokana ho an’ny serivisy avy amin’ny tontolo iainana',
+  kPSe: '% Teti-bola SE (ankapobeny)', kPSeSub: (p) => `Tanjona : ${OBJ_SE} % · ${p} % amin’ny tanjona`,
+  kPFj: '% Teti-bola SE (vehivavy sy tanora)', kPFjSub: `Tanjona : ≥ ${OBJ_FJ} % amin’ny teti-bola SE`,
+  kNSe: `Kaominina ≥ ${OBJ_SE} %`, kNFj: `Kaominina misy V/T ≥ ${OBJ_FJ} %`, kShare: (p) => `${p} amin’ny kaominina`,
+  vs: 'vs', deltaTitle: (l) => `Fiovana raha ampitahaina amin’ny ${l}`,
+  orderAria: 'Filaharana', worst: 'Mila hamafisina', best: 'Tsara indrindra', nAria: 'Isan’ny singa', top: 'Top',
+  rankCommunes: 'Filaharan’ny kaominina', rankRegions: 'Fampitahana araka ny faritra',
+  emptyRank: 'Tsy misy angona ho an’ity fifidianana ity.',
+  emptyRegion: 'Faritra iray ihany no voafidy : miseho ny fampitahana rehefa maro ny faritra.',
+  value: 'Sanda', objective: (o) => `Tanjona ${o} %`, tipTotal: 'Teti-bola feno', tipSe: 'Teti-bola SE',
+  evoTitle: 'Fivoarana isan-taona · fandrosoana mankany amin’ny tanjona',
+  evoSub: `100 % = tanjona tratra (SE : ${OBJ_SE} % amin’ny teti-bola · V/T : ${OBJ_FJ} % amin’ny teti-bola SE)`,
+  evoSeM: 'Teti-bola SE (M Ar)', evoSe: 'Teti-bola SE', evoFj: 'Vehivavy sy tanora',
+  evoSeLine: 'SE (% amin’ny tanjona)', evoFjLine: 'V/T (% amin’ny tanjona)', objectif: 'Tanjona',
+  evoEmpty: 'Mila angona roa taona farafahakeliny mba hampisehoana ny fivoarana.',
+  tipSeRatio: 'SE / teti-bola feno', tipFjRatio: 'V/T / teti-bola SE', ofObj: (n) => `${n} % amin’ny tanjona`,
+  mapTitle: 'Sarintany mifandray – Madagasikara',
+  mapHintOn: (l, y) => `${l} · ${y}. Tsindrio kaominina na distrika iray hifidianana azy.`,
+  mapHintOff: 'Fidio ny faritra arovana na faritra iray (na tsindrio faritra eo amin’ny sarintany) mba hampisehoana ny kaominina.',
+  plan: 'Sarintany', sat: 'Zanabolana', baseAria: 'Sary fototry ny sarintany',
+  missing: (n) => `Kaominina ${n} avy ao amin’ny angona no tsy hita eo amin’ny sarintany (ampio ny endrika ao amin’ny angona, na hamarino ny tsipelina / kaodin’ny kaominina).`,
+  mTotal: 'Teti-bola feno :', mSe: 'Teti-bola SE :', mFj: (p) => `Vehivavy sy tanora : ${p} amin’ny teti-bola SE`,
+  tableTitle: 'Tabilao antsipiriany – kaominina',
+  tableCount: (n, y, maj) => `Kaominina ${n} · ${y}${maj ? ` · nohavaozina : ${maj}` : ''}`,
+  statusAria: (l) => `Satan’ny ${l}`, ok: 'Tratra', ko: 'Tsy tratra', exportCsv: 'Alaina CSV',
+  cols: ['Kaominina', 'Distrika', 'Faritra', 'Faritra arovana', 'Teti-bola feno (Ar)', 'Teti-bola SE (Ar)', '% Teti-bola SE (ankapobeny)', 'Teti-bola SE vehivavy sy tanora (Ar)', '% Teti-bola SE (vehivavy sy tanora)'],
+  objSe: `Tanjona ${OBJ_SE} %`, objFj: `Tanjona V/T ≥ ${OBJ_FJ} %`,
+  rowTip: 'Tsindrio hijerena ny kaominina eo amin’ny sarintany', noMatch: 'Tsy misy kaominina mifanaraka amin’ireo sivana ireo.',
+  total: 'Totaliny', nCom: (n) => `Kaominina ${n}`,
+  range: (a, b, n) => `${a}–${b} amin’ny ${n}`, noResult: 'Tsy misy vokatra', rowsPer: 'andalana isaky ny pejy',
+  pagAria: 'Pejy', prev: 'Pejy teo aloha', next: 'Pejy manaraka',
+  csv: ['Taona', 'Faritra', 'Distrika', 'Kaominina', 'Faritra arovana', 'Teti-bola feno (Ar)', 'Teti-bola SE (Ar)', '% Teti-bola SE', 'Teti-bola SE vehivavy sy tanora (Ar)', '% V/T amin’ny teti-bola SE', `Tanjona ${OBJ_SE} %`, `Tanjona V/T >= ${OBJ_FJ} %`],
+  source: (y, demo) => `Loharano : Angon-drakitra kaominina ${y}${demo ? ' (angona mampiseho foana)' : ''}`,
+  objectives: `Tanjona : ${OBJ_SE} % amin’ny teti-bola ho an’ny SE · ${OBJ_FJ} % amin’ny teti-bola SE ho an’ny vehivavy sy ny tanora`,
+  unitB: 'Md Ar', unitM: 'M Ar',
+};
+
+const en: Txt = {
+  title: 'MUNICIPAL BUDGET MONITORING',
+  subtitle: 'Budget allocation to improve ecosystem services',
+  year: 'Year',
+  refresh: 'Refresh', refreshTip: 'Reload the GeoJSON file from the server',
+  import: 'Import', importTip: 'Import a GeoJSON file (for the current session)',
+  template: 'Template', templateTip: 'Download the GeoJSON template to fill in',
+  reset: 'Reset',
+  demoTitle: 'Demo data.',
+  demoA: 'Place your GeoJSON database in',
+  demoB: '(template: “Template” button) or use “Import”. Region, district and municipality names must match those of the map layers if the database does not contain the geometries.',
+  importedA: 'Imported file:',
+  importedB: '(valid until the page is refreshed). Click “Refresh” to go back to the server file.',
+  errRefresh: 'Refresh failed: file not found or unreadable.',
+  errJson: 'Unreadable JSON file.', errFile: 'Unreadable file.',
+  errInvalid: 'Invalid GeoJSON file: a “FeatureCollection” is expected.',
+  errNoRows: 'No usable rows: check the Commune, Annee, Budget_Total and Budget_SE properties.',
+  filters: 'Filters', ap: 'Protected area', region: 'Region', district: 'District', commune: 'Municipality',
+  allF: 'All', allM: 'All', noAp: 'Outside protected areas',
+  indicator: 'Indicator (map and rankings)',
+  search: 'Search', searchPh: 'Search a municipality, a fokontany, a district…',
+  ind: {
+    se: { label: 'ES budget', short: `ES ≥ ${OBJ_SE} %`, long: 'ES budget (% of total budget)', unit: 'of total budget' },
+    fj: { label: 'Women and youth', short: `W&Y ≥ ${OBJ_FJ} %`, long: 'Women and youth (% of ES budget)', unit: 'of ES budget' },
+  },
+  insightMain: (s, n, p, y) => `${s} municipalit${s > 1 ? 'ies' : 'y'} out of ${n} (${p} %) ${s > 1 ? 'meet' : 'meets'} the target of ${OBJ_SE} % of the budget devoted to ecosystem services in ${y}.`,
+  insightPrev: (py, d) => `Compared with ${py}: ${d >= 0 ? '+' : ''}${d} point(s) of municipalities reaching the target. `,
+  insightWeak: (w, half) => `${w} municipalit${w > 1 ? 'ies are' : 'y is'} below half of the target (< ${half}) and need${w > 1 ? '' : 's'} priority support.`,
+  insightNone: 'No municipality below half of the target.',
+  kTotal: 'Total budget (selection)', kTotalSub: (n, y) => `${n} municipalit${n > 1 ? 'ies' : 'y'} · ${y}`,
+  kSe: 'Total ES budget', kSeSub: 'Total allocated to ecosystem services',
+  kPSe: '% ES budget (overall)', kPSeSub: (p) => `Target: ${OBJ_SE} % · ${p} % of the goal`,
+  kPFj: '% ES budget (women and youth)', kPFjSub: `Target: ≥ ${OBJ_FJ} % of the ES budget`,
+  kNSe: `Municipalities ≥ ${OBJ_SE} %`, kNFj: `Municipalities with W&Y ≥ ${OBJ_FJ} %`, kShare: (p) => `${p} of municipalities`,
+  vs: 'vs', deltaTitle: (l) => `Change compared with ${l}`,
+  orderAria: 'Order', worst: 'To strengthen', best: 'Best', nAria: 'Number of items', top: 'Top',
+  rankCommunes: 'Municipality ranking', rankRegions: 'Comparison by region',
+  emptyRank: 'No data for this selection.',
+  emptyRegion: 'Only one region in the selection: the comparison appears when several regions are involved.',
+  value: 'Value', objective: (o) => `Target ${o} %`, tipTotal: 'Total budget', tipSe: 'ES budget',
+  evoTitle: 'Yearly trend · progress towards the target',
+  evoSub: `100 % = target reached (ES: ${OBJ_SE} % of the budget · W&Y: ${OBJ_FJ} % of the ES budget)`,
+  evoSeM: 'ES budget (M Ar)', evoSe: 'ES budget', evoFj: 'Women and youth',
+  evoSeLine: 'ES (% of the target)', evoFjLine: 'W&Y (% of the target)', objectif: 'Target',
+  evoEmpty: 'At least two years of data are needed to display the trend.',
+  tipSeRatio: 'ES / total budget', tipFjRatio: 'W&Y / ES budget', ofObj: (n) => `${n} % of the target`,
+  mapTitle: 'Interactive map – Madagascar',
+  mapHintOn: (l, y) => `${l} · ${y}. Click a municipality or a district to select it.`,
+  mapHintOff: 'Choose a protected area or a region (or click a region on the map) to display the municipalities.',
+  plan: 'Map', sat: 'Satellite', baseAria: 'Base map',
+  missing: (n) => `${n} municipalit${n > 1 ? 'ies' : 'y'} from the database could not be found on the map (add the geometry to the database, or check the spelling / code of the municipality).`,
+  mTotal: 'Total budget:', mSe: 'ES budget:', mFj: (p) => `Women and youth: ${p} of the ES budget`,
+  tableTitle: 'Detailed table – municipalities',
+  tableCount: (n, y, maj) => `${n} municipalit${n > 1 ? 'ies' : 'y'} · ${y}${maj ? ` · updated: ${maj}` : ''}`,
+  statusAria: (l) => `Status ${l}`, ok: 'Reached', ko: 'Not reached', exportCsv: 'Export CSV',
+  cols: ['Municipality', 'District', 'Region', 'Protected area', 'Total budget (Ar)', 'ES budget (Ar)', '% ES budget (overall)', 'ES budget women and youth (Ar)', '% ES budget (women and youth)'],
+  objSe: `Target ${OBJ_SE} %`, objFj: `Target W&Y ≥ ${OBJ_FJ} %`,
+  rowTip: 'Click to see the municipality on the map', noMatch: 'No municipality matches these filters.',
+  total: 'Total', nCom: (n) => `${n} municipalit${n > 1 ? 'ies' : 'y'}`,
+  range: (a, b, n) => `${a}–${b} of ${n}`, noResult: '0 results', rowsPer: 'rows per page',
+  pagAria: 'Pagination', prev: 'Previous page', next: 'Next page',
+  csv: ['Year', 'Region', 'District', 'Municipality', 'Protected area', 'Total budget (Ar)', 'ES budget (Ar)', '% ES budget', 'ES budget women and youth (Ar)', '% W&Y of ES budget', `Target ${OBJ_SE} %`, `Target W&Y >= ${OBJ_FJ} %`],
+  source: (y, demo) => `Source: Municipal data ${y}${demo ? ' (fictitious demo data)' : ''}`,
+  objectives: `Targets: ${OBJ_SE} % of the budget for ES · ${OBJ_FJ} % of the ES budget for women and young people`,
+  unitB: 'Bn Ar', unitM: 'M Ar',
+};
+
+const de: Txt = {
+  title: 'ÜBERWACHUNG DER GEMEINDEHAUSHALTE',
+  subtitle: 'Mittelzuweisung zur Verbesserung der Ökosystemleistungen',
+  year: 'Jahr',
+  refresh: 'Aktualisieren', refreshTip: 'GeoJSON-Datei vom Server neu laden',
+  import: 'Importieren', importTip: 'GeoJSON-Datei importieren (für die aktuelle Sitzung)',
+  template: 'Vorlage', templateTip: 'GeoJSON-Vorlage zum Ausfüllen herunterladen',
+  reset: 'Zurücksetzen',
+  demoTitle: 'Demodaten.',
+  demoA: 'Legen Sie Ihre GeoJSON-Datenbank in',
+  demoB: 'ab (Vorlage: Schaltfläche „Vorlage“) oder nutzen Sie „Importieren“. Die Namen von Region, Distrikt und Gemeinde müssen denen der Kartenebenen entsprechen, wenn die Datenbank keine Geometrien enthält.',
+  importedA: 'Importierte Datei:',
+  importedB: '(gültig bis zur Aktualisierung der Seite). Klicken Sie auf „Aktualisieren“, um zur Serverdatei zurückzukehren.',
+  errRefresh: 'Aktualisierung nicht möglich: Datei nicht gefunden oder nicht lesbar.',
+  errJson: 'JSON-Datei nicht lesbar.', errFile: 'Datei nicht lesbar.',
+  errInvalid: 'Ungültige GeoJSON-Datei: Eine „FeatureCollection“ wird erwartet.',
+  errNoRows: 'Keine verwertbaren Zeilen: Prüfen Sie die Eigenschaften Commune, Annee, Budget_Total und Budget_SE.',
+  filters: 'Filter', ap: 'Schutzgebiet', region: 'Region', district: 'Distrikt', commune: 'Gemeinde',
+  allF: 'Alle', allM: 'Alle', noAp: 'Außerhalb von Schutzgebieten',
+  indicator: 'Indikator (Karte und Ranglisten)',
+  search: 'Suchen', searchPh: 'Gemeinde, Fokontany, Distrikt suchen…',
+  ind: {
+    se: { label: 'ÖSL-Budget', short: `ÖSL ≥ ${OBJ_SE} %`, long: 'ÖSL-Budget (% des Gesamtbudgets)', unit: 'des Gesamtbudgets' },
+    fj: { label: 'Frauen und Jugend', short: `F/J ≥ ${OBJ_FJ} %`, long: 'Frauen und Jugend (% des ÖSL-Budgets)', unit: 'des ÖSL-Budgets' },
+  },
+  insightMain: (s, n, p, y) => `${s} von ${n} Gemeinden (${p} %) ${s > 1 ? 'erreichen' : 'erreicht'} das Ziel von ${OBJ_SE} % des Haushalts für Ökosystemleistungen im Jahr ${y}.`,
+  insightPrev: (py, d) => `Im Vergleich zu ${py}: ${d >= 0 ? '+' : ''}${d} Punkt(e) an Gemeinden, die das Ziel erreicht haben. `,
+  insightWeak: (w, half) => `${w} Gemeinde${w > 1 ? 'n liegen' : ' liegt'} unter der Hälfte des Ziels (< ${half}) und benötigt${w > 1 ? 'en' : ''} vorrangige Unterstützung.`,
+  insightNone: 'Keine Gemeinde liegt unter der Hälfte des Ziels.',
+  kTotal: 'Gesamtbudget (Auswahl)', kTotalSub: (n, y) => `${n} Gemeinde${n > 1 ? 'n' : ''} · ${y}`,
+  kSe: 'ÖSL-Budget gesamt', kSeSub: 'Insgesamt für Ökosystemleistungen bereitgestellt',
+  kPSe: '% ÖSL-Budget (gesamt)', kPSeSub: (p) => `Ziel: ${OBJ_SE} % · ${p} % des Ziels`,
+  kPFj: '% ÖSL-Budget (Frauen und Jugend)', kPFjSub: `Ziel: ≥ ${OBJ_FJ} % des ÖSL-Budgets`,
+  kNSe: `Gemeinden ≥ ${OBJ_SE} %`, kNFj: `Gemeinden mit F/J ≥ ${OBJ_FJ} %`, kShare: (p) => `${p} der Gemeinden`,
+  vs: 'ggü.', deltaTitle: (l) => `Veränderung gegenüber ${l}`,
+  orderAria: 'Reihenfolge', worst: 'Zu stärken', best: 'Beste', nAria: 'Anzahl der Einträge', top: 'Top',
+  rankCommunes: 'Rangliste der Gemeinden', rankRegions: 'Vergleich nach Region',
+  emptyRank: 'Keine Daten für diese Auswahl.',
+  emptyRegion: 'Nur eine Region in der Auswahl: Der Vergleich erscheint, wenn mehrere Regionen betroffen sind.',
+  value: 'Wert', objective: (o) => `Ziel ${o} %`, tipTotal: 'Gesamtbudget', tipSe: 'ÖSL-Budget',
+  evoTitle: 'Jährliche Entwicklung · Fortschritt zum Ziel',
+  evoSub: `100 % = Ziel erreicht (ÖSL: ${OBJ_SE} % des Budgets · F/J: ${OBJ_FJ} % des ÖSL-Budgets)`,
+  evoSeM: 'ÖSL-Budget (Mio. Ar)', evoSe: 'ÖSL-Budget', evoFj: 'Frauen und Jugend',
+  evoSeLine: 'ÖSL (% des Ziels)', evoFjLine: 'F/J (% des Ziels)', objectif: 'Ziel',
+  evoEmpty: 'Für die Darstellung der Entwicklung sind mindestens zwei Jahre Daten erforderlich.',
+  tipSeRatio: 'ÖSL / Gesamtbudget', tipFjRatio: 'F/J / ÖSL-Budget', ofObj: (n) => `${n} % des Ziels`,
+  mapTitle: 'Interaktive Karte – Madagaskar',
+  mapHintOn: (l, y) => `${l} · ${y}. Klicken Sie auf eine Gemeinde oder einen Distrikt, um sie bzw. ihn auszuwählen.`,
+  mapHintOff: 'Wählen Sie ein Schutzgebiet oder eine Region (oder klicken Sie auf eine Region der Karte), um die Gemeinden anzuzeigen.',
+  plan: 'Karte', sat: 'Satellit', baseAria: 'Hintergrundkarte',
+  missing: (n) => `${n} Gemeinde${n > 1 ? 'n' : ''} aus der Datenbank ${n > 1 ? 'wurden' : 'wurde'} auf der Karte nicht gefunden (Geometrie in der Datenbank ergänzen oder Schreibweise / Code der Gemeinde prüfen).`,
+  mTotal: 'Gesamtbudget:', mSe: 'ÖSL-Budget:', mFj: (p) => `Frauen und Jugend: ${p} des ÖSL-Budgets`,
+  tableTitle: 'Detailtabelle – Gemeinden',
+  tableCount: (n, y, maj) => `${n} Gemeinde${n > 1 ? 'n' : ''} · ${y}${maj ? ` · aktualisiert: ${maj}` : ''}`,
+  statusAria: (l) => `Status ${l}`, ok: 'Erreicht', ko: 'Nicht erreicht', exportCsv: 'CSV exportieren',
+  cols: ['Gemeinde', 'Distrikt', 'Region', 'Schutzgebiet', 'Gesamtbudget (Ar)', 'ÖSL-Budget (Ar)', '% ÖSL-Budget (gesamt)', 'ÖSL-Budget Frauen und Jugend (Ar)', '% ÖSL-Budget (Frauen und Jugend)'],
+  objSe: `Ziel ${OBJ_SE} %`, objFj: `Ziel F/J ≥ ${OBJ_FJ} %`,
+  rowTip: 'Klicken, um die Gemeinde auf der Karte zu sehen', noMatch: 'Keine Gemeinde entspricht diesen Filtern.',
+  total: 'Gesamt', nCom: (n) => `${n} Gemeinde${n > 1 ? 'n' : ''}`,
+  range: (a, b, n) => `${a}–${b} von ${n}`, noResult: '0 Ergebnisse', rowsPer: 'Zeilen pro Seite',
+  pagAria: 'Seitennavigation', prev: 'Vorherige Seite', next: 'Nächste Seite',
+  csv: ['Jahr', 'Region', 'Distrikt', 'Gemeinde', 'Schutzgebiet', 'Gesamtbudget (Ar)', 'ÖSL-Budget (Ar)', '% ÖSL-Budget', 'ÖSL-Budget Frauen und Jugend (Ar)', '% F/J am ÖSL-Budget', `Ziel ${OBJ_SE} %`, `Ziel F/J >= ${OBJ_FJ} %`],
+  source: (y, demo) => `Quelle: Gemeindedaten ${y}${demo ? ' (fiktive Demodaten)' : ''}`,
+  objectives: `Ziele: ${OBJ_SE} % des Haushalts für ÖSL · ${OBJ_FJ} % des ÖSL-Budgets für Frauen und Jugendliche`,
+  unitB: 'Mrd. Ar', unitM: 'Mio. Ar',
+};
+
+const TXT: Record<string, Txt> = { fr, mg, en, de };
+const LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-GB', de: 'de-DE', mg: 'fr-FR' };
+// Langue courante (mise à jour à chaque rendu) : utilisée par les fonctions de formatage et les petits composants
+let T: Txt = fr;
+let LOC = 'fr-FR';
 
 const MADAGASCAR: L.LatLngBoundsExpression = [[-26, 42.3], [-11.5, 50.9]];
 const FONDS: Record<string, { url: string; attr: string }> = {
@@ -45,12 +322,12 @@ const FONDS: Record<string, { url: string; attr: string }> = {
 type IndicId = 'se' | 'fj';
 const INDIC: Record<IndicId, any> = {
   se: {
-    label: 'Budget SE', short: `SE ≥ ${OBJ_SE} %`, long: 'Budget SE (% du budget total)', obj: OBJ_SE, unit: 'du budget total',
+    get label() { return T.ind.se.label; }, get short() { return T.ind.se.short; }, get long() { return T.ind.se.long; }, get unit() { return T.ind.se.unit; }, obj: OBJ_SE,
     scale: [[5, '#15803d'], [2.5, '#84cc16'], [1, '#f59e0b'], [0, '#dc2626']] as [number, string][],
     val: (a: any) => a.pSe, ok: (a: any) => a.okSe,
   },
   fj: {
-    label: 'Femmes et jeunes', short: `F/J ≥ ${OBJ_FJ} %`, long: 'Femmes et jeunes (% du budget SE)', obj: OBJ_FJ, unit: 'du budget SE',
+    get label() { return T.ind.fj.label; }, get short() { return T.ind.fj.short; }, get long() { return T.ind.fj.long; }, get unit() { return T.ind.fj.unit; }, obj: OBJ_FJ,
     scale: [[25, '#15803d'], [15, '#84cc16'], [5, '#f59e0b'], [0, '#dc2626']] as [number, string][],
     val: (a: any) => a.pFj, ok: (a: any) => a.okFj,
   },
@@ -61,11 +338,11 @@ const INDIC: Record<IndicId, any> = {
    ===================================================================== */
 const norm = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as any)[c]);
-const fmtN = (v: number) => Math.round(v).toLocaleString('fr-FR');
-const fmtP = (v: number, d = 1) => `${v.toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d })} %`;
+const fmtN = (v: number) => Math.round(v).toLocaleString(LOC);
+const fmtP = (v: number, d = 1) => `${v.toLocaleString(LOC, { minimumFractionDigits: d, maximumFractionDigits: d })} %`;
 const fmtAr = (v: number) =>
-  v >= 1e9 ? `${(v / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} Md Ar`
-    : v >= 1e6 ? `${(v / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 2 })} M Ar`
+  v >= 1e9 ? `${(v / 1e9).toLocaleString(LOC, { maximumFractionDigits: 2 })} ${T.unitB}`
+    : v >= 1e6 ? `${(v / 1e6).toLocaleString(LOC, { maximumFractionDigits: 2 })} ${T.unitM}`
     : `${fmtN(v)} Ar`;
 const uniq = (a: string[]) => Array.from(new Set(a.filter(Boolean))).sort((x, y) => x.localeCompare(y, 'fr'));
 const colorFor = (v: number, scale: [number, string][]) => (scale.find(([m]) => v >= m) || scale[scale.length - 1])[1];
@@ -135,7 +412,7 @@ const rowKey = (r: { code?: string; region: string; district: string; commune: s
 
 function rowsFromGeo(json: any): { rows: Row[]; geoms: Map<string, any> } {
   const feats = json && Array.isArray(json.features) ? json.features : null;
-  if (!feats) throw new Error('Fichier GeoJSON invalide : une « FeatureCollection » est attendue.');
+  if (!feats) throw new Error('E_INVALID');
   const rows: Row[] = [];
   const geoms = new Map<string, any>();
   feats.forEach((f: any) => {
@@ -153,7 +430,7 @@ function rowsFromGeo(json: any): { rows: Row[]; geoms: Map<string, any> } {
     });
     if (f.geometry) geoms.set(rowKey(head), f.geometry);
   });
-  if (!rows.length) throw new Error('Aucune ligne exploitable : vérifiez les propriétés Commune, Annee, Budget_Total et Budget_SE.');
+  if (!rows.length) throw new Error('E_NOROWS');
   return { rows, geoms };
 }
 
@@ -421,9 +698,9 @@ const Delta = ({ v, unit, label }: { v: number | null; unit: '%' | 'pts' | ''; l
   const color = flat ? '#64748b' : up ? '#15803d' : '#b91c1c';
   const Icon = up ? TrendingUp : TrendingDown;
   return (
-    <span className="bc-delta" style={{ color }} title={`Variation par rapport à ${label}`}>
+    <span className="bc-delta" style={{ color }} title={T.deltaTitle(label)}>
       {!flat && <Icon size={13} strokeWidth={2.6} />}
-      {flat ? '=' : `${up ? '+' : ''}${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}${unit ? ' ' + unit : ''}`} vs {label}
+      {flat ? '=' : `${up ? '+' : ''}${v.toLocaleString(LOC, { maximumFractionDigits: 1 })}${unit ? ' ' + unit : ''}`} {T.vs} {label}
     </span>
   );
 };
@@ -447,9 +724,9 @@ const RankTip = ({ active, payload, unit }: any) => {
   return (
     <div className="bc-tip">
       <b>{d.name}</b>
-      <div><span>Valeur</span><strong>{fmtP(d.value)} {unit}</strong></div>
-      <div><span>Budget total</span><strong>{fmtAr(d.total)}</strong></div>
-      <div><span>Budget SE</span><strong>{fmtAr(d.se)}</strong></div>
+      <div><span>{T.value}</span><strong>{fmtP(d.value)} {unit}</strong></div>
+      <div><span>{T.tipTotal}</span><strong>{fmtAr(d.total)}</strong></div>
+      <div><span>{T.tipSe}</span><strong>{fmtAr(d.se)}</strong></div>
     </div>
   );
 };
@@ -475,10 +752,10 @@ const RankBars = ({ data, obj, unit, scale, avail = 0, width = 0 }: any) => {
                  tickFormatter={(v) => (String(v).length > cut ? `${String(v).slice(0, cut - 1)}…` : v)} interval={0} />
           <Tooltip content={<RankTip unit={unit} />} cursor={{ fill: 'rgba(22,101,52,.05)' }} />
           <ReferenceLine x={obj} stroke="#dc2626" strokeDasharray="4 3" strokeWidth={1.5}
-                         label={{ value: `Objectif ${obj} %`, position: 'top', fill: '#dc2626', fontSize: 9.5, fontWeight: 700 }} />
+                         label={{ value: T.objective(obj), position: 'top', fill: '#dc2626', fontSize: 9.5, fontWeight: 700 }} />
           <Bar dataKey="value" radius={[0, 7, 7, 0]} barSize={bar} background={{ fill: '#f1f5f9', radius: [0, 7, 7, 0] } as any}>
             {data.map((d: any, i: number) => { const c = colorOf(d); return <Cell key={i} fill={c} fillOpacity={0.85} stroke="none" strokeWidth={0} />; })}
-            <LabelList dataKey="value" position="right" formatter={(v: number) => `${v.toLocaleString('fr-FR', { maximumFractionDigits: 1 })}%`} style={{ fontSize: fs - 0.5, fontWeight: 700, fill: '#334155' }} />
+            <LabelList dataKey="value" position="right" formatter={(v: number) => `${v.toLocaleString(LOC, { maximumFractionDigits: 1 })}%`} style={{ fontSize: fs - 0.5, fontWeight: 700, fill: '#334155' }} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -510,9 +787,9 @@ const EvoTip = ({ active, payload, label }: any) => {
   return (
     <div className="bc-tip">
       <b>{label}</b>
-      <div><span>Budget SE</span><strong>{d.se.toLocaleString('fr-FR')} M Ar</strong></div>
-      <div><span>SE / budget total</span><strong>{fmtP(d.pSe)} · {fmtN(d.aSe)} % de l’objectif</strong></div>
-      <div><span>F/J / budget SE</span><strong>{fmtP(d.pFj)} · {fmtN(d.aFj)} % de l’objectif</strong></div>
+      <div><span>{T.tipSe}</span><strong>{d.se.toLocaleString(LOC)} {T.unitM}</strong></div>
+      <div><span>{T.tipSeRatio}</span><strong>{fmtP(d.pSe)} · {T.ofObj(fmtN(d.aSe))}</strong></div>
+      <div><span>{T.tipFjRatio}</span><strong>{fmtP(d.pFj)} · {T.ofObj(fmtN(d.aFj))}</strong></div>
     </div>
   );
 };
@@ -629,6 +906,13 @@ type SortKey = 'commune' | 'district' | 'region' | 'ap' | 'total' | 'se' | 'pSe'
 type DS = { rows: Row[]; geoms: Map<string, any>; mode: 'loading' | 'file' | 'demo' | 'import'; label: string; at: Date | null };
 
 export default function BudgetCommunaux() {
+  /* ---------- Langue (contexte de l'application) ---------- */
+  const langCtx: any = useLanguage();
+  const lang: string = langCtx?.lang ?? langCtx?.language ?? langCtx?.locale ?? 'fr';
+  const t: Txt = TXT[lang] || fr;
+  T = t; LOC = LOCALES[lang] || 'fr-FR';
+  const errText = (c: string) => (({ E_REFRESH: t.errRefresh, E_JSON: t.errJson, E_FILE: t.errFile, E_INVALID: t.errInvalid, E_NOROWS: t.errNoRows } as Record<string, string>)[c] || c);
+
   /* ---------- Base de données (GeoJSON) ---------- */
   const [ds, setDs] = useState<DS>({ rows: [], geoms: new Map(), mode: 'loading', label: '', at: null });
   const [loadErr, setLoadErr] = useState('');
@@ -650,7 +934,7 @@ export default function BudgetCommunaux() {
       .catch((e: any) => {
         const absent = e?.message === 'introuvable' || e instanceof TypeError || e instanceof SyntaxError;
         setDs((s) => (s.mode === 'file' || s.mode === 'import' ? s : { rows: demoRows(), geoms: new Map(), mode: 'demo', label: '', at: null }));
-        if (!silent || !absent) setLoadErr(absent ? (modeRef.current === 'file' ? 'Actualisation impossible : fichier introuvable ou illisible.' : '') : e.message);
+        if (!silent || !absent) setLoadErr(absent ? (modeRef.current === 'file' ? 'E_REFRESH' : '') : e.message);
       })
       .finally(() => setBusy(false));
   }, []);
@@ -672,7 +956,7 @@ export default function BudgetCommunaux() {
         const { rows, geoms } = rowsFromGeo(JSON.parse(txt));
         setDs({ rows, geoms, mode: 'import', label: f.name, at: new Date() });
         setLoadErr('');
-      } catch (err: any) { setLoadErr(err instanceof SyntaxError ? 'Fichier JSON illisible.' : err.message || 'Fichier illisible.'); }
+      } catch (err: any) { setLoadErr(err instanceof SyntaxError ? 'E_JSON' : err.message || 'E_FILE'); }
     });
   };
   const rows = ds.rows;
@@ -832,7 +1116,7 @@ export default function BudgetCommunaux() {
 
   const tipCommune = (z: any) => {
     const a = z.agg as CAgg;
-    return `<b>${esc(a.commune)}</b><br/>${esc(a.district)} – ${esc(a.region)}<br/>Budget total : ${fmtAr(a.total)}<br/>Budget SE : ${fmtAr(a.se)} (${fmtP(a.pSe)})<br/>Femmes et jeunes : ${fmtP(a.pFj)} du budget SE`;
+    return `<b>${esc(a.commune)}</b><br/>${esc(a.district)} – ${esc(a.region)}<br/>${t.mTotal} ${fmtAr(a.total)}<br/>${t.mSe} ${fmtAr(a.se)} (${fmtP(a.pSe)})<br/>${t.mFj(fmtP(a.pFj))}`;
   };
 
   /* ---------- Tableau ---------- */
@@ -863,8 +1147,8 @@ export default function BudgetCommunaux() {
   );
 
   const exportCSV = () => {
-    const lines = [csvLine(['Annee', 'Region', 'District', 'Commune', 'Aire protegee', 'Budget total (Ar)', 'Budget SE (Ar)', '% Budget SE', 'Budget SE femmes et jeunes (Ar)', '% F/J du budget SE', `Objectif ${OBJ_SE} %`, `Objectif F/J >= ${OBJ_FJ} %`])];
-    tableRows.forEach((c) => lines.push(csvLine([yr, c.region, c.district, c.commune, c.ap, Math.round(c.total), Math.round(c.se), c.pSe.toFixed(2).replace('.', ','), Math.round(c.fj), c.pFj.toFixed(2).replace('.', ','), c.okSe ? 'Atteint' : 'Non atteint', c.okFj ? 'Atteint' : 'Non atteint'])));
+    const lines = [csvLine(t.csv)];
+    tableRows.forEach((c) => lines.push(csvLine([yr, c.region, c.district, c.commune, c.ap, Math.round(c.total), Math.round(c.se), c.pSe.toFixed(2).replace('.', ','), Math.round(c.fj), c.pFj.toFixed(2).replace('.', ','), c.okSe ? t.ok : t.ko, c.okFj ? t.ok : t.ko])));
     download(`budgets_communaux_${yr}.csv`, lines.join('\n'));
   };
 
@@ -901,30 +1185,30 @@ export default function BudgetCommunaux() {
             <Leaf className="lf" size={22} color="#16a34a" />
           </div>
           <div>
-            <h1 className="bc-h1">SUIVI DES BUDGETS COMMUNAUX</h1>
-            <p className="bc-sub">Allocation des budgets pour l’amélioration des services écosystémiques</p>
+            <h1 className="bc-h1">{t.title}</h1>
+            <p className="bc-sub">{t.subtitle}</p>
           </div>
         </div>
 
         <div className="bc-actions">
           <div className="bc-year">
             <Calendar size={15} />
-            <select aria-label="Année" value={yr} onChange={(e) => setYear(Number(e.target.value))}>
+            <select aria-label={t.year} value={yr} onChange={(e) => setYear(Number(e.target.value))}>
               {years.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
-          <button className="bc-btn" onClick={() => load(false)} disabled={busy} title="Recharger le fichier GeoJSON depuis le serveur">
-            <RefreshCw size={14} className={busy ? 'bc-spin' : ''} /><span className="t">Actualiser</span>
+          <button className="bc-btn" onClick={() => load(false)} disabled={busy} title={t.refreshTip}>
+            <RefreshCw size={14} className={busy ? 'bc-spin' : ''} /><span className="t">{t.refresh}</span>
           </button>
-          <button className="bc-btn" onClick={() => fileRef.current?.click()} title="Importer un fichier GeoJSON (le temps de la session)">
-            <Upload size={14} /><span className="t">Importer</span>
+          <button className="bc-btn" onClick={() => fileRef.current?.click()} title={t.importTip}>
+            <Upload size={14} /><span className="t">{t.import}</span>
           </button>
           <input ref={fileRef} type="file" accept=".geojson,.json,application/geo+json,application/json" className="bc-hidden" onChange={onImport} />
-          <button className="bc-btn" onClick={() => download('budgets_communaux_modele.geojson', TEMPLATE, 'application/geo+json', false)} title="Télécharger le modèle GeoJSON à remplir">
-            <FileJson size={14} /><span className="t">Modèle</span>
+          <button className="bc-btn" onClick={() => download('budgets_communaux_modele.geojson', TEMPLATE, 'application/geo+json', false)} title={t.templateTip}>
+            <FileJson size={14} /><span className="t">{t.template}</span>
           </button>
           <button className="bc-btn pri" onClick={reset} disabled={!filtered && !q}>
-            <RotateCcw size={13} /><span className="t">Réinitialiser</span>
+            <RotateCcw size={13} /><span className="t">{t.reset}</span>
           </button>
         </div>
       </header>
@@ -934,45 +1218,44 @@ export default function BudgetCommunaux() {
         <div className="bc-note warn" role="status">
           <AlertTriangle size={17} />
           <div>
-            <strong>Données de démonstration.</strong> Placez votre base GeoJSON dans <code>public{DATA.budgets}</code> (modèle : bouton « Modèle »)
-            ou utilisez « Importer ». Les noms de région, district et commune doivent correspondre à ceux des couches cartographiques si la base ne contient pas les géométries.
+            <strong>{t.demoTitle}</strong> {t.demoA} <code>public{DATA.budgets}</code> {t.demoB}
           </div>
         </div>
       )}
       {ds.mode === 'import' && (
-        <div className="bc-note ok" role="status"><CheckCircle2 size={17} /><div>Fichier importé : <strong>{ds.label}</strong> (valable jusqu’à l’actualisation de la page). Cliquez sur « Actualiser » pour revenir au fichier du serveur.</div></div>
+        <div className="bc-note ok" role="status"><CheckCircle2 size={17} /><div>{t.importedA} <strong>{ds.label}</strong> {t.importedB}</div></div>
       )}
-      {loadErr && <div className="bc-note err" role="alert"><AlertTriangle size={17} /><div>{loadErr}</div></div>}
+      {loadErr && <div className="bc-note err" role="alert"><AlertTriangle size={17} /><div>{errText(loadErr)}</div></div>}
 
       {/* ============ FILTRES + INDICATEUR (même ligne) ============ */}
-      <section className="bc-filters" aria-label="Filtres">
+      <section className="bc-filters" aria-label={t.filters}>
         <div className="bc-f">
-          <label htmlFor="bc-ap"><Mountain size={13} color="#1e3a8a" />Aire protégée</label>
+          <label htmlFor="bc-ap"><Mountain size={13} color="#1e3a8a" />{t.ap}</label>
           <select id="bc-ap" value={ap} onChange={(e) => onAp(e.target.value)}>
-            <option value="">Toutes</option>{optAps.map((v) => <option key={v}>{v}</option>)}
-            {hasNoAp && <option value={NONE}>Hors aire protégée</option>}
+            <option value="">{t.allF}</option>{optAps.map((v) => <option key={v}>{v}</option>)}
+            {hasNoAp && <option value={NONE}>{t.noAp}</option>}
           </select>
         </div>
         <div className="bc-f">
-          <label htmlFor="bc-reg"><MapPin size={13} color="#1e3a8a" />Région</label>
+          <label htmlFor="bc-reg"><MapPin size={13} color="#1e3a8a" />{t.region}</label>
           <select id="bc-reg" value={region} onChange={(e) => onRegion(e.target.value)}>
-            <option value="">Toutes</option>{optRegions.map((v) => <option key={v}>{v}</option>)}
+            <option value="">{t.allF}</option>{optRegions.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f">
-          <label htmlFor="bc-dis"><Building2 size={13} color="#1e3a8a" />District</label>
+          <label htmlFor="bc-dis"><Building2 size={13} color="#1e3a8a" />{t.district}</label>
           <select id="bc-dis" value={district} onChange={(e) => onDistrict(e.target.value)} disabled={!optDistricts.length}>
-            <option value="">Tous</option>{optDistricts.map((v) => <option key={v}>{v}</option>)}
+            <option value="">{t.allM}</option>{optDistricts.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f">
-          <label htmlFor="bc-com"><Users size={13} color="#1e3a8a" />Commune</label>
+          <label htmlFor="bc-com"><Users size={13} color="#1e3a8a" />{t.commune}</label>
           <select id="bc-com" value={commune} onChange={(e) => setCommune(e.target.value)} disabled={!optCommunes.length}>
-            <option value="">Toutes</option>{optCommunes.map((v) => <option key={v}>{v}</option>)}
+            <option value="">{t.allF}</option>{optCommunes.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f ind">
-          <label id="bc-ind-l"><SlidersHorizontal size={13} color="#1e3a8a" />Indicateur (carte et classements)</label>
+          <label id="bc-ind-l"><SlidersHorizontal size={13} color="#1e3a8a" />{t.indicator}</label>
           <div className="bc-seg" role="group" aria-labelledby="bc-ind-l">
             {(Object.keys(INDIC) as IndicId[]).map((k) => (
               <button key={k} className={indic === k ? 'on' : ''} onClick={() => setIndic(k)} aria-pressed={indic === k} title={INDIC[k].long}>{INDIC[k].short}</button>
@@ -981,8 +1264,8 @@ export default function BudgetCommunaux() {
         </div>
         <div className="bc-searchbox">
           <Search size={15} />
-          <input className="bc-search" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher"
-                 placeholder="Rechercher une commune, un fokontany, un district…" />
+          <input className="bc-search" value={q} onChange={(e) => setQ(e.target.value)} aria-label={t.search}
+                 placeholder={t.searchPh} />
         </div>
       </section>
 
@@ -993,11 +1276,11 @@ export default function BudgetCommunaux() {
           <Info size={18} />
           <div>
             <strong>
-              {tot.nSe} commune{tot.nSe > 1 ? 's' : ''} sur {tot.n} ({shareSe} %) atteigne{tot.nSe > 1 ? 'nt' : ''} l’objectif de {OBJ_SE} % du budget consacré aux services écosystémiques en {yr}.
+              {t.insightMain(tot.nSe, tot.n, shareSe, yr)}
             </strong>
             <span>
-              {prevShare != null && `Par rapport à ${yr - 1} : ${shareSe - prevShare >= 0 ? '+' : ''}${shareSe - prevShare} point(s) de communes ayant atteint l’objectif. `}
-              {weak > 0 ? `${weak} commune${weak > 1 ? 's sont' : ' est'} sous la moitié de l’objectif (< ${fmtP(OBJ_SE / 2)}) et nécessite${weak > 1 ? 'nt' : ''} un accompagnement prioritaire.` : 'Aucune commune sous la moitié de l’objectif.'}
+              {prevShare != null && t.insightPrev(yr - 1, shareSe - prevShare)}
+              {weak > 0 ? t.insightWeak(weak, fmtP(OBJ_SE / 2)) : t.insightNone}
             </span>
           </div>
         </div>
@@ -1005,17 +1288,17 @@ export default function BudgetCommunaux() {
 
       {/* ============ INDICATEURS CLÉS ============ */}
       <section className="bc-kpis" aria-label="Indicateurs clés">
-        <KPI title="Budget total (sélection)" value={fmtAr(tot.total)} sub={`${tot.n} commune${tot.n > 1 ? 's' : ''} · ${yr}`} color="#2e7d32" icon={Coins}
+        <KPI title={t.kTotal} value={fmtAr(tot.total)} sub={t.kTotalSub(tot.n, yr)} color="#2e7d32" icon={Coins}
              delta={hasPrev ? <Delta v={pctVar(tot.total, prev.total)} unit="%" label={dCmp} /> : null} />
-        <KPI title="Budget SE total" value={fmtAr(tot.se)} sub="Total alloué aux services écosystémiques" color="#43a047" icon={Leaf}
+        <KPI title={t.kSe} value={fmtAr(tot.se)} sub={t.kSeSub} color="#43a047" icon={Leaf}
              delta={hasPrev ? <Delta v={pctVar(tot.se, prev.se)} unit="%" label={dCmp} /> : null} />
-        <KPI title="% Budget SE (global)" value={fmtP(tot.pSe, 2)} sub={`Objectif : ${OBJ_SE} % · ${fmtN(progSe)} % de la cible`} color="#1565c0" icon={PieIcon} progress={progSe}
+        <KPI title={t.kPSe} value={fmtP(tot.pSe, 2)} sub={t.kPSeSub(fmtN(progSe))} color="#1565c0" icon={PieIcon} progress={progSe}
              delta={hasPrev ? <Delta v={tot.pSe - prev.pSe} unit="pts" label={dCmp} /> : null} />
-        <KPI title="% Budget SE (femmes et jeunes)" value={fmtP(tot.pFj, 2)} sub={`Objectif : ≥ ${OBJ_FJ} % du budget SE`} color="#7b1fa2" icon={Users} progress={progFj}
+        <KPI title={t.kPFj} value={fmtP(tot.pFj, 2)} sub={t.kPFjSub} color="#7b1fa2" icon={Users} progress={progFj}
              delta={hasPrev ? <Delta v={tot.pFj - prev.pFj} unit="pts" label={dCmp} /> : null} />
-        <KPI title={`Communes ≥ ${OBJ_SE} %`} value={`${tot.nSe} / ${tot.n}`} sub={`${tot.n ? fmtP((tot.nSe / tot.n) * 100) : '—'} des communes`} color="#f9a825" icon={Building2}
+        <KPI title={t.kNSe} value={`${tot.nSe} / ${tot.n}`} sub={t.kShare(tot.n ? fmtP((tot.nSe / tot.n) * 100) : '—')} color="#f9a825" icon={Building2}
              progress={tot.n ? (tot.nSe / tot.n) * 100 : 0} delta={hasPrev ? <Delta v={tot.nSe - prev.nSe} unit="" label={dCmp} /> : null} />
-        <KPI title={`Communes avec F/J ≥ ${OBJ_FJ} %`} value={`${tot.nFj} / ${tot.n}`} sub={`${tot.n ? fmtP((tot.nFj / tot.n) * 100) : '—'} des communes`} color="#388e3c" icon={CheckCircle2}
+        <KPI title={t.kNFj} value={`${tot.nFj} / ${tot.n}`} sub={t.kShare(tot.n ? fmtP((tot.nFj / tot.n) * 100) : '—')} color="#388e3c" icon={CheckCircle2}
              progress={tot.n ? (tot.nFj / tot.n) * 100 : 0} delta={hasPrev ? <Delta v={tot.nFj - prev.nFj} unit="" label={dCmp} /> : null} />
       </section>
 
@@ -1026,12 +1309,12 @@ export default function BudgetCommunaux() {
             <div className="bc-rtool">
               <p className="bc-cs">{I.long} · {yr}</p>
               <div className="bc-rtool-ctl">
-                <div className="bc-seg" role="group" aria-label="Ordre">
-                  <button className={rankMode === 'worst' ? 'on' : ''} onClick={() => setRankMode('worst')}>À renforcer</button>
-                  <button className={rankMode === 'best' ? 'on' : ''} onClick={() => setRankMode('best')}>Meilleures</button>
+                <div className="bc-seg" role="group" aria-label={t.orderAria}>
+                  <button className={rankMode === 'worst' ? 'on' : ''} onClick={() => setRankMode('worst')}>{t.worst}</button>
+                  <button className={rankMode === 'best' ? 'on' : ''} onClick={() => setRankMode('best')}>{t.best}</button>
                 </div>
-                <div className="bc-seg" role="group" aria-label="Nombre d’éléments">
-                  {[10, 20].map((n) => <button key={n} className={rankN === n ? 'on' : ''} onClick={() => setRankN(n)}>Top {n}</button>)}
+                <div className="bc-seg" role="group" aria-label={t.nAria}>
+                  {[10, 20].map((n) => <button key={n} className={rankN === n ? 'on' : ''} onClick={() => setRankN(n)}>{t.top} {n}</button>)}
                 </div>
               </div>
             </div>
@@ -1039,23 +1322,23 @@ export default function BudgetCommunaux() {
             <div className="bc-pair">
               <section ref={rankRef} className={`bc-card${rkSz.h && rkSz.h < 300 ? ' compact' : ''}`}>
                 <div className="bc-head2">
-                  <h2 className="bc-ct">Classement des communes</h2>
+                  <h2 className="bc-ct">{t.rankCommunes}</h2>
                 </div>
                 <div className="bc-scroll" ref={rankScrollRef}>
                   {ranking.length
                     ? <RankBars data={ranking} obj={I.obj} unit={I.unit} scale={I.scale} avail={rsSz.h} width={rsSz.w} />
-                    : <div className="bc-empty">Aucune donnée pour cette sélection.</div>}
+                    : <div className="bc-empty">{t.emptyRank}</div>}
                 </div>
               </section>
 
               <section ref={regRef} className={`bc-card${rgSz.h && rgSz.h < 300 ? ' compact' : ''}`}>
                 <div className="bc-head2">
-                  <h2 className="bc-ct">Comparaison par région</h2>
+                  <h2 className="bc-ct">{t.rankRegions}</h2>
                 </div>
                 <div className="bc-scroll" ref={regScrollRef}>
                   {regionRank.length > 1
                     ? <RankBars data={regionRank} obj={I.obj} unit={I.unit} scale={I.scale} avail={rrSz.h} width={rrSz.w} />
-                    : <div className="bc-empty">Une seule région dans la sélection : la comparaison apparaît lorsque plusieurs régions sont concernées.</div>}
+                    : <div className="bc-empty">{t.emptyRegion}</div>}
                 </div>
               </section>
             </div>
@@ -1064,13 +1347,13 @@ export default function BudgetCommunaux() {
           <section ref={evoRef} className={`bc-card${evSz.h && evSz.h < 300 ? ' compact' : ''}`}>
             <div className="bc-head2" style={{ marginBottom: 2 }}>
               <div>
-                <h2 className="bc-ct">Évolution annuelle · progression vers l’objectif</h2>
-                <p className="bc-cs" style={{ margin: 0 }}>100 % = objectif atteint (SE : {OBJ_SE} % du budget · F/J : {OBJ_FJ} % du budget SE)</p>
+                <h2 className="bc-ct">{t.evoTitle}</h2>
+                <p className="bc-cs" style={{ margin: 0 }}>{t.evoSub}</p>
               </div>
               <div className="bc-lg" aria-hidden="true">
-                <span><i style={{ background: 'rgba(21,128,61,.18)', border: '1.2px solid #15803d' }} />Budget SE (M Ar)</span>
-                <span><b style={{ background: '#15803d' }} />Budget SE</span>
-                <span><b style={{ background: '#7b1fa2' }} />Femmes et jeunes</span>
+                <span><i style={{ background: 'rgba(21,128,61,.18)', border: '1.2px solid #15803d' }} />{t.evoSeM}</span>
+                <span><b style={{ background: '#15803d' }} />{t.evoSe}</span>
+                <span><b style={{ background: '#7b1fa2' }} />{t.evoFj}</span>
               </div>
             </div>
             {trend.length > 1 ? (
@@ -1085,24 +1368,24 @@ export default function BudgetCommunaux() {
                       <Tooltip content={<EvoTip />} cursor={{ fill: 'rgba(22,101,52,.05)' }} />
                       <ReferenceArea yAxisId="a" y1={100} y2={evoMax} fill="#16a34a" fillOpacity={0.07} />
                       <ReferenceLine yAxisId="a" y={100} stroke="#15803d" strokeWidth={1.5} strokeDasharray="5 4"
-                                     label={{ value: 'Objectif', position: 'insideTopLeft', fill: '#15803d', fontSize: 10, fontWeight: 700 }} />
-                      <Bar yAxisId="b" dataKey="se" name="Budget SE (M Ar)" fill="#16a34a" fillOpacity={0.14} stroke="#15803d" strokeWidth={1.2} radius={[6, 6, 0, 0]} barSize={26} />
-                      <Line yAxisId="a" type="monotone" dataKey="aSe" name="SE (% de l’objectif)" stroke="#15803d" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
-                      <Line yAxisId="a" type="monotone" dataKey="aFj" name="F/J (% de l’objectif)" stroke="#7b1fa2" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
+                                     label={{ value: t.objectif, position: 'insideTopLeft', fill: '#15803d', fontSize: 10, fontWeight: 700 }} />
+                      <Bar yAxisId="b" dataKey="se" name={t.evoSeM} fill="#16a34a" fillOpacity={0.14} stroke="#15803d" strokeWidth={1.2} radius={[6, 6, 0, 0]} barSize={26} />
+                      <Line yAxisId="a" type="monotone" dataKey="aSe" name={t.evoSeLine} stroke="#15803d" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
+                      <Line yAxisId="a" type="monotone" dataKey="aFj" name={t.evoFjLine} stroke="#7b1fa2" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
               </div>
-            ) : <div className="bc-empty">Au moins deux années de données sont nécessaires pour afficher l’évolution.</div>}
+            ) : <div className="bc-empty">{t.evoEmpty}</div>}
           </section>
         </div>
 
         <section ref={mapCardRef} className={`bc-card bc-mapcard${mpSz.h && mpSz.h < 380 ? ' compact' : ''}`}>
-          <h2 className="bc-ct">Carte interactive – Madagascar</h2>
+          <h2 className="bc-ct">{t.mapTitle}</h2>
           <p className="bc-cs">
             {showCommunes
-              ? `${I.long} · ${yr}. Cliquez sur une commune ou un district pour le sélectionner.`
-              : 'Choisissez une aire protégée ou une région (ou cliquez sur une région de la carte) pour afficher les communes.'}
+              ? t.mapHintOn(I.long, yr)
+              : t.mapHintOff}
           </p>
           <div className="bc-mapwrap">
             <MapContainer bounds={MADAGASCAR} zoomControl={false} style={{ height: '100%', width: '100%' }} preferCanvas>
@@ -1129,23 +1412,23 @@ export default function BudgetCommunaux() {
               )}
               <CommuneLabels items={mapShown} selected={commune} valKey={`${indic}${yr}`} valFn={(a: CAgg) => fmtP(I.val(a))} />
             </MapContainer>
-            <div className="bc-fond bc-seg" role="group" aria-label="Fond de carte">
-              <button className={fond === 'topo' ? 'on' : ''} onClick={() => setFond('topo')}>Plan</button>
-              <button className={fond === 'sat' ? 'on' : ''} onClick={() => setFond('sat')}>Satellite</button>
+            <div className="bc-fond bc-seg" role="group" aria-label={t.baseAria}>
+              <button className={fond === 'topo' ? 'on' : ''} onClick={() => setFond('topo')}>{t.plan}</button>
+              <button className={fond === 'sat' ? 'on' : ''} onClick={() => setFond('sat')}>{t.sat}</button>
             </div>
             {mapShown.length > 0 && (
               <div className="bc-legend">
                 <strong>{I.label} ({I.unit})</strong>
                 {I.scale.map(([m, c]: [number, string], i: number, a: [number, string][]) => (
                   <div key={c}><i style={{ background: c }} />
-                    {i === 0 ? `≥ ${m.toLocaleString('fr-FR')} %` : i === a.length - 1 ? `< ${a[i - 1][0].toLocaleString('fr-FR')} %` : `${m.toLocaleString('fr-FR')} – ${a[i - 1][0].toLocaleString('fr-FR')} %`}
+                    {i === 0 ? `≥ ${m.toLocaleString(LOC)} %` : i === a.length - 1 ? `< ${a[i - 1][0].toLocaleString(LOC)} %` : `${m.toLocaleString(LOC)} – ${a[i - 1][0].toLocaleString(LOC)} %`}
                   </div>
                 ))}
               </div>
             )}
           </div>
           {missingGeo > 0 && (
-            <p className="bc-mapnote">{missingGeo} commune{missingGeo > 1 ? 's' : ''} de la base n’ont pas été retrouvée{missingGeo > 1 ? 's' : ''} sur la carte (ajoutez la géométrie dans la base, ou vérifiez l’orthographe / le code de la commune).</p>
+            <p className="bc-mapnote">{t.missing(missingGeo)}</p>
           )}
         </section>
       </div>
@@ -1154,16 +1437,16 @@ export default function BudgetCommunaux() {
       <section className="bc-card">
         <div className="bc-tbar">
           <div>
-            <h2 className="bc-ct">Tableau détaillé – communes</h2>
-            <p className="bc-cs" style={{ margin: 0 }}>{tableRows.length} commune{tableRows.length > 1 ? 's' : ''} · {yr}{lastMaj ? ` · mise à jour : ${lastMaj}` : ''}</p>
+            <h2 className="bc-ct">{t.tableTitle}</h2>
+            <p className="bc-cs" style={{ margin: 0 }}>{t.tableCount(tableRows.length, yr, lastMaj)}</p>
           </div>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div className="bc-seg" role="group" aria-label={`Statut ${I.label}`}>
-              <button className={status === 'all' ? 'on' : ''} onClick={() => setStatus('all')}>Toutes</button>
-              <button className={status === 'ok' ? 'on' : ''} onClick={() => setStatus('ok')}>Atteint</button>
-              <button className={status === 'ko' ? 'on' : ''} onClick={() => setStatus('ko')}>Non atteint</button>
+            <div className="bc-seg" role="group" aria-label={t.statusAria(I.label)}>
+              <button className={status === 'all' ? 'on' : ''} onClick={() => setStatus('all')}>{t.allF}</button>
+              <button className={status === 'ok' ? 'on' : ''} onClick={() => setStatus('ok')}>{t.ok}</button>
+              <button className={status === 'ko' ? 'on' : ''} onClick={() => setStatus('ko')}>{t.ko}</button>
             </div>
-            <button className="bc-btn" onClick={exportCSV} disabled={!tableRows.length}><Download size={14} /><span className="t">Exporter CSV</span></button>
+            <button className="bc-btn" onClick={exportCSV} disabled={!tableRows.length}><Download size={14} /><span className="t">{t.exportCsv}</span></button>
           </div>
         </div>
 
@@ -1171,29 +1454,29 @@ export default function BudgetCommunaux() {
           <table className="bc-t">
             <thead>
               <tr>
-                {th('commune', 'Commune', 130)}{th('district', 'District', 110)}{th('region', 'Région', 110)}{th('ap', 'Aire protégée', 110)}
-                {th('total', 'Budget total (Ar)', 120)}{th('se', 'Budget SE (Ar)', 110)}{th('pSe', '% Budget SE (global)', 90)}
-                {th('fj', 'Budget SE femmes et jeunes (Ar)', 130)}{th('pFj', '% Budget SE (femmes et jeunes)', 100)}
-                <th style={{ minWidth: 100 }}><button style={{ cursor: 'default' }}>Objectif {OBJ_SE} %</button></th>
-                <th style={{ minWidth: 110 }}><button style={{ cursor: 'default' }}>Objectif F/J ≥ {OBJ_FJ} %</button></th>
+                {th('commune', t.cols[0], 130)}{th('district', t.cols[1], 110)}{th('region', t.cols[2], 110)}{th('ap', t.cols[3], 110)}
+                {th('total', t.cols[4], 120)}{th('se', t.cols[5], 110)}{th('pSe', t.cols[6], 90)}
+                {th('fj', t.cols[7], 130)}{th('pFj', t.cols[8], 100)}
+                <th style={{ minWidth: 100 }}><button style={{ cursor: 'default' }}>{t.objSe}</button></th>
+                <th style={{ minWidth: 110 }}><button style={{ cursor: 'default' }}>{t.objFj}</button></th>
               </tr>
             </thead>
             <tbody>
               {pageRows.map((c) => (
-                <tr key={c.key} onClick={() => pickCommune(c)} title="Cliquer pour voir la commune sur la carte">
+                <tr key={c.key} onClick={() => pickCommune(c)} title={t.rowTip}>
                   <td>{c.commune}</td><td>{c.district}</td><td>{c.region}</td><td>{c.ap || '—'}</td>
                   <td className="n">{fmtN(c.total)}</td><td className="n">{fmtN(c.se)}</td><td>{fmtP(c.pSe, 2)}</td>
                   <td className="n">{fmtN(c.fj)}</td><td>{fmtP(c.pFj, 2)}</td>
-                  <td><span className={`bc-badge ${c.okSe ? 'ok' : 'ko'}`}>{c.okSe ? 'Atteint' : 'Non atteint'}</span></td>
-                  <td><span className={`bc-badge ${c.okFj ? 'ok' : 'ko'}`}>{c.okFj ? 'Atteint' : 'Non atteint'}</span></td>
+                  <td><span className={`bc-badge ${c.okSe ? 'ok' : 'ko'}`}>{c.okSe ? t.ok : t.ko}</span></td>
+                  <td><span className={`bc-badge ${c.okFj ? 'ok' : 'ko'}`}>{c.okFj ? t.ok : t.ko}</span></td>
                 </tr>
               ))}
-              {!pageRows.length && <tr><td colSpan={11} style={{ textAlign: 'center', color: '#64748b', padding: 24 }}>Aucune commune ne correspond à ces filtres.</td></tr>}
+              {!pageRows.length && <tr><td colSpan={11} style={{ textAlign: 'center', color: '#64748b', padding: 24 }}>{t.noMatch}</td></tr>}
             </tbody>
             {tableRows.length > 0 && (
               <tfoot>
                 <tr>
-                  <td>Total</td><td colSpan={3} style={{ textAlign: 'left' }}>{tableRows.length} commune{tableRows.length > 1 ? 's' : ''}</td>
+                  <td>{t.total}</td><td colSpan={3} style={{ textAlign: 'left' }}>{t.nCom(tableRows.length)}</td>
                   <td className="n">{fmtN(tTot.total)}</td><td className="n">{fmtN(tTot.se)}</td><td>{fmtP(tTot.pSe, 2)}</td>
                   <td className="n">{fmtN(tTot.fj)}</td><td>{fmtP(tTot.pFj, 2)}</td>
                   <td>{tTot.nSe} / {tTot.n}</td><td>{tTot.nFj} / {tTot.n}</td>
@@ -1205,22 +1488,22 @@ export default function BudgetCommunaux() {
 
         <div className="bc-pg">
           <span>
-            {tableRows.length ? `${pageC * pageSize + 1}–${Math.min(tableRows.length, (pageC + 1) * pageSize)} sur ${tableRows.length}` : '0 résultat'} ·{' '}
-            <label>lignes par page{' '}
+            {tableRows.length ? t.range(pageC * pageSize + 1, Math.min(tableRows.length, (pageC + 1) * pageSize), tableRows.length) : t.noResult} ·{' '}
+            <label>{t.rowsPer}{' '}
               <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>{[10, 25, 50].map((n) => <option key={n}>{n}</option>)}</select>
             </label>
           </span>
-          <div className="bc-seg" role="group" aria-label="Pagination">
-            <button onClick={() => setPage(Math.max(0, pageC - 1))} disabled={pageC === 0} aria-label="Page précédente"><ChevronLeft size={14} /></button>
+          <div className="bc-seg" role="group" aria-label={t.pagAria}>
+            <button onClick={() => setPage(Math.max(0, pageC - 1))} disabled={pageC === 0} aria-label={t.prev}><ChevronLeft size={14} /></button>
             <button style={{ cursor: 'default' }}>{pageC + 1} / {pages}</button>
-            <button onClick={() => setPage(Math.min(pages - 1, pageC + 1))} disabled={pageC >= pages - 1} aria-label="Page suivante"><ChevronRight size={14} /></button>
+            <button onClick={() => setPage(Math.min(pages - 1, pageC + 1))} disabled={pageC >= pages - 1} aria-label={t.next}><ChevronRight size={14} /></button>
           </div>
         </div>
       </section>
 
       <footer className="bc-foot">
-        <span style={{ fontWeight: 600 }}>Source : {SOURCE} {yr}{ds.mode === 'demo' ? ' (données fictives de démonstration)' : ''}</span>
-        <span>Objectifs : {OBJ_SE} % du budget en SE · {OBJ_FJ} % du budget SE pour les femmes et les jeunes</span>
+        <span style={{ fontWeight: 600 }}>{t.source(yr, ds.mode === 'demo')}</span>
+        <span>{t.objectives}</span>
       </footer>
     </div>
   );
