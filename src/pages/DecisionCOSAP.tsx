@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useLanguage } from "../context/LanguageContext";
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
   Tooltip, LineChart, Line, ReferenceLine, CartesianGrid, Legend,
@@ -182,17 +183,18 @@ const CSS = `
 .cs-btn.alt:hover{background:#f0fdf4}
 .cs-banner{display:flex;gap:14px;align-items:center;background:#ecfdf5;border-color:#bbf7d0}
 .cs-banner p{margin:0;font-size:clamp(12px,1.25vw,14px);line-height:1.55;font-weight:550}
-.cs-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:clamp(10px,1.4vw,18px)}
+.cs-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(10px,1.4vw,18px)}
 .cs-kpi-donut{display:flex;align-items:center;gap:12px}
 .cs-donut{position:relative;width:112px;height:112px;flex:none}
 .cs-donut-c{position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:18px;pointer-events:none}
 .cs-eyebrow{font-size:12px;font-weight:700;color:#374151;line-height:1.35;margin:0 0 4px}
 .cs-big{font-size:clamp(26px,3vw,36px);font-weight:800;color:${GREEN};line-height:1.1}
 .cs-small{font-size:12px;color:${MUTED};margin-top:4px;line-height:1.4}
-.cs-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:clamp(10px,1.4vw,18px)}
+.cs-charts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;gap:clamp(10px,1.4vw,18px)}
 .cs-title{font-size:13px;font-weight:700;line-height:1.35;margin:0 0 10px;color:#2f2f2f}
-.cs-chart{width:100%;height:240px}
-.cs-chart.tall{height:280px}
+.cs-charts .cs-card{display:flex;flex-direction:column}
+.cs-charts .cs-title{min-height:calc(3 * 1.35em)}
+.cs-chart{width:100%;height:260px;margin-top:auto}
 .cs-tablewrap{padding:0;overflow:hidden}
 .cs-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px clamp(12px,1.6vw,20px);border-bottom:1px solid ${LINE}}
 .cs-search{position:relative;flex:1 1 240px;max-width:420px}
@@ -212,6 +214,9 @@ const CSS = `
 .cs-pg[disabled]{opacity:.4;cursor:not-allowed}
 .cs-pg.on{background:${GREEN};color:#fff;border-color:${GREEN}}
 .cs-empty{padding:32px 16px;text-align:center;color:${MUTED};font-size:14px}
+@media (max-width:1399px){.cs-charts{grid-template-columns:repeat(2,minmax(0,1fr))}.cs-charts .cs-title{min-height:0}}
+@media (max-width:1100px){.cs-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:760px){.cs-charts{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:1100px){.cs-filters{grid-template-columns:repeat(2,minmax(0,1fr));width:100%}.cs-filters .cs-btn{grid-column:1/-1}}
 @media (max-width:860px){
   .cs-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
@@ -222,13 +227,14 @@ const CSS = `
   .cs-table td::before{content:attr(data-label);font-weight:700;color:${GREEN};font-size:12px}
 }
 @media (max-width:520px){
+  .cs-kpis{grid-template-columns:minmax(0,1fr)}
   .cs-filters{grid-template-columns:1fr}
   .cs-banner{flex-direction:column;align-items:flex-start}
   .cs-badge{width:44px;height:44px;border-radius:12px}
   .cs-foot{justify-content:center}
   .cs-chart{height:220px}
 }
-@media (min-width:2000px){.cs-root{font-size:17px}.cs-chart{height:300px}.cs-chart.tall{height:340px}}
+@media (min-width:2000px){.cs-root{font-size:17px}.cs-chart{height:320px}}
 `;
 
 /* ================= PETITS COMPOSANTS ================= */
@@ -259,9 +265,10 @@ const pageList = (cur: number, total: number): (number | "…")[] => {
 };
 
 /* ================= PAGE ================= */
-const DecisionCOSAP: React.FC<{ lang?: string }> = ({ lang = "fr" }) => {
-  const t = TXT[lang] ?? fr;
-  const loc = LOCALES[lang] ?? "fr-FR";
+const DecisionCOSAP: React.FC = () => {
+  const { lang } = useLanguage(); // même contexte que Home.tsx : change dès que setLang est appelé
+  const t = TXT[lang as string] ?? fr;
+  const loc = LOCALES[lang as string] ?? "fr-FR";
   const nf = (n: number) => n.toLocaleString(loc, { maximumFractionDigits: 1 });
   const fmtDate = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -346,7 +353,7 @@ const DecisionCOSAP: React.FC<{ lang?: string }> = ({ lang = "fr" }) => {
   const tip = { fontSize: 12, borderRadius: 8, border: `1px solid ${LINE}` };
   const axis = { fontSize: 11, fill: MUTED };
 
-  const BarBlock: React.FC<{ title: string; data: { name: string; v: number }[]; color: string }> = ({ title, data, color }) => (
+  const barBlock = (title: string, data: { name: string; v: number }[], color: string) => (
     <section className="cs-card" aria-label={title}>
       <h3 className="cs-title">{title}</h3>
       <div className="cs-chart">
@@ -441,12 +448,12 @@ const DecisionCOSAP: React.FC<{ lang?: string }> = ({ lang = "fr" }) => {
 
         {/* ===== GRAPHIQUES ===== */}
         <div className="cs-charts">
-          <BarBlock title={t.chartDec} data={k.dec} color={GREEN} />
-          <BarBlock title={t.chartFJ} data={k.fjBars} color={LIME} />
+          {barBlock(t.chartDec, k.dec, GREEN)}
+          {barBlock(t.chartFJ, k.fjBars, LIME)}
 
           <section className="cs-card" aria-label={t.trendTitle}>
             <h3 className="cs-title">{t.trendTitle}</h3>
-            <div className="cs-chart tall">
+            <div className="cs-chart">
               <ResponsiveContainer>
                 <LineChart data={TREND} margin={{ top: 10, right: 14, left: -8, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="#f0f0f0" />
@@ -464,7 +471,7 @@ const DecisionCOSAP: React.FC<{ lang?: string }> = ({ lang = "fr" }) => {
 
           <section className="cs-card" aria-label={t.compareTitle}>
             <h3 className="cs-title">{t.compareTitle}</h3>
-            <div className="cs-chart tall">
+            <div className="cs-chart">
               <ResponsiveContainer>
                 <BarChart data={k.compare} margin={{ top: 10, right: 10, left: -8, bottom: 0 }}>
                   <CartesianGrid vertical={false} stroke="#f0f0f0" />
