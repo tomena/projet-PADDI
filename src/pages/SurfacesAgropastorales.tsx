@@ -1,15 +1,16 @@
 import React from 'react';
 import SuiviDashboard from './SuiviDashboard';
+import type { DashboardConfig } from './SuiviDashboard';
 
-const config = {
-  title: '🌿 Suivi des surfaces agropastorales',
+const config: DashboardConfig = {
+  titleKey: 'agro',
   themes: ['agropastoral'],
   cible: 40000, debut: 2025, fin: 2030,
-  enonce: 'Les surfaces sur lesquelles des pratiques agricoles et d’élevage durables sont appliquées augmentent de 40 000 hectares dans les Communes partenaires.',
-  donuts: [['type_terrain', 'Répartition par type de terrain (ha)'], ['pratique_cat', 'Répartition par type de pratique (ha)']],
+  enonceKey: 'agro',
+  donuts: ['type_terrain', 'pratique_cat'],
   extras: [
-    { label: 'Superficie des Champs Écoles Paysans (CEP)', flag: 'is_cep', icon: 'cep' },
-    { label: 'Superficie des pare-feux', flag: 'is_pare_feu', icon: 'feu' },
+    { key: 'cep', flag: 'is_cep', icon: 'cep' },
+    { key: 'feu', flag: 'is_pare_feu', icon: 'feu' },
   ],
 };
 
