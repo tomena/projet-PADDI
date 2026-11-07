@@ -41,7 +41,7 @@ const FONDS: Record<string, { url: string; attr: string }> = {
   sat: { url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', attr: 'Tiles © Esri' },
 };
 
-// Les deux indicateurs de suivi (pilotent la carte et le classement)
+// Les deux indicateurs de suivi (pilotent la carte et les classements)
 type IndicId = 'se' | 'fj';
 const INDIC: Record<IndicId, any> = {
   se: {
@@ -348,6 +348,15 @@ const CSS = `
 .bc-tip div{display:flex;justify-content:space-between;gap:14px}
 .bc-empty{padding:26px 10px;text-align:center;color:var(--mut);font-size:12.5px}
 
+/* Classements : deux cartes côte à côte (communes + régions) */
+.bc-rank{display:flex;flex-direction:column;gap:8px;min-width:0}
+.bc-rtool{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px}
+.bc-rtool .bc-cs{margin:0}
+.bc-rtool .bc-seg button{padding:5px 11px}
+.bc-rtool-ctl{display:flex;flex-wrap:wrap;gap:6px}
+.bc-pair{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.bc-pair>.bc-card{min-height:230px}
+
 /* Tableau */
 .bc-tbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px;margin-bottom:8px}
 .bc-tw{overflow:auto;max-height:440px;border:1px solid var(--line);border-radius:10px;scrollbar-width:thin}
@@ -371,14 +380,19 @@ const CSS = `
 .bc-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;color:#4b5563;font-size:12px;padding:2px 2px 24px}
 
 /* Adaptation à la largeur disponible */
+@container bc (min-width:620px){
+  .bc-pair{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
 @container bc (min-width:760px){
   .bc-searchbox{grid-column:span 2}
 }
-/* Grand écran : gauche = classement/comparaison (haut) + évolution (bas) ; droite = carte pleine hauteur */
+/* Grand écran : gauche = deux classements côte à côte (haut) + évolution (bas) ; droite = carte pleine hauteur */
 @container bc (min-width:960px){
-  .bc-main{grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);height:clamp(430px,56vh,580px)}
+  .bc-main{grid-template-columns:minmax(0,1.3fr) minmax(0,.9fr);height:clamp(430px,56vh,580px)}
   .bc-left{order:1}
-  .bc-left>.bc-card{flex:1 1 0;min-height:0}
+  .bc-left>.bc-card,.bc-left>.bc-rank{flex:1 1 0;min-height:0}
+  .bc-pair{grid-template-rows:minmax(0,1fr)}
+  .bc-pair>.bc-card{min-height:0}
   .bc-mapcard{order:2;min-height:0}
 }
 @container bc (max-width:560px){
@@ -681,7 +695,6 @@ export default function BudgetCommunaux() {
   const [indic, setIndic] = useState<IndicId>('se');
   const [rankMode, setRankMode] = useState<'best' | 'worst'>('worst');
   const [rankN, setRankN] = useState(10);
-  const [rankView, setRankView] = useState<'communes' | 'regions'>('communes');
   const [fond, setFond] = useState('topo');
 
   const years = useMemo(() => Array.from(new Set(rows.map((r) => r.annee))).sort((a, b) => b - a), [rows]);
@@ -727,14 +740,15 @@ export default function BudgetCommunaux() {
     }));
   }, [communesAgg, rankMode, rankN, indic]);
 
+  // Comparaison par région : même ordre (« À renforcer » / « Meilleures ») et même nombre que le classement des communes
   const regionRank = useMemo(() => {
     const m = new Map<string, CAgg[]>();
     communesAgg.forEach((c) => m.set(c.region, [...(m.get(c.region) || []), c]));
     return Array.from(m.entries()).map(([name, list]) => {
       const o = overall(list);
       return { name, value: I.val(o), ok: I.ok(o), total: o.total, se: o.se };
-    }).sort((a, b) => b.value - a.value);
-  }, [communesAgg, indic]);
+    }).sort((a, b) => (rankMode === 'best' ? b.value - a.value : a.value - b.value)).slice(0, rankN);
+  }, [communesAgg, indic, rankMode, rankN]);
 
   const trend = useMemo(
     () => [...years].reverse().map((y) => {
@@ -748,9 +762,11 @@ export default function BudgetCommunaux() {
   );
   const evoMax = Math.max(120, Math.ceil(Math.max(...trend.map((d) => Math.max(d.aSe, d.aFj)), 0) / 20) * 20);
 
-  // Tailles mesurées des 3 cartes : le contenu s'adapte à l'espace disponible
+  // Tailles mesurées des cartes : le contenu s'adapte à l'espace disponible
   const [rankRef, rkSz] = useSize<HTMLElement>();
   const [rankScrollRef, rsSz] = useSize<HTMLDivElement>();
+  const [regRef, rgSz] = useSize<HTMLElement>();
+  const [regScrollRef, rrSz] = useSize<HTMLDivElement>();
   const [evoRef, evSz] = useSize<HTMLElement>();
   const [mapCardRef, mpSz] = useSize<HTMLElement>();
 
@@ -786,7 +802,12 @@ export default function BudgetCommunaux() {
     });
     return out;
   }, [communesAgg, geoIndex, ds.geoms]);
-  const missingGeo = communesDone && (communesZ.length > 0 || ds.geoms.size > 0) ? communesAgg.length - mapCommunes.length : 0;
+
+  // La couche des communes n'apparaît que si un filtre est actif (aire protégée, région, district, commune ou recherche).
+  // Avec « Tous / Toutes », la carte reste sur Madagascar sans communes colorées.
+  const showCommunes = !!(ap || region || district || commune || qn);
+  const mapShown = useMemo(() => (showCommunes ? mapCommunes : []), [showCommunes, mapCommunes]);
+  const missingGeo = showCommunes && communesDone && (communesZ.length > 0 || ds.geoms.size > 0) ? communesAgg.length - mapCommunes.length : 0;
 
   const districtKeys = useMemo(() => new Set(communesAgg.map((c) => `${norm(c.region)}|${norm(c.district)}`)), [communesAgg]);
   const dKey = (z: Zone) => `${norm(z.feature.properties?.[PROP.districtRegion])}|${norm(z.nom)}`;
@@ -798,8 +819,9 @@ export default function BudgetCommunaux() {
   );
   const regionZone = useMemo(() => (region ? regionsZ.find((z) => norm(z.nom) === norm(region)) || null : null), [regionsZ, region]);
   const districtZone = useMemo(() => (district ? districtsZ.find((z) => isSelDistrict(z)) || null : null), [districtsZ, district, region]);
-  const focusZones = mapCommunes.length ? mapCommunes : districtZone ? [districtZone] : regionZone ? [regionZone] : [];
-  const focusKey = [region, district, commune, ap, mapCommunes.length].join('|');
+  // Cadrage : sur les communes filtrées ; à défaut sur le district / la région ; sans filtre : tout Madagascar
+  const focusZones = mapShown.length ? mapShown : districtZone ? [districtZone] : regionZone ? [regionZone] : [];
+  const focusKey = [region, district, commune, ap, mapShown.length].join('|');
 
   // Clic sur un district de la carte : sélectionne le district (et sa région)
   const pickDistrictFromMap = (z: Zone) => {
@@ -950,7 +972,7 @@ export default function BudgetCommunaux() {
           </select>
         </div>
         <div className="bc-f ind">
-          <label id="bc-ind-l"><SlidersHorizontal size={13} color="#1e3a8a" />Indicateur (carte et classement)</label>
+          <label id="bc-ind-l"><SlidersHorizontal size={13} color="#1e3a8a" />Indicateur (carte et classements)</label>
           <div className="bc-seg" role="group" aria-labelledby="bc-ind-l">
             {(Object.keys(INDIC) as IndicId[]).map((k) => (
               <button key={k} className={indic === k ? 'on' : ''} onClick={() => setIndic(k)} aria-pressed={indic === k} title={INDIC[k].long}>{INDIC[k].short}</button>
@@ -997,39 +1019,47 @@ export default function BudgetCommunaux() {
              progress={tot.n ? (tot.nFj / tot.n) * 100 : 0} delta={hasPrev ? <Delta v={tot.nFj - prev.nFj} unit="" label={dCmp} /> : null} />
       </section>
 
-      {/* ============ GAUCHE : classement / comparaison (haut) + évolution (bas) · DROITE : carte ============ */}
+      {/* ============ GAUCHE : classements (haut, deux cartes côte à côte) + évolution (bas) · DROITE : carte ============ */}
       <div className="bc-main">
         <div className="bc-left">
-          <section ref={rankRef} className={`bc-card${rkSz.h && rkSz.h < 300 ? ' compact' : ''}`}>
-            <div className="bc-head2">
-              <div>
-                <h2 className="bc-ct">{rankView === 'communes' ? 'Classement des communes' : 'Comparaison par région'}</h2>
-                <p className="bc-cs" style={{ margin: 0 }}>{I.long} · {yr}</p>
-              </div>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <div className="bc-seg" role="group" aria-label="Vue">
-                  <button className={rankView === 'communes' ? 'on' : ''} onClick={() => setRankView('communes')}>Communes</button>
-                  <button className={rankView === 'regions' ? 'on' : ''} onClick={() => setRankView('regions')}>Régions</button>
+          <div className="bc-rank">
+            <div className="bc-rtool">
+              <p className="bc-cs">{I.long} · {yr}</p>
+              <div className="bc-rtool-ctl">
+                <div className="bc-seg" role="group" aria-label="Ordre">
+                  <button className={rankMode === 'worst' ? 'on' : ''} onClick={() => setRankMode('worst')}>À renforcer</button>
+                  <button className={rankMode === 'best' ? 'on' : ''} onClick={() => setRankMode('best')}>Meilleures</button>
                 </div>
-                {rankView === 'communes' && (
-                  <>
-                    <div className="bc-seg" role="group" aria-label="Ordre">
-                      <button className={rankMode === 'worst' ? 'on' : ''} onClick={() => setRankMode('worst')}>À renforcer</button>
-                      <button className={rankMode === 'best' ? 'on' : ''} onClick={() => setRankMode('best')}>Meilleures</button>
-                    </div>
-                    <div className="bc-seg" role="group" aria-label="Nombre de communes">
-                      {[10, 20].map((n) => <button key={n} className={rankN === n ? 'on' : ''} onClick={() => setRankN(n)}>Top {n}</button>)}
-                    </div>
-                  </>
-                )}
+                <div className="bc-seg" role="group" aria-label="Nombre d’éléments">
+                  {[10, 20].map((n) => <button key={n} className={rankN === n ? 'on' : ''} onClick={() => setRankN(n)}>Top {n}</button>)}
+                </div>
               </div>
             </div>
-            <div className="bc-scroll" ref={rankScrollRef}>
-              {rankView === 'communes'
-                ? (ranking.length ? <RankBars data={ranking} obj={I.obj} unit={I.unit} scale={I.scale} avail={rsSz.h} width={rsSz.w} /> : <div className="bc-empty">Aucune donnée pour cette sélection.</div>)
-                : (regionRank.length > 1 ? <RankBars data={regionRank} obj={I.obj} unit={I.unit} scale={I.scale} avail={rsSz.h} width={rsSz.w} /> : <div className="bc-empty">Une seule région dans la sélection : la comparaison apparaît lorsque plusieurs régions sont concernées.</div>)}
+
+            <div className="bc-pair">
+              <section ref={rankRef} className={`bc-card${rkSz.h && rkSz.h < 300 ? ' compact' : ''}`}>
+                <div className="bc-head2">
+                  <h2 className="bc-ct">Classement des communes</h2>
+                </div>
+                <div className="bc-scroll" ref={rankScrollRef}>
+                  {ranking.length
+                    ? <RankBars data={ranking} obj={I.obj} unit={I.unit} scale={I.scale} avail={rsSz.h} width={rsSz.w} />
+                    : <div className="bc-empty">Aucune donnée pour cette sélection.</div>}
+                </div>
+              </section>
+
+              <section ref={regRef} className={`bc-card${rgSz.h && rgSz.h < 300 ? ' compact' : ''}`}>
+                <div className="bc-head2">
+                  <h2 className="bc-ct">Comparaison par région</h2>
+                </div>
+                <div className="bc-scroll" ref={regScrollRef}>
+                  {regionRank.length > 1
+                    ? <RankBars data={regionRank} obj={I.obj} unit={I.unit} scale={I.scale} avail={rrSz.h} width={rrSz.w} />
+                    : <div className="bc-empty">Une seule région dans la sélection : la comparaison apparaît lorsque plusieurs régions sont concernées.</div>}
+                </div>
+              </section>
             </div>
-          </section>
+          </div>
 
           <section ref={evoRef} className={`bc-card${evSz.h && evSz.h < 300 ? ' compact' : ''}`}>
             <div className="bc-head2" style={{ marginBottom: 2 }}>
@@ -1069,7 +1099,11 @@ export default function BudgetCommunaux() {
 
         <section ref={mapCardRef} className={`bc-card bc-mapcard${mpSz.h && mpSz.h < 380 ? ' compact' : ''}`}>
           <h2 className="bc-ct">Carte interactive – Madagascar</h2>
-          <p className="bc-cs">{I.long} · {yr}. Cliquez sur une région, un district ou une commune pour la sélectionner.</p>
+          <p className="bc-cs">
+            {showCommunes
+              ? `${I.long} · ${yr}. Cliquez sur une commune ou un district pour le sélectionner.`
+              : 'Choisissez une aire protégée ou une région (ou cliquez sur une région de la carte) pour afficher les communes.'}
+          </p>
           <div className="bc-mapwrap">
             <MapContainer bounds={MADAGASCAR} zoomControl={false} style={{ height: '100%', width: '100%' }} preferCanvas>
               <TileLayer key={fond} url={FONDS[fond].url} attribution={FONDS[fond].attr} />
@@ -1088,25 +1122,27 @@ export default function BudgetCommunaux() {
                 <GeoLayer zones={mapDistricts} cle={`d${region}|${district}`} onClick={pickDistrictFromMap}
                   style={(z: Zone) => ({ color: isSelDistrict(z) ? '#dc2626' : '#64748b', weight: isSelDistrict(z) ? 2 : 0.8, fillColor: '#000', fillOpacity: 0 })} />
               )}
-              {mapCommunes.length > 0 && (
-                <GeoLayer zones={mapCommunes} cle={`c${indic}${yr}${commune}${mapCommunes.length}`} tip={tipCommune}
+              {mapShown.length > 0 && (
+                <GeoLayer zones={mapShown} cle={`c${indic}${yr}${commune}${mapShown.length}`} tip={tipCommune}
                   style={(z: any) => ({ color: commune && z.agg.commune === commune ? '#052e16' : '#fff', weight: commune && z.agg.commune === commune ? 3 : 1.2, fillColor: colorFor(I.val(z.agg), I.scale), fillOpacity: 0.35 })}
                   onClick={(z: any) => pickCommune(z.agg)} />
               )}
-              <CommuneLabels items={mapCommunes} selected={commune} valKey={`${indic}${yr}`} valFn={(a: CAgg) => fmtP(I.val(a))} />
+              <CommuneLabels items={mapShown} selected={commune} valKey={`${indic}${yr}`} valFn={(a: CAgg) => fmtP(I.val(a))} />
             </MapContainer>
             <div className="bc-fond bc-seg" role="group" aria-label="Fond de carte">
               <button className={fond === 'topo' ? 'on' : ''} onClick={() => setFond('topo')}>Plan</button>
               <button className={fond === 'sat' ? 'on' : ''} onClick={() => setFond('sat')}>Satellite</button>
             </div>
-            <div className="bc-legend">
-              <strong>{I.label} ({I.unit})</strong>
-              {I.scale.map(([m, c]: [number, string], i: number, a: [number, string][]) => (
-                <div key={c}><i style={{ background: c }} />
-                  {i === 0 ? `≥ ${m.toLocaleString('fr-FR')} %` : i === a.length - 1 ? `< ${a[i - 1][0].toLocaleString('fr-FR')} %` : `${m.toLocaleString('fr-FR')} – ${a[i - 1][0].toLocaleString('fr-FR')} %`}
-                </div>
-              ))}
-            </div>
+            {mapShown.length > 0 && (
+              <div className="bc-legend">
+                <strong>{I.label} ({I.unit})</strong>
+                {I.scale.map(([m, c]: [number, string], i: number, a: [number, string][]) => (
+                  <div key={c}><i style={{ background: c }} />
+                    {i === 0 ? `≥ ${m.toLocaleString('fr-FR')} %` : i === a.length - 1 ? `< ${a[i - 1][0].toLocaleString('fr-FR')} %` : `${m.toLocaleString('fr-FR')} – ${a[i - 1][0].toLocaleString('fr-FR')} %`}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {missingGeo > 0 && (
             <p className="bc-mapnote">{missingGeo} commune{missingGeo > 1 ? 's' : ''} de la base n’ont pas été retrouvée{missingGeo > 1 ? 's' : ''} sur la carte (ajoutez la géométrie dans la base, ou vérifiez l’orthographe / le code de la commune).</p>
