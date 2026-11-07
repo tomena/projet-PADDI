@@ -168,7 +168,11 @@ const CUR_YEAR = 2026;     // dernière année avec des données réelles
 const GREEN = "#2e7d32", AMBER = "#d97706", RED = "#d32f2f", GREY = "#e5e7eb";
 
 /* ================================== TYPES ================================== */
-interface Mesure { id: string; date: string; spec: string; inc: boolean } // inc = femmes/jeunes
+/* Texte venant des données : une simple chaîne (affichée telle quelle) ou un objet par langue */
+type L10n = string | Partial<Record<string, string>>;
+const l10n = (v: L10n, lang: string) => (typeof v === "string" ? v : v[lang] ?? v.fr ?? Object.values(v)[0] ?? "");
+
+interface Mesure { id: string; date: string; spec: L10n; inc: boolean } // inc = femmes/jeunes
 interface Commune {
   name: string; region: string; aire: string; paysage: string; district: string;
   p: number; f: number; j: number;   // participants, dont femmes, dont jeunes (< 35 ans)
@@ -193,18 +197,45 @@ const GEO: Record<string, { paysage: string; aires: string[]; districts: string[
   "Atsimo Atsinanana": { paysage: "Paysage Sud", aires: ["Befotaka-Midongy"], districts: ["Farafangana", "Midongy Atsimo"] },
 };
 const REGS = Object.keys(GEO);
-const SPECS = [
-  "Mise en place de pépinières communales pour la production de plants forestiers et fruitiers.",
-  "Gestion durable des ressources en eau : protection des sources et reboisement des bassins versants.",
-  "Promotion de l'agroforesterie et des systèmes agro-sylvopastoraux durables.",
-  "Réglementation et contrôle des prélèvements de bois énergie dans les forêts naturelles.",
-  "Sensibilisation communautaire et formation sur les pratiques agricoles durables.",
-  "Aménagement de pare-feux et surveillance participative des forêts.",
+const SPECS: L10n[] = [
+  { fr: "Mise en place de pépinières communales pour la production de plants forestiers et fruitiers.",
+    en: "Setting up municipal nurseries to produce forest and fruit tree seedlings.",
+    de: "Einrichtung kommunaler Baumschulen zur Erzeugung von Forst- und Obstpflanzen.",
+    mg: "Fananganana toeram-pambolena zanakazo ao amin'ny kaominina ho an'ny hazo ala sy hazo fihinam-boa." },
+  { fr: "Gestion durable des ressources en eau : protection des sources et reboisement des bassins versants.",
+    en: "Sustainable water resource management: protecting springs and reforesting watersheds.",
+    de: "Nachhaltige Wasserbewirtschaftung: Schutz von Quellen und Wiederaufforstung der Einzugsgebiete.",
+    mg: "Fitantanana maharitra ny loharanon-drano : fiarovana ny loharano sy fambolena kazo any amin'ny faritra mamatsy rano." },
+  { fr: "Promotion de l'agroforesterie et des systèmes agro-sylvopastoraux durables.",
+    en: "Promoting agroforestry and sustainable agro-silvopastoral systems.",
+    de: "Förderung von Agroforstwirtschaft und nachhaltigen agrosilvopastoralen Systemen.",
+    mg: "Fanentanana ny fambolena mitambatra amin'ny hazo sy ny rafitra fambolena-fiompiana-ala maharitra." },
+  { fr: "Réglementation et contrôle des prélèvements de bois énergie dans les forêts naturelles.",
+    en: "Regulating and monitoring fuelwood harvesting in natural forests.",
+    de: "Regelung und Kontrolle der Brennholzentnahme in Naturwäldern.",
+    mg: "Fametrahana lalàna sy fanaraha-maso ny fanapahana kitay ao anaty ala voajanahary." },
+  { fr: "Sensibilisation communautaire et formation sur les pratiques agricoles durables.",
+    en: "Community awareness and training on sustainable farming practices.",
+    de: "Sensibilisierung der Gemeinschaft und Schulung zu nachhaltigen landwirtschaftlichen Praktiken.",
+    mg: "Fanentanana ny vahoaka sy fampiofanana momba ny fomba fambolena maharitra." },
+  { fr: "Aménagement de pare-feux et surveillance participative des forêts.",
+    en: "Building firebreaks and participatory forest monitoring.",
+    de: "Anlage von Brandschneisen und partizipative Waldüberwachung.",
+    mg: "Fananganana tantsambo fanakanana afo sy fanaraha-maso ny ala miaraka amin'ny vahoaka." },
 ];
-const SPECS_INC = [
-  "Appui aux femmes et aux jeunes pour la transformation et la valorisation des produits forestiers non ligneux.",
-  "Formation des jeunes aux métiers de la restauration forestière.",
-  "Accès des femmes aux pépinières communales et aux filières de produits forestiers.",
+const SPECS_INC: L10n[] = [
+  { fr: "Appui aux femmes et aux jeunes pour la transformation et la valorisation des produits forestiers non ligneux.",
+    en: "Support for women and young people in processing and adding value to non-timber forest products.",
+    de: "Unterstützung von Frauen und Jugendlichen bei der Verarbeitung und Veredelung von Nichtholz-Waldprodukten.",
+    mg: "Fanohanana ny vehivavy sy ny tanora amin'ny fanodinana sy fampiakarana ny sandan'ny vokatra avy amin'ny ala tsy kitay." },
+  { fr: "Formation des jeunes aux métiers de la restauration forestière.",
+    en: "Training young people in forest restoration trades.",
+    de: "Ausbildung von Jugendlichen in Berufen der Waldrestaurierung.",
+    mg: "Fampiofanana ny tanora amin'ny asa fanarenana ny ala." },
+  { fr: "Accès des femmes aux pépinières communales et aux filières de produits forestiers.",
+    en: "Women's access to municipal nurseries and forest product value chains.",
+    de: "Zugang von Frauen zu kommunalen Baumschulen und Wertschöpfungsketten für Waldprodukte.",
+    mg: "Fidirana an'ny vehivavy amin'ny toeram-pambolena zanakazo ao amin'ny kaominina sy ny tamba-jotra vokatra avy amin'ny ala." },
 ];
 
 function demoData(): Commune[] {
@@ -395,7 +426,7 @@ export default function MesuresCommunales() {
 
   const worst = S.byRegion.length > 1 ? S.byRegion[S.byRegion.length - 1] : null;
 
-  const flat = useMemo(() => ev.flatMap((e) => e.ms.map((m) => ({ ...m, commune: e.c.name, region: e.c.region }))), [ev]);
+  const flat = useMemo(() => ev.flatMap((e) => e.ms.map((m) => ({ ...m, spec: l10n(m.spec, lang), commune: e.c.name, region: e.c.region }))), [ev, lang]);
   const rowsAll = useMemo(() => {
     const q = search.trim().toLowerCase();
     const base = pub === "inc" ? flat.filter((x) => x.inc) : flat;
