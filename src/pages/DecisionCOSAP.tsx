@@ -138,18 +138,18 @@ const LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE",
 /* ================= DONNÉES ================= */
 type Row = {
   annee: number; region: string; code: string; AP: string; nbrDecision: number; mesuresFJ: number;
-  idDecision: string; dateCOSAP: string; dateCommune: string; communes: string[]; specification: string;
+  idDecision: string; dateCOSAP: string; dateCommune: string; communes: string[]; specification: Record<"fr" | "mg" | "en" | "de", string>; // traduite dans chaque langue
 };
 
 // Dates au format ISO (AAAA-MM-JJ) : elles sont formatées selon la langue active.
 const ROWS: Row[] = [
-  { annee: 2025, region: "Diana", code: "MDA", AP: "Montagne d'Ambre", nbrDecision: 5, mesuresFJ: 1, idDecision: "MDA-2025-01", dateCOSAP: "2025-03-15", dateCommune: "2025-04-10", communes: ["Joffreville", "Ambanja", "Antsiranana II"], specification: "Protection des sources d'eau et reboisement" },
-  { annee: 2025, region: "Diana", code: "ANK", AP: "Ankarana", nbrDecision: 3, mesuresFJ: 1, idDecision: "ANK-2025-01", dateCOSAP: "2025-02-20", dateCommune: "2025-03-18", communes: ["Anivorano-Nord", "Marivorahona"], specification: "Gestion des feux de brousse" },
-  { annee: 2025, region: "SAVA", code: "ANL", AP: "Analamerana", nbrDecision: 2, mesuresFJ: 0, idDecision: "ANL-2025-01", dateCOSAP: "2025-01-28", dateCommune: "2025-02-20", communes: ["Vohemar", "Andapa"], specification: "Réglementation de la pêche" },
-  { annee: 2025, region: "Boeny", code: "AKF", AP: "Ankarafantsika", nbrDecision: 4, mesuresFJ: 2, idDecision: "AKF-2025-01", dateCOSAP: "2025-02-05", dateCommune: "2025-03-28", communes: ["Mahajanga I", "Mahajanga II", "Marovoay", "Mitsinjo"], specification: "Lutte contre l'exploitation illégale des ressources" },
-  { annee: 2025, region: "Atsimo Andrefana", code: "ADH", AP: "Andohahela", nbrDecision: 5, mesuresFJ: 1, idDecision: "ADH-2025-01", dateCOSAP: "2025-02-12", dateCommune: "2025-03-30", communes: ["Toliara I", "Betioky Sud", "Bekily"], specification: "Gestion des parcours et pâturages" },
-  { annee: 2025, region: "Atsimo Atsinanana", code: "MDS", AP: "Midongy du Sud", nbrDecision: 1, mesuresFJ: 0, idDecision: "MDS-2025-01", dateCOSAP: "2025-01-18", dateCommune: "2025-02-22", communes: ["Farafangana"], specification: "Protection de la mangrove" },
-  { annee: 2025, region: "Alaotra Mangoro", code: "MLB", AP: "Marolambo", nbrDecision: 3, mesuresFJ: 1, idDecision: "MLB-2025-01", dateCOSAP: "2025-02-25", dateCommune: "2025-04-05", communes: ["Ambatondrazaka", "Moramanga"], specification: "Sensibilisation et éducation environnementale" },
+  { annee: 2025, region: "Diana", code: "MDA", AP: "Montagne d'Ambre", nbrDecision: 5, mesuresFJ: 1, idDecision: "MDA-2025-01", dateCOSAP: "2025-03-15", dateCommune: "2025-04-10", communes: ["Joffreville", "Ambanja", "Antsiranana II"], specification: { fr: "Protection des sources d'eau et reboisement", mg: "Fiarovana ny loharanon-drano sy fambolena ala", en: "Water source protection and reforestation", de: "Schutz der Wasserquellen und Wiederaufforstung" } },
+  { annee: 2025, region: "Diana", code: "ANK", AP: "Ankarana", nbrDecision: 3, mesuresFJ: 1, idDecision: "ANK-2025-01", dateCOSAP: "2025-02-20", dateCommune: "2025-03-18", communes: ["Anivorano-Nord", "Marivorahona"], specification: { fr: "Gestion des feux de brousse", mg: "Fitantanana ny doro-tanety", en: "Bushfire management", de: "Management von Buschfeuern" } },
+  { annee: 2025, region: "SAVA", code: "ANL", AP: "Analamerana", nbrDecision: 2, mesuresFJ: 0, idDecision: "ANL-2025-01", dateCOSAP: "2025-01-28", dateCommune: "2025-02-20", communes: ["Vohemar", "Andapa"], specification: { fr: "Réglementation de la pêche", mg: "Fandrindrana ny jono", en: "Fishing regulation", de: "Regulierung der Fischerei" } },
+  { annee: 2025, region: "Boeny", code: "AKF", AP: "Ankarafantsika", nbrDecision: 4, mesuresFJ: 2, idDecision: "AKF-2025-01", dateCOSAP: "2025-02-05", dateCommune: "2025-03-28", communes: ["Mahajanga I", "Mahajanga II", "Marovoay", "Mitsinjo"], specification: { fr: "Lutte contre l'exploitation illégale des ressources", mg: "Ady amin'ny fanararaotana tsy ara-dalàna ny harena voajanahary", en: "Fight against illegal exploitation of resources", de: "Bekämpfung der illegalen Ressourcenausbeutung" } },
+  { annee: 2025, region: "Atsimo Andrefana", code: "ADH", AP: "Andohahela", nbrDecision: 5, mesuresFJ: 1, idDecision: "ADH-2025-01", dateCOSAP: "2025-02-12", dateCommune: "2025-03-30", communes: ["Toliara I", "Betioky Sud", "Bekily"], specification: { fr: "Gestion des parcours et pâturages", mg: "Fitantanana ny tany fiompiana sy fiandrasana biby", en: "Rangeland and pasture management", de: "Verwaltung von Weide- und Grasland" } },
+  { annee: 2025, region: "Atsimo Atsinanana", code: "MDS", AP: "Midongy du Sud", nbrDecision: 1, mesuresFJ: 0, idDecision: "MDS-2025-01", dateCOSAP: "2025-01-18", dateCommune: "2025-02-22", communes: ["Farafangana"], specification: { fr: "Protection de la mangrove", mg: "Fiarovana ny honko (mangrove)", en: "Mangrove protection", de: "Schutz der Mangroven" } },
+  { annee: 2025, region: "Alaotra Mangoro", code: "MLB", AP: "Marolambo", nbrDecision: 3, mesuresFJ: 1, idDecision: "MLB-2025-01", dateCOSAP: "2025-02-25", dateCommune: "2025-04-05", communes: ["Ambatondrazaka", "Moramanga"], specification: { fr: "Sensibilisation et éducation environnementale", mg: "Fanentanana sy fanabeazana momba ny tontolo iainana", en: "Environmental awareness and education", de: "Umweltbewusstsein und Umweltbildung" } },
 ];
 
 // Trajectoire pluriannuelle (% cumulés vers la cible 2030)
@@ -269,6 +269,7 @@ const DecisionCOSAP: React.FC = () => {
   const { lang } = useLanguage(); // même contexte que Home.tsx : change dès que setLang est appelé
   const t = TXT[lang as string] ?? fr;
   const loc = LOCALES[lang as string] ?? "fr-FR";
+  const spec = (r: Row) => r.specification[lang as "fr" | "mg" | "en" | "de"] ?? r.specification.fr;
   const nf = (n: number) => n.toLocaleString(loc, { maximumFractionDigits: 1 });
   const fmtDate = (iso: string) => new Date(iso + "T00:00:00").toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric" });
 
@@ -325,7 +326,7 @@ const DecisionCOSAP: React.FC = () => {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter((r) => [r.AP, r.region, r.idDecision, r.specification, ...r.communes].join(" ").toLowerCase().includes(q));
+    return rows.filter((r) => [r.AP, r.region, r.idDecision, spec(r), ...r.communes].join(" ").toLowerCase().includes(q));
   }, [rows, query]);
 
   const total = filtered.length;
@@ -340,7 +341,7 @@ const DecisionCOSAP: React.FC = () => {
   const exportCsv = () => {
     const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
     const lines = [t.csv.map(esc).join(";")].concat(
-      filtered.map((r) => [r.region, r.AP, r.nbrDecision, r.idDecision, fmtDate(r.dateCOSAP), fmtDate(r.dateCommune), r.communes.length, r.communes.join(", "), r.specification].map(esc).join(";"))
+      filtered.map((r) => [r.region, r.AP, r.nbrDecision, r.idDecision, fmtDate(r.dateCOSAP), fmtDate(r.dateCommune), r.communes.length, r.communes.join(", "), spec(r)].map(esc).join(";"))
     );
     const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
@@ -522,7 +523,7 @@ const DecisionCOSAP: React.FC = () => {
                       <td data-label={t.cols[5]} className="cs-c">{fmtDate(r.dateCommune)}</td>
                       <td data-label={t.cols[6]} className="cs-c">{r.communes.length}</td>
                       <td data-label={t.cols[7]}>{r.communes.join(", ")}</td>
-                      <td data-label={t.cols[8]}>{r.specification}</td>
+                      <td data-label={t.cols[8]}>{spec(r)}</td>
                     </tr>
                   ))}
                 </tbody>
