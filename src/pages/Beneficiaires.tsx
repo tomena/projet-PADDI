@@ -189,10 +189,10 @@ const CSS = `
 .sv-f2{margin-top:8px;padding:10px;background:#fff;border:1px solid #e1e6e2;border-radius:10px}
 .sv-n{background:#f9a825;color:#1c2b24;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
 .k5{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
-.kc{display:flex;flex-direction:column;border-top:4px solid #2e7d32}
-.kc .kh{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.kc{display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid #2e7d32}
+.kc .kh{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:6px}
 .kc .kh h4{margin:0}
-.kc .sub{margin-bottom:8px}
+.kc .sub{margin:2px 0 0}
 .kc .bar{margin-top:auto}
 .ki{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;flex-shrink:0}
 .g3{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
@@ -238,19 +238,19 @@ const CSS = `
 const Sec = ({ icon: Ic, text }: { icon: React.ComponentType<any>; text: string }) => (
   <h3 className="sv-s"><Ic size={18} style={{ flexShrink: 0 }} />{text}</h3>
 );
-const Kpi = ({ title, big, sub, color = '#2e7d32', bar, icon: Ic }: { title: string; big: string; sub?: string; color?: string; bar?: number; icon?: React.ComponentType<any> }) => (
+const Kpi = ({ title, big, sub, color = '#2e7d32', icon: Ic, v, label }: { title: string; big: string; sub?: string; color?: string; icon?: React.ComponentType<any>; v: number; label: string }) => (
   <div className="c kc" style={{ borderTopColor: color }}>
     <div className="kh">
       {Ic && <span className="ki" style={{ background: `${color}1a`, color }}><Ic size={18} /></span>}
       <h4>{title}</h4>
     </div>
+    <Donut v={v} color={color} label={label} h={120} />
     <div className="big" style={{ color }}>{big}</div>
     {sub && <div className="sub">{sub}</div>}
-    {bar !== undefined && <div className="bar"><b style={{ width: `${Math.min(100, bar)}%`, background: color }} /></div>}
   </div>
 );
-const Donut = ({ v, color, label }: { v: number; color: string; label: string }) => (
-  <div style={{ position: 'relative', height: 150 }}>
+const Donut = ({ v, color, label, h = 150 }: { v: number; color: string; label: string; h?: number }) => (
+  <div style={{ position: 'relative', height: h, width: '100%' }}>
     <ResponsiveContainer>
       <PieChart>
         <Pie data={[{ n: 'a', v: Math.min(100, v) }, { n: 'b', v: Math.max(0, 100 - v) }]} dataKey="v" innerRadius="64%" outerRadius="90%" startAngle={90} endAngle={-270} stroke="none">
@@ -439,36 +439,30 @@ const Beneficiaires: React.FC = () => {
         {/* ===== 1. Atteinte de l'objectif ===== */}
         <Sec icon={Target} text={fmt(t.s1, nf(TARGET))} />
         <section className="k5">
-          <div className="c kc" style={{ borderTopColor: '#2e7d32' }}>
-            <div className="kh">
-              <span className="ki" style={{ background: '#2e7d321a', color: '#2e7d32' }}><Target size={18} /></span>
-              <h4>{t.k.total}</h4>
-            </div>
-            <div aria-label={t.k.rate}><Donut v={pc(reach, TARGET)} color="#2e7d32" label={pct(pc(reach, TARGET))} /></div>
-            <div style={{ textAlign: 'center', marginTop: 6 }}>
-              <div className="big" style={{ color: '#2e7d32' }}>{nf(reach)}</div>
-              <div className="sub" style={{ marginBottom: 0 }}>{fmt(t.k.of, nf(TARGET))}</div>
-            </div>
-          </div>
-          <Kpi icon={gap >= 0 ? TrendingUp : TrendingDown} title={t.k.gap} big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? '#2e7d32' : RED} />
-          <Kpi icon={FileText} title={t.k.decl} big={nf(decl)} sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
-          <Kpi icon={Users} title={t.k.w} big={pct(women)} sub={fmt(t.k.p, nf(sum(val, 'w')))} color={WOMEN} bar={women} />
-          <Kpi icon={User} title={t.k.y} big={pct(youth)} sub={fmt(t.k.p, nf(sum(val, 'y')))} color={YOUTH} bar={youth} />
+          <Kpi icon={Target} title={t.k.total} v={pc(reach, TARGET)} label={pct(pc(reach, TARGET))} big={nf(reach)} sub={fmt(t.k.of, nf(TARGET))} />
+          <Kpi icon={gap >= 0 ? TrendingUp : TrendingDown} title={t.k.gap} v={pc(gap + expected, expected)} label={pct(pc(gap + expected, expected))}
+            big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? '#2e7d32' : RED} />
+          <Kpi icon={FileText} title={t.k.decl} v={pc(reach, decl)} label={pct(pc(reach, decl))} big={nf(decl)}
+            sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
+          <Kpi icon={Users} title={t.k.w} v={women} label={pct(women)} big={nf(sum(val, 'w'))} sub={fmt(t.k.p, '').trim()} color={WOMEN} />
+          <Kpi icon={User} title={t.k.y} v={youth} label={pct(youth)} big={nf(sum(val, 'y'))} sub={fmt(t.k.p, '').trim()} color={YOUTH} />
         </section>
 
         <section className="g3">
-          <div className="c">
+          <div className="c" style={{ display: 'flex', flexDirection: 'column' }}>
             <h4>{t.c.qual}</h4>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly', gap: 8 }}>
             {quality.map((x) => (
               <div key={x.s}>
                 <div className="row"><span><i style={{ background: STC[x.s] }} />{t.st[x.s]}</span><span><b>{nf(x.v)}</b> ({pct(pc(x.v, decl))})</span></div>
                 <div className="bar" style={{ marginTop: 4 }}><b style={{ width: `${pc(x.v, decl)}%`, background: STC[x.s] }} /></div>
               </div>
             ))}
+            </div>
           </div>
           <div className="c">
             <h4>{t.c.evol}</h4>
-            <ResponsiveContainer width="100%" height={narrow ? 240 : 300}>
+            <ResponsiveContainer width="100%" height={narrow ? 200 : 230}>
               <LineChart data={evol} margin={{ left: 0, right: 16, top: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="y" tick={{ fontSize: 11 }} padding={{ left: 15, right: 15 }} />
@@ -483,7 +477,7 @@ const Beneficiaires: React.FC = () => {
           </div>
           <div className="c">
             <h4>{t.c.reg}</h4>
-            <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 34 + 20)}>
+            <ResponsiveContainer width="100%" height={Math.max(190, regions.length * 34 + 20)}>
               <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 40 }}>
                 <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => nf(v)} />
                 <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11 }} interval={0} />
