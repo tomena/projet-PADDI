@@ -1,1635 +1,802 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import {
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  LineChart,
-  Line,
-  Area,
-  AreaChart,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  BarChart,
-  Bar,
-  LabelList,
-  ReferenceLine,
+  ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Area, Line, Bar,
+  XAxis, YAxis, Tooltip, CartesianGrid, ReferenceLine, LabelList,
 } from 'recharts';
-
-import { MapContainer, TileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Tooltip as MapTip, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import {
+  Map as MapIcon, Target, MapPin, Package, Users, Sprout, RotateCcw, Download, Search, Calendar,
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, CheckCircle2, XCircle, TrendingUp, TrendingDown,
+} from 'lucide-react';
 
-import { Users, TreePine, RefreshCw, Flame, Trees, Globe2, Map } from 'lucide-react';
+/* =====================================================================
+   CONFIGURATION ET DONNÉES (source unique : tout le reste en est déduit)
+   ===================================================================== */
+const GEO_URL = '/data/madagascar_24_region.geojson'; // facultatif : champ « nom_reg » (sinon, bulles sur la carte)
+const GEO_PROP = 'nom_reg';
+const CIBLE_PAR_REGION = 1; // une région atteint la cible quand elle a élaboré au moins N paquet(s) de mesures
+const FEMMES = { valeur: 46.8, cible: 40 }; // part des femmes dans les plateformes (%)
+const JEUNES = { valeur: 35.2, cible: 30 }; // part des jeunes (< 35 ans) dans les plateformes (%)
+const LV = ['#dc2626', '#f59e0b', '#15803d']; // 0 paquet · 1 paquet · plus d'1 paquet
 
-const GREEN = '#1b5e20';
+// Régions d'intervention (supprimez une ligne : tout se recalcule)
+const REGIONS: { name: string; pos: [number, number] }[] = [
+  { name: 'Boeny', pos: [-16.5, 46.5] },
+  { name: 'DIANA', pos: [-13.2, 49.2] },
+  { name: 'Vakinankaratra', pos: [-19.9, 46.8] },
+  { name: 'Amoron’i Mania', pos: [-20.7, 46.9] },
+  { name: 'Anôsy', pos: [-24.6, 46.4] },
+  { name: 'Atsimo Atsinanana', pos: [-23.0, 47.4] },
+];
 
+// Paquets de mesures élaborés (une ligne = un paquet ; date au format AAAA-MM-JJ)
+const PAQUETS = [
+  { id: 'PR-DIA-001', region: 'DIANA', date: '2025-04-15', spec: 'Restauration des écosystèmes côtiers et mangroves : gestion durable des ressources en eau et prévention des inondations.' },
+  { id: 'PR-DIA-002', region: 'DIANA', date: '2025-04-15', spec: 'Renforcement de la gestion des bassins versants et protection des forêts de captage.' },
+  { id: 'PR-BOE-001', region: 'Boeny', date: '2025-04-10', spec: 'Réhabilitation des zones humides et lutte contre l’érosion : promotion de l’agroforesterie.' },
+  { id: 'PR-BOE-002', region: 'Boeny', date: '2025-04-10', spec: 'Appui à la gestion intégrée des paysages et valorisation des services écosystémiques.' },
+  { id: 'PR-VAK-001', region: 'Vakinankaratra', date: '2025-03-20', spec: 'Préservation des forêts et régulation des flux d’eau : réduction des risques naturels.' },
+  { id: 'PR-VAK-002', region: 'Vakinankaratra', date: '2025-03-20', spec: 'Gestion durable des sols et restauration des terres dégradées.' },
+  { id: 'PR-AMA-001', region: 'Amoron’i Mania', date: '2025-05-05', spec: 'Gestion durable des pâturages et conservation des ressources naturelles.' },
+];
+
+// Trajectoire cible du taux d'atteinte (% de régions ayant atteint la cible)
+const TRAJECTOIRE: Record<number, number> = { 2025: 20, 2026: 40, 2027: 60, 2028: 60, 2029: 80, 2030: 100 };
+const YEARS = Object.keys(TRAJECTOIRE).map(Number);
+
+/* =====================================================================
+   TRADUCTIONS (fr sert de modèle : mêmes clés imposées dans mg / en / de)
+   ===================================================================== */
+const fr = {
+  title: 'Suivi des mesures régionales',
+  subtitle: 'Paquets de mesures élaborés par les plateformes régionales pour renforcer les services écosystémiques de régulation',
+  filters: 'Filtres', year: 'Année', region: 'Région', allYears: 'Toutes les années', allRegions: 'Toutes les régions', reset: 'Réinitialiser',
+  yearHint: 'Cumul des paquets adoptés jusqu’à l’année choisie',
+  enonceTitle: 'Énoncé de l’indicateur',
+  enonce: 'Les plateformes régionales de coordination intersectorielles dans les cinq régions d’intervention élaborent chacune un paquet de mesures pour améliorer les services écosystémiques de régulation dans le cadre de la mise à jour des plans régionaux de développement.',
+  kRate: 'Taux d’atteinte de la cible', kRateSub: (a: number, b: number) => `${a} sur ${b} région${b > 1 ? 's' : ''}`, kRateTarget: 'Cible : 100 %',
+  kRegions: 'Régions d’intervention', kRegionsSub: (n: number) => `${n} ayant élaboré au moins un paquet`,
+  kPackets: 'Paquets de mesures élaborés', kPacketsSub: (v: string) => `${v} par région en moyenne`,
+  kWomen: 'Part des femmes dans les plateformes', kYouth: 'Part des jeunes (< 35 ans) dans les plateformes',
+  kTarget: (n: number) => `Cible : ≥ ${n} %`, kMet: 'Cible atteinte', kBelow: 'Sous la cible',
+  regTitle: 'Avancement par région', regSub: (n: number) => `Paquets de mesures élaborés · cible : au moins ${n} par région`,
+  l0: 'Aucun paquet', l1: '1 paquet', l2: 'Plus d’1 paquet', ok: 'Atteint', ko: 'Non atteint',
+  donTitle: 'Régions selon le nombre de paquets', regionsWord: 'régions',
+  evoTitle: 'Évolution annuelle du taux d’atteinte', evoSub: '% de régions ayant atteint la cible', evoReal: 'Réalisé', evoTarget: 'Trajectoire cible',
+  evoOn: (y: number, a: string, c: string) => `En ${y} : ${a} réalisé pour ${c} attendu. La trajectoire est respectée.`,
+  evoOff: (y: number, a: string, c: string) => `En ${y} : ${a} réalisé pour ${c} attendu. Un rattrapage est nécessaire.`,
+  cadTitle: 'Rythme d’adoption des paquets', cadSub: 'Paquets adoptés par mois et cumul', cadMonthly: 'Adoptés dans le mois', cadCum: 'Cumul',
+  cadEmpty: 'Aucun paquet adopté pour cette sélection.',
+  mapTitle: 'Carte des régions selon le nombre de paquets', mapHint: 'Cliquez sur une région pour la sélectionner.', legend: 'Nombre de paquets de mesures',
+  tblTitle: 'Détail des paquets de mesures', search: 'Rechercher une région, un identifiant…', export: 'Exporter CSV',
+  cols: ['Région', 'Paquets élaborés', 'Id du paquet', 'Date d’adoption', 'Spécification'],
+  none: 'Aucun paquet de mesures adopté à ce jour.',
+  showing: (a: number, b: number, n: number) => `Affichage de ${a} à ${b} sur ${n} enregistrements`,
+  rowsPer: 'Lignes par page', first: 'Première page', prev: 'Page précédente', next: 'Page suivante', last: 'Dernière page',
+  noResult: 'Aucun enregistrement. Modifiez les filtres ou la recherche.', pageOf: (p: number, n: number) => `${p} / ${n}`,
+  csv: ['Region', 'Paquets elabores', 'Id du paquet', 'Date d’adoption', 'Specification'],
+};
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: 'Fanaraha-maso ny fepetra isam-paritra',
+  subtitle: 'Fonosana fepetra nataon’ny sehatra isam-paritra hanamafisana ny serivisy avy amin’ny tontolo iainana mifehy',
+  filters: 'Sivana', year: 'Taona', region: 'Faritra', allYears: 'Taona rehetra', allRegions: 'Faritra rehetra', reset: 'Averina',
+  yearHint: 'Fitambaran’ny fonosana nekena hatramin’ny taona voafidy',
+  enonceTitle: 'Fanambarana ny tondro',
+  enonce: 'Ny sehatra fandrindrana isam-paritra mifandray amin’ny sehatra maro ao amin’ireo faritra dimy fiasana dia samy manao fonosana fepetra iray mba hanatsarana ny serivisy avy amin’ny tontolo iainana mifehy, ao anatin’ny fanavaozana ny drafitra fampandrosoana isam-paritra.',
+  kRate: 'Tahan’ny fahatratrarana ny tanjona', kRateSub: (a, b) => `${a} amin’ny faritra ${b}`, kRateTarget: 'Tanjona : 100 %',
+  kRegions: 'Faritra fiasana', kRegionsSub: (n) => `${n} no nanao fonosana iray farafahakeliny`,
+  kPackets: 'Fonosana fepetra vita', kPacketsSub: (v) => `${v} isaky ny faritra eo ho eo`,
+  kWomen: 'Anjaran’ny vehivavy ao amin’ny sehatra', kYouth: 'Anjaran’ny tanora (< 35 taona) ao amin’ny sehatra',
+  kTarget: (n) => `Tanjona : ≥ ${n} %`, kMet: 'Tanjona tratra', kBelow: 'Latsaky ny tanjona',
+  regTitle: 'Fandrosoana isaky ny faritra', regSub: (n) => `Fonosana fepetra vita · tanjona : ${n} farafahakeliny isaky ny faritra`,
+  l0: 'Tsy misy fonosana', l1: 'Fonosana 1', l2: 'Mihoatra ny fonosana 1', ok: 'Tratra', ko: 'Tsy tratra',
+  donTitle: 'Faritra araka ny isan’ny fonosana', regionsWord: 'faritra',
+  evoTitle: 'Fivoaran’ny tahan’ny fahatratrarana isan-taona', evoSub: '% amin’ny faritra nahatratra ny tanjona', evoReal: 'Vita', evoTarget: 'Làlana tanjona',
+  evoOn: (y, a, c) => `Tamin’ny ${y} : ${a} vita ho an’ny ${c} andrasana. Arahina ny làlana.`,
+  evoOff: (y, a, c) => `Tamin’ny ${y} : ${a} vita ho an’ny ${c} andrasana. Mila manatratra ny fahatarana.`,
+  cadTitle: 'Hafainganam-pandehan’ny fanekena ny fonosana', cadSub: 'Fonosana nekena isam-bolana sy fitambarana', cadMonthly: 'Nekena tao anatin’ny volana', cadCum: 'Fitambarana',
+  cadEmpty: 'Tsy misy fonosana nekena ho an’ity fifidianana ity.',
+  mapTitle: 'Sarintanin’ny faritra araka ny isan’ny fonosana', mapHint: 'Tsindrio faritra iray hifidianana azy.', legend: 'Isan’ny fonosana fepetra',
+  tblTitle: 'Antsipiriany momba ny fonosana fepetra', search: 'Hitady faritra, ID…', export: 'Alaina CSV',
+  cols: ['Faritra', 'Fonosana vita', 'ID ny fonosana', 'Daty nekena', 'Famaritana'],
+  none: 'Mbola tsy misy fonosana fepetra nekena hatramin’izao.',
+  showing: (a, b, n) => `${a} – ${b} amin’ny ${n} voarakitra`,
+  rowsPer: 'Andalana isaky ny pejy', first: 'Pejy voalohany', prev: 'Pejy teo aloha', next: 'Pejy manaraka', last: 'Pejy farany',
+  noResult: 'Tsy misy voarakitra. Ovay ny sivana na ny fikarohana.', pageOf: (p, n) => `${p} / ${n}`,
+  csv: ['Faritra', 'Fonosana vita', 'ID ny fonosana', 'Daty nekena', 'Famaritana'],
+};
+
+const en: Txt = {
+  title: 'Regional measures monitoring',
+  subtitle: 'Packages of measures developed by the regional platforms to strengthen regulating ecosystem services',
+  filters: 'Filters', year: 'Year', region: 'Region', allYears: 'All years', allRegions: 'All regions', reset: 'Reset',
+  yearHint: 'Cumulative packages adopted up to the selected year',
+  enonceTitle: 'Indicator statement',
+  enonce: 'The regional cross-sectoral coordination platforms in the five intervention regions each develop a package of measures to improve regulating ecosystem services as part of the update of the regional development plans.',
+  kRate: 'Target achievement rate', kRateSub: (a, b) => `${a} of ${b} region${b > 1 ? 's' : ''}`, kRateTarget: 'Target: 100 %',
+  kRegions: 'Intervention regions', kRegionsSub: (n) => `${n} with at least one package`,
+  kPackets: 'Packages of measures developed', kPacketsSub: (v) => `${v} per region on average`,
+  kWomen: 'Share of women in the platforms', kYouth: 'Share of young people (< 35) in the platforms',
+  kTarget: (n) => `Target: ≥ ${n} %`, kMet: 'Target reached', kBelow: 'Below target',
+  regTitle: 'Progress by region', regSub: (n) => `Packages of measures developed · target: at least ${n} per region`,
+  l0: 'No package', l1: '1 package', l2: 'More than 1 package', ok: 'Reached', ko: 'Not reached',
+  donTitle: 'Regions by number of packages', regionsWord: 'regions',
+  evoTitle: 'Yearly trend of the achievement rate', evoSub: '% of regions that reached the target', evoReal: 'Achieved', evoTarget: 'Target trajectory',
+  evoOn: (y, a, c) => `In ${y}: ${a} achieved against ${c} expected. The trajectory is on track.`,
+  evoOff: (y, a, c) => `In ${y}: ${a} achieved against ${c} expected. Catching up is needed.`,
+  cadTitle: 'Package adoption pace', cadSub: 'Packages adopted per month and cumulative total', cadMonthly: 'Adopted in the month', cadCum: 'Cumulative',
+  cadEmpty: 'No package adopted for this selection.',
+  mapTitle: 'Map of regions by number of packages', mapHint: 'Click a region to select it.', legend: 'Number of packages of measures',
+  tblTitle: 'Details of the packages of measures', search: 'Search a region, an ID…', export: 'Export CSV',
+  cols: ['Region', 'Packages developed', 'Package ID', 'Adoption date', 'Description'],
+  none: 'No package of measures adopted to date.',
+  showing: (a, b, n) => `Showing ${a} to ${b} of ${n} records`,
+  rowsPer: 'Rows per page', first: 'First page', prev: 'Previous page', next: 'Next page', last: 'Last page',
+  noResult: 'No records found. Change the filters or the search.', pageOf: (p, n) => `${p} / ${n}`,
+  csv: ['Region', 'Packages developed', 'Package ID', 'Adoption date', 'Description'],
+};
+
+const de: Txt = {
+  title: 'Überwachung der regionalen Maßnahmen',
+  subtitle: 'Von den regionalen Plattformen erarbeitete Maßnahmenpakete zur Stärkung der regulierenden Ökosystemleistungen',
+  filters: 'Filter', year: 'Jahr', region: 'Region', allYears: 'Alle Jahre', allRegions: 'Alle Regionen', reset: 'Zurücksetzen',
+  yearHint: 'Kumulierte Pakete bis zum gewählten Jahr',
+  enonceTitle: 'Indikatorbeschreibung',
+  enonce: 'Die regionalen sektorübergreifenden Koordinierungsplattformen in den fünf Interventionsregionen erarbeiten jeweils ein Maßnahmenpaket zur Verbesserung der regulierenden Ökosystemleistungen im Rahmen der Aktualisierung der regionalen Entwicklungspläne.',
+  kRate: 'Zielerreichungsgrad', kRateSub: (a, b) => `${a} von ${b} Region${b > 1 ? 'en' : ''}`, kRateTarget: 'Ziel: 100 %',
+  kRegions: 'Interventionsregionen', kRegionsSub: (n) => `${n} mit mindestens einem Paket`,
+  kPackets: 'Erarbeitete Maßnahmenpakete', kPacketsSub: (v) => `${v} pro Region im Durchschnitt`,
+  kWomen: 'Frauenanteil in den Plattformen', kYouth: 'Anteil Jugendlicher (< 35 Jahre) in den Plattformen',
+  kTarget: (n) => `Ziel: ≥ ${n} %`, kMet: 'Ziel erreicht', kBelow: 'Unter dem Ziel',
+  regTitle: 'Fortschritt nach Region', regSub: (n) => `Erarbeitete Maßnahmenpakete · Ziel: mindestens ${n} pro Region`,
+  l0: 'Kein Paket', l1: '1 Paket', l2: 'Mehr als 1 Paket', ok: 'Erreicht', ko: 'Nicht erreicht',
+  donTitle: 'Regionen nach Anzahl der Pakete', regionsWord: 'Regionen',
+  evoTitle: 'Jährliche Entwicklung des Zielerreichungsgrads', evoSub: '% der Regionen, die das Ziel erreicht haben', evoReal: 'Erreicht', evoTarget: 'Zielpfad',
+  evoOn: (y, a, c) => `${y}: ${a} erreicht bei ${c} erwartet. Der Zielpfad wird eingehalten.`,
+  evoOff: (y, a, c) => `${y}: ${a} erreicht bei ${c} erwartet. Aufholbedarf besteht.`,
+  cadTitle: 'Tempo der Paketverabschiedung', cadSub: 'Pro Monat verabschiedete Pakete und Summe', cadMonthly: 'Im Monat verabschiedet', cadCum: 'Kumuliert',
+  cadEmpty: 'Für diese Auswahl wurde kein Paket verabschiedet.',
+  mapTitle: 'Karte der Regionen nach Anzahl der Pakete', mapHint: 'Klicken Sie auf eine Region, um sie auszuwählen.', legend: 'Anzahl der Maßnahmenpakete',
+  tblTitle: 'Details der Maßnahmenpakete', search: 'Region, ID suchen…', export: 'CSV exportieren',
+  cols: ['Region', 'Erarbeitete Pakete', 'Paket-ID', 'Datum der Verabschiedung', 'Beschreibung'],
+  none: 'Bisher wurde kein Maßnahmenpaket verabschiedet.',
+  showing: (a, b, n) => `Anzeige von ${a} bis ${b} von ${n} Einträgen`,
+  rowsPer: 'Zeilen pro Seite', first: 'Erste Seite', prev: 'Vorherige Seite', next: 'Nächste Seite', last: 'Letzte Seite',
+  noResult: 'Keine Einträge. Filter oder Suche ändern.', pageOf: (p, n) => `${p} / ${n}`,
+  csv: ['Region', 'Erarbeitete Pakete', 'Paket-ID', 'Datum der Verabschiedung', 'Beschreibung'],
+};
+
+const TXT: Record<string, Txt> = { fr, mg, en, de };
+const LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-GB', de: 'de-DE', mg: 'fr-FR' };
+
+/* =====================================================================
+   OUTILS
+   ===================================================================== */
+const norm = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+const level = (n: number) => (n === 0 ? 0 : n === 1 ? 1 : 2);
+const yearOf = (iso: string) => Number(iso.slice(0, 4));
+
+function download(name: string, content: string) {
+  const url = URL.createObjectURL(new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+}
+const csvLine = (cells: (string | number)[]) => cells.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';');
+
+/* =====================================================================
+   STYLES RESPONSIVES (container queries : la page s'adapte à la largeur
+   réelle de son conteneur, du petit téléphone au grand écran)
+   ===================================================================== */
+const CSS = `
+.sp{--g:#166534;--g2:#15803d;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;
+  container-type:inline-size;container-name:sp;width:100%;min-width:0;min-height:100vh;background:#eef3f8;color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.4}
+.sp *{box-sizing:border-box}
+.sp button,.sp select,.sp input{font-family:inherit}
+.sp button:focus-visible,.sp select:focus-visible,.sp input:focus-visible,.sp summary:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+
+.sp-top{background:linear-gradient(120deg,#14532d,#15803d 70%,#22a05a);color:#fff;padding:clamp(12px,2.4cqw,22px) clamp(12px,2.4cqw,24px)}
+.sp-top-in{max-width:1600px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.sp-logo{flex:none;width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,.16);display:grid;place-items:center}
+.sp-h1{margin:0;font-size:clamp(17px,2.6cqw,26px);font-weight:800;line-height:1.2}
+.sp-sub{margin:3px 0 0;font-size:clamp(11.5px,1.5cqw,13.5px);opacity:.9}
+.sp-body{max-width:1600px;margin:0 auto;padding:clamp(8px,1.6cqw,16px);display:flex;flex-direction:column;gap:12px}
+
+.sp-info{background:#fff;border:1px solid var(--line);border-left:4px solid var(--g2);border-radius:12px;padding:10px 14px}
+.sp-info summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:800;color:var(--g);font-size:13px;list-style:none}
+.sp-info summary::-webkit-details-marker{display:none}
+.sp-info p{margin:8px 0 0;color:#334155;font-size:13px}
+
+.sp-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
+.sp-f{display:flex;flex-direction:column;gap:4px;min-width:0}
+.sp-f label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#334155}
+.sp-f select,.sp-search input{width:100%;height:40px;padding:0 10px;border-radius:10px;border:1px solid #d1d5db;background:#fff;font-size:13px;font-weight:600;color:var(--ink)}
+.sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.sp-btn:hover{background:#f1f5f9}
+.sp-btn:disabled{opacity:.5;cursor:not-allowed}
+.sp-btn.pri{background:var(--g2);border-color:var(--g2);color:#fff}
+.sp-btn.pri:hover{background:var(--g)}
+.sp-hint{font-size:10.5px;color:var(--mut)}
+
+.sp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}
+.sp-kpi{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-top:3px solid var(--c);border-radius:14px;padding:12px 14px;min-width:0;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.sp-kic{flex:none;width:40px;height:40px;border-radius:11px;background:var(--c);display:grid;place-items:center;color:#fff}
+.sp-kb{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
+.sp-kt{font-size:10.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--c);line-height:1.25}
+.sp-kv{font-size:clamp(22px,2.4cqw,30px);font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
+.sp-ks{font-size:11.5px;color:var(--mut)}
+.sp-donut{position:relative;flex:none;width:68px;height:68px}
+.sp-meter{position:relative;height:9px;border-radius:999px;background:#e5e7eb;margin:5px 0 2px}
+.sp-meter i{display:block;height:100%;border-radius:999px;background:var(--c)}
+.sp-meter b{position:absolute;top:-4px;bottom:-4px;width:2px;background:#0f172a;border-radius:2px}
+.sp-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;width:fit-content}
+.sp-pill.ok{background:#d1fae5;color:#065f46}
+.sp-pill.ko{background:#fee2e2;color:#b91c1c}
+
+.sp-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
+.sp-grid>*{grid-column:span 12}
+.sp-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.sp-ct{margin:0;font-size:12.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#111827}
+.sp-cs{margin:2px 0 0;font-size:11.5px;color:var(--mut)}
+.sp-chart{height:230px;min-width:0}
+.sp-empty{padding:28px 10px;text-align:center;color:var(--mut);font-size:13px}
+.sp-lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;font-weight:600;color:#475569}
+.sp-lg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.sp-tip{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.sp-tip b{display:block;margin-bottom:3px}
+.sp-tip div{display:flex;justify-content:space-between;gap:14px}
+
+.sp-reg{display:flex;flex-direction:column;gap:9px}
+.sp-rr{display:grid;grid-template-columns:minmax(90px,1.1fr) minmax(0,2fr) auto;gap:8px 12px;align-items:center;cursor:pointer;border-radius:8px;padding:2px 4px}
+.sp-rr:hover,.sp-rr.sel{background:#f0fdf4}
+.sp-rn{font-weight:700;font-size:12.5px;overflow-wrap:anywhere}
+.sp-track{position:relative;height:14px;border-radius:999px;background:#eef2f6;overflow:hidden}
+.sp-track i{display:block;height:100%;border-radius:999px;min-width:6px}
+.sp-rv{display:flex;align-items:center;gap:8px;justify-content:flex-end}
+.sp-rv strong{min-width:14px;text-align:right;font-variant-numeric:tabular-nums}
+.sp-st{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.sp-st.ok{background:#d1fae5;color:#065f46}
+.sp-st.ko{background:#fee2e2;color:#b91c1c}
+
+.sp-dwrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 18px}
+.sp-dchart{position:relative;width:170px;height:170px;flex:none}
+.sp-dcenter{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none}
+.sp-dcenter strong{font-size:26px;font-weight:800;color:var(--g);line-height:1}
+.sp-dcenter span{font-size:11px;color:var(--mut)}
+.sp-dleg{display:flex;flex-direction:column;gap:8px;font-size:12.5px;min-width:150px}
+.sp-dleg div{display:flex;align-items:center;gap:8px}
+.sp-dleg i{width:11px;height:11px;border-radius:3px;flex:none}
+.sp-dleg b{margin-left:auto;font-variant-numeric:tabular-nums}
+.sp-note{display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:8px 10px;border-radius:10px}
+.sp-note.ok{background:#f0fdf4;color:#14532d}
+.sp-note.ko{background:#fffbeb;color:#92400e}
+.sp-note svg{flex:none;margin-top:1px}
+
+.sp-mapcard{min-height:340px}
+.sp-mapwrap{position:relative;flex:1;min-height:300px;border-radius:10px;overflow:hidden;border:1px solid var(--line);isolation:isolate}
+.sp-mapwrap .leaflet-container{position:absolute;inset:0;background:#e5e7eb;font-family:inherit}
+.sp-mapwrap .leaflet-container:focus,.sp-mapwrap .leaflet-container path:focus{outline:none}
+.sp-maplg{position:absolute;left:8px;bottom:8px;z-index:1000;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.95);box-shadow:0 1px 5px rgba(0,0,0,.25);font-size:11px;max-width:80%}
+.sp-maplg strong{display:block;margin-bottom:3px}
+.sp-maplg div{display:flex;align-items:center;gap:6px;margin-top:2px}
+.sp-maplg i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.sp .leaflet-tooltip.sp-bubble{background:transparent;border:0;box-shadow:none;color:#fff;font-weight:800;font-size:12px;padding:0}
+.sp .leaflet-tooltip.sp-bubble::before{display:none}
+
+.sp-tbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px}
+.sp-tact{display:flex;flex-wrap:wrap;gap:8px;flex:1 1 280px;justify-content:flex-end}
+.sp-search{position:relative;flex:1 1 220px;max-width:360px}
+.sp-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8}
+.sp-search input{padding-left:34px;font-weight:500}
+.sp-tw{overflow:auto;border:1px solid var(--line);border-radius:10px}
+.sp-t{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+.sp-t th{position:sticky;top:0;background:var(--g);color:#fff;padding:10px 10px;text-align:left;font-weight:700;white-space:nowrap}
+.sp-t td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;background:#fff}
+.sp-t tbody tr:hover td{background:#f0fdf4}
+.sp-t td.c,.sp-t th.c{text-align:center}
+.sp-t td.s{min-width:260px}
+.sp-t .mut{color:var(--mut)}
+.sp-pg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;font-size:12.5px;color:var(--mut)}
+.sp-pgb{display:flex;align-items:center;gap:4px}
+.sp-pgb button{min-width:34px;height:34px;display:grid;place-items:center;border:1px solid #d1d5db;background:#fff;border-radius:8px;cursor:pointer;color:var(--ink);font-weight:700;padding:0 8px}
+.sp-pgb button:disabled{opacity:.4;cursor:not-allowed}
+.sp-pgb span{padding:0 8px;font-weight:700;color:var(--ink)}
+.sp-pg select{height:34px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:0 8px;font-size:12.5px}
+
+/* ≥ 720 px : deux colonnes */
+@container sp (min-width:720px){
+  .sp-grid>.cReg,.sp-grid>.cEvo,.sp-grid>.cDon,.sp-grid>.cCad{grid-column:span 6}
+  .sp-grid>.cMap{order:3}
+}
+/* ≥ 1100 px : disposition complète */
+@container sp (min-width:1100px){
+  .sp-grid>.cReg{grid-column:span 5}
+  .sp-grid>.cEvo{grid-column:span 4}
+  .sp-grid>.cDon{grid-column:span 3}
+  .sp-grid>.cMap{grid-column:span 7;order:1}
+  .sp-grid>.cCad{grid-column:span 5;order:2}
+  .sp-chart{height:250px}
+  .sp-mapwrap{min-height:380px}
+}
+@container sp (min-width:1800px){
+  .sp{font-size:15px}
+  .sp-t{font-size:13.5px}
+}
+/* ≤ 640 px : tableau en cartes, éléments empilés */
+@container sp (max-width:640px){
+  .sp-logo{width:38px;height:38px}
+  .sp-btn span.t{display:none}
+  .sp-tact{justify-content:stretch}
+  .sp-search{max-width:none}
+  .sp-t thead{display:none}
+  .sp-t,.sp-t tbody,.sp-t tr,.sp-t td{display:block;width:100%}
+  .sp-t tr{border-bottom:6px solid #eef3f8;padding:6px 0}
+  .sp-t td{display:flex;gap:10px;justify-content:space-between;border:0;padding:5px 12px;text-align:right}
+  .sp-t td.c{text-align:right}
+  .sp-t td::before{content:attr(data-label);font-weight:700;color:var(--g);text-align:left;flex:none}
+  .sp-t td.s{min-width:0;flex-direction:column;gap:2px;text-align:left}
+  .sp-pg{justify-content:center}
+  .sp-rr{grid-template-columns:minmax(0,1fr) auto}
+  .sp-rr .sp-track{grid-column:1 / -1;order:3}
+}
+@media print{.sp-filters,.sp-pg,.sp-tact{display:none!important}.sp{background:#fff}}
+@media (prefers-reduced-motion:reduce){.sp *{transition:none!important;animation:none!important}}
+`;
+
+/* =====================================================================
+   CARTE
+   ===================================================================== */
+function FitView({ pts }: { pts: [number, number][] }) {
+  const map = useMap();
+  const key = pts.map((p) => p.join(',')).join('|');
+  useEffect(() => {
+    if (!pts.length) { map.setView([-19, 47], 5); return; }
+    map.fitBounds(L.latLngBounds(pts), { padding: [40, 40], maxZoom: pts.length === 1 ? 7 : 8 });
+  }, [key, map]);
+  return null;
+}
+function ResizeMap() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer().parentElement;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+// Polygones des régions (si le fichier GeoJSON est disponible), colorés selon le nombre de paquets
+function RegionPolygons({ geo, stats, selected, onPick, label }: any) {
+  const map = useMap();
+  useEffect(() => {
+    if (!geo.length) return;
+    const byName = new Map<string, any>(stats.map((s: any) => [norm(s.name), s]));
+    const g = L.featureGroup();
+    geo.forEach((f: any) => {
+      const s = byName.get(norm(f?.properties?.[GEO_PROP]));
+      const l = L.geoJSON(f, {
+        style: () => ({
+          color: s ? (selected === s.name ? '#0f172a' : '#ffffff') : '#94a3b8', weight: s ? (selected === s.name ? 3 : 1.4) : 0.6,
+          fillColor: s ? LV[s.level] : '#cbd5e1', fillOpacity: s ? 0.5 : 0.12,
+        }),
+      });
+      if (s) { l.bindTooltip(`<b>${s.name}</b><br/>${label(s.n)}`, { sticky: true }); l.on('click', () => onPick(s.name)); }
+      l.addTo(g);
+    });
+    g.addTo(map);
+    return () => { map.removeLayer(g); };
+  }, [geo, stats, selected, map]);
+  return null;
+}
+
+/* =====================================================================
+   PAGE
+   ===================================================================== */
 export default function SurfacesAgropastorales() {
+  /* ---------- Langue (contexte de l'application) ---------- */
+  const langCtx: any = useLanguage();
+  const lang: string = langCtx?.lang ?? langCtx?.language ?? langCtx?.locale ?? 'fr';
+  const t: Txt = TXT[lang] || fr;
+  const LOC = LOCALES[lang] || 'fr-FR';
+  const fmtP = (v: number, d = 1) => `${v.toLocaleString(LOC, { minimumFractionDigits: d, maximumFractionDigits: d })} %`;
+  const fmtD = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString(LOC, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const lvName = [t.l0, t.l1, t.l2];
+  const thisYear = new Date().getFullYear();
 
-const evolution = [
-  { annee: '2025', valeur: 20.0 },
-  { annee: '2026', valeur: 40.0 },
-  { annee: '2027', valeur: 60.0 },
-  { annee: '2028', valeur: 60.0 },
-  { annee: '2029', valeur: 80.0 },
-  { annee: '2030', valeur: 100 },
-];
+  /* ---------- Filtres ---------- */
+  const [year, setYear] = useState(0); // 0 = toutes les années
+  const [region, setRegion] = useState('');
+  const [q, setQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const reset = () => { setYear(0); setRegion(''); setQ(''); };
 
-const regions = [
-  { name: 'Boeny', value: 2 },
-  { name: 'DIANA', value: 2 },
-  { name: 'Vakinankaratra', value: 2 },
-  { name: 'Amoron’i Mania', value: 1 },
-  { name: 'Anôsy', value: 0 },
-  { name: 'Atsimo Atsinanana', value: 0 },
-];
+  /* ---------- Données dérivées (source unique) ---------- */
+  const regsSel = useMemo(() => REGIONS.filter((r) => !region || r.name === region), [region]);
+  const packets = useMemo(() => PAQUETS.filter((p) => (!region || p.region === region) && (!year || yearOf(p.date) <= year)), [region, year]);
+  const stats = useMemo(() => regsSel.map((r) => {
+    const n = packets.filter((p) => p.region === r.name).length;
+    return { ...r, n, level: level(n), ok: n >= CIBLE_PAR_REGION };
+  }), [regsSel, packets]);
 
-const typeTerrain = [
-  { name: '0 paquet de mesure', value: 1, color: 'red', pct: '20,0%' },
-  { name: '1 paquet de mesure', value: 1, color: 'yellow', pct: '20,0%' },
-  { name: 'Plus d’1 paquet de mesures', value: 3, color: 'green', pct: '20,0%' },
-];
+  const nReg = stats.length;
+  const nOk = stats.filter((s) => s.ok).length;
+  const rate = nReg ? (nOk / nReg) * 100 : 0;
+  const avg = nReg ? packets.length / nReg : 0;
 
+  const levels = [0, 1, 2].map((i) => ({ name: lvName[i], value: stats.filter((s) => s.level === i).length, color: LV[i] }));
+  const maxN = Math.max(2, ...stats.map((s) => s.n));
+  const sortedStats = useMemo(() => [...stats].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name, 'fr')), [stats]);
 
-const renderCenter = () => (
-    <text
-      x="50%"
-      y="45%"
-      textAnchor="middle"
-      fontSize={16}
-      fontWeight="bold"
-    >
-      24 650 ha
-      <tspan
-        x="50%"
-        dy="20"
-        fontSize={12}
-        fontWeight="normal"
-      >
-        (100%)
-      </tspan>
-    </text>
-  );
+  // Évolution : taux réalisé (déduit des dates d'adoption) comparé à la trajectoire cible
+  const evo = useMemo(() => YEARS.map((y) => {
+    const done = regsSel.filter((r) => PAQUETS.some((p) => p.region === r.name && yearOf(p.date) <= y)).length;
+    return { annee: String(y), cible: TRAJECTOIRE[y], realise: y <= thisYear && regsSel.length ? Math.round((done / regsSel.length) * 1000) / 10 : null };
+  }), [regsSel, thisYear]);
+  const refYear = year || Math.min(thisYear, YEARS[YEARS.length - 1]);
+  const refPoint = evo.find((e) => e.annee === String(refYear));
+  const evoMsg = refPoint && refPoint.realise != null
+    ? { ok: refPoint.realise >= refPoint.cible, text: (refPoint.realise >= refPoint.cible ? t.evoOn : t.evoOff)(refYear, fmtP(refPoint.realise, 0), fmtP(refPoint.cible, 0)) }
+    : null;
 
-  const rows = [
-    {
-      région: 'DIANA',
-      nbrPrise: '2',
-      id: 'PR-DIA-001',
-      date: '15/04/2025',
-      specification: 'Restauration des écosystèmes côtiers et mangroves: Gestion durable des ressources en eau et prévention des innondations.',
-    },
-    {
-        région: 'DIANA',
-        nbrPrise: '2',
-        id: 'PR-DIA-002',
-        date: '15/04/2025',
-        specification: 'Renforcement de la gestion des bassins versants et protection des forêts de captage.',
-      },
-      {
-        région: 'Boeny',
-        nbrPrise: '2',
-        id: 'PR-BOE-001',
-        date: '10/04/2025',
-        specification: 'Réhabilitation des zones humides et lutte contre l’érosion: Promotion de l’agroforesterie.',
-      },
-      {
-        région: 'Boeny',
-        nbrPrise: '2',
-        id: 'PR-BOE-002',
-        date: '10/04/2025',
-        specification: 'Appui à la gestion intégrée des paysages et valorisation des services écosystémiques.',
-      },
-      {
-        région: 'Vakinakaratra',
-        nbrPrise: '2',
-        id: 'PR-VAK-001',
-        date: '20/03/2025',
-        specification: 'Préservation des forêts et régulation des flux d’eau: Réduction des risques naturels.',
-      },
-      {
-        région: 'Vakinakaratra',
-        nbrPrise: '2',
-        id: 'PR-VAK-002',
-        date: '20/03/2025',
-        specification: 'Gestion durable des sols et restauration des terres dégradées.',
-      },
-      {
-        région: 'Amoron’i Mania',
-        nbrPrise: '1',
-        id: 'PR-AMA-001',
-        date: '05/05/2025',
-        specification: 'Gestion durable des pâturages et conservation des ressources naturelles.',
-      },
-      {
-        région: 'Atsimo Atsinanana',
-        nbrPrise: '0',
-        id: '-',
-        date: '-',
-        specification: 'Aucun paquet de mesures adopté à ce jour.',
-      },
-      {
-        région: 'Anôsy',
-        nbrPrise: '0',
-        id: '-',
-        date: '-',
-        specification: 'Aucun paquet de mesures adopté à ce jour.',
-      },
-  ];
+  // Rythme d'adoption : paquets par mois et cumul
+  const cad = useMemo(() => {
+    const m = new Map<string, number>();
+    packets.forEach((p) => { const k = p.date.slice(0, 7); m.set(k, (m.get(k) || 0) + 1); });
+    let c = 0;
+    return Array.from(m.entries()).sort().map(([k, n]) => {
+      c += n;
+      const [y, mo] = k.split('-').map(Number);
+      return { mois: new Date(y, mo - 1, 1).toLocaleDateString(LOC, { month: 'short', year: '2-digit' }), n, c };
+    });
+  }, [packets, LOC]);
 
-  const pageBtn = {
-    minWidth: 32,
-    height: 32,
-    border: '1px solid #d1d5db',
-    background: '#fff',
-    borderRadius: 6,
-    cursor: 'pointer',
-    fontWeight: 600,
-  };
-  
-  const activePageBtn = {
-    ...pageBtn,
-    background: GREEN,
-    color: '#fff',
-    borderColor: GREEN,
+  // Tableau détaillé (une ligne par paquet ; une ligne « aucun paquet » pour les régions vides)
+  const allRows = useMemo(() => stats.flatMap((s) => s.n
+    ? packets.filter((p) => p.region === s.name).map((p) => ({ region: s.name, n: s.n, id: p.id, date: fmtD(p.date), spec: p.spec }))
+    : [{ region: s.name, n: 0, id: '—', date: '—', spec: t.none }]), [stats, packets, t, LOC]);
+  const qn = norm(q);
+  const rows = useMemo(() => allRows.filter((r) => !qn || norm(`${r.region} ${r.id} ${r.spec}`).includes(qn)), [allRows, qn]);
+  const pages = Math.max(1, Math.ceil(rows.length / pageSize));
+  const pageC = Math.min(page, pages);
+  const startI = (pageC - 1) * pageSize;
+  const pageRows = rows.slice(startI, startI + pageSize);
+  useEffect(() => { setPage(1); }, [region, year, q, pageSize]);
+
+  const exportCSV = () => {
+    const lines = [csvLine(t.csv)];
+    rows.forEach((r) => lines.push(csvLine([r.region, r.n, r.id, r.date, r.spec])));
+    download('mesures_regionales.csv', lines.join('\n'));
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  // Polygones des régions (facultatif)
+  const [geo, setGeo] = useState<any[]>([]);
+  useEffect(() => {
+    let on = true;
+    fetch(GEO_URL).then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => on && setGeo(j.features || [])).catch(() => { /* bulles seules */ });
+    return () => { on = false; };
+  }, []);
 
-  const total = rows.length;
+  const pkLabel = (n: number) => lvName[level(n)] + (n > 1 ? ` (${n})` : '');
+  const filtered = !!(year || region || q);
 
-  const start = (currentPage - 1) * rowsPerPage + 1;
-
-  const end = Math.min(currentPage * rowsPerPage, total);
-
-  const paginatedRows = rows.slice(
-    (currentPage - 1) * rowsPerPage,
-    currentPage * rowsPerPage
-  );
-
-  const filtres = {
-    'Année': ['Tous', '2025', '2026', '2027', '2028', '2029', '2030'],
-  
-    'Région': [
-      'Tous',
-      'Boeny',
-      'DIANA',
-      'Anôsy',
-      'Vakinankaratra',
-      'Amoron’i Mania',
-      'Atsimo Atsinanana',
-    ],
-  };
-
-  const chartCardStyle = {
-    background: '#fff',
-    padding: 12,
-    borderRadius: 10,
-    boxShadow: '0 2px 8px rgba(0,0,0,.05)',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'flex-start',
-    height: '100%',
-    boxSizing: 'border-box',
-  };
-
-  const totalTerrain = typeTerrain.reduce(
-    (sum, item) => sum + item.value,
-    0
-  );
-
-  const regionsColored = useMemo(() => {
-    return regions.map((r) => ({
-      ...r,
-      color: r.value > 1 ? GREEN : r.value === 1 ? "#facc15" : "#ef4444",
-    }));
-  }, [regions]);
-
-return (
-<div style={{ background: '#f4f6f5', minHeight: '100vh', fontFamily: 'Arial' }}>
-
-    {/* ================= HEADER ================= */}
-
-<div
-  style={{
-    background: "#0b5d1e",
-    color: "#fff",
-    height: 58,
-    padding: "0 18px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    boxShadow: "0 2px 6px rgba(0,0,0,.15)",
-  }}
->
-  {/* Partie gauche */}
-  <div
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 12,
-    }}
-  >
-    <div
-      style={{
-        width: 34,
-        height: 34,
-        borderRadius: "50%",
-        background: "#ffffff",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Map
-        size={30}
-        color="#0b5d1e"
-        strokeWidth={2.2}
-      />
-    </div>
-
-    <div
-      style={{
-        fontSize: 18,
-        fontWeight: 700,
-      }}
-    >
-      Suivi des mesures régionales
-    </div>
-  </div>
-
-  {/* Bouton Actualiser */}
-  <button
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 8,
-      padding: "9px 18px",
-      background: "#0a4f19",
-      color: "#fff",
-      border: "1px solid rgba(255,255,255,.25)",
-      borderRadius: 8,
-      cursor: "pointer",
-      fontWeight: 600,
-      transition: ".2s",
-    }}
-    onMouseEnter={(e) => {
-      e.currentTarget.style.background = "#146c2b";
-    }}
-    onMouseLeave={(e) => {
-      e.currentTarget.style.background = "#0a4f19";
-    }}
-  >
-    <RefreshCw size={17} />
-    Actualiser
-  </button>
-</div>
-
-<div style={{ padding: 10 }}>
-
-{/* ===================== ZONE 1 : FILTRES ===================== */}
-<div
-  style={{
-    display: 'flex',
-    justifyContent: 'flex-start',
-    gap: 8,
-    marginBottom: 5,
-  }}
->
-  {Object.entries(filtres).map(([label, options]) => (
-    <div
-      key={label}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 4,
-        width: 170,
-      }}
-    >
-      <label
-        style={{
-          fontSize: 12,
-          fontWeight: 600,
-          color: '#374151',
-        }}
-      >
-        {label}
-      </label>
-
-      <select
-        style={{
-          width: '100%',
-          height: 38,
-          borderRadius: 8,
-          border: '1px solid #d1d5db',
-          padding: '0 10px',
-        }}
-      >
-        {options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
-      </select>
-    </div>
-  ))}
-</div>
-
-{/* ===================== ZONE 2 : KPI ===================== */}
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "1.6fr 1.3fr 1.2fr 1.1fr 1fr",
-    gap: 5,
-    gridAutoRows: "140px",
-    alignItems: "stretch",
-  }}
->
-
-  {/* ÉNONCÉ */}
-  <div
-  style={{
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    borderRadius: 12,
-    padding: 6,
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-  }}
->
-  <h4
-      style={{
-        margin: 0,
-        marginBottom: 10,
-        textAlign: 'center',
-        color: GREEN,
-        fontSize: 13,
-        fontWeight: 700,
-        
-      }}
-    >Énoncé de l’indicateur
-  </h4>
-      <div
-        style={{
-          fontSize: 12,
-          lineHeight: 1.1,   
-          color: '#374151',
-          textAlign: 'left',
-        }}
-      >
-      Les plateformes régionales de coordination intersectorielles dans les cinq régions d'interventions élaborent
-      chacune un paquet de mesures pour améliorer les services écosystémiques de régulation dans le cadre de la mise à jour des plans régionaux de développement.
-      </div>
-  </div>
-  
-  {/* Taux d'atteinte*/}
-  <div
-  style={{
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    borderRadius: 12,
-    padding: 6,
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-  }}
->
-  {/* TITRE */}
-  <h4
-    style={{
-      margin: 0,
-      marginBottom: 0,
-      textAlign: "center",
-      color: GREEN,
-      fontSize: 13,
-      fontWeight: 700,
-    }}
-  >
-    Taux d'atteinte de la cible
-  </h4>
-
-  {/* CONTENU */}
-  <div style={{
-  height: "100%",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  padding: 12,
-}}>
-    {/* Texte */}
-    <div
-      style={{
-        flex: 1,
-        textAlign: "center",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 800,
-          color: GREEN,
-          lineHeight: 1,
-        }}
-      >
-        80,0 %
-      </div>
-
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          color: "#374151",
-          marginTop: 8,
-        }}
-      >
-        4 sur 5 régions
-      </div>
-
-      <div
-        style={{
-          fontSize: 11,
-          color: "#6b7280",
-          marginTop: 10,
-        }}
-      >
-        Cible : 100% (5 régions)
-      </div>
-    </div>
-
-    {/* Donut */}
-    <div
-      style={{
-        width: 80,
-        height: 80,
-        flexShrink: 0,
-      }}
-    >
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
-          <Pie
-            data={[
-              { value: 80 },
-              { value: 20 },
-            ]}
-            dataKey="value"
-            innerRadius={28}
-            outerRadius={40}
-            startAngle={90}
-            endAngle={-270}
-          >
-            <Cell fill={GREEN} />
-            <Cell fill="#e5e7eb" />
-          </Pie>
-
-          <text
-            x="50%"
-            y="50%"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            fontSize={13}
-            fontWeight="bold"
-            fill={GREEN}
-          >
-            80,0%
-          </text>
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  </div>
-</div>
-
-{/* Part de femmes */}
-<div
-  style={{
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    borderRadius: 12,
-    padding: 6,
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-  }}
->
-  <h4
-    style={{
-      margin: 5,
-      marginBottom: 0,
-      textAlign: 'center',
-      color: GREEN,
-      fontSize: 12,
-      fontWeight: 700,
-    }}
-  >
-    Part des femmes impliquées dans les plateformes
-  </h4>
-
-  <div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
-  }}
->
-  {/* DONUT */}
-  <div style={{ width: 90, height: 90 }}>
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={[
-            { value: 46.8 },
-            { value: 53.2 },
-          ]}
-          dataKey="value"
-          innerRadius={28}
-          outerRadius={42}
-          startAngle={90}
-          endAngle={-270}
-        >
-          <Cell fill={GREEN} />
-          <Cell fill="#e5e7eb" />
-        </Pie>
-
-        <text
-          x="50%"
-          y="50%"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={14}
-          fontWeight={800}
-          fill={GREEN}
-        >
-          46,8%
-        </text>
-      </PieChart>
-    </ResponsiveContainer>
-  </div>
-
-  {/* CIBLE */}
-  <div
-    style={{
-      marginTop: 6,
-      fontSize: 12,
-      fontWeight: 600,
-      color: "#374151",
-    }}
-  >
-    Cible : ≥ 40%
-  </div>
-</div>
-</div>
-
-  {/* Part de jeunes */}
-  <div
-  style={{
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    borderRadius: 12,
-    padding: 6,
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-  }}
->
-        {/* TITRE */}
-        <h4
-          style={{
-            margin: 0,
-            marginBottom: 0,
-            textAlign: 'center',
-            color: GREEN,
-            fontSize: 12,
-            fontWeight: 700,
-          }}
-        >
-          Part des jeunes (&lt; 35 ans) impliqués dans les plateformes
-        </h4>
-
-        {/* CONTENU */}
-        <div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100%",
-  }}
->
-  {/* DONUT */}
-  <div style={{ width: 90, height: 90 }}>
-    <ResponsiveContainer width="100%" height="100%">
-      <PieChart>
-        <Pie
-          data={[
-            { value: 35.2 },
-            { value: 64.8 },
-          ]}
-          dataKey="value"
-          innerRadius={28}
-          outerRadius={42}
-          startAngle={90}
-          endAngle={-270}
-        >
-          <Cell fill={GREEN} />
-          <Cell fill="#e5e7eb" />
-        </Pie>
-
-        <text
-          x="50%"
-          y="50%"
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={14}
-          fontWeight={800}
-          fill={GREEN}
-        >
-          35,2%
-        </text>
-      </PieChart>
-    </ResponsiveContainer>
-  </div>
-
-  {/* CIBLE */}
-  <div
-    style={{
-      marginTop: 6,
-      fontSize: 12,
-      fontWeight: 600,
-      color: "#374151",
-    }}
-  >
-    Cible : ≥ 30%
-  </div>
-</div>
-      </div>
-
-  {/* Régions d'intervention*/}
-  <div
-  style={{
-    height: "100%",
-    display: "flex",
-    flexDirection: "column",
-    borderRadius: 12,
-    padding: 6,
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-  }}
->
-  {/* ================= TITRE CENTRÉ ================= */}
-  <div
-    style={{
-      textAlign: "center",
-      fontSize: 13,
-      fontWeight: 700,
-      color: GREEN,
-      marginBottom: 0,
-    }}
-  >
-    Régions d’intervention
-  </div>
-
-  {/* ================= CONTENU SPLIT ================= */}
-  <div
-    style={{
-      flex: 1,
-      display: "flex",
-      alignItems: "center",
-    }}
-  >
-    {/* LEFT ICON */}
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <Users size={42} color={GREEN} />
-    </div>
-
-    {/* RIGHT KPI */}
-    <div
-      style={{
-        flex: 1,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        alignItems: "flex-start",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 32,
-          fontWeight: 800,
-          color: "#111827",
-          lineHeight: 1,
-        }}
-      >
-        5
-      </div>
-
-      <div
-        style={{
-          fontSize: 11,
-          color: "#6b7280",
-          marginTop: 4,
-        }}
-      >
-        régions
-      </div>
-    </div>
-  </div>
-</div>
-
-</div>
-
-<div
-    style={{
-        display: 'grid',
-        gridTemplateColumns: '1.2fr 1.5fr 1.55fr',
-        gap: 5,
-        marginTop: 20,
-        alignItems: 'stretch',
-    }}
->
-  {/* COLONNE GAUCHE */}
-    <div
-        style={{
-        gridColumn: '1 / span 3',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 5,
-        }}
-    >
-    {/* Ligne supérieure */}
-        <div
-        style={{
-            display: 'grid',
-            gridTemplateColumns: '1.2fr 1.5fr 1.55fr',
-            gap: 5,
-        }}
-        >
-
-      {/* DONUT TERRAIN */}
-      <div style={chartCardStyle}>
-            <h4 style={{
-              margin: 0,
-              marginBottom: 5,
-              textAlign: 'center',
-              color: GREEN,
-              fontSize: 13,
-              fontWeight: 700,
-              
-            }}>
-            Régions selon le nombre de paquets de mesures élaborés
-          </h4>
-
-          {/* DONUT + LEGEND */}
-          <div
-  style={{
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 5,
-  }}
->
-  {/* DONUT */}
-  <div style={{ width: 220, height: 220, position: "relative" }}>
-  <ResponsiveContainer width="100%" height="100%">
-  <PieChart>
-  <Pie
-  data={typeTerrain}
-  dataKey="value"
-  innerRadius={45}
-  outerRadius={75}
-  labelLine={false}
-  label={({ cx, cy, midAngle, outerRadius, percent, index }) => {
-    const RADIAN = Math.PI / 180;
-    const radius = outerRadius + 20;
-
-    const x = cx + radius * Math.cos(-midAngle * RADIAN);
-    const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
+  /* ---------- Info-bulles des graphiques ---------- */
+  const EvoTip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
     return (
-      <text
-        x={x}
-        y={y}
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fontSize={11}
-      >
-        {/* VALEUR */}
-        <tspan
-          x={x}
-          dy="-4"
-          fontWeight={700}
-          fill="#111827"
-        >
-          {typeTerrain[index].value}
-        </tspan>
-
-        {/* POURCENTAGE */}
-        <tspan
-          x={x}
-          dy="12"
-          fontSize={10}
-          fill="#6b7280"
-        >
-          ({(percent * 100).toFixed(1)}%)
-        </tspan>
-      </text>
+      <div className="sp-tip">
+        <b>{label}</b>
+        {d.realise != null && <div><span>{t.evoReal}</span><strong>{fmtP(d.realise)}</strong></div>}
+        <div><span>{t.evoTarget}</span><strong>{fmtP(d.cible)}</strong></div>
+      </div>
     );
-  }}
->
-  {typeTerrain.map((e, i) => (
-    <Cell key={i} fill={e.color} />
-  ))}
-</Pie>
-</PieChart>
-  </ResponsiveContainer>
+  };
+  const CadTip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div className="sp-tip">
+        <b>{label}</b>
+        <div><span>{t.cadMonthly}</span><strong>{d.n}</strong></div>
+        <div><span>{t.cadCum}</span><strong>{d.c}</strong></div>
+      </div>
+    );
+  };
 
-  {/* CENTRE DU DONUT */}
-  <div
-  style={{
-    position: "absolute",
-    top: "50%",
-    left: "50%",
-    transform: "translate(-50%, -50%)",
-    textAlign: "center",
-  }}
->
-  <div style={{ fontSize: 22, fontWeight: 800, color: GREEN }}>
-    5
-  </div>
-  <div style={{ fontSize: 11, color: "#6b7280" }}>
-    régions
-  </div>
-</div>
-</div>
+  /* =====================================================================
+     RENDU
+     ===================================================================== */
+  return (
+    <div className="sp">
+      <style>{CSS}</style>
 
-  {/* LÉGENDE DROITE */}
-  <div
-  style={{
-    display: "flex",
-    flexDirection: "column",
-    gap: 8,
-    minWidth: 140,
-  }}
->
-  {typeTerrain.map((t, i) => (
-    <div
-      key={i}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        fontSize: 12,
-      }}
-    >
-      <div
-        style={{
-          width: 10,
-          height: 10,
-          backgroundColor: t.color,
-          borderRadius: 2,
-        }}
-      />
-      {t.name}
-    </div>
-  ))}
-</div>  
-</div>
-</div>
-
-{/* Courbe d'évolution */}
-      <div style={chartCardStyle}>
-            <h4 style={{
-              margin: 0,
-              marginBottom: 6,
-              textAlign: 'center',
-              color: GREEN,
-              fontWeight: 800,
-              fontSize: 12,
-            }}>
-              Évolution annuelle du taux d'atteinte de la cible (%)
-            </h4>
-
-            <div
-              style={{
-                gridColumn: "2 / span 2",
-                gridRow: "2",
-                background: "#fff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 10,
-                padding: 10,
-              }}
-            >
-
-            <ResponsiveContainer height={200}>
-              <LineChart  data={evolution} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}
->
-
-                {/* AXE X (un peu décollé) */}
-                <XAxis
-                    dataKey="annee"
-                    axisLine={{ stroke: '#9ca3af' }}
-                    tickLine={true}
-                    tick={{ fontSize: 11 }}
-                    padding={{ left: 20, right: 10 }}
-                />
-
-                {/* AXE Y */}
-                <YAxis
-                    axisLine={{ stroke: '#9ca3af' }}
-                    tickLine={true}
-                    tick={{ fontSize: 11 }}
-                    domain={[0, 110]}
-                    ticks={[0, 20, 40, 60, 80, 100]}
-                    tickFormatter={(v) => `${v}%`}
-                    
-                />
-
-                  <Area
-                    type="monotone"
-                    dataKey="valeur"
-                    stroke="none"
-                    fill={GREEN}
-                    fillOpacity={0.02}
-                  />
-
-                  <Line
-                    type="monotone"
-                    dataKey="valeur"
-                    stroke={GREEN}
-                    strokeWidth={2}
-                    dot={{ r: 2, fill: GREEN }}
-                    activeDot={{ r: 4 }}
-                  >
-                    <LabelList
-                      dataKey="valeur"
-                      position="top"
-                      formatter={(v) => `${v}%`}
-                      style={{
-                        fontSize: 11,
-                        fill: "#111827",
-                        fontWeight: 600,
-                      }}
-                    />
-                  </Line>
-
-                {/* LIGNE CIBLE (100%) */}
-                <ReferenceLine
-                    y={100}
-                    stroke="#9ca3af"
-                    strokeDasharray="5 5"
-                    label={{
-                      value: "Cible (100%)",
-                      position: "center",
-                      fill: "#9ca3af",
-                      fontSize: 10,
-                    }}
-                  />
-              </LineChart>
-            </ResponsiveContainer>            
+      {/* ============ EN-TÊTE ============ */}
+      <header className="sp-top">
+        <div className="sp-top-in">
+          <div className="sp-logo" aria-hidden="true"><MapIcon size={24} /></div>
+          <div style={{ minWidth: 0 }}>
+            <h1 className="sp-h1">{t.title}</h1>
+            <p className="sp-sub">{t.subtitle}</p>
           </div>
+        </div>
+      </header>
+
+      <div className="sp-body">
+        {/* ============ ÉNONCÉ DE L'INDICATEUR ============ */}
+        <details className="sp-info" open>
+          <summary><Info size={16} />{t.enonceTitle}</summary>
+          <p>{t.enonce}</p>
+        </details>
+
+        {/* ============ FILTRES ============ */}
+        <section className="sp-filters" aria-label={t.filters}>
+          <div className="sp-f">
+            <label htmlFor="sp-year"><Calendar size={13} color="#1e3a8a" />{t.year}</label>
+            <select id="sp-year" value={year} onChange={(e) => setYear(Number(e.target.value))} title={t.yearHint}>
+              <option value={0}>{t.allYears}</option>
+              {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+          <div className="sp-f">
+            <label htmlFor="sp-reg"><MapPin size={13} color="#1e3a8a" />{t.region}</label>
+            <select id="sp-reg" value={region} onChange={(e) => setRegion(e.target.value)}>
+              <option value="">{t.allRegions}</option>
+              {REGIONS.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
+            </select>
+          </div>
+          <div className="sp-f">
+            <button className="sp-btn pri" onClick={reset} disabled={!filtered}><RotateCcw size={14} /><span className="t">{t.reset}</span></button>
+          </div>
+        </section>
+
+        {/* ============ INDICATEURS CLÉS ============ */}
+        <section className="sp-kpis" aria-label="KPI">
+          <div className="sp-kpi" style={{ '--c': '#15803d' } as React.CSSProperties}>
+            <div className="sp-kb">
+              <div className="sp-kt">{t.kRate}</div>
+              <div className="sp-kv">{fmtP(rate)}</div>
+              <div className="sp-ks">{t.kRateSub(nOk, nReg)}</div>
+              <div className="sp-ks">{t.kRateTarget}</div>
+            </div>
+            <div className="sp-donut">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={[{ v: rate }, { v: 100 - rate }]} dataKey="v" innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270} stroke="none">
+                    <Cell fill="#15803d" /><Cell fill="#e5e7eb" />
+                  </Pie>
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-      {/* BAR HORIZONTAL */}
-      <div style={chartCardStyle}>
-          <h4 style={{
-            margin: 0,
-            marginBottom: 10,
-            textAlign: 'center',
-            color: GREEN,
-            fontWeight: 700,
-            fontSize: 13,
-          }}>
-            Comparatif des régions (nombre de paquets de mesures)
-          </h4>
-          <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                height: 220,
-              }}
-            >
+          <div className="sp-kpi" style={{ '--c': '#1565c0' } as React.CSSProperties}>
+            <div className="sp-kic"><Target size={22} /></div>
+            <div className="sp-kb">
+              <div className="sp-kt">{t.kRegions}</div>
+              <div className="sp-kv">{nReg}</div>
+              <div className="sp-ks">{t.kRegionsSub(nOk)}</div>
+            </div>
+          </div>
 
-              {/* ================== GRAPHIQUE ================== */}
+          <div className="sp-kpi" style={{ '--c': '#ef6c00' } as React.CSSProperties}>
+            <div className="sp-kic"><Package size={22} /></div>
+            <div className="sp-kb">
+              <div className="sp-kt">{t.kPackets}</div>
+              <div className="sp-kv">{packets.length}</div>
+              <div className="sp-ks">{t.kPacketsSub(avg.toLocaleString(LOC, { maximumFractionDigits: 1 }))}</div>
+            </div>
+          </div>
 
-              <div
-                style={{
-                  flex: 1,
-                  height: "100%",
-                }}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={regionsColored}
-                    layout="vertical"
-                    margin={{
-                      left: 0,
-                      right: 10,
-                      top: 1,
-                      bottom: 0,
-                    }}
-                  >
-                    <XAxis
-                      type="number"
-                      domain={[0, 3]}
-                      ticks={[0, 1, 2, 3]}
-                      tick={{ fontSize: 11 }}
-                    />
-
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      width={140}
-                      tick={{
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                    />
-
-                    <Bar
-                      dataKey="value"
-                      radius={[0, 4, 4, 0]}
-                      barSize={14}
-                      minPointSize={4} 
-                    >
-                      {regionsColored.map((entry, i) => (
-                        <Cell
-                          key={i}
-                          fill={entry.value === 0 ? "#ef4444" : entry.color}
-                        />
-                      ))}
-
-                      <LabelList
-                        dataKey="value"
-                        position="right"
-                        style={{
-                          fontWeight: 700,
-                          fontSize: 11,
-                          fill: "#374151",
-                        }}
-                      />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+          {[{ k: t.kWomen, d: FEMMES, c: '#7b1fa2', Icon: Users }, { k: t.kYouth, d: JEUNES, c: '#00897b', Icon: Sprout }].map(({ k, d, c, Icon }) => (
+            <div className="sp-kpi" key={k} style={{ '--c': c } as React.CSSProperties}>
+              <div className="sp-kic"><Icon size={22} /></div>
+              <div className="sp-kb">
+                <div className="sp-kt">{k}</div>
+                <div className="sp-kv">{fmtP(d.valeur)}</div>
+                <div className="sp-meter" role="progressbar" aria-valuenow={d.valeur} aria-valuemin={0} aria-valuemax={100}>
+                  <i style={{ width: `${Math.min(100, d.valeur)}%` }} /><b style={{ left: `${d.cible}%` }} title={t.kTarget(d.cible)} />
+                </div>
+                <div className="sp-ks">{t.kTarget(d.cible)}</div>
+                <span className={`sp-pill ${d.valeur >= d.cible ? 'ok' : 'ko'}`}>
+                  {d.valeur >= d.cible ? <CheckCircle2 size={12} /> : <XCircle size={12} />}{d.valeur >= d.cible ? t.kMet : t.kBelow}
+                </span>
               </div>
-
-          {/* Légende */}
-          <div
-            style={{
-              marginTop: 10,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 5,
-              flexWrap: "wrap",
-              fontSize: 11,
-              fontWeight: 500,
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div
-                style={{
-                  width: 12,
-                  height: 12,
-                  background: GREEN,
-                  borderRadius: 2,
-                }}
-              />
-              <span>Plus d'1 paquet de mesures</span>
             </div>
+          ))}
+        </section>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div
-                style={{
-                  width: 12,
-                  height: 12,
-                  background: "#facc15",
-                  borderRadius: 2,
-                }}
-              />
-              <span>1 paquet de mesure</span>
+        {/* ============ GRAPHIQUES + CARTE ============ */}
+        <div className="sp-grid">
+          {/* Avancement par région */}
+          <section className="sp-card cReg">
+            <div>
+              <h2 className="sp-ct">{t.regTitle}</h2>
+              <p className="sp-cs">{t.regSub(CIBLE_PAR_REGION)}</p>
             </div>
-
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <div
-                style={{
-                  width: 12,
-                  height: 12,
-                  background: "#ef4444",
-                  borderRadius: 2,
-                }}
-              />
-              <span>0 paquet de mesure</span>
+            <div className="sp-reg">
+              {sortedStats.map((s) => (
+                <div key={s.name} className={`sp-rr${region === s.name ? ' sel' : ''}`} onClick={() => setRegion(region === s.name ? '' : s.name)} title={pkLabel(s.n)}>
+                  <div className="sp-rn">{s.name}</div>
+                  <div className="sp-track"><i style={{ width: `${(s.n / maxN) * 100}%`, background: LV[s.level], opacity: s.n ? 0.9 : 0 }} /></div>
+                  <div className="sp-rv">
+                    <strong>{s.n}</strong>
+                    <span className={`sp-st ${s.ok ? 'ok' : 'ko'}`}>{s.ok ? <CheckCircle2 size={12} /> : <XCircle size={12} />}{s.ok ? t.ok : t.ko}</span>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>        
-        </div>
-        {/* ===================== ZONE CARTE + TABLEAU ===================== */}
-        <div
-          style={{
-            gridColumn: '1 / span 3',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 5,
-          }}
-        >
-          {/* ===================== LIGNE HAUTE ===================== */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: 5,
-            }}
-          >
-
-            {/* ===================== CARTE ===================== */}
-        <div
-          style={{
-            background: "#fff",
-            borderRadius: 10,
-            padding: 10,
-            boxShadow: "0 2px 8px rgba(0,0,0,.05)",
-            position: "relative",
-          }}
-        >
-          <h4 style={{
-            margin: 0,
-            marginBottom: 8,
-            fontSize: 13,
-            fontWeight: 800,
-            color: GREEN,
-          }}>
-            Carte des régions selon le nombre de paquets de mesures élaborés
-          </h4>
-
-          {/* 🔍 SEARCH */}
-          <div style={{ display: "flex", marginBottom: 6 }}>
-            <input
-              placeholder="Rechercher une région..."
-              style={{
-                flex: 1,
-                padding: "6px 8px",
-                border: "1px solid #ddd",
-                borderRight: "none",
-                borderRadius: "4px 0 0 4px",
-                outline: "none",
-                fontSize: 12,
-              }}
-            />
-            <button
-              style={{
-                background: "#065f46",
-                border: "none",
-                padding: "0 10px",
-                borderRadius: "0 4px 4px 0",
-                cursor: "pointer",
-                color: "white",
-              }}
-            >
-              🔍
-            </button>
-          </div>
-
-          {/* 🗺️ CARTE */}
-          <div style={{ height: 320, borderRadius: 8, overflow: "hidden" }}>
-            <MapContainer
-              center={[-19.0, 47.0]}
-              zoom={5}
-              zoomControl={true}
-              style={{ height: "100%", width: "100%" }}
-              className="custom-map"
-            >
-              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            </MapContainer>
-          </div>
-
-          {/* 📊 LÉGENDE*/}
-          <div
-            style={{
-              position: "absolute",
-              bottom: 15,
-              left: 15,
-              background: "white",
-              padding: "10px 12px",
-              borderRadius: 4,
-              boxShadow: "0 2px 6px rgba(0,0,0,0.15)",
-              fontSize: 11,
-              zIndex: 999,
-              width: 180,
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 700,
-                marginBottom: 6,
-                color: "black",
-                whiteSpace: "normal", 
-                wordBreak: "break-word",
-                lineHeight: 1.2,
-              }}
-            >
-              Nombre de paquets de mesures élaborés
+            <div className="sp-lg" style={{ marginTop: 'auto' }}>
+              {[0, 1, 2].map((i) => <span key={i}><i style={{ background: LV[i] }} />{lvName[i]}</span>)}
             </div>
+          </section>
 
-            <div>🔴 0 paquet de mesure</div>
-            <div>🟡 1 paquet de mesure</div>
-            <div>🟢 Plus d'1 paquet de mesure</div>
-          </div>
+          {/* Évolution annuelle */}
+          <section className="sp-card cEvo">
+            <div>
+              <h2 className="sp-ct">{t.evoTitle}</h2>
+              <p className="sp-cs">{t.evoSub}</p>
+            </div>
+            <div className="sp-chart">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={evo} margin={{ top: 14, right: 12, left: 2, bottom: 0 }}>
+                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} padding={{ left: 14, right: 14 }} />
+                  <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={42} tickFormatter={(v) => `${v}%`} />
+                  <Tooltip content={<EvoTip />} />
+                  {year > 0 && <ReferenceLine x={String(year)} stroke="#0f172a" strokeDasharray="2 3" />}
+                  <Area type="monotone" dataKey="realise" stroke="none" fill="#15803d" fillOpacity={0.12} connectNulls={false} />
+                  <Line type="monotone" dataKey="cible" stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 4" dot={{ r: 2.5, fill: '#94a3b8', strokeWidth: 0 }} />
+                  <Line type="monotone" dataKey="realise" stroke="#15803d" strokeWidth={2.8} dot={{ r: 4, fill: '#fff', stroke: '#15803d', strokeWidth: 2 }} connectNulls={false}>
+                    <LabelList dataKey="realise" position="top" formatter={(v: any) => (v == null ? '' : `${Math.round(v)}%`)} style={{ fontSize: 11, fontWeight: 700, fill: '#14532d' }} />
+                  </Line>
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="sp-lg">
+              <span><i style={{ background: '#15803d' }} />{t.evoReal}</span>
+              <span><i style={{ background: '#94a3b8' }} />{t.evoTarget}</span>
+            </div>
+            {evoMsg && <div className={`sp-note ${evoMsg.ok ? 'ok' : 'ko'}`}>{evoMsg.ok ? <TrendingUp size={15} /> : <TrendingDown size={15} />}<span>{evoMsg.text}</span></div>}
+          </section>
+
+          {/* Répartition */}
+          <section className="sp-card cDon">
+            <h2 className="sp-ct">{t.donTitle}</h2>
+            <div className="sp-dwrap">
+              <div className="sp-dchart">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={levels.filter((l) => l.value > 0)} dataKey="value" innerRadius="62%" outerRadius="100%" paddingAngle={2} stroke="none">
+                      {levels.filter((l) => l.value > 0).map((l, i) => <Cell key={i} fill={l.color} />)}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="sp-dcenter"><strong>{nReg}</strong><span>{t.regionsWord}</span></div>
+              </div>
+              <div className="sp-dleg">
+                {levels.map((l) => (
+                  <div key={l.name}><i style={{ background: l.color }} />{l.name}<b>{l.value} · {fmtP(nReg ? (l.value / nReg) * 100 : 0, 0)}</b></div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Carte */}
+          <section className="sp-card sp-mapcard cMap">
+            <div>
+              <h2 className="sp-ct">{t.mapTitle}</h2>
+              <p className="sp-cs">{t.mapHint}</p>
+            </div>
+            <div className="sp-mapwrap">
+              <MapContainer center={[-19, 47]} zoom={5} style={{ height: '100%', width: '100%' }} scrollWheelZoom={false}>
+                <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" attribution="Tiles © Esri" />
+                <ResizeMap />
+                <FitView pts={stats.map((s) => s.pos)} />
+                <RegionPolygons geo={geo} stats={stats} selected={region} onPick={(n: string) => setRegion(n)} label={pkLabel} />
+                {stats.map((s) => (
+                  <CircleMarker key={s.name} center={s.pos} radius={region === s.name ? 19 : 15}
+                    pathOptions={{ color: region === s.name ? '#0f172a' : '#ffffff', weight: region === s.name ? 3 : 2, fillColor: LV[s.level], fillOpacity: 0.95 }}
+                    eventHandlers={{ click: () => setRegion(region === s.name ? '' : s.name) }}>
+                    <MapTip permanent direction="center" className="sp-bubble">{s.n}</MapTip>
+                  </CircleMarker>
+                ))}
+              </MapContainer>
+              <div className="sp-maplg">
+                <strong>{t.legend}</strong>
+                {[0, 1, 2].map((i) => <div key={i}><i style={{ background: LV[i] }} />{lvName[i]}</div>)}
+              </div>
+            </div>
+          </section>
+
+          {/* Rythme d'adoption */}
+          <section className="sp-card cCad">
+            <div>
+              <h2 className="sp-ct">{t.cadTitle}</h2>
+              <p className="sp-cs">{t.cadSub}</p>
+            </div>
+            {cad.length ? (
+              <>
+                <div className="sp-chart">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ComposedChart data={cad} margin={{ top: 14, right: 12, left: 0, bottom: 0 }}>
+                      <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="mois" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
+                      <Tooltip content={<CadTip />} cursor={{ fill: 'rgba(22,101,52,.05)' }} />
+                      <Bar dataKey="n" fill="#15803d" fillOpacity={0.85} radius={[6, 6, 0, 0]} barSize={28} />
+                      <Line type="monotone" dataKey="c" stroke="#ef6c00" strokeWidth={2.5} dot={{ r: 4, fill: '#fff', stroke: '#ef6c00', strokeWidth: 2 }}>
+                        <LabelList dataKey="c" position="top" style={{ fontSize: 11, fontWeight: 700, fill: '#9a3412' }} />
+                      </Line>
+                    </ComposedChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="sp-lg">
+                  <span><i style={{ background: '#15803d' }} />{t.cadMonthly}</span>
+                  <span><i style={{ background: '#ef6c00' }} />{t.cadCum}</span>
+                </div>
+              </>
+            ) : <div className="sp-empty">{t.cadEmpty}</div>}
+          </section>
         </div>
 
-            {/* ===================== TABLEAU STYLE EXCEL ===================== */}
-            <div
-              style={{
-                background: "#fff",
-                borderRadius: 10,
-                padding: 10,
-                boxShadow: "0 2px 8px rgba(0,0,0,.05)",
-                overflowX: "auto",
-              }}
-            >
-              <h4 style={{
-                margin: 0,
-                marginBottom: 8,
-                fontSize: 13,
-                fontWeight: 800,
-                color: GREEN,
-              }}>
-                Détail par région
-              </h4>
+        {/* ============ TABLEAU DÉTAILLÉ ============ */}
+        <section className="sp-card">
+          <div className="sp-tbar">
+            <h2 className="sp-ct">{t.tblTitle}</h2>
+            <div className="sp-tact">
+              <div className="sp-search">
+                <Search size={15} />
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t.search} aria-label={t.search} />
+              </div>
+              <button className="sp-btn" onClick={exportCSV} disabled={!rows.length}><Download size={14} /><span className="t">{t.export}</span></button>
+            </div>
+          </div>
 
-              <table style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                fontSize: 12,
-              }}>
-                <thead>
-                  <tr style={{ background: "#065f46", color: "white" }}>
-                    <th style={{ padding: 8, border: "1px solid #ddd" }}>Région</th>
-                    <th style={{ padding: 8, border: "1px solid #ddd" }}>Nombre de paquets de mesures</th>
-                    <th style={{ padding: 8, border: "1px solid #ddd" }}>Taux d'atteinte</th>
-                    <th style={{ padding: 8, border: "1px solid #ddd" }}>Statut</th>
+          <div className="sp-tw">
+            <table className="sp-t">
+              <thead>
+                <tr>
+                  <th>{t.cols[0]}</th><th className="c">{t.cols[1]}</th><th className="c">{t.cols[2]}</th><th className="c">{t.cols[3]}</th><th>{t.cols[4]}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((r, i) => (
+                  <tr key={`${r.id}-${r.region}-${i}`}>
+                    <td data-label={t.cols[0]}><strong>{r.region}</strong></td>
+                    <td className="c" data-label={t.cols[1]}>{r.n}</td>
+                    <td className="c" data-label={t.cols[2]}>{r.id}</td>
+                    <td className="c" data-label={t.cols[3]}>{r.date}</td>
+                    <td className={`s${r.n ? '' : ' mut'}`} data-label={t.cols[4]}>{r.spec}</td>
                   </tr>
-                </thead>
-
-                <tbody>
-                  {regions.map((r, i) => (
-                    <tr key={i}>
-                      <td style={{ padding: 8, border: "1px solid #eee" }}>{r.name}</td>
-
-                      <td style={{ padding: 8, border: "1px solid #eee", textAlign: "center" }}>
-                        {r.value}
-                      </td>
-
-                      <td style={{ padding: 8, border: "1px solid #eee", textAlign: "center" }}>
-                        {r.value === 0 ? "0%" : r.value === 1 ? "50%" : "100%"}
-                      </td>
-
-                      <td style={{ padding: 8, border: "1px solid #eee", textAlign: "left" }}>
-                        {r.value === 0 ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div
-                              style={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: "50%",
-                                background: "#ef4444",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <span style={{ color: "white", fontSize: 12, fontWeight: 900 }}>
-                                ✕
-                              </span>
-                            </div>
-                            <span>Non atteint</span>
-                          </div>
-                        ) : r.value === 1 ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div
-                              style={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: "50%",
-                                background: "#f59e0b",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <span style={{ color: "white", fontSize: 12, fontWeight: 900 }}>
-                                !
-                              </span>
-                            </div>
-                            <span>En cours</span>
-                          </div>
-                        ) : (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <div
-                              style={{
-                                width: 16,
-                                height: 16,
-                                borderRadius: "50%",
-                                background: "#16a34a",
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                              }}
-                            >
-                              <span style={{ color: "white", fontSize: 12, fontWeight: 900 }}>
-                                ✓
-                              </span>
-                            </div>
-                            <span>Atteint</span>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+                {!pageRows.length && <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#64748b' }}>{t.noResult}</td></tr>}
+              </tbody>
+            </table>
           </div>
-        </div>
+
+          <div className="sp-pg">
+            <span>{rows.length ? t.showing(startI + 1, Math.min(rows.length, startI + pageSize), rows.length) : t.noResult}</span>
+            <div className="sp-pgb">
+              <button onClick={() => setPage(1)} disabled={pageC === 1} aria-label={t.first}><ChevronsLeft size={15} /></button>
+              <button onClick={() => setPage(pageC - 1)} disabled={pageC === 1} aria-label={t.prev}><ChevronLeft size={15} /></button>
+              <span>{t.pageOf(pageC, pages)}</span>
+              <button onClick={() => setPage(pageC + 1)} disabled={pageC >= pages} aria-label={t.next}><ChevronRight size={15} /></button>
+              <button onClick={() => setPage(pages)} disabled={pageC >= pages} aria-label={t.last}><ChevronsRight size={15} /></button>
+            </div>
+            <label>{t.rowsPer}{' '}
+              <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))}>{[10, 25, 50, 100].map((n) => <option key={n}>{n}</option>)}</select>
+            </label>
+          </div>
+        </section>
       </div>
     </div>
-  </div> 
-
-{/* ===================== TABLEAU DETAIL ===================== */}
-
-<div
-  style={{
-    background: '#fff',
-    marginTop: 20,
-    borderRadius: 10,
-    overflow: 'hidden',
-    boxShadow: '0 2px 8px rgba(0,0,0,.05)',
-  }}
->
-  {/* HEADER */}
-  <div
-    style={{
-      padding: 12,
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      borderBottom: '1px solid #eee',
-    }}
-  >
-    <h4
-      style={{
-        margin: 0,
-        color: GREEN,
-      }}
-    >
-      Détails des parcelles
-    </h4>
-
-    <div
-      style={{
-        display: 'flex',
-        gap: 8,
-        alignItems: 'center',
-      }}
-    >
-      <div style={{ position: 'relative' }}>
-        <span
-          style={{
-            position: 'absolute',
-            left: 10,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: '#888',
-          }}
-        >
-          🔍
-        </span>
-
-        <input
-          placeholder="Rechercher..."
-          style={{
-            padding: '8px 8px 8px 40px',
-            width: 220,
-            borderRadius: 8,
-            border: '1px solid #ddd',
-            outline: 'none',
-          }}
-        />
-      </div>
-
-      <button
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 6,
-          padding: '8px 12px',
-          background: GREEN,
-          color: '#fff',
-          border: 'none',
-          borderRadius: 8,
-          cursor: 'pointer',
-          fontWeight: 600,
-        }}
-      >
-        Exporter  📤
-      </button>
-    </div>
-  </div>
-
-  {/* TABLE */}
-  <table
-    style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        tableLayout: 'fixed',
-        fontSize: 13,
-    }}
-    >
-    <thead>
-            <tr
-                style={{
-                background: GREEN,
-                color: '#fff',
-                }}
-            >
-                <th
-                style={{
-                    padding: 10,
-                    textAlign: 'center',
-                    width: 60,
-                    borderRight: '1px solid rgba(255,255,255,0.3)',
-                }}
-                >
-                Région
-                </th>
-
-                <th
-                style={{
-                    padding: 10,
-                    textAlign: 'center',
-                    width: 50,
-                    borderRight: '1px solid rgba(255,255,255,0.3)',
-                }}
-                >
-                Nombre de paquet prise
-                </th>
-
-                <th
-                    style={{
-                        padding: 10,
-                        textAlign: 'center',
-                        width: 50,
-                        borderRight: '1px solid rgba(255,255,255,0.3)',
-                    }}
-                    >
-                    Id du paquet
-                </th>
-
-                <th
-                style={{
-                    padding: 10,
-                    textAlign: 'center',
-                    width: 50,
-                    borderRight: '1px solid rgba(255,255,255,0.3)',
-                }}
-                >
-                Date d'adoption
-                </th>
-
-                <th
-                style={{
-                    padding: 10,
-                    textAlign: 'center',
-                    width: 380,
-                    borderRight: '1px solid rgba(255,255,255,0.3)',
-                }}
-                >
-                Spécification
-                </th>
-            </tr>
-        </thead>
-
-        <tbody>
-            {rows.map((r, i) => (
-             <tr
-                key={i}
-                style={{
-                    borderBottom: '1px solid #e5e7eb',
-                }}
-                >
-                <td style={{ padding: 10, borderRight: '1px solid #e5e7eb', textAlign: 'left' }}>
-                    {r.région}
-                </td>
-
-                <td style={{ padding: 10, borderRight: '1px solid #e5e7eb',textAlign: 'center' }}>
-                    {r.nbrPrise}
-                </td>
-
-                <td style={{ padding: 10, borderRight: '1px solid #e5e7eb',textAlign: 'center'}}>
-                    {r.id}
-                </td>
-
-                <td style={{ padding: 10,borderRight: '1px solid #e5e7eb', textAlign: 'center' }}>
-                    {r.date}
-                </td>
-
-                <td style={{ padding: 10, borderRight: '1px solid #e5e7eb',textAlign: 'left' }}>
-                    {r.specification}
-                </td>
-             </tr>
-            ))}
-        </tbody>
-    </table>
-
-  {/* PAGINATION */}
-  <div
-    style={{
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      padding: '10px 12px',
-      borderTop: '1px solid #eee',
-    }}
-  >
-    <span
-        style={{
-            fontSize: 13,
-            color: '#6b7280',
-            fontWeight: 700,
-        }}
-        >
-        Affichage de {start} à {end} sur {total} enregistrements
-    </span>
-
-    <div
-      style={{
-        display: 'flex',
-        gap: 3,
-        alignItems: 'center',
-      }}
-    >
-      <button style={pageBtn}>⏮</button>
-      <button style={pageBtn}>◀</button>
-
-      <button style={activePageBtn}>1</button>
-      <button style={pageBtn}>2</button>
-      <button style={pageBtn}>3</button>
-
-      <span style={{ fontSize: 13 }}>
-        ...
-      </span>
-
-      <button style={pageBtn}>24</button>
-
-      <button style={pageBtn}>▶</button>
-      <button style={pageBtn}>⏭</button>
-    </div>
-
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-      }}
-    >
-      <span
-        style={{
-          fontSize: 13,
-          fontWeight: 600,
-        }}
-      >
-        Lignes par page
-      </span>
-
-      <select
-        value={rowsPerPage}
-        onChange={(e) => {
-          setRowsPerPage(Number(e.target.value));
-          setCurrentPage(1);
-        }}
-        style={{
-          padding: '6px 10px',
-          borderRadius: 6,
-          border: '1px solid #d1d5db',
-        }}
-      >
-        <option value={10}>10</option>
-        <option value={25}>25</option>
-        <option value={50}>50</option>
-        <option value={100}>100</option>
-      </select>
-    </div>
-  </div>
-</div>
-
-</div>
-</div>
-);
+  );
 }
