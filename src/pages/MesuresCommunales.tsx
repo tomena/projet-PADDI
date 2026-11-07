@@ -4,6 +4,159 @@ import {
   CartesianGrid, ReferenceLine, BarChart, Bar, LabelList, Legend,
 } from "recharts";
 import { Landmark, RefreshCw, Download, Search, ChevronLeft, ChevronRight, ArrowUpDown, Users } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+
+/* ================= TRADUCTIONS =================
+   `fr` sert de modèle : TypeScript impose que mg / en / de contiennent exactement les mêmes clés. */
+const fr = {
+  title: "Suivi des mesures communales", refresh: "Actualiser", year: "Année",
+  filters: { region: "Région", aire: "Aire protégée", paysage: "Paysage", district: "District", name: "Commune" },
+  all: { region: "Toutes", aire: "Toutes", paysage: "Tous", district: "Tous", name: "Toutes" },
+  keyPoint: "À retenir", searchCommune: "Rechercher une commune…",
+  noMatch: "Aucune commune ne correspond aux filtres choisis.",
+  summary: (ok: number, total: number, pct: string, year: number) => `${ok} commune${ok > 1 ? "s" : ""} sur ${total} (${pct} %) ont atteint la cible fin ${year}.`,
+  remaining: (n: number, cible: number) => `Il en manque ${n} pour atteindre ${cible} %.`,
+  targetMet: (cible: number) => `La cible de ${cible} % est atteinte.`,
+  priorityRegion: (name: string, pct: string) => `Région à appuyer en priorité : ${name} (${pct} %).`,
+  statementTitle: "Énoncé de l'indicateur",
+  statement: (c: number) => `3 mesures prioritaires pour améliorer les services écosystémiques d'approvisionnement sont adoptées par les conseils communaux dans ${c} % des communes d'intervention, à partir des plans d'aménagement existants, dont 1 mesure tenant compte des besoins spécifiques des femmes et des jeunes.`,
+  kpiRate: "Taux d'atteinte de la cible", target: (c: number) => `Cible : ${c} %`,
+  ofCommunes: (ok: number, total: number) => `${ok} sur ${total} communes`,
+  kpiRemaining: "Reste à faire", toConvince: (c: number) => `communes à convaincre pour atteindre ${c} %`,
+  kpiWomen: "Part des femmes atteinte", kpiYouth: "Part des jeunes (< 35 ans)", persons: "pers.",
+  kpiCommunes: "Communes d'intervention", displayed: "communes affichées",
+  donut1: "Communes selon le nombre de mesures décidées", donut2: "Communes selon les mesures femmes et jeunes", communesLc: "communes",
+  m0: "0 mesure", m12: "1 à 2 mesures", m3: "3 mesures", m3p: "Plus de 3 mesures", m1: "1 mesure", m1p: "Plus de 1 mesure",
+  trend: "Évolution annuelle du taux d'atteinte (%)", planned: "Trajectoire prévue", actual: "Réalisé",
+  byRegion: "Taux d'atteinte par région (% de communes)", noData: "Aucune donnée.", reached: "Atteint",
+  regionTip: (pct: string, ok: number, total: number) => `${pct} % (${ok}/${total} communes)`,
+  prio: "Communes à accompagner en priorité", allReached: "Toutes les communes affichées ont atteint la cible.",
+  prioAria: "Communes à accompagner, liste défilante",
+  missing: (need: number, inc: boolean) => `Manque ${need} mesure${need > 1 ? "s" : ""}${inc ? " dont 1 pour les femmes et les jeunes" : ""}`,
+  prioHint: (n: number) => `${n} communes à accompagner : faites défiler pour voir la suite`,
+  tableTitle: "Détail des mesures adoptées par les communes", searchMeasure: "Rechercher une mesure…", search: "Rechercher",
+  audience: "Public visé", allAudience: "Tous", womenYouth: "Femmes et jeunes", export: "Exporter",
+  colId: "ID de la mesure", colDate: "Date d'adoption", colSpec: "Spécification de la mesure",
+  noMeasures: "Aucune mesure trouvée. Modifiez les filtres ou la recherche.",
+  range: (a: number, b: number, n: number) => `${a} – ${b} sur ${n} mesures`,
+  prev: "Page précédente", next: "Page suivante", rowsPerPage: "Lignes par page",
+  source: "Source :", loading: "Chargement des données…", demo: "Données fictives de démonstration",
+  csv: ["ID", "Commune", "Région", "Date d'adoption", "Mesure", "Femmes/jeunes"], yes: "Oui", no: "Non",
+};
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: "Fanaraha-maso ny fepetra kaominina", refresh: "Havaozina", year: "Taona",
+  filters: { region: "Faritra", aire: "Faritra arovana", paysage: "Tontolo", district: "Distrika", name: "Kaominina" },
+  all: { region: "Rehetra", aire: "Rehetra", paysage: "Rehetra", district: "Rehetra", name: "Rehetra" },
+  keyPoint: "Tokony hotsaroana", searchCommune: "Hitady kaominina…",
+  noMatch: "Tsy misy kaominina mifanaraka amin'ny sivana nofidina.",
+  summary: (ok, total, pct, year) => `Kaominina ${ok} amin'ny ${total} (${pct} %) no tafita ny tanjona tamin'ny faran'ny ${year}.`,
+  remaining: (n, cible) => `Mbola ${n} no ilaina mba hahatratra ny ${cible} %.`,
+  targetMet: (cible) => `Tratra ny tanjona ${cible} %.`,
+  priorityRegion: (name, pct) => `Faritra tokony hojerena voalohany : ${name} (${pct} %).`,
+  statementTitle: "Fanambarana ny tondro",
+  statement: (c) => `Fepetra laharam-pahamehana 3 hanatsarana ny tolotra avy amin'ny tontolo iainana no raisin'ny filankevitry ny kaominina ao amin'ny ${c} % amin'ireo kaominina iasana, mifototra amin'ny drafitra fandrindrana efa misy, ka 1 amin'izany dia mijery ny filan'ny vehivavy sy ny tanora manokana.`,
+  kpiRate: "Tahan'ny fahatratrarana ny tanjona", target: (c) => `Tanjona : ${c} %`,
+  ofCommunes: (ok, total) => `${ok} amin'ny ${total} kaominina`,
+  kpiRemaining: "Mbola atao", toConvince: (c) => `kaominina mbola tokony hatosika hahatratra ny ${c} %`,
+  kpiWomen: "Anjaran'ny vehivavy tratra", kpiYouth: "Anjaran'ny tanora (< 35 taona) tratra", persons: "olona",
+  kpiCommunes: "Kaominina iasana", displayed: "kaominina aseho",
+  donut1: "Kaominina araka ny isan'ny fepetra raisina", donut2: "Kaominina araka ny fepetra ho an'ny vehivavy sy ny tanora", communesLc: "kaominina",
+  m0: "Fepetra 0", m12: "Fepetra 1 ka hatramin'ny 2", m3: "Fepetra 3", m3p: "Fepetra mihoatra ny 3", m1: "Fepetra 1", m1p: "Fepetra mihoatra ny 1",
+  trend: "Fivoaran'ny tahan'ny fahatratrarana isan-taona (%)", planned: "Làlana nokasaina", actual: "Vita",
+  byRegion: "Tahan'ny fahatratrarana isam-paritra (% ny kaominina)", noData: "Tsy misy angona.", reached: "Tratra",
+  regionTip: (pct, ok, total) => `${pct} % (kaominina ${ok}/${total})`,
+  prio: "Kaominina tokony hotohanana voalohany", allReached: "Tratry ny kaominina rehetra aseho ny tanjona.",
+  prioAria: "Lisitry ny kaominina hotohanana, azo hosintonina",
+  missing: (need, inc) => `Mbola mila fepetra ${need}${inc ? ", ka 1 ho an'ny vehivavy sy ny tanora" : ""}`,
+  prioHint: (n) => `Kaominina ${n} no hotohanana : sintony mba hahitana ny sisa`,
+  tableTitle: "Antsipirihany ny fepetra noraisin'ny kaominina", searchMeasure: "Hitady fepetra…", search: "Hikaroka",
+  audience: "Vondrona tanjona", allAudience: "Rehetra", womenYouth: "Vehivavy sy tanora", export: "Hamoaka",
+  colId: "ID ny fepetra", colDate: "Daty nanaovana ny fepetra", colSpec: "Famaritana ny fepetra",
+  noMeasures: "Tsy nahitana fepetra. Ovay ny sivana na ny fikarohana.",
+  range: (a, b, n) => `${a} – ${b} amin'ny ${n} fepetra`,
+  prev: "Pejy teo aloha", next: "Pejy manaraka", rowsPerPage: "Andalana isaky ny pejy",
+  source: "Loharano :", loading: "Ampidirina ny angona…", demo: "Angona noforonina ho fanehoana",
+  csv: ["ID", "Kaominina", "Faritra", "Daty nanaovana", "Fepetra", "Vehivavy/tanora"], yes: "Eny", no: "Tsia",
+};
+
+const en: Txt = {
+  title: "Municipal measures monitoring", refresh: "Refresh", year: "Year",
+  filters: { region: "Region", aire: "Protected area", paysage: "Landscape", district: "District", name: "Municipality" },
+  all: { region: "All", aire: "All", paysage: "All", district: "All", name: "All" },
+  keyPoint: "Key takeaway", searchCommune: "Search a municipality…",
+  noMatch: "No municipality matches the selected filters.",
+  summary: (ok, total, pct, year) => `${ok} of ${total} municipalities (${pct} %) had reached the target by the end of ${year}.`,
+  remaining: (n, cible) => `${n} more are needed to reach ${cible} %.`,
+  targetMet: (cible) => `The ${cible} % target has been reached.`,
+  priorityRegion: (name, pct) => `Region to support first: ${name} (${pct} %).`,
+  statementTitle: "Indicator statement",
+  statement: (c) => `3 priority measures to improve provisioning ecosystem services are adopted by municipal councils in ${c} % of the intervention municipalities, based on existing management plans, including 1 measure addressing the specific needs of women and young people.`,
+  kpiRate: "Target achievement rate", target: (c) => `Target: ${c} %`,
+  ofCommunes: (ok, total) => `${ok} of ${total} municipalities`,
+  kpiRemaining: "Remaining", toConvince: (c) => `municipalities still to convince to reach ${c} %`,
+  kpiWomen: "Women's share reached", kpiYouth: "Youth share (< 35) reached", persons: "people",
+  kpiCommunes: "Intervention municipalities", displayed: "municipalities shown",
+  donut1: "Municipalities by number of measures adopted", donut2: "Municipalities by measures for women and youth", communesLc: "municipalities",
+  m0: "0 measures", m12: "1 to 2 measures", m3: "3 measures", m3p: "More than 3 measures", m1: "1 measure", m1p: "More than 1 measure",
+  trend: "Yearly trend of the achievement rate (%)", planned: "Planned trajectory", actual: "Actual",
+  byRegion: "Achievement rate by region (% of municipalities)", noData: "No data.", reached: "Reached",
+  regionTip: (pct, ok, total) => `${pct} % (${ok}/${total} municipalities)`,
+  prio: "Municipalities to support first", allReached: "All municipalities shown have reached the target.",
+  prioAria: "Municipalities to support, scrollable list",
+  missing: (need, inc) => `Needs ${need} more measure${need > 1 ? "s" : ""}${inc ? ", including 1 for women and youth" : ""}`,
+  prioHint: (n) => `${n} municipalities to support: scroll to see more`,
+  tableTitle: "Measures adopted by municipalities", searchMeasure: "Search a measure…", search: "Search",
+  audience: "Target group", allAudience: "All", womenYouth: "Women and youth", export: "Export",
+  colId: "Measure ID", colDate: "Adoption date", colSpec: "Measure description",
+  noMeasures: "No measure found. Change the filters or the search.",
+  range: (a, b, n) => `${a} – ${b} of ${n} measures`,
+  prev: "Previous page", next: "Next page", rowsPerPage: "Rows per page",
+  source: "Source:", loading: "Loading data…", demo: "Demonstration data (fictional)",
+  csv: ["ID", "Municipality", "Region", "Adoption date", "Measure", "Women/youth"], yes: "Yes", no: "No",
+};
+
+const de: Txt = {
+  title: "Überwachung der Gemeindemaßnahmen", refresh: "Aktualisieren", year: "Jahr",
+  filters: { region: "Region", aire: "Schutzgebiet", paysage: "Landschaft", district: "Distrikt", name: "Gemeinde" },
+  all: { region: "Alle", aire: "Alle", paysage: "Alle", district: "Alle", name: "Alle" },
+  keyPoint: "Das Wichtigste", searchCommune: "Gemeinde suchen…",
+  noMatch: "Keine Gemeinde entspricht den gewählten Filtern.",
+  summary: (ok, total, pct, year) => `${ok} von ${total} Gemeinden (${pct} %) hatten das Ziel Ende ${year} erreicht.`,
+  remaining: (n, cible) => `Es fehlen noch ${n}, um ${cible} % zu erreichen.`,
+  targetMet: (cible) => `Das Ziel von ${cible} % ist erreicht.`,
+  priorityRegion: (name, pct) => `Vorrangig zu unterstützende Region: ${name} (${pct} %).`,
+  statementTitle: "Indikatortext",
+  statement: (c) => `Die Gemeinderäte beschließen in ${c} % der Interventionsgemeinden 3 vorrangige Maßnahmen zur Verbesserung der bereitstellenden Ökosystemleistungen auf Grundlage bestehender Bewirtschaftungspläne, darunter 1 Maßnahme, die den besonderen Bedürfnissen von Frauen und Jugendlichen Rechnung trägt.`,
+  kpiRate: "Zielerreichungsgrad", target: (c) => `Ziel: ${c} %`,
+  ofCommunes: (ok, total) => `${ok} von ${total} Gemeinden`,
+  kpiRemaining: "Noch zu tun", toConvince: (c) => `Gemeinden, die noch überzeugt werden müssen, um ${c} % zu erreichen`,
+  kpiWomen: "Erreichter Frauenanteil", kpiYouth: "Erreichter Jugendanteil (< 35)", persons: "Personen",
+  kpiCommunes: "Interventionsgemeinden", displayed: "angezeigte Gemeinden",
+  donut1: "Gemeinden nach Zahl der beschlossenen Maßnahmen", donut2: "Gemeinden nach Maßnahmen für Frauen und Jugendliche", communesLc: "Gemeinden",
+  m0: "0 Maßnahmen", m12: "1 bis 2 Maßnahmen", m3: "3 Maßnahmen", m3p: "Mehr als 3 Maßnahmen", m1: "1 Maßnahme", m1p: "Mehr als 1 Maßnahme",
+  trend: "Jährliche Entwicklung des Zielerreichungsgrads (%)", planned: "Geplanter Verlauf", actual: "Erreicht",
+  byRegion: "Zielerreichung nach Region (% der Gemeinden)", noData: "Keine Daten.", reached: "Erreicht",
+  regionTip: (pct, ok, total) => `${pct} % (${ok}/${total} Gemeinden)`,
+  prio: "Vorrangig zu unterstützende Gemeinden", allReached: "Alle angezeigten Gemeinden haben das Ziel erreicht.",
+  prioAria: "Zu unterstützende Gemeinden, scrollbare Liste",
+  missing: (need, inc) => `Es fehlen ${need} Maßnahme${need > 1 ? "n" : ""}${inc ? ", davon 1 für Frauen und Jugendliche" : ""}`,
+  prioHint: (n) => `${n} Gemeinden zu unterstützen: scrollen für mehr`,
+  tableTitle: "Von den Gemeinden beschlossene Maßnahmen", searchMeasure: "Maßnahme suchen…", search: "Suchen",
+  audience: "Zielgruppe", allAudience: "Alle", womenYouth: "Frauen und Jugendliche", export: "Exportieren",
+  colId: "Maßnahmen-ID", colDate: "Beschlussdatum", colSpec: "Beschreibung der Maßnahme",
+  noMeasures: "Keine Maßnahme gefunden. Filter oder Suche ändern.",
+  range: (a, b, n) => `${a} – ${b} von ${n} Maßnahmen`,
+  prev: "Vorherige Seite", next: "Nächste Seite", rowsPerPage: "Zeilen pro Seite",
+  source: "Quelle:", loading: "Daten werden geladen…", demo: "Fiktive Demonstrationsdaten",
+  csv: ["ID", "Gemeinde", "Region", "Beschlussdatum", "Maßnahme", "Frauen/Jugend"], yes: "Ja", no: "Nein",
+};
+
+const TXT: Record<string, Txt> = { fr, mg, en, de };
+const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
+const makeNf = (loc: string) => (n: number) => n.toLocaleString(loc, { maximumFractionDigits: 1 });
+
 
 /* ============================ RÈGLES DE L'INDICATEUR ============================
    « 3 mesures prioritaires adoptées par les conseils communaux dans 80 % des communes,
@@ -23,8 +176,6 @@ interface Commune {
 }
 const KEYS = ["region", "aire", "paysage", "district", "name"] as const;
 type Key = (typeof KEYS)[number];
-const LABELS: Record<Key, string> = { region: "Région", aire: "Aire protégée", paysage: "Paysage", district: "District", name: "Commune" };
-const ALL: Record<Key, string> = { region: "Toutes", aire: "Toutes", paysage: "Tous", district: "Tous", name: "Toutes" };
 
 const TRAJ = [
   { annee: 2025, prevu: 20.8 }, { annee: 2026, prevu: 33.3 }, { annee: 2027, prevu: 45.8 },
@@ -109,8 +260,7 @@ function useCommunes() {
 }
 
 /* ================================= HELPERS ================================== */
-const nf = (n: number) => n.toLocaleString("fr-FR", { maximumFractionDigits: 1 });
-const fdate = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("fr-FR");
+const fdate = (d: string, loc: string) => new Date(d + "T00:00:00").toLocaleDateString(loc);
 const matches = (c: Commune, sel: Record<Key, string>, upto: number) =>
   KEYS.slice(0, upto).every((k) => sel[k] === "all" || c[k] === sel[k]);
 const rateColor = (v: number) => (v >= CIBLE ? GREEN : v >= 50 ? AMBER : RED);
@@ -125,15 +275,12 @@ const evalC = (c: Commune, year: number) => {
   };
 };
 type Ev = ReturnType<typeof evalC>;
-const missing = (e: Ev) => {
-  const need = Math.max(MIN_MESURES - e.n, e.inc < 1 ? 1 : 0);
-  return `Manque ${need} mesure${need > 1 ? "s" : ""}${e.inc < 1 ? " dont 1 pour les femmes et les jeunes" : ""}`;
-};
+const needOf = (e: Ev) => Math.max(MIN_MESURES - e.n, e.inc < 1 ? 1 : 0);
 
-function exportCsv(rows: { id: string; commune: string; region: string; date: string; spec: string; inc: boolean }[]) {
+function exportCsv(rows: { id: string; commune: string; region: string; date: string; spec: string; inc: boolean }[], tx: Pick<Txt, "csv" | "yes" | "no">) {
   const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
-  const head = ["ID", "Commune", "Région", "Date d'adoption", "Mesure", "Femmes/jeunes"].map(esc).join(";");
-  const body = rows.map((r) => [r.id, r.commune, r.region, r.date, r.spec, r.inc ? "Oui" : "Non"].map(esc).join(";"));
+  const head = tx.csv.map(esc).join(";");
+  const body = rows.map((r) => [r.id, r.commune, r.region, r.date, r.spec, r.inc ? tx.yes : tx.no].map(esc).join(";"));
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["\uFEFF" + [head, ...body].join("\n")], { type: "text/csv;charset=utf-8" }));
   a.download = `mesures-communales-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -146,7 +293,7 @@ const Card = ({ title, children, className = "" }: { title?: string; children: R
   <section className={`mc-card ${className}`}>{title && <h3 className="mc-card-title">{title}</h3>}{children}</section>
 );
 
-const Ring = memo(({ pct, color = GREEN, sub }: { pct: number; color?: string; sub?: string }) => (
+const Ring = memo(({ pct, color = GREEN, sub, nf }: { pct: number; color?: string; sub?: string; nf: (n: number) => string }) => (
   <div className="mc-ring" role="img" aria-label={`${nf(pct)} %`}
     style={{ background: `conic-gradient(${color} ${pct * 3.6}deg, ${GREY} 0)` }}>
     <div><strong style={{ color }}>{nf(pct)} %</strong>{sub && <small>{sub}</small>}</div>
@@ -154,7 +301,7 @@ const Ring = memo(({ pct, color = GREEN, sub }: { pct: number; color?: string; s
 ));
 
 interface Slice { name: string; value: number; color: string }
-const DonutCard = memo(({ title, data, total }: { title: string; data: Slice[]; total: number }) => (
+const DonutCard = memo(({ title, data, total, nf, unit }: { title: string; data: Slice[]; total: number; nf: (n: number) => string; unit: string }) => (
   <Card title={title}>
     <div className="mc-donut">
       <ResponsiveContainer width="100%" height={180}>
@@ -162,10 +309,10 @@ const DonutCard = memo(({ title, data, total }: { title: string; data: Slice[]; 
           <Pie data={data} dataKey="value" innerRadius="62%" outerRadius="92%" stroke="#fff" isAnimationActive={false}>
             {data.map((d) => <Cell key={d.name} fill={d.color} />)}
           </Pie>
-          <Tooltip formatter={(v: number) => `${v} communes`} contentStyle={{ fontSize: 12 }} />
+          <Tooltip formatter={(v: number) => `${v} ${unit}`} contentStyle={{ fontSize: 12 }} />
         </PieChart>
       </ResponsiveContainer>
-      <div className="mc-donut-c"><strong>{total}</strong><small>communes</small></div>
+      <div className="mc-donut-c"><strong>{total}</strong><small>{unit}</small></div>
     </div>
     <ul className="mc-leg">
       {data.map((d) => (
@@ -180,6 +327,10 @@ const DonutCard = memo(({ title, data, total }: { title: string; data: Slice[]; 
 type SK = "date" | "commune" | "id";
 
 export default function MesuresCommunales() {
+  const { lang } = useLanguage();               // adapte si ton hook expose "language"
+  const t = TXT[lang] ?? fr;
+  const loc = DATE_LOCALES[lang] ?? "fr-FR";
+  const nf = useMemo(() => makeNf(loc), [loc]);
   const { data, state, reload } = useCommunes();
   const [year, setYear] = useState(CUR_YEAR);
   const [sel, setSel] = useState<Record<Key, string>>({ region: "all", aire: "all", paysage: "all", district: "all", name: "all" });
@@ -226,21 +377,21 @@ export default function MesuresCommunales() {
       total, ok, pct, byRegion, traj,
       restant: Math.max(0, Math.ceil((total * CIBLE) / 100) - ok),
       d1: [
-        { name: "0 mesure", value: cnt((e) => e.n === 0), color: RED },
-        { name: "1 à 2 mesures", value: cnt((e) => e.n > 0 && e.n < 3), color: "#fbc02d" },
-        { name: "3 mesures", value: cnt((e) => e.n === 3), color: "#9ccc65" },
-        { name: "Plus de 3 mesures", value: cnt((e) => e.n > 3), color: GREEN },
+        { name: t.m0, value: cnt((e) => e.n === 0), color: RED },
+        { name: t.m12, value: cnt((e) => e.n > 0 && e.n < 3), color: "#fbc02d" },
+        { name: t.m3, value: cnt((e) => e.n === 3), color: "#9ccc65" },
+        { name: t.m3p, value: cnt((e) => e.n > 3), color: GREEN },
       ],
       d2: [
-        { name: "0 mesure", value: cnt((e) => e.inc === 0), color: RED },
-        { name: "1 mesure", value: cnt((e) => e.inc === 1), color: "#fbc02d" },
-        { name: "Plus de 1 mesure", value: cnt((e) => e.inc > 1), color: GREEN },
+        { name: t.m0, value: cnt((e) => e.inc === 0), color: RED },
+        { name: t.m1, value: cnt((e) => e.inc === 1), color: "#fbc02d" },
+        { name: t.m1p, value: cnt((e) => e.inc > 1), color: GREEN },
       ],
       femmes: sum("p") ? (sum("f") / sum("p")) * 100 : 0, nF: sum("f"),
       jeunes: sum("p") ? (sum("j") / sum("p")) * 100 : 0, nJ: sum("j"),
       prio: ev.filter((e) => !e.ok).sort((a, b) => a.taux - b.taux || a.n - b.n),
     };
-  }, [ev, view]);
+  }, [ev, view, t]);
 
   const worst = S.byRegion.length > 1 ? S.byRegion[S.byRegion.length - 1] : null;
 
@@ -264,11 +415,11 @@ export default function MesuresCommunales() {
     </th>
   );
 
-  const message = S.total === 0
-    ? "Aucune commune ne correspond aux filtres choisis."
-    : `${S.ok} commune${S.ok > 1 ? "s" : ""} sur ${S.total} (${nf(S.pct)} %) ont atteint la cible fin ${year}. ` +
-      (S.restant > 0 ? `Il en manque ${S.restant} pour atteindre ${CIBLE} %.` : `La cible de ${CIBLE} % est atteinte.`) +
-      (worst && worst.pct < CIBLE ? ` Région à appuyer en priorité : ${worst.name} (${nf(worst.pct)} %).` : "");
+  const message = S.total === 0 ? t.noMatch : [
+    t.summary(S.ok, S.total, nf(S.pct), year),
+    S.restant > 0 ? t.remaining(S.restant, CIBLE) : t.targetMet(CIBLE),
+    worst && worst.pct < CIBLE ? t.priorityRegion(worst.name, nf(worst.pct)) : "",
+  ].filter(Boolean).join(" ");
 
   return (
     <main className="mc">
@@ -277,24 +428,24 @@ export default function MesuresCommunales() {
       <header className="mc-head">
         <div className="mc-brand">
           <span className="mc-logo"><Landmark size={24} aria-hidden /></span>
-          <h1>Suivi des mesures communales</h1>
+          <h1>{t.title}</h1>
         </div>
         <button className="mc-btn-light" onClick={reload} disabled={state === "loading"}>
-          <RefreshCw size={16} className={state === "loading" ? "mc-spin" : ""} aria-hidden /> Actualiser
+          <RefreshCw size={16} className={state === "loading" ? "mc-spin" : ""} aria-hidden /> {t.refresh}
         </button>
       </header>
 
       <div className="mc-body">
         {/* ----- Filtres ----- */}
         <div className="mc-filters" role="search">
-          <label><span>Année</span>
+          <label><span>{t.year}</span>
             <select value={year} onChange={(e) => { setYear(+e.target.value); setPage(1); }}>
               {TRAJ.map((t) => <option key={t.annee}>{t.annee}</option>)}
             </select></label>
           {KEYS.map((k) => (
-            <label key={k}><span>{LABELS[k]}</span>
+            <label key={k}><span>{t.filters[k]}</span>
               <select value={sel[k]} onChange={(e) => pick(k, e.target.value)}>
-                <option value="all">{ALL[k]}</option>
+                <option value="all">{t.all[k]}</option>
                 {opts[k].map((o) => <option key={o}>{o}</option>)}
               </select></label>
           ))}
@@ -302,45 +453,45 @@ export default function MesuresCommunales() {
 
         {/* ----- Message clé pour décider ----- */}
         <div className="mc-insight">
-          <b>À retenir</b>
+          <b>{t.keyPoint}</b>
           <span className="mc-insight-t" role="status">{message}</span>
           <label className="mc-search mc-insight-s"><Search size={14} aria-hidden />
-            <input placeholder="Rechercher une commune…" value={cq} aria-label="Rechercher une commune"
+            <input placeholder={t.searchCommune} value={cq} aria-label={t.searchCommune}
               onChange={(e) => { setCq(e.target.value); setPage(1); }} /></label>
         </div>
         <details className="mc-enonce">
-          <summary>Énoncé de l'indicateur</summary>
-          <p>3 mesures prioritaires pour améliorer les services écosystémiques d'approvisionnement sont adoptées par les conseils communaux dans {CIBLE} % des communes d'intervention, à partir des plans d'aménagement existants, dont 1 mesure tenant compte des besoins spécifiques des femmes et des jeunes.</p>
+          <summary>{t.statementTitle}</summary>
+          <p>{t.statement(CIBLE)}</p>
         </details>
 
         {/* ----- KPI ----- */}
         <div className="mc-kpis">
-          <Card title="Taux d'atteinte de la cible">
-            <Ring pct={S.pct} sub={`Cible : ${CIBLE} %`} />
-            <p className="mc-cap"><b>{S.ok} sur {S.total}</b> communes</p>
+          <Card title={t.kpiRate}>
+            <Ring pct={S.pct} sub={t.target(CIBLE)} nf={nf} />
+            <p className="mc-cap"><b>{t.ofCommunes(S.ok, S.total)}</b></p>
           </Card>
-          <Card title="Reste à faire">
+          <Card title={t.kpiRemaining}>
             <div className="mc-big" style={{ color: S.restant ? RED : GREEN }}>{S.restant}</div>
-            <p className="mc-cap">communes à convaincre pour atteindre {CIBLE} %</p>
+            <p className="mc-cap">{t.toConvince(CIBLE)}</p>
           </Card>
-          <Card title="Part des femmes atteinte">
-            <Ring pct={S.femmes} sub={`${nf(S.nF)} pers.`} />
+          <Card title={t.kpiWomen}>
+            <Ring pct={S.femmes} sub={`${nf(S.nF)} ${t.persons}`} nf={nf} />
           </Card>
-          <Card title="Part des jeunes (< 35 ans)">
-            <Ring pct={S.jeunes} sub={`${nf(S.nJ)} pers.`} />
+          <Card title={t.kpiYouth}>
+            <Ring pct={S.jeunes} sub={`${nf(S.nJ)} ${t.persons}`} nf={nf} />
           </Card>
-          <Card title="Communes d'intervention">
+          <Card title={t.kpiCommunes}>
             <Users size={34} color={GREEN} aria-hidden style={{ margin: "0 auto" }} />
             <div className="mc-big">{S.total}</div>
-            <p className="mc-cap">communes affichées</p>
+            <p className="mc-cap">{t.displayed}</p>
           </Card>
         </div>
 
         {/* ----- Graphiques : 3 colonnes alignées ----- */}
         <div className="mc-row3">
-          <DonutCard title="Communes selon le nombre de mesures décidées" data={S.d1} total={S.total} />
-          <DonutCard title="Communes selon les mesures femmes et jeunes" data={S.d2} total={S.total} />
-          <Card title="Évolution annuelle du taux d'atteinte (%)" className="mc-wide">
+          <DonutCard title={t.donut1} data={S.d1} total={S.total} nf={nf} unit={t.communesLc} />
+          <DonutCard title={t.donut2} data={S.d2} total={S.total} nf={nf} unit={t.communesLc} />
+          <Card title={t.trend} className="mc-wide">
             <ResponsiveContainer width="100%" height={270}>
               <LineChart data={S.traj} margin={{ top: 16, right: 16, left: -8, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GREY} />
@@ -348,9 +499,9 @@ export default function MesuresCommunales() {
                 <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
                 <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={{ fontSize: 12 }} />
                 <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11 }} />
-                <ReferenceLine y={CIBLE} stroke={RED} strokeDasharray="4 4" label={{ value: `Cible ${CIBLE} %`, fontSize: 11, fill: RED, position: "insideTopLeft" }} />
-                <Line dataKey="prevu" name="Trajectoire prévue" stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-                <Line dataKey="realise" name="Réalisé" stroke={GREEN} strokeWidth={3} dot={{ r: 5, fill: GREEN, stroke: "#fff", strokeWidth: 2 }} isAnimationActive={false} />
+                <ReferenceLine y={CIBLE} stroke={RED} strokeDasharray="4 4" label={{ value: t.target(CIBLE), fontSize: 11, fill: RED, position: "insideTopLeft" }} />
+                <Line dataKey="prevu" name={t.planned} stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
+                <Line dataKey="realise" name={t.actual} stroke={GREEN} strokeWidth={3} dot={{ r: 5, fill: GREEN, stroke: "#fff", strokeWidth: 2 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -358,14 +509,14 @@ export default function MesuresCommunales() {
 
         {/* ----- Où agir ----- */}
         <div className="mc-row2">
-          <Card title="Taux d'atteinte par région (% de communes)">
-            {S.byRegion.length === 0 ? <p className="mc-empty">Aucune donnée.</p> : (
+          <Card title={t.byRegion}>
+            {S.byRegion.length === 0 ? <p className="mc-empty">{t.noData}</p> : (
               <ResponsiveContainer width="100%" height={S.byRegion.length * 44 + 36}>
                 <BarChart data={S.byRegion} layout="vertical" margin={{ top: 4, right: 40, left: 0, bottom: 0 }} barCategoryGap="30%">
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GREY} />
                   <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" width={112} tick={{ fontSize: 11 }} interval={0} />
-                  <Tooltip formatter={(v: number, _n, p) => [`${nf(v)} % (${p.payload.ok}/${p.payload.total} communes)`, "Atteint"]} contentStyle={{ fontSize: 12 }} />
+                  <Tooltip formatter={(v: number, _n, p) => [t.regionTip(nf(v), p.payload.ok, p.payload.total), t.reached]} contentStyle={{ fontSize: 12 }} />
                   <ReferenceLine x={CIBLE} stroke={RED} strokeDasharray="4 4" />
                   <Bar dataKey="pct" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                     {S.byRegion.map((r) => <Cell key={r.name} fill={rateColor(r.pct)} />)}
@@ -376,19 +527,19 @@ export default function MesuresCommunales() {
             )}
           </Card>
 
-          <Card title="Communes à accompagner en priorité">
-            {S.prio.length === 0 ? <p className="mc-empty">Toutes les communes affichées ont atteint la cible.</p> : (
+          <Card title={t.prio}>
+            {S.prio.length === 0 ? <p className="mc-empty">{t.allReached}</p> : (
               <>
-              <ol className="mc-prio" tabIndex={0} aria-label="Communes à accompagner, liste défilante">
+              <ol className="mc-prio" tabIndex={0} aria-label={t.prioAria}>
                 {S.prio.map((e) => (
                   <li key={e.c.name}>
                     <div><b>{e.c.name}</b><small>{e.c.region}, {e.c.district}</small></div>
-                    <span>{missing(e)}</span>
+                    <span>{t.missing(needOf(e), e.inc < 1)}</span>
                     <div className="mc-bar" title={`${e.taux} %`}><i style={{ width: `${e.taux}%`, background: rateColor(e.taux + 30) }} /></div>
                   </li>
                 ))}
               </ol>
-              {S.prio.length > 5 && <p className="mc-hint">{S.prio.length} communes à accompagner : faites défiler pour voir la suite</p>}
+              {S.prio.length > 5 && <p className="mc-hint">{t.prioHint(S.prio.length)}</p>}
               </>
             )}
           </Card>
@@ -397,18 +548,18 @@ export default function MesuresCommunales() {
         {/* ----- Tableau (seul en bas) ----- */}
         <Card>
           <div className="mc-tools">
-            <h3 className="mc-card-title mc-left">Détail des mesures adoptées par les communes</h3>
+            <h3 className="mc-card-title mc-left">{t.tableTitle}</h3>
             <div className="mc-tools-r">
               <label className="mc-search"><Search size={14} aria-hidden />
-                <input placeholder="Rechercher une mesure…" value={search}
-                  onChange={(e) => { setSearch(e.target.value); setPage(1); }} aria-label="Rechercher" /></label>
-              <div className="mc-seg" role="group" aria-label="Public visé">
-                {([["all", "Tous", flat.length], ["inc", "Femmes et jeunes", nInc]] as const).map(([v, l, n]) => (
+                <input placeholder={t.searchMeasure} value={search}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }} aria-label={t.search} /></label>
+              <div className="mc-seg" role="group" aria-label={t.audience}>
+                {([["all", t.allAudience, flat.length], ["inc", t.womenYouth, nInc]] as const).map(([v, l, n]) => (
                   <button key={v} className={pub === v ? "on" : ""} aria-pressed={pub === v}
                     onClick={() => { setPub(v); setPage(1); }}>{l} <small>{n}</small></button>
                 ))}
               </div>
-              <button className="mc-btn" onClick={() => exportCsv(rowsAll)}><Download size={14} aria-hidden /> Exporter</button>
+              <button className="mc-btn" onClick={() => exportCsv(rowsAll, t)}><Download size={14} aria-hidden /> {t.export}</button>
             </div>
           </div>
 
@@ -416,36 +567,36 @@ export default function MesuresCommunales() {
             <table className="mc-table">
               <thead>
                 <tr>
-                  <SortTh k="commune">Commune</SortTh>
-                  <SortTh k="id">ID de la mesure</SortTh>
-                  <SortTh k="date">Date d'adoption</SortTh>
-                  <th>Spécification de la mesure</th>
-                  <th>Public visé</th>
+                  <SortTh k="commune">{t.filters.name}</SortTh>
+                  <SortTh k="id">{t.colId}</SortTh>
+                  <SortTh k="date">{t.colDate}</SortTh>
+                  <th>{t.colSpec}</th>
+                  <th>{t.audience}</th>
                 </tr>
               </thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <td data-label="Commune"><b>{r.commune}</b><small>{r.region}</small></td>
-                    <td data-label="ID">{r.id}</td>
-                    <td data-label="Date">{fdate(r.date)}</td>
-                    <td data-label="Mesure" className="mc-spec">{r.spec}</td>
-                    <td data-label="Public">{r.inc ? <span className="mc-tag">Femmes et jeunes</span> : "Tous"}</td>
+                    <td data-label={t.filters.name}><b>{r.commune}</b><small>{r.region}</small></td>
+                    <td data-label={t.colId}>{r.id}</td>
+                    <td data-label={t.colDate}>{fdate(r.date, loc)}</td>
+                    <td data-label={t.colSpec} className="mc-spec">{r.spec}</td>
+                    <td data-label={t.audience}>{r.inc ? <span className="mc-tag">{t.womenYouth}</span> : t.allAudience}</td>
                   </tr>
                 ))}
-                {rows.length === 0 && <tr><td colSpan={5} className="mc-empty">Aucune mesure trouvée. Modifiez les filtres ou la recherche.</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={5} className="mc-empty">{t.noMeasures}</td></tr>}
               </tbody>
             </table>
           </div>
 
           <footer className="mc-pager">
-            <span>{rowsAll.length ? `${(cur - 1) * pageSize + 1} – ${Math.min(cur * pageSize, rowsAll.length)}` : "0"} sur {rowsAll.length} mesures</span>
+            <span>{t.range(rowsAll.length ? (cur - 1) * pageSize + 1 : 0, Math.min(cur * pageSize, rowsAll.length), rowsAll.length)}</span>
             <div>
-              <button aria-label="Page précédente" disabled={cur <= 1} onClick={() => setPage(cur - 1)}><ChevronLeft size={16} /></button>
+              <button aria-label={t.prev} disabled={cur <= 1} onClick={() => setPage(cur - 1)}><ChevronLeft size={16} /></button>
               <b>{cur} / {pages}</b>
-              <button aria-label="Page suivante" disabled={cur >= pages} onClick={() => setPage(cur + 1)}><ChevronRight size={16} /></button>
+              <button aria-label={t.next} disabled={cur >= pages} onClick={() => setPage(cur + 1)}><ChevronRight size={16} /></button>
             </div>
-            <label>Lignes par page
+            <label>{t.rowsPerPage}
               <select value={pageSize} onChange={(e) => { setPageSize(+e.target.value); setPage(1); }}>
                 {[10, 25, 50, 100].map((n) => <option key={n}>{n}</option>)}
               </select></label>
@@ -453,7 +604,7 @@ export default function MesuresCommunales() {
         </Card>
 
         <p className="mc-note">
-          {state === "ok" ? `Source : ${DATA_URL}` : state === "loading" ? "Chargement des données…" : "Données fictives de démonstration"}
+          {state === "ok" ? `${t.source} ${DATA_URL}` : state === "loading" ? t.loading : t.demo}
         </p>
       </div>
     </main>
