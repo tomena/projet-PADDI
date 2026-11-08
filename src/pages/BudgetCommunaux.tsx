@@ -503,31 +503,55 @@ const toZones = (feats: any[], key: string): Zone[] => feats.filter((f) => f?.ge
 
 /* =====================================================================
    STYLES RESPONSIVES
+   Les couleurs utilisent des variables : valeurs claires dans « .bc »,
+   surcharges du thème sombre dans « :root[data-theme="dark"] .bc ».
+   (Le fond de carte reste clair dans les deux thèmes.)
    ===================================================================== */
 const CSS = `
-.bc{--g:#166534;--g2:#15803d;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--card:#fff;
+.bc{--g:#166534;--g2:#15803d;--g-txt:#15803d;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--card:#fff;
+  --page:#eef3f8;--soft:#f8fafc;--bd:#d1d5db;--bd2:#cbd5e1;--hover:#f1f5f9;--track:#f1f5f9;
+  --txt2:#334155;--txt3:#475569;--dis-bg:#f1f5f9;--dis-txt:#94a3b8;
+  --ok-bg:#f0fdf4;--ok-bd:#bbf7d0;--ok-txt:#14532d;--ok-sub:#166534;
+  --warn-bg:#fffbeb;--warn-bd:#fde68a;--warn-txt:#92400e;
+  --err-bg:#fef2f2;--err-bd:#fecaca;--err-txt:#991b1b;
+  --chip-bg:#dcfce7;--chip-txt:#14532d;--cellbd:#f1f5f9;--row-hover:#f0fdf4;--foot-bg:#ecfdf5;--foot-bd:#86efac;
+  --b-ok-bg:#d1fae5;--b-ok-txt:#065f46;--b-ko-bg:#fee2e2;--b-ko-txt:#b91c1c;
+  --glass:rgba(255,255,255,.95);--foot-txt:#4b5563;--map-bg:#e5e7eb;
+  --up:#15803d;--down:#b91c1c;--purple:#7b1fa2;--ico:#1e3a8a;
   container-type:inline-size;container-name:bc;width:100%;min-width:0;box-sizing:border-box;
-  padding:clamp(8px,1.6vw,16px);background:#eef3f8;color:var(--ink);min-height:100vh;
+  padding:clamp(8px,1.6vw,16px);background:var(--page);color:var(--ink);min-height:100vh;
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;display:flex;flex-direction:column;gap:10px}
+
+:root[data-theme="dark"] .bc{--g:#14532d;--g2:#15803d;--g-txt:#4ade80;--ink:#e5e7eb;--mut:#94a3b8;--line:rgba(255,255,255,.12);--card:var(--surface);
+  --page:var(--bg);--soft:#16213a;--bd:rgba(255,255,255,.2);--bd2:rgba(255,255,255,.22);--hover:rgba(255,255,255,.07);--track:rgba(255,255,255,.12);
+  --txt2:#cbd5e1;--txt3:#b6bfcc;--dis-bg:rgba(255,255,255,.05);--dis-txt:#64748b;
+  --ok-bg:rgba(74,222,128,.1);--ok-bd:rgba(74,222,128,.3);--ok-txt:#86efac;--ok-sub:#86efac;
+  --warn-bg:rgba(245,158,11,.12);--warn-bd:rgba(245,158,11,.35);--warn-txt:#fcd34d;
+  --err-bg:rgba(239,68,68,.14);--err-bd:rgba(248,113,113,.4);--err-txt:#fca5a5;
+  --chip-bg:rgba(74,222,128,.16);--chip-txt:#86efac;--cellbd:rgba(255,255,255,.06);--row-hover:#16281f;--foot-bg:#12261c;--foot-bd:rgba(74,222,128,.4);
+  --b-ok-bg:rgba(74,222,128,.16);--b-ok-txt:#86efac;--b-ko-bg:rgba(248,113,113,.16);--b-ko-txt:#fca5a5;
+  --glass:rgba(17,26,46,.95);--foot-txt:#94a3b8;--map-bg:#1b2740;
+  --up:#4ade80;--down:#f87171;--purple:#c084fc;--ico:#93c5fd}
+
 .bc *{box-sizing:border-box}
 .bc button,.bc select,.bc input{font-family:inherit}
 .bc button:focus-visible,.bc select:focus-visible,.bc input:focus-visible,.bc a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
 
 /* En-tête */
 .bc-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px 16px;padding:12px 16px;
-  background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+  background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
 .bc-brand{display:flex;align-items:center;gap:12px;min-width:0;flex:1 1 300px}
 .bc-logo{flex:none;position:relative;width:48px;height:48px;border-radius:13px;display:grid;place-items:center;color:#fff;
   background:linear-gradient(145deg,#14532d,#22a05a)}
 .bc-logo .lf{position:absolute;right:-6px;bottom:-6px;background:#fff;border-radius:50%;padding:3px;box-shadow:0 0 0 1px var(--line)}
-.bc-h1{margin:0;font-size:clamp(16px,2.2vw,22px);font-weight:800;letter-spacing:.01em;line-height:1.2;color:#0f172a}
-.bc-sub{margin:3px 0 0;font-size:12.5px;font-weight:600;color:var(--g2);line-height:1.35}
+.bc-h1{margin:0;font-size:clamp(16px,2.2vw,22px);font-weight:800;letter-spacing:.01em;line-height:1.2;color:var(--ink)}
+.bc-sub{margin:3px 0 0;font-size:12.5px;font-weight:600;color:var(--g-txt);line-height:1.35}
 .bc-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.bc-year{display:flex;align-items:center;gap:8px;padding:0 12px;height:38px;background:#f8fafc;border:1px solid #d1d5db;border-radius:10px;font-weight:700}
-.bc-year select{border:0;background:transparent;font-weight:700;font-size:13px;cursor:pointer;outline-offset:4px}
-.bc-btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:10px;border:1px solid #d1d5db;
-  background:#fff;color:var(--ink);font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
-.bc-btn:hover{background:#f1f5f9}
+.bc-year{display:flex;align-items:center;gap:8px;padding:0 12px;height:38px;background:var(--soft);border:1px solid var(--bd);border-radius:10px;font-weight:700}
+.bc-year select{border:0;background:transparent;color:var(--ink);font-weight:700;font-size:13px;cursor:pointer;outline-offset:4px}
+.bc-btn{display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:10px;border:1px solid var(--bd);
+  background:var(--card);color:var(--ink);font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap}
+.bc-btn:hover{background:var(--hover)}
 .bc-btn:disabled{opacity:.55;cursor:not-allowed}
 .bc-btn.pri{background:var(--g2);border-color:var(--g2);color:#fff}
 .bc-btn.pri:hover{background:var(--g)}
@@ -538,60 +562,61 @@ const CSS = `
 /* Bandeaux d'information */
 .bc-note{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:12px;font-size:12.5px;line-height:1.45}
 .bc-note svg{flex:none;margin-top:1px}
-.bc-note.warn{background:#fffbeb;border:1px solid #fde68a;color:#92400e}
-.bc-note.err{background:#fef2f2;border:1px solid #fecaca;color:#991b1b}
-.bc-note.ok{background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d}
-.bc-note code{background:rgba(0,0,0,.06);padding:1px 5px;border-radius:4px;font-size:11.5px}
-.bc-insight{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:#f0fdf4;border:1px solid #bbf7d0;color:#14532d}
+.bc-note.warn{background:var(--warn-bg);border:1px solid var(--warn-bd);color:var(--warn-txt)}
+.bc-note.err{background:var(--err-bg);border:1px solid var(--err-bd);color:var(--err-txt)}
+.bc-note.ok{background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ok-txt)}
+.bc-note code{background:rgba(127,127,127,.18);padding:1px 5px;border-radius:4px;font-size:11.5px}
+.bc-insight{display:flex;gap:12px;align-items:flex-start;padding:12px 14px;border-radius:12px;background:var(--ok-bg);border:1px solid var(--ok-bd);color:var(--ok-txt)}
 .bc-insight svg{flex:none;margin-top:2px}
 .bc-insight strong{display:block;font-size:13.5px;line-height:1.4}
-.bc-insight span{display:block;font-size:12px;color:#166534;margin-top:3px;line-height:1.45}
+.bc-insight span{display:block;font-size:12px;color:var(--ok-sub);margin-top:3px;line-height:1.45}
 
 /* Filtres */
 .bc-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:8px;align-items:end}
 .bc-f{display:flex;flex-direction:column;gap:4px;min-width:0}
-.bc-f label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#334155}
-.bc-f select,.bc-search{width:100%;height:38px;padding:0 10px;border-radius:10px;border:1px solid #d1d5db;background:#fff;font-size:12.5px;font-weight:600;color:var(--ink)}
+.bc-f label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--txt2)}
+.bc-f select,.bc-search{width:100%;height:38px;padding:0 10px;border-radius:10px;border:1px solid var(--bd);background:var(--card);font-size:12.5px;font-weight:600;color:var(--ink)}
 .bc-f select{cursor:pointer}
-.bc-f select:disabled{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}
+.bc-f select:disabled{background:var(--dis-bg);color:var(--dis-txt);cursor:not-allowed}
 .bc-f.ind{min-width:min(100%,240px)}
 .bc-f.ind .bc-seg{width:100%;height:38px}
 .bc-f.ind .bc-seg button{flex:1;padding:0 8px;white-space:nowrap}
 .bc-searchbox{grid-column:1/-1;position:relative}
-.bc-searchbox svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8}
+.bc-searchbox svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--dis-txt)}
 .bc-search{padding-left:33px;font-weight:500}
 .bc-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.bc-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;background:#dcfce7;color:#14532d;font-size:12px;font-weight:700}
-.bc-chip button{display:grid;place-items:center;width:18px;height:18px;border:0;border-radius:50%;background:rgba(20,83,45,.15);color:inherit;cursor:pointer;padding:0}
-.bc-chip button:hover{background:rgba(20,83,45,.3)}
+.bc-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 10px;border-radius:999px;background:var(--chip-bg);color:var(--chip-txt);font-size:12px;font-weight:700}
+.bc-chip button{display:grid;place-items:center;width:18px;height:18px;border:0;border-radius:50%;background:rgba(127,127,127,.25);color:inherit;cursor:pointer;padding:0}
+.bc-chip button:hover{background:rgba(127,127,127,.45)}
 
 /* Indicateurs clés */
 .bc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:6px}
-.bc-kpi{display:flex;gap:8px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-top:3px solid var(--c);
+.bc-kpi{--kt:var(--c);display:flex;gap:8px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-top:3px solid var(--c);
   border-radius:12px;padding:8px 10px;min-width:0;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+:root[data-theme="dark"] .bc-kpi{--kt:color-mix(in srgb,var(--c) 55%,#fff)}
 .bc-ico{flex:none;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;background:var(--c)}
 .bc-kb{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
-.bc-kt{font-size:9.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--c);line-height:1.2}
+.bc-kt{font-size:9.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--kt);line-height:1.2}
 .bc-kv{font-size:clamp(15px,1.3vw,19px);font-weight:800;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap}
-.bc-bar{height:9px;border-radius:999px;background:#f1f5f9;overflow:hidden;margin-top:3px}
+.bc-bar{height:9px;border-radius:999px;background:var(--track);overflow:hidden;margin-top:3px}
 .bc-bar i{display:block;height:100%;border-radius:999px;background:color-mix(in srgb,var(--c) 30%,transparent);border:1px solid var(--c);box-sizing:border-box;transition:width .5s}
 .bc-ks{font-size:10px;color:var(--mut);line-height:1.3}
 .bc-delta{display:inline-flex;align-items:center;gap:3px;font-size:10px;font-weight:700;margin-top:1px}
 
 /* Segments (boutons groupés) */
-.bc-seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;background:#fff}
-.bc-seg button{padding:7px 12px;border:0;background:transparent;font-size:12px;font-weight:700;color:#475569;cursor:pointer}
-.bc-seg button+button{border-left:1px solid #cbd5e1}
+.bc-seg{display:inline-flex;border:1px solid var(--bd2);border-radius:10px;overflow:hidden;background:var(--card)}
+.bc-seg button{padding:7px 12px;border:0;background:transparent;font-size:12px;font-weight:700;color:var(--txt3);cursor:pointer}
+.bc-seg button+button{border-left:1px solid var(--bd2)}
 .bc-seg button.on{background:var(--g2);color:#fff}
 
 /* Cartes & grilles */
 .bc-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:10px;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(15,23,42,.05)}
-.bc-ct{margin:0;font-size:12px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#111827}
+.bc-ct{margin:0;font-size:12px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--ink)}
 .bc-cs{margin:2px 0 6px;font-size:11px;color:var(--mut)}
 .bc-card.compact{padding:8px}
 .bc-card.compact .bc-cs{display:none}
 .bc-card.compact .bc-head2{margin-bottom:4px}
-.bc-lg{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:10px;color:#475569;font-weight:600}
+.bc-lg{display:flex;flex-wrap:wrap;gap:3px 10px;font-size:10px;color:var(--txt3);font-weight:600}
 .bc-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px;box-sizing:border-box}
 .bc-lg b{display:inline-block;width:10px;height:3px;border-radius:2px;margin-right:4px;vertical-align:3px}
 .bc-head2{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:6px 12px;margin-bottom:6px}
@@ -602,25 +627,25 @@ const CSS = `
 .bc-scroll{flex:1;min-height:0;overflow:auto;scrollbar-width:thin}
 .bc-chart{flex:1 1 170px;min-height:150px;position:relative}
 .bc-mapwrap{position:relative;flex:1;min-height:260px;border-radius:10px;overflow:hidden;border:1px solid var(--line);isolation:isolate}
-.bc-mapwrap .leaflet-container{position:absolute;inset:0;background:#e5e7eb;font-family:inherit}
-.bc-legend{position:absolute;left:8px;bottom:8px;z-index:1000;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.95);
+.bc-mapwrap .leaflet-container{position:absolute;inset:0;background:var(--map-bg);font-family:inherit}
+.bc-legend{position:absolute;left:8px;bottom:8px;z-index:1000;padding:7px 10px;border-radius:10px;background:var(--glass);color:var(--ink);
   box-shadow:0 1px 5px rgba(0,0,0,.25);font-size:11px;max-width:70%}
 .bc-legend strong{display:block;margin-bottom:3px}
-.bc-legend div{display:flex;align-items:center;gap:6px;margin-top:2px;color:#334155}
+.bc-legend div{display:flex;align-items:center;gap:6px;margin-top:2px;color:var(--txt2)}
 .bc-legend i{width:14px;height:10px;border-radius:2px;display:inline-block;border:1px solid rgba(0,0,0,.15)}
 .bc-fond{position:absolute;top:8px;right:8px;z-index:1000;box-shadow:0 1px 5px rgba(0,0,0,.25)}
-.bc-mapnote{margin:6px 0 0;font-size:11px;color:#92400e}
+.bc-mapnote{margin:6px 0 0;font-size:11px;color:var(--warn-txt)}
 .bc .leaflet-tooltip{font-size:12px;font-weight:600;line-height:1.4}
 /* plus de cadre/contour au clic sur la carte ou sur une zone */
 .bc .leaflet-container:focus,.bc .leaflet-container .leaflet-interactive:focus,.bc .leaflet-container path:focus{outline:none}
 .bc .leaflet-container a{outline:none}
-/* étiquettes des communes */
+/* étiquettes des communes (sur le fond de carte, qui reste clair) */
 .bc .bc-lbl-wrap{background:transparent;border:0}
 .bc .bc-lbl{position:absolute;left:0;top:0;transform:translate(-50%,-50%);white-space:nowrap;pointer-events:none;text-align:center;
   font-weight:700;line-height:1.15;color:#0f172a;text-shadow:0 0 2px #fff,0 0 2px #fff,0 0 3px #fff,0 0 4px #fff}
 .bc .bc-lbl small{display:block;font-size:.82em;font-weight:700;color:#334155}
 .bc .bc-lbl.sel{color:#052e16;font-weight:800}
-.bc-tip{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.bc-tip{background:var(--card);color:var(--ink);border:1px solid var(--bd2);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
 .bc-tip b{display:block;margin-bottom:3px}
 .bc-tip div{display:flex;justify-content:space-between;gap:14px}
 .bc-empty{padding:26px 10px;text-align:center;color:var(--mut);font-size:12.5px}
@@ -641,20 +666,20 @@ const CSS = `
 .bc-t th{position:sticky;top:0;z-index:2;background:var(--g);color:#fff;padding:0;text-align:center;border-right:1px solid rgba(255,255,255,.18);font-weight:700}
 .bc-t th button{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:9px 8px;border:0;background:transparent;color:inherit;font-size:11.5px;font-weight:700;cursor:pointer;line-height:1.25}
 .bc-t th button:hover{background:rgba(255,255,255,.12)}
-.bc-t td{padding:9px 10px;border-bottom:1px solid var(--line);border-right:1px solid #f1f5f9;text-align:center;font-variant-numeric:tabular-nums;background:#fff}
-.bc-t tbody tr:hover td{background:#f0fdf4}
+.bc-t td{padding:9px 10px;border-bottom:1px solid var(--line);border-right:1px solid var(--cellbd);text-align:center;font-variant-numeric:tabular-nums;background:var(--card)}
+.bc-t tbody tr:hover td{background:var(--row-hover)}
 .bc-t tbody tr{cursor:pointer}
 .bc-t th:first-child,.bc-t td:first-child{position:sticky;left:0;z-index:1;text-align:left;font-weight:700;box-shadow:1px 0 0 var(--line)}
 .bc-t th:first-child{z-index:3}
 .bc-t td.n{text-align:right}
-.bc-t tfoot td{position:sticky;bottom:0;background:#ecfdf5;font-weight:800;border-top:2px solid #86efac}
+.bc-t tfoot td{position:sticky;bottom:0;background:var(--foot-bg);font-weight:800;border-top:2px solid var(--foot-bd)}
 .bc-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-weight:700;font-size:11.5px;white-space:nowrap}
-.bc-badge.ok{background:#d1fae5;color:#065f46}
-.bc-badge.ko{background:#fee2e2;color:#b91c1c}
+.bc-badge.ok{background:var(--b-ok-bg);color:var(--b-ok-txt)}
+.bc-badge.ko{background:var(--b-ko-bg);color:var(--b-ko-txt)}
 .bc-pg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;font-size:12px;color:var(--mut)}
 .bc-pg .bc-seg button{padding:6px 10px}
-.bc-pg select{height:32px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;padding:0 6px}
-.bc-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;color:#4b5563;font-size:12px;padding:2px 2px 24px}
+.bc-pg select{height:32px;border:1px solid var(--bd2);border-radius:8px;background:var(--card);color:var(--ink);font-size:12px;padding:0 6px}
+.bc-foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px;color:var(--foot-txt);font-size:12px;padding:2px 2px 24px}
 
 /* Adaptation à la largeur disponible */
 @container bc (min-width:620px){
@@ -695,7 +720,7 @@ const Delta = ({ v, unit, label }: { v: number | null; unit: '%' | 'pts' | ''; l
   if (v == null || !Number.isFinite(v)) return null;
   const flat = Math.abs(v) < 0.05;
   const up = v > 0;
-  const color = flat ? '#64748b' : up ? '#15803d' : '#b91c1c';
+  const color = flat ? 'var(--mut)' : up ? 'var(--up)' : 'var(--down)';
   const Icon = up ? TrendingUp : TrendingDown;
   return (
     <span className="bc-delta" style={{ color }} title={T.deltaTitle(label)}>
@@ -748,14 +773,14 @@ const RankBars = ({ data, obj, unit, scale, avail = 0, width = 0 }: any) => {
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} layout="vertical" margin={{ top, right: 40, left: 0, bottom }} barCategoryGap="12%">
           <XAxis type="number" hide domain={[0, Math.ceil(max)]} />
-          <YAxis type="category" dataKey="name" width={yW} tick={{ fontSize: fs, fill: '#334155' }} axisLine={false} tickLine={false}
+          <YAxis type="category" dataKey="name" width={yW} tick={{ fontSize: fs, fill: 'var(--txt2)' }} axisLine={false} tickLine={false}
                  tickFormatter={(v) => (String(v).length > cut ? `${String(v).slice(0, cut - 1)}…` : v)} interval={0} />
           <Tooltip content={<RankTip unit={unit} />} cursor={{ fill: 'rgba(22,101,52,.05)' }} />
           <ReferenceLine x={obj} stroke="#dc2626" strokeDasharray="4 3" strokeWidth={1.5}
                          label={{ value: T.objective(obj), position: 'top', fill: '#dc2626', fontSize: 9.5, fontWeight: 700 }} />
-          <Bar dataKey="value" radius={[0, 7, 7, 0]} barSize={bar} background={{ fill: '#f1f5f9', radius: [0, 7, 7, 0] } as any}>
+          <Bar dataKey="value" radius={[0, 7, 7, 0]} barSize={bar} background={{ fill: 'var(--track)', radius: [0, 7, 7, 0] } as any}>
             {data.map((d: any, i: number) => { const c = colorOf(d); return <Cell key={i} fill={c} fillOpacity={0.85} stroke="none" strokeWidth={0} />; })}
-            <LabelList dataKey="value" position="right" formatter={(v: number) => `${v.toLocaleString(LOC, { maximumFractionDigits: 1 })}%`} style={{ fontSize: fs - 0.5, fontWeight: 700, fill: '#334155' }} />
+            <LabelList dataKey="value" position="right" formatter={(v: number) => `${v.toLocaleString(LOC, { maximumFractionDigits: 1 })}%`} style={{ fontSize: fs - 0.5, fontWeight: 700, fill: 'var(--txt2)' }} />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -1230,32 +1255,32 @@ export default function BudgetCommunaux() {
       {/* ============ FILTRES + INDICATEUR (même ligne) ============ */}
       <section className="bc-filters" aria-label={t.filters}>
         <div className="bc-f">
-          <label htmlFor="bc-ap"><Mountain size={13} color="#1e3a8a" />{t.ap}</label>
+          <label htmlFor="bc-ap"><Mountain size={13} color="var(--ico)" />{t.ap}</label>
           <select id="bc-ap" value={ap} onChange={(e) => onAp(e.target.value)}>
             <option value="">{t.allF}</option>{optAps.map((v) => <option key={v}>{v}</option>)}
             {hasNoAp && <option value={NONE}>{t.noAp}</option>}
           </select>
         </div>
         <div className="bc-f">
-          <label htmlFor="bc-reg"><MapPin size={13} color="#1e3a8a" />{t.region}</label>
+          <label htmlFor="bc-reg"><MapPin size={13} color="var(--ico)" />{t.region}</label>
           <select id="bc-reg" value={region} onChange={(e) => onRegion(e.target.value)}>
             <option value="">{t.allF}</option>{optRegions.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f">
-          <label htmlFor="bc-dis"><Building2 size={13} color="#1e3a8a" />{t.district}</label>
+          <label htmlFor="bc-dis"><Building2 size={13} color="var(--ico)" />{t.district}</label>
           <select id="bc-dis" value={district} onChange={(e) => onDistrict(e.target.value)} disabled={!optDistricts.length}>
             <option value="">{t.allM}</option>{optDistricts.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f">
-          <label htmlFor="bc-com"><Users size={13} color="#1e3a8a" />{t.commune}</label>
+          <label htmlFor="bc-com"><Users size={13} color="var(--ico)" />{t.commune}</label>
           <select id="bc-com" value={commune} onChange={(e) => setCommune(e.target.value)} disabled={!optCommunes.length}>
             <option value="">{t.allF}</option>{optCommunes.map((v) => <option key={v}>{v}</option>)}
           </select>
         </div>
         <div className="bc-f ind">
-          <label id="bc-ind-l"><SlidersHorizontal size={13} color="#1e3a8a" />{t.indicator}</label>
+          <label id="bc-ind-l"><SlidersHorizontal size={13} color="var(--ico)" />{t.indicator}</label>
           <div className="bc-seg" role="group" aria-labelledby="bc-ind-l">
             {(Object.keys(INDIC) as IndicId[]).map((k) => (
               <button key={k} className={indic === k ? 'on' : ''} onClick={() => setIndic(k)} aria-pressed={indic === k} title={INDIC[k].long}>{INDIC[k].short}</button>
@@ -1352,8 +1377,8 @@ export default function BudgetCommunaux() {
               </div>
               <div className="bc-lg" aria-hidden="true">
                 <span><i style={{ background: 'rgba(21,128,61,.18)', border: '1.2px solid #15803d' }} />{t.evoSeM}</span>
-                <span><b style={{ background: '#15803d' }} />{t.evoSe}</span>
-                <span><b style={{ background: '#7b1fa2' }} />{t.evoFj}</span>
+                <span><b style={{ background: 'var(--up)' }} />{t.evoSe}</span>
+                <span><b style={{ background: 'var(--purple)' }} />{t.evoFj}</span>
               </div>
             </div>
             {trend.length > 1 ? (
@@ -1361,17 +1386,17 @@ export default function BudgetCommunaux() {
                 <div style={{ position: 'absolute', inset: 0 }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={trend} margin={{ top: 8, right: 10, left: 4, bottom: 0 }}>
-                      <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="annee" tick={{ fontSize: 10.5, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                      <YAxis yAxisId="a" domain={[0, evoMax]} tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} width={46} tickFormatter={(v) => `${v}%`} />
-                      <YAxis yAxisId="b" orientation="right" hide={evSz.w < 400} domain={[0, (m: number) => Math.ceil(m * 2.2)]} tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${v}M`} />
+                      <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="annee" tick={{ fontSize: 10.5, fill: 'var(--mut)' }} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="a" domain={[0, evoMax]} tick={{ fontSize: 10, fill: 'var(--mut)' }} axisLine={false} tickLine={false} width={46} tickFormatter={(v) => `${v}%`} />
+                      <YAxis yAxisId="b" orientation="right" hide={evSz.w < 400} domain={[0, (m: number) => Math.ceil(m * 2.2)]} tick={{ fontSize: 10, fill: 'var(--mut)' }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${v}M`} />
                       <Tooltip content={<EvoTip />} cursor={{ fill: 'rgba(22,101,52,.05)' }} />
                       <ReferenceArea yAxisId="a" y1={100} y2={evoMax} fill="#16a34a" fillOpacity={0.07} />
-                      <ReferenceLine yAxisId="a" y={100} stroke="#15803d" strokeWidth={1.5} strokeDasharray="5 4"
-                                     label={{ value: t.objectif, position: 'insideTopLeft', fill: '#15803d', fontSize: 10, fontWeight: 700 }} />
+                      <ReferenceLine yAxisId="a" y={100} stroke="var(--up)" strokeWidth={1.5} strokeDasharray="5 4"
+                                     label={{ value: t.objectif, position: 'insideTopLeft', fill: 'var(--up)', fontSize: 10, fontWeight: 700 }} />
                       <Bar yAxisId="b" dataKey="se" name={t.evoSeM} fill="#16a34a" fillOpacity={0.14} stroke="#15803d" strokeWidth={1.2} radius={[6, 6, 0, 0]} barSize={26} />
-                      <Line yAxisId="a" type="monotone" dataKey="aSe" name={t.evoSeLine} stroke="#15803d" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
-                      <Line yAxisId="a" type="monotone" dataKey="aFj" name={t.evoFjLine} stroke="#7b1fa2" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: '#fff' }} activeDot={{ r: 5 }} />
+                      <Line yAxisId="a" type="monotone" dataKey="aSe" name={t.evoSeLine} stroke="var(--up)" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: 'var(--card)' }} activeDot={{ r: 5 }} />
+                      <Line yAxisId="a" type="monotone" dataKey="aFj" name={t.evoFjLine} stroke="var(--purple)" strokeWidth={2.5} dot={{ r: 3.5, strokeWidth: 2, fill: 'var(--card)' }} activeDot={{ r: 5 }} />
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -1471,7 +1496,7 @@ export default function BudgetCommunaux() {
                   <td><span className={`bc-badge ${c.okFj ? 'ok' : 'ko'}`}>{c.okFj ? t.ok : t.ko}</span></td>
                 </tr>
               ))}
-              {!pageRows.length && <tr><td colSpan={11} style={{ textAlign: 'center', color: '#64748b', padding: 24 }}>{t.noMatch}</td></tr>}
+              {!pageRows.length && <tr><td colSpan={11} style={{ textAlign: 'center', color: 'var(--mut)', padding: 24 }}>{t.noMatch}</td></tr>}
             </tbody>
             {tableRows.length > 0 && (
               <tfoot>
