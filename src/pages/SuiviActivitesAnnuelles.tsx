@@ -372,7 +372,8 @@ const getProgressColor = (value: number) =>
 /* ================= CSS RESPONSIVE =================
    - grilles de page : container query « sa » (largeur réelle de la page)
    - grilles internes : container query sur la carte elle-même
-   - grands écrans (≥1920 px) : toute la page est agrandie pour rester lisible. */
+   - grands écrans (≥1920 px) : toute la page est agrandie pour rester lisible.
+   Les couleurs utilisent les variables du thème (clair / sombre). */
 
 const RESPONSIVE_CSS = `
 .sa-page{container-type:inline-size;container-name:sa;width:100%;font-family:Inter,system-ui,sans-serif}
@@ -383,14 +384,14 @@ const RESPONSIVE_CSS = `
 @media (min-width:3840px){.sa-zoom{zoom:2.3}}
 
 .sa-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(200px,.7fr);gap:6px;align-items:stretch;
-  background:#fff;border:1px solid #dbe4f0;border-radius:10px;padding:6px 8px;box-sizing:border-box}
-.sa-filter{display:flex;align-items:center;gap:8px;padding:6px 10px;border-right:1px solid #e5e7eb;min-width:0}
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px 8px;box-sizing:border-box}
+.sa-filter{display:flex;align-items:center;gap:8px;padding:6px 10px;border-right:1px solid var(--border);min-width:0}
 .sa-select{font-size:13px}
 .sa-actions{display:flex;flex-direction:column;justify-content:center;gap:5px;padding-left:4px}
 .sa-btn{width:100%;min-height:40px;box-sizing:border-box;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;
   cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;line-height:1.1;transition:background .2s ease}
-.sa-btn-ghost{border:1px solid #cbd5e1;background:#fff;color:#475569}
-.sa-btn-ghost:hover{background:#f1f5f9}
+.sa-btn-ghost{border:1px solid var(--border);background:var(--surface);color:var(--text-2)}
+.sa-btn-ghost:hover{background:var(--surface-2)}
 .sa-btn-primary{border:1px solid #2563eb;background:#2563eb;color:#fff}
 .sa-btn-primary:hover{background:#1d4ed8}
 
@@ -407,16 +408,16 @@ const RESPONSIVE_CSS = `
 .sa-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.7fr);gap:8px;align-items:stretch}
 .sa-axes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start}
 .sa-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 12px;align-items:center;
-  background:#fff;border:1px solid #dbe4f0;border-radius:12px;padding:8px 12px 12px}
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 12px 12px}
 .sa-footer-head{grid-column:1/-1}
 
-.sa-card{container-type:inline-size;background:#fff;border-radius:12px;border:1px solid #e5e7eb;padding:10px;
+.sa-card{container-type:inline-size;background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:10px;
   box-sizing:border-box;display:flex;flex-direction:column;min-width:0}
 .sa-comp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:6px;margin-top:10px;flex:1}
 .sa-compcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:8px 6px}
 .sa-comptext{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 .sa-axrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(4px,1vw,10px);align-items:center;
-  padding:4px 0;border-bottom:1px solid #f1f5f9}
+  padding:4px 0;border-bottom:1px solid var(--border)}
 
 /* la grille reste TOUJOURS en 2 colonnes × 2 lignes ; si la carte est large, chaque case passe en « texte à gauche, anneau à droite » */
 @container (min-width:560px){
@@ -427,7 +428,7 @@ const RESPONSIVE_CSS = `
 
 @container sa (max-width:1099px){
   .sa-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .sa-filter{border:1px solid #e5e7eb;border-radius:8px}
+  .sa-filter{border:1px solid var(--border);border-radius:8px}
   .sa-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;padding-left:0}
   .sa-actions .sa-btn{flex:1 1 180px;width:auto}
   .sa-top{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -453,9 +454,9 @@ function Ring({ percent, color, size, inner, outer, font, label }: any) {
   return (
     <div style={{ position: "relative", width: size, height: size, margin: "0 auto", flexShrink: 0 }}>
       <PieChart width={size} height={size}>
-        <Pie data={[{ value: p }, { value: 100 - p }]} innerRadius={inner} outerRadius={outer} dataKey="value">
+        <Pie data={[{ value: p }, { value: 100 - p }]} innerRadius={inner} outerRadius={outer} dataKey="value" stroke="none">
           <Cell fill={color} />
-          <Cell fill="#e5e7eb" />
+          <Cell fill="var(--track)" />
         </Pie>
       </PieChart>
       <div style={{
@@ -913,36 +914,36 @@ const styles: Record<string, React.CSSProperties> = {
   dateValue: { fontSize: 12, fontWeight: 700 },
 
   /* filtres */
-  filterIcon: { width: 34, height: 34, borderRadius: 8, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  filterIcon: { width: 34, height: 34, borderRadius: 8, background: "var(--blue-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   filterLabel: { display: "block", fontSize: 12, fontWeight: 600, color: "#16a34a", letterSpacing: 0.3, marginBottom: 2 },
   bigSelect: {
-    width: "100%", minWidth: 0, height: 30, borderRadius: 8, border: "1px solid #cbd5e1", padding: "0 8px",
-    fontWeight: 600, background: "#fff", outline: "none", boxSizing: "border-box", cursor: "pointer",
+    width: "100%", minWidth: 0, height: 30, borderRadius: 8, border: "1px solid var(--border)", padding: "0 8px",
+    fontWeight: 600, background: "var(--surface)", color: "var(--text)", outline: "none", boxSizing: "border-box", cursor: "pointer",
   },
-  filterSub: { marginTop: 4, fontSize: 11, color: "#6b7280", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  filterSub: { marginTop: 4, fontSize: 11, color: "var(--text-3)", lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
 
   /* cartes */
   cardHeader: {
     fontSize: 13, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", paddingBottom: 6,
-    color: "#16a34a", textAlign: "center", borderBottom: "1px solid #f1f5f9",
+    color: "#16a34a", textAlign: "center", borderBottom: "1px solid var(--border)",
   },
 
   globalWrap: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 },
   kpiList: { display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 8, width: "100%" },
-  kpiItem: { display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 10, padding: "6px 8px", border: "1px solid #e5e7eb", borderRadius: 8, background: "#fff" },
-  kpiLabel: { fontSize: 12, color: "#111827", minWidth: 0 },
-  kpiValue: { minWidth: 40, textAlign: "right", fontWeight: 700, color: "#111827", fontSize: 13 },
+  kpiItem: { display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 10, padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)" },
+  kpiLabel: { fontSize: 12, color: "var(--text)", minWidth: 0 },
+  kpiValue: { minWidth: 40, textAlign: "right", fontWeight: 700, color: "var(--text)", fontSize: 13 },
 
   resultsColumn: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 8, marginTop: 10 },
   resultBlock: {
-    width: "100%", maxWidth: 380, margin: "0 auto", border: "1px solid #e5e7eb", borderRadius: 10, padding: 10,
+    width: "100%", maxWidth: 380, margin: "0 auto", border: "1px solid var(--border)", borderRadius: 10, padding: 10,
     display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box",
   },
-  resultTitle: { fontSize: 14, fontWeight: 900, color: "#111827", textAlign: "center" },
+  resultTitle: { fontSize: 14, fontWeight: 900, color: "var(--text)", textAlign: "center" },
 
-  smallCard: { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 10, minWidth: 0 },
+  smallCard: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, minWidth: 0 },
   compIcon: { width: 38, height: 38, borderRadius: "50%", background: "rgba(22, 163, 74, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  compLabel: { fontSize: 11, fontWeight: 700, color: "#111827", lineHeight: 1.2, overflowWrap: "anywhere" },
+  compLabel: { fontSize: 11, fontWeight: 700, color: "var(--text)", lineHeight: 1.2, overflowWrap: "anywhere" },
 
   /* axes prioritaires */
   axisHeader: {
@@ -951,25 +952,25 @@ const styles: Record<string, React.CSSProperties> = {
   },
   axisTableHeader: {
     display: "grid", gridTemplateColumns: "minmax(0,1.1fr) minmax(0,1fr)", gap: 10, fontSize: 11, fontWeight: 600,
-    color: "#16a34a", padding: "6px 4px", borderBottom: "1px solid #e5e7eb",
+    color: "#16a34a", padding: "6px 4px", borderBottom: "1px solid var(--border)",
   },
   axisLeftCol: { display: "grid", gridTemplateColumns: "42px minmax(0,1fr)", gap: 4, alignItems: "center", minWidth: 0 },
-  axisCode: { fontWeight: 600, color: "#64748b", fontSize: 11 },
+  axisCode: { fontWeight: 600, color: "var(--text-3)", fontSize: 11 },
   axisName: { fontSize: 12, lineHeight: 1.3, overflowWrap: "anywhere" },
   axisRightCol: { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 6, alignItems: "center" },
-  axisBar: { height: 10, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" },
+  axisBar: { height: 10, background: "var(--track)", borderRadius: 999, overflow: "hidden" },
   axisFill: { height: "100%", borderRadius: 999 },
   axisPercent: { minWidth: 44, paddingRight: 6, textAlign: "right", fontWeight: 900, fontSize: 11 },
 
   /* légende */
-  footerHeader: { color: "#1d4ed8", fontWeight: 900, fontSize: 11, letterSpacing: 0.4 },
+  footerHeader: { color: "var(--accent)", fontWeight: 900, fontSize: 11, letterSpacing: 0.4 },
   footerLegend: { display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" },
   legendItem: { display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 800 },
   dot: { display: "inline-block", width: 12, height: 12, borderRadius: "50%", flexShrink: 0 },
   footerCTA: {
-    display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, background: "#ecfdf5",
-    border: "1px solid #a7f3d0", borderRadius: 10, padding: "8px 10px",
+    display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, background: "var(--green-soft)",
+    border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px",
   },
-  ctaIcon: { width: 32, height: 32, borderRadius: 8, background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  ctaIcon: { width: 32, height: 32, borderRadius: 8, background: "var(--green-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   ctaButton: { background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" },
 };
