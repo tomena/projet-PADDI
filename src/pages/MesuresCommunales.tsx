@@ -165,7 +165,13 @@ const makeNf = (loc: string) => (n: number) => n.toLocaleString(loc, { maximumFr
 const CIBLE = 80;          // % de communes visé
 const MIN_MESURES = 3;
 const CUR_YEAR = 2026;     // dernière année avec des données réelles
-const GREEN = "#2e7d32", AMBER = "#d97706", RED = "#d32f2f", GREY = "#e5e7eb";
+const GREEN = "#2e7d32", AMBER = "#d97706", RED = "#d32f2f";
+const GREY = "var(--track)";   // fond des anneaux / grilles (suit le thème)
+
+/* Thème : couleur de donnée → texte lisible en clair comme en sombre */
+const tonText = (c: string) => `color-mix(in srgb, ${c} 75%, var(--text))`;
+const TICK = { fontSize: 11, fill: "var(--text-3)" };
+const TT = { fontSize: 12, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)" };
 
 /* ================================== TYPES ================================== */
 /* Texte venant des données : une simple chaîne (affichée telle quelle) ou un objet par langue */
@@ -327,7 +333,7 @@ const Card = ({ title, children, className = "" }: { title?: string; children: R
 const Ring = memo(({ pct, color = GREEN, sub, nf }: { pct: number; color?: string; sub?: string; nf: (n: number) => string }) => (
   <div className="mc-ring" role="img" aria-label={`${nf(pct)} %`}
     style={{ background: `conic-gradient(${color} ${pct * 3.6}deg, ${GREY} 0)` }}>
-    <div><strong style={{ color }}>{nf(pct)} %</strong>{sub && <small>{sub}</small>}</div>
+    <div><strong style={{ color: tonText(color) }}>{nf(pct)} %</strong>{sub && <small>{sub}</small>}</div>
   </div>
 ));
 
@@ -337,10 +343,10 @@ const DonutCard = memo(({ title, data, total, nf, unit }: { title: string; data:
     <div className="mc-donut">
       <ResponsiveContainer width="100%" height={180}>
         <PieChart>
-          <Pie data={data} dataKey="value" innerRadius="62%" outerRadius="92%" stroke="#fff" isAnimationActive={false}>
+          <Pie data={data} dataKey="value" innerRadius="62%" outerRadius="92%" stroke="var(--surface)" isAnimationActive={false}>
             {data.map((d) => <Cell key={d.name} fill={d.color} />)}
           </Pie>
-          <Tooltip formatter={(v: number) => `${v} ${unit}`} contentStyle={{ fontSize: 12 }} />
+          <Tooltip formatter={(v: number) => `${v} ${unit}`} contentStyle={TT} />
         </PieChart>
       </ResponsiveContainer>
       <div className="mc-donut-c"><strong>{total}</strong><small>{unit}</small></div>
@@ -502,7 +508,7 @@ export default function MesuresCommunales() {
             <p className="mc-cap"><b>{t.ofCommunes(S.ok, S.total)}</b></p>
           </Card>
           <Card title={t.kpiRemaining}>
-            <div className="mc-big" style={{ color: S.restant ? RED : GREEN }}>{S.restant}</div>
+            <div className="mc-big" style={{ color: tonText(S.restant ? RED : GREEN) }}>{S.restant}</div>
             <p className="mc-cap">{t.toConvince(CIBLE)}</p>
           </Card>
           <Card title={t.kpiWomen}>
@@ -525,14 +531,14 @@ export default function MesuresCommunales() {
           <Card title={t.trend} className="mc-wide">
             <ResponsiveContainer width="100%" height={270}>
               <LineChart data={S.traj} margin={{ top: 16, right: 16, left: -8, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={GREY} />
-                <XAxis dataKey="annee" tick={{ fontSize: 12 }} />
-                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={{ fontSize: 12 }} />
-                <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="annee" tick={{ fontSize: 12, fill: "var(--text-3)" }} stroke="var(--text-3)" />
+                <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={TICK} stroke="var(--text-3)" />
+                <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={TT} labelStyle={{ color: "var(--text)", fontWeight: 700 }} />
+                <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11, color: "var(--text-2)" }} />
                 <ReferenceLine y={CIBLE} stroke={RED} strokeDasharray="4 4" label={{ value: t.target(CIBLE), fontSize: 11, fill: RED, position: "insideTopLeft" }} />
                 <Line dataKey="prevu" name={t.planned} stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
-                <Line dataKey="realise" name={t.actual} stroke={GREEN} strokeWidth={3} dot={{ r: 5, fill: GREEN, stroke: "#fff", strokeWidth: 2 }} isAnimationActive={false} />
+                <Line dataKey="realise" name={t.actual} stroke={GREEN} strokeWidth={3} dot={{ r: 5, fill: GREEN, stroke: "var(--surface)", strokeWidth: 2 }} isAnimationActive={false} />
               </LineChart>
             </ResponsiveContainer>
           </Card>
@@ -544,14 +550,14 @@ export default function MesuresCommunales() {
             {S.byRegion.length === 0 ? <p className="mc-empty">{t.noData}</p> : (
               <ResponsiveContainer width="100%" height={S.byRegion.length * 44 + 36}>
                 <BarChart data={S.byRegion} layout="vertical" margin={{ top: 4, right: 40, left: 0, bottom: 0 }} barCategoryGap="30%">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={GREY} />
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={112} tick={{ fontSize: 11 }} interval={0} />
-                  <Tooltip formatter={(v: number, _n, p) => [t.regionTip(nf(v), p.payload.ok, p.payload.total), t.reached]} contentStyle={{ fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={TICK} stroke="var(--text-3)" />
+                  <YAxis type="category" dataKey="name" width={112} tick={{ fontSize: 11, fill: "var(--text-2)" }} stroke="var(--text-3)" interval={0} />
+                  <Tooltip formatter={(v: number, _n, p) => [t.regionTip(nf(v), p.payload.ok, p.payload.total), t.reached]} contentStyle={TT} labelStyle={{ color: "var(--text)", fontWeight: 700 }} />
                   <ReferenceLine x={CIBLE} stroke={RED} strokeDasharray="4 4" />
                   <Bar dataKey="pct" radius={[0, 4, 4, 0]} isAnimationActive={false}>
                     {S.byRegion.map((r) => <Cell key={r.name} fill={rateColor(r.pct)} />)}
-                    <LabelList dataKey="pct" position="right" formatter={(v: number) => `${nf(v)}%`} style={{ fontSize: 11, fontWeight: 700 }} />
+                    <LabelList dataKey="pct" position="right" formatter={(v: number) => `${nf(v)}%`} style={{ fontSize: 11, fontWeight: 700, fill: "var(--text)" }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -642,9 +648,12 @@ export default function MesuresCommunales() {
   );
 }
 
-/* ================================== STYLES ================================== */
+/* ================================== STYLES ==================================
+   Variables locales = alias vers les variables globales du thème (clair / sombre). */
 const CSS = `
-.mc{--g:#2e7d32;--gd:#1b5e20;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;background:#f4f6f5;min-height:100%;color:var(--ink);
+.mc{--g:#2e7d32;--gt:color-mix(in srgb,#1b5e20 55%,var(--text));
+  --ink:var(--text);--muted:var(--text-3);--line:var(--border);
+  background:var(--surface-2);min-height:100%;color:var(--ink);
   font-family:Inter,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 .mc *,.mc *::before,.mc *::after{box-sizing:border-box}
 .mc-head{background:var(--g);color:#fff;padding:12px clamp(12px,2vw,24px);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
@@ -658,26 +667,26 @@ const CSS = `
 .mc-spin{animation:mcspin 1s linear infinite}@keyframes mcspin{to{transform:rotate(360deg)}}
 .mc-body{padding:clamp(10px,2vw,24px);display:flex;flex-direction:column;gap:16px}
 .mc-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.mc-filters label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;color:#374151;min-width:0}
-.mc select,.mc input{padding:9px 10px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:13px;min-width:0;width:100%}
+.mc-filters label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:600;color:var(--text-2);min-width:0}
+.mc select,.mc input{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface-3);color:var(--text);font-size:13px;min-width:0;width:100%}
 .mc button:focus-visible,.mc select:focus-visible,.mc input:focus-visible,.mc summary:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
-.mc-insight{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:#fff;border-left:5px solid var(--g);border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.05)}
-.mc-insight b{color:var(--gd)}
+.mc-insight{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border-left:5px solid var(--g);border-radius:8px;padding:12px 14px;font-size:14px;line-height:1.5;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.mc-insight b{color:var(--gt)}
 .mc-insight-t{flex:1 1 320px}
 .mc-insight-s{margin-left:auto;flex:0 1 260px;max-width:none}
-.mc-enonce{background:rgba(46,125,50,.06);border-radius:8px;padding:10px 14px;font-size:13px;color:#374151}
-.mc-enonce summary{cursor:pointer;font-weight:700;color:var(--gd)}
+.mc-enonce{background:rgba(46,125,50,.10);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text-2)}
+.mc-enonce summary{cursor:pointer;font-weight:700;color:var(--gt)}
 .mc-enonce p{margin:8px 0 0;line-height:1.6}
-.mc-card{background:#fff;border-radius:10px;padding:14px;min-width:0;box-shadow:0 1px 3px rgba(0,0,0,.07);display:flex;flex-direction:column;gap:8px}
-.mc-card-title{margin:0;font-size:14px;font-weight:700;color:var(--gd);text-align:center}
+.mc-card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0;box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:8px}
+.mc-card-title{margin:0;font-size:14px;font-weight:700;color:var(--gt);text-align:center}
 .mc-left{text-align:left}
 .mc-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
 .mc-kpis .mc-card{align-items:center;justify-content:space-between}
 .mc-ring{width:128px;height:128px;border-radius:50%;display:grid;place-items:center}
-.mc-ring>div{width:96px;height:96px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.mc-ring>div{width:96px;height:96px;border-radius:50%;background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center}
 .mc-ring strong{font-size:21px}.mc-ring small{font-size:11px;color:var(--muted)}
 .mc-big{font-size:42px;font-weight:800;line-height:1}
-.mc-cap{margin:0;font-size:13px;text-align:center;color:#374151}
+.mc-cap{margin:0;font-size:13px;text-align:center;color:var(--text-2)}
 .mc-row3,.mc-row2{display:grid;grid-template-columns:1fr;gap:16px}
 .mc-donut{position:relative}
 .mc-donut-c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
@@ -690,28 +699,28 @@ const CSS = `
 .mc-prio li{display:grid;grid-template-columns:1fr;gap:4px;padding-bottom:8px;border-bottom:1px solid var(--line);font-size:13px}
 .mc-prio li>div:first-child{display:flex;flex-direction:column}
 .mc-prio small,.mc-table small{color:var(--muted);font-size:11px;display:block}
-.mc-prio span{color:#b91c1c;font-size:12px}
-.mc-bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden}.mc-bar i{display:block;height:100%}
+.mc-prio span{color:color-mix(in srgb,#b91c1c 65%,var(--text));font-size:12px}
+.mc-bar{height:6px;background:var(--track);border-radius:4px;overflow:hidden}.mc-bar i{display:block;height:100%}
 .mc-tools{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
 .mc-tools-r{display:flex;flex-wrap:wrap;gap:8px;align-items:center;flex:1 1 280px;justify-content:flex-end}
 .mc-search{position:relative;flex:1 1 220px;max-width:320px}
-.mc-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#888}
+.mc-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted)}
 .mc-search input{padding-left:30px}
 .mc-scroll{overflow-x:auto}
 .mc-table{width:100%;border-collapse:collapse;font-size:13px}
 .mc-table th{background:var(--g);color:#fff;text-align:left;padding:10px 12px;white-space:nowrap}
 .mc-th{all:unset;cursor:pointer;display:inline-flex;gap:6px;align-items:center}.mc-th:focus-visible{outline:2px solid #fff}
 .mc-table td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
-.mc-table tbody tr:nth-child(even){background:#f9fafb}
+.mc-table tbody tr:nth-child(even){background:var(--surface-3)}
 .mc-spec{min-width:280px;line-height:1.45}
-.mc-tag{background:#dcfce7;color:#166534;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
+.mc-tag{background:rgba(22,163,74,.18);color:color-mix(in srgb,#166534 60%,var(--text));padding:2px 9px;border-radius:999px;font-size:12px;font-weight:700;white-space:nowrap}
 .mc-empty{text-align:center;color:var(--muted);font-size:13px;padding:14px}
 .mc-pager{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:10px;font-size:12px}
 .mc-pager div,.mc-pager label{display:flex;align-items:center;gap:8px}
 .mc-pager select{width:auto;padding:5px 8px}
-.mc-pager button{padding:4px 8px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer;display:flex}
+.mc-pager button{padding:4px 8px;border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:6px;cursor:pointer;display:flex}
 .mc-seg{display:inline-flex;border:1px solid var(--g);border-radius:8px;overflow:hidden}
-.mc-seg button{display:flex;gap:6px;align-items:center;padding:8px 12px;border:0;background:#fff;color:var(--gd);font-size:13px;font-weight:600;cursor:pointer}
+.mc-seg button{display:flex;gap:6px;align-items:center;padding:8px 12px;border:0;background:var(--surface);color:var(--gt);font-size:13px;font-weight:600;cursor:pointer}
 .mc-seg button.on{background:var(--g);color:#fff}
 .mc-seg small{font-size:11px;opacity:.85}
 .mc-note{text-align:center;color:var(--muted);font-size:12px;margin:0}
@@ -719,7 +728,7 @@ const CSS = `
 @media(min-width:1180px){.mc-row3{grid-template-columns:1fr 1fr 1.25fr}.mc-wide{grid-column:auto}.mc-row2{grid-template-columns:1fr 1.2fr}}
 @media(max-width:760px){
   .mc-table thead{display:none}
-  .mc-table tr{display:block;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:6px 12px;background:#fff!important}
+  .mc-table tr{display:block;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:6px 12px;background:var(--surface)!important}
   .mc-table td{display:flex;justify-content:space-between;gap:14px;border:0;padding:6px 0;text-align:right}
   .mc-table td::before{content:attr(data-label);font-weight:600;color:var(--muted);text-align:left;flex-shrink:0}
   .mc-spec{min-width:0}.mc-table td[colspan]{display:block}.mc-table td[colspan]::before{content:none}
