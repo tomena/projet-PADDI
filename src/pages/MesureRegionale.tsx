@@ -180,6 +180,7 @@ const LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-GB', de: 'de-DE',
 const norm = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 const level = (n: number) => (n === 0 ? 0 : n === 1 ? 1 : 2);
 const yearOf = (iso: string) => Number(iso.slice(0, 4));
+const TICK = { fontSize: 11, fill: 'var(--text-3)' };
 
 function download(name: string, content: string) {
   const url = URL.createObjectURL(new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8' }));
@@ -192,10 +193,13 @@ const csvLine = (cells: (string | number)[]) => cells.map((v) => `"${String(v).r
 /* =====================================================================
    STYLES RESPONSIVES (container queries : la page s'adapte à la largeur
    réelle de son conteneur, du petit téléphone au grand écran)
+   Couleurs d'interface = variables du thème (clair / sombre).
+   Restent fixes : couleurs de données, en-tête vert, éléments posés sur la carte.
    ===================================================================== */
 const CSS = `
-.sp{--g:#166534;--g2:#15803d;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;
-  container-type:inline-size;container-name:sp;width:100%;min-width:0;min-height:100vh;background:#eef3f8;color:var(--ink);
+.sp{--g:#166534;--g2:#15803d;--gt:color-mix(in srgb,#166534 55%,var(--text));
+  --ink:var(--text);--mut:var(--text-3);--line:var(--border);
+  container-type:inline-size;container-name:sp;width:100%;min-width:0;min-height:100vh;background:var(--surface-2);color:var(--ink);
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:14px;line-height:1.4}
 .sp *{box-sizing:border-box}
 .sp button,.sp select,.sp input{font-family:inherit}
@@ -208,81 +212,83 @@ const CSS = `
 .sp-sub{margin:3px 0 0;font-size:clamp(11.5px,1.5cqw,13.5px);opacity:.9}
 .sp-body{max-width:1600px;margin:0 auto;padding:clamp(8px,1.6cqw,16px);display:flex;flex-direction:column;gap:12px}
 
-.sp-info{background:#fff;border:1px solid var(--line);border-left:4px solid var(--g2);border-radius:12px;padding:10px 14px}
-.sp-info summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:800;color:var(--g);font-size:13px;list-style:none}
+.sp-info{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--g2);border-radius:12px;padding:10px 14px}
+.sp-info summary{display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:800;color:var(--gt);font-size:13px;list-style:none}
 .sp-info summary::-webkit-details-marker{display:none}
-.sp-info p{margin:8px 0 0;color:#334155;font-size:13px}
+.sp-info p{margin:8px 0 0;color:var(--text-2);font-size:13px}
 
 .sp-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;align-items:end}
 .sp-f{display:flex;flex-direction:column;gap:4px;min-width:0}
-.sp-f label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:#334155}
-.sp-f select,.sp-search input{width:100%;height:40px;padding:0 10px;border-radius:10px;border:1px solid #d1d5db;background:#fff;font-size:13px;font-weight:600;color:var(--ink)}
-.sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 14px;border-radius:10px;border:1px solid #d1d5db;background:#fff;color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
-.sp-btn:hover{background:#f1f5f9}
+.sp-f label{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;color:var(--text-2)}
+.sp-f select,.sp-search input{width:100%;height:40px;padding:0 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface-3);font-size:13px;font-weight:600;color:var(--ink)}
+.sp-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:40px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.sp-btn:hover{background:var(--surface-3)}
 .sp-btn:disabled{opacity:.5;cursor:not-allowed}
 .sp-btn.pri{background:var(--g2);border-color:var(--g2);color:#fff}
 .sp-btn.pri:hover{background:var(--g)}
 .sp-hint{font-size:10.5px;color:var(--mut)}
 
 .sp-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:10px}
-.sp-kpi{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--line);border-top:3px solid var(--c);border-radius:14px;padding:12px 14px;min-width:0;box-shadow:0 1px 3px rgba(15,23,42,.05)}
+.sp-kpi{--cc:color-mix(in srgb,var(--c) 72%,var(--text));
+  display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c);border-radius:14px;padding:12px 14px;min-width:0;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .sp-kic{flex:none;width:40px;height:40px;border-radius:11px;background:var(--c);display:grid;place-items:center;color:#fff}
 .sp-kb{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}
-.sp-kt{font-size:10.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--c);line-height:1.25}
+.sp-kt{font-size:10.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--cc);line-height:1.25}
 .sp-kv{font-size:clamp(22px,2.4cqw,30px);font-weight:800;line-height:1.05;font-variant-numeric:tabular-nums}
 .sp-ks{font-size:11.5px;color:var(--mut)}
 .sp-donut{position:relative;flex:none;width:68px;height:68px}
-.sp-meter{position:relative;height:9px;border-radius:999px;background:#e5e7eb;margin:5px 0 2px}
+.sp-meter{position:relative;height:9px;border-radius:999px;background:var(--track);margin:5px 0 2px}
 .sp-meter i{display:block;height:100%;border-radius:999px;background:var(--c)}
-.sp-meter b{position:absolute;top:-4px;bottom:-4px;width:2px;background:#0f172a;border-radius:2px}
+.sp-meter b{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--text);border-radius:2px}
 .sp-pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;width:fit-content}
-.sp-pill.ok{background:#d1fae5;color:#065f46}
-.sp-pill.ko{background:#fee2e2;color:#b91c1c}
+.sp-pill.ok{background:rgba(16,185,129,.18);color:color-mix(in srgb,#065f46 60%,var(--text))}
+.sp-pill.ko{background:rgba(239,68,68,.18);color:color-mix(in srgb,#b91c1c 65%,var(--text))}
 
 .sp-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px}
 .sp-grid>*{grid-column:span 12}
-.sp-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(15,23,42,.05)}
-.sp-ct{margin:0;font-size:12.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:#111827}
+.sp-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:8px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.sp-ct{margin:0;font-size:12.5px;font-weight:800;letter-spacing:.02em;text-transform:uppercase;color:var(--text)}
 .sp-cs{margin:2px 0 0;font-size:11.5px;color:var(--mut)}
 .sp-chart{height:230px;min-width:0}
 .sp-empty{padding:28px 10px;text-align:center;color:var(--mut);font-size:13px}
-.sp-lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;font-weight:600;color:#475569}
+.sp-lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;font-weight:600;color:var(--text-2)}
 .sp-lg i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
-.sp-tip{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
+.sp-tip{background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .sp-tip b{display:block;margin-bottom:3px}
 .sp-tip div{display:flex;justify-content:space-between;gap:14px}
 
 .sp-reg{display:flex;flex-direction:column;gap:9px}
 .sp-rr{display:grid;grid-template-columns:minmax(90px,1.1fr) minmax(0,2fr) auto;gap:8px 12px;align-items:center;cursor:pointer;border-radius:8px;padding:2px 4px}
-.sp-rr:hover,.sp-rr.sel{background:#f0fdf4}
+.sp-rr:hover,.sp-rr.sel{background:color-mix(in srgb,#16a34a 14%,var(--surface))}
 .sp-rn{font-weight:700;font-size:12.5px;overflow-wrap:anywhere}
-.sp-track{position:relative;height:14px;border-radius:999px;background:#eef2f6;overflow:hidden}
+.sp-track{position:relative;height:14px;border-radius:999px;background:var(--track);overflow:hidden}
 .sp-track i{display:block;height:100%;border-radius:999px;min-width:6px}
 .sp-rv{display:flex;align-items:center;gap:8px;justify-content:flex-end}
 .sp-rv strong{min-width:14px;text-align:right;font-variant-numeric:tabular-nums}
 .sp-st{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;white-space:nowrap}
-.sp-st.ok{background:#d1fae5;color:#065f46}
-.sp-st.ko{background:#fee2e2;color:#b91c1c}
+.sp-st.ok{background:rgba(16,185,129,.18);color:color-mix(in srgb,#065f46 60%,var(--text))}
+.sp-st.ko{background:rgba(239,68,68,.18);color:color-mix(in srgb,#b91c1c 65%,var(--text))}
 
 .sp-dwrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:10px 18px}
 .sp-dchart{position:relative;width:170px;height:170px;flex:none}
 .sp-dcenter{position:absolute;inset:0;display:grid;place-content:center;text-align:center;pointer-events:none}
-.sp-dcenter strong{font-size:26px;font-weight:800;color:var(--g);line-height:1}
+.sp-dcenter strong{font-size:26px;font-weight:800;color:var(--gt);line-height:1}
 .sp-dcenter span{font-size:11px;color:var(--mut)}
 .sp-dleg{display:flex;flex-direction:column;gap:8px;font-size:12.5px;min-width:150px}
 .sp-dleg div{display:flex;align-items:center;gap:8px}
 .sp-dleg i{width:11px;height:11px;border-radius:3px;flex:none}
 .sp-dleg b{margin-left:auto;font-variant-numeric:tabular-nums}
 .sp-note{display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:8px 10px;border-radius:10px}
-.sp-note.ok{background:#f0fdf4;color:#14532d}
-.sp-note.ko{background:#fffbeb;color:#92400e}
+.sp-note.ok{background:rgba(22,163,74,.16);color:color-mix(in srgb,#15803d 65%,var(--text))}
+.sp-note.ko{background:rgba(245,158,11,.16);color:color-mix(in srgb,#b45309 65%,var(--text))}
 .sp-note svg{flex:none;margin-top:1px}
 
 .sp-mapcard{min-height:340px}
 .sp-mapwrap{position:relative;flex:1;min-height:300px;border-radius:10px;overflow:hidden;border:1px solid var(--line);isolation:isolate}
 .sp-mapwrap .leaflet-container{position:absolute;inset:0;background:#e5e7eb;font-family:inherit}
 .sp-mapwrap .leaflet-container:focus,.sp-mapwrap .leaflet-container path:focus{outline:none}
-.sp-maplg{position:absolute;left:8px;bottom:8px;z-index:1000;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.95);box-shadow:0 1px 5px rgba(0,0,0,.25);font-size:11px;max-width:80%}
+/* légende posée sur la carte (fond Esri clair) : reste claire, texte sombre fixe */
+.sp-maplg{position:absolute;left:8px;bottom:8px;z-index:1000;padding:7px 10px;border-radius:10px;background:rgba(255,255,255,.95);color:#0f172a;box-shadow:0 1px 5px rgba(0,0,0,.25);font-size:11px;max-width:80%}
 .sp-maplg strong{display:block;margin-bottom:3px}
 .sp-maplg div{display:flex;align-items:center;gap:6px;margin-top:2px}
 .sp-maplg i{width:12px;height:12px;border-radius:50%;display:inline-block}
@@ -292,22 +298,22 @@ const CSS = `
 .sp-tbar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 12px}
 .sp-tact{display:flex;flex-wrap:wrap;gap:8px;flex:1 1 280px;justify-content:flex-end}
 .sp-search{position:relative;flex:1 1 220px;max-width:360px}
-.sp-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#94a3b8}
+.sp-search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--mut)}
 .sp-search input{padding-left:34px;font-weight:500}
 .sp-tw{overflow:auto;border:1px solid var(--line);border-radius:10px}
 .sp-t{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
 .sp-t th{position:sticky;top:0;background:var(--g);color:#fff;padding:10px 10px;text-align:left;font-weight:700;white-space:nowrap}
-.sp-t td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;background:#fff}
-.sp-t tbody tr:hover td{background:#f0fdf4}
+.sp-t td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top;background:var(--surface)}
+.sp-t tbody tr:hover td{background:color-mix(in srgb,#16a34a 14%,var(--surface))}
 .sp-t td.c,.sp-t th.c{text-align:center}
 .sp-t td.s{min-width:260px}
 .sp-t .mut{color:var(--mut)}
 .sp-pg{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 14px;font-size:12.5px;color:var(--mut)}
 .sp-pgb{display:flex;align-items:center;gap:4px}
-.sp-pgb button{min-width:34px;height:34px;display:grid;place-items:center;border:1px solid #d1d5db;background:#fff;border-radius:8px;cursor:pointer;color:var(--ink);font-weight:700;padding:0 8px}
+.sp-pgb button{min-width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--line);background:var(--surface);border-radius:8px;cursor:pointer;color:var(--ink);font-weight:700;padding:0 8px}
 .sp-pgb button:disabled{opacity:.4;cursor:not-allowed}
 .sp-pgb span{padding:0 8px;font-weight:700;color:var(--ink)}
-.sp-pg select{height:34px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;padding:0 8px;font-size:12.5px}
+.sp-pg select{height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface-3);color:var(--ink);padding:0 8px;font-size:12.5px}
 
 /* ≥ 720 px : deux colonnes */
 @container sp (min-width:720px){
@@ -336,16 +342,22 @@ const CSS = `
   .sp-search{max-width:none}
   .sp-t thead{display:none}
   .sp-t,.sp-t tbody,.sp-t tr,.sp-t td{display:block;width:100%}
-  .sp-t tr{border-bottom:6px solid #eef3f8;padding:6px 0}
+  .sp-t tr{border-bottom:6px solid var(--surface-2);padding:6px 0}
   .sp-t td{display:flex;gap:10px;justify-content:space-between;border:0;padding:5px 12px;text-align:right}
   .sp-t td.c{text-align:right}
-  .sp-t td::before{content:attr(data-label);font-weight:700;color:var(--g);text-align:left;flex:none}
+  .sp-t td::before{content:attr(data-label);font-weight:700;color:var(--gt);text-align:left;flex:none}
   .sp-t td.s{min-width:0;flex-direction:column;gap:2px;text-align:left}
   .sp-pg{justify-content:center}
   .sp-rr{grid-template-columns:minmax(0,1fr) auto}
   .sp-rr .sp-track{grid-column:1 / -1;order:3}
 }
-@media print{.sp-filters,.sp-pg,.sp-tact{display:none!important}.sp{background:#fff}}
+/* Impression : toujours en clair, même en thème sombre */
+@media print{
+  .sp-filters,.sp-pg,.sp-tact{display:none!important}
+  .sp{--surface:#fff;--surface-2:#fff;--surface-3:#f8fafc;--border:#e2e8f0;--track:#e5e7eb;
+    --text:#0f172a;--text-2:#334155;--text-3:#64748b;--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--gt:#166534;
+    background:#fff;color:#0f172a}
+}
 @media (prefers-reduced-motion:reduce){.sp *{transition:none!important;animation:none!important}}
 `;
 
@@ -539,14 +551,14 @@ export default function SurfacesAgropastorales() {
         {/* ============ FILTRES ============ */}
         <section className="sp-filters" aria-label={t.filters}>
           <div className="sp-f">
-            <label htmlFor="sp-year"><Calendar size={13} color="#1e3a8a" />{t.year}</label>
+            <label htmlFor="sp-year"><Calendar size={13} color="currentColor" />{t.year}</label>
             <select id="sp-year" value={year} onChange={(e) => setYear(Number(e.target.value))} title={t.yearHint}>
               <option value={0}>{t.allYears}</option>
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
           <div className="sp-f">
-            <label htmlFor="sp-reg"><MapPin size={13} color="#1e3a8a" />{t.region}</label>
+            <label htmlFor="sp-reg"><MapPin size={13} color="currentColor" />{t.region}</label>
             <select id="sp-reg" value={region} onChange={(e) => setRegion(e.target.value)}>
               <option value="">{t.allRegions}</option>
               {REGIONS.map((r) => <option key={r.name} value={r.name}>{r.name}</option>)}
@@ -570,7 +582,7 @@ export default function SurfacesAgropastorales() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={[{ v: rate }, { v: 100 - rate }]} dataKey="v" innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270} stroke="none">
-                    <Cell fill="#15803d" /><Cell fill="#e5e7eb" />
+                    <Cell fill="#15803d" /><Cell fill="var(--track)" />
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
@@ -647,15 +659,15 @@ export default function SurfacesAgropastorales() {
             <div className="sp-chart">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={evo} margin={{ top: 14, right: 12, left: 2, bottom: 0 }}>
-                  <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="annee" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} padding={{ left: 14, right: 14 }} />
-                  <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={42} tickFormatter={(v) => `${v}%`} />
+                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="annee" tick={TICK} axisLine={false} tickLine={false} padding={{ left: 14, right: 14 }} />
+                  <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tick={TICK} axisLine={false} tickLine={false} width={42} tickFormatter={(v) => `${v}%`} />
                   <Tooltip content={<EvoTip />} />
-                  {year > 0 && <ReferenceLine x={String(year)} stroke="#0f172a" strokeDasharray="2 3" />}
-                  <Area type="monotone" dataKey="realise" stroke="none" fill="#15803d" fillOpacity={0.12} connectNulls={false} />
+                  {year > 0 && <ReferenceLine x={String(year)} stroke="var(--text)" strokeDasharray="2 3" />}
+                  <Area type="monotone" dataKey="realise" stroke="none" fill="#15803d" fillOpacity={0.15} connectNulls={false} />
                   <Line type="monotone" dataKey="cible" stroke="#94a3b8" strokeWidth={2} strokeDasharray="6 4" dot={{ r: 2.5, fill: '#94a3b8', strokeWidth: 0 }} />
-                  <Line type="monotone" dataKey="realise" stroke="#15803d" strokeWidth={2.8} dot={{ r: 4, fill: '#fff', stroke: '#15803d', strokeWidth: 2 }} connectNulls={false}>
-                    <LabelList dataKey="realise" position="top" formatter={(v: any) => (v == null ? '' : `${Math.round(v)}%`)} style={{ fontSize: 11, fontWeight: 700, fill: '#14532d' }} />
+                  <Line type="monotone" dataKey="realise" stroke="#15803d" strokeWidth={2.8} dot={{ r: 4, fill: 'var(--surface)', stroke: '#15803d', strokeWidth: 2 }} connectNulls={false}>
+                    <LabelList dataKey="realise" position="top" formatter={(v: any) => (v == null ? '' : `${Math.round(v)}%`)} style={{ fontSize: 11, fontWeight: 700, fill: 'var(--text)' }} />
                   </Line>
                 </ComposedChart>
               </ResponsiveContainer>
@@ -727,13 +739,13 @@ export default function SurfacesAgropastorales() {
                 <div className="sp-chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={cad} margin={{ top: 14, right: 12, left: 0, bottom: 0 }}>
-                      <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-                      <XAxis dataKey="mois" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} width={30} />
-                      <Tooltip content={<CadTip />} cursor={{ fill: 'rgba(22,101,52,.05)' }} />
+                      <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="mois" tick={TICK} axisLine={false} tickLine={false} padding={{ left: 20, right: 20 }} />
+                      <YAxis allowDecimals={false} tick={TICK} axisLine={false} tickLine={false} width={30} />
+                      <Tooltip content={<CadTip />} cursor={{ fill: 'rgba(22,163,74,.10)' }} />
                       <Bar dataKey="n" fill="#15803d" fillOpacity={0.85} radius={[6, 6, 0, 0]} barSize={28} />
-                      <Line type="monotone" dataKey="c" stroke="#ef6c00" strokeWidth={2.5} dot={{ r: 4, fill: '#fff', stroke: '#ef6c00', strokeWidth: 2 }}>
-                        <LabelList dataKey="c" position="top" style={{ fontSize: 11, fontWeight: 700, fill: '#9a3412' }} />
+                      <Line type="monotone" dataKey="c" stroke="#ef6c00" strokeWidth={2.5} dot={{ r: 4, fill: 'var(--surface)', stroke: '#ef6c00', strokeWidth: 2 }}>
+                        <LabelList dataKey="c" position="top" style={{ fontSize: 11, fontWeight: 700, fill: 'var(--text)' }} />
                       </Line>
                     </ComposedChart>
                   </ResponsiveContainer>
@@ -777,7 +789,7 @@ export default function SurfacesAgropastorales() {
                     <td className={`s${r.n ? '' : ' mut'}`} data-label={t.cols[4]}>{r.spec}</td>
                   </tr>
                 ))}
-                {!pageRows.length && <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#64748b' }}>{t.noResult}</td></tr>}
+                {!pageRows.length && <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: 'var(--text-3)' }}>{t.noResult}</td></tr>}
               </tbody>
             </table>
           </div>
