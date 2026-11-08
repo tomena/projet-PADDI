@@ -315,7 +315,8 @@ const filterByAntenne = (features: any[], antenne: string) =>
 /* ================= CSS RESPONSIVE =================
    - media queries pour la structure de la page
    - container queries pour les grilles : elles s'adaptent à la largeur réelle
-     de la colonne (et pas seulement à celle de l'écran). */
+     de la colonne (et pas seulement à celle de l'écran).
+   Les couleurs utilisent les variables du thème (clair / sombre). */
 
 const RESPONSIVE_CSS = `
 .pd-page{width:100%;max-width:2200px;margin:0 auto;min-height:100vh;min-height:100dvh}
@@ -323,7 +324,7 @@ const RESPONSIVE_CSS = `
 .pd-left{container-type:inline-size;container-name:pdleft;display:flex;flex-direction:column;gap:8px;min-width:0}
 .pd-right{position:sticky;top:8px;display:flex;flex-direction:column;min-width:0;
   height:calc(100vh - 90px);height:calc(100dvh - 90px);min-height:440px}
-.pd-map{flex:1;min-height:0;isolation:isolate;border:1px solid #e5e7eb;background:#f1f5f9}
+.pd-map{flex:1;min-height:0;isolation:isolate;border:1px solid var(--border);background:var(--surface-2)}
 .pd-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;width:100%;min-width:0;align-items:stretch;grid-auto-rows:1fr}
 .pd-select{font-size:12px}
 .pd-title{overflow-wrap:anywhere}
@@ -369,7 +370,9 @@ function useGeoJSON(url: string) {
   return data;
 }
 
-/* ================= CARTE ================= */
+/* ================= CARTE =================
+   Le fond de carte (Esri) reste clair dans les deux thèmes : les étiquettes
+   et la légende de la carte gardent donc volontairement des couleurs claires. */
 
 const officeIcon = (nom?: string) =>
   L.divIcon({
@@ -441,6 +444,7 @@ function LegendControl({ antennes, legendText, officeText, protectedAreaText }: 
       L.DomEvent.disableClickPropagation(div);
 
       div.style.background = "white";
+      div.style.color = "#111";
       div.style.padding = "8px 10px";
       div.style.borderRadius = "8px";
       div.style.boxShadow = "0 1px 5px rgba(0,0,0,0.2)";
@@ -954,7 +958,7 @@ function KpiCard({ title, value, unit, percent, target, color, icon, type }: any
         </div>
 
         {type === 'circle' ? (
-          <div style={{ ...styles.circle, background: `conic-gradient(${color} ${clampPct(percent)}%, #eee 0)` }}>
+          <div style={{ ...styles.circle, background: `conic-gradient(${color} ${clampPct(percent)}%, var(--track) 0)` }}>
             <div style={styles.circleInner}>{percent}%</div>
           </div>
         ) : (
@@ -1038,14 +1042,14 @@ function GaugeKpi({ value, title, label }: any) {
           <PieChart>
             <Pie data={data} startAngle={180} endAngle={0} innerRadius={50} outerRadius={80} dataKey="value" stroke="none">
               <Cell fill={color} />
-              <Cell fill="#e5e7eb" />
+              <Cell fill="var(--track)" />
             </Pie>
           </PieChart>
         </ResponsiveContainer>
 
         <div style={{ position: 'absolute', top: '55%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
           <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{clamp}%</div>
-          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>{label}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{label}</div>
         </div>
       </div>
     </div>
@@ -1068,7 +1072,7 @@ function DonutChart({ title, data, centerText, centerLabel, showPercentage = tru
               innerRadius={40}
               outerRadius={70}
               paddingAngle={1}
-              stroke="#ffffff"
+              stroke="var(--surface)"
               strokeWidth={3}
               labelLine={false}
               label={({ cx, cy, midAngle, innerRadius, outerRadius, value }: any) => {
@@ -1113,7 +1117,8 @@ function DonutChart({ title, data, centerText, centerLabel, showPercentage = tru
 /* ================= STYLES =================
    Plus de isMobile / isTablet calculés au chargement du module (ils ne réagissaient
    ni au redimensionnement ni à la rotation) : toute la partie « grille / hauteur »
-   est dans RESPONSIVE_CSS. */
+   est dans RESPONSIVE_CSS.
+   Couleurs : variables du thème (var(--surface), var(--text)…) définies dans theme.css. */
 
 const styles: Record<string, React.CSSProperties> = {
   page: {
@@ -1134,17 +1139,17 @@ const styles: Record<string, React.CSSProperties> = {
     flexWrap: 'wrap',
     gap: 10,
   },
-  title: { margin: 0, fontSize: 'clamp(16px, 2.2vw, 22px)', fontWeight: 800, color: '#14532d' },
+  title: { margin: 0, fontSize: 'clamp(16px, 2.2vw, 22px)', fontWeight: 800, color: 'var(--title-green)' },
   headerFilters: { display: 'flex', alignItems: 'stretch', gap: 12, flexWrap: 'wrap' },
   filterGroup: { display: 'flex', flexDirection: 'column', gap: 4 },
-  filterLabel: { fontSize: 11, fontWeight: 700, color: '#14532d' },
+  filterLabel: { fontSize: 11, fontWeight: 700, color: 'var(--title-green)' },
   select: {
     padding: '6px 10px',
     borderRadius: 8,
-    border: '1px solid #d1d5db',
-    background: '#fff',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
     fontWeight: 600,
-    color: '#111827',
+    color: 'var(--text)',
     cursor: 'pointer',
     outline: 'none',
     minWidth: 110,
@@ -1154,9 +1159,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    background: '#fff',
-    border: '1px solid #e5e7eb',
-    color: '#14532d',
+    background: 'var(--surface)',
+    border: '1px solid var(--border)',
+    color: 'var(--title-green)',
     padding: '8px 14px',
     borderRadius: 10,
   },
@@ -1164,7 +1169,7 @@ const styles: Record<string, React.CSSProperties> = {
   dateValue: { fontSize: 12, fontWeight: 700 },
 
   /* BLOCS */
-  leftBlock: { background: '#fff', padding: 10, borderRadius: 10, textAlign: 'center', minWidth: 0 },
+  leftBlock: { background: 'var(--surface)', padding: 10, borderRadius: 10, textAlign: 'center', minWidth: 0 },
   sectionTitle: {
     display: 'flex',
     justifyContent: 'flex-start',
@@ -1173,7 +1178,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
     fontWeight: 800,
     marginBottom: 10,
-    color: '#14532d',
+    color: 'var(--title-green)',
   },
   updateButton: {
     marginLeft: 'auto',
@@ -1196,7 +1201,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   /* KPI */
   card: {
-    background: '#fafafa',
+    background: 'var(--surface-3)',
     borderRadius: 8,
     padding: 8,
     minHeight: 130,
@@ -1208,42 +1213,43 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
     minWidth: 0,
   },
-  kpiTitle: { fontSize: 11, fontWeight: 800, color: '#111', textAlign: 'center', width: '100%', overflowWrap: 'anywhere' },
+  kpiTitle: { fontSize: 11, fontWeight: 800, color: 'var(--text)', textAlign: 'center', width: '100%', overflowWrap: 'anywhere' },
   row: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   value: { fontSize: 16, fontWeight: 800 },
-  unit: { fontSize: 11, color: '#666' },
+  unit: { fontSize: 11, color: 'var(--text-3)' },
   circle: { width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   circleInner: {
-    fontSize: 9, fontWeight: 800, background: '#fff', width: 24, height: 24,
+    fontSize: 9, fontWeight: 800, background: 'var(--surface)', width: 24, height: 24,
     borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
   },
   barRow: { display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 },
-  barBg: { background: '#e5e7eb', flex: 1, height: 8, borderRadius: 6, overflow: 'hidden', minWidth: 0 },
+  barBg: { background: 'var(--track)', flex: 1, height: 8, borderRadius: 6, overflow: 'hidden', minWidth: 0 },
   barFill: { height: '100%', borderRadius: 10 },
-  percentText: { fontSize: 11, fontWeight: 700, color: '#111', minWidth: 34, textAlign: 'right' },
-  target: { fontSize: 10, marginTop: 3, color: '#666', overflowWrap: 'anywhere' },
+  percentText: { fontSize: 11, fontWeight: 700, color: 'var(--text)', minWidth: 34, textAlign: 'right' },
+  target: { fontSize: 10, marginTop: 3, color: 'var(--text-3)', overflowWrap: 'anywhere' },
 
   /* RÉSULTATS CLÉS */
-  resultSection: { background: '#fff', padding: 10, borderRadius: 10, minWidth: 0 },
+  resultSection: { background: 'var(--surface)', padding: 10, borderRadius: 10, minWidth: 0 },
   resultCard: {
-    background: '#fff',
+    background: 'var(--surface)',
     borderRadius: 10,
     gap: 4,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'space-between',
     boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+    border: '1px solid var(--border-soft)',
     overflow: 'hidden',
     padding: 6,
     minHeight: 120,
     minWidth: 0,
   },
   resultTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 6px', gap: 6 },
-  resultTitle: { fontSize: 11, fontWeight: 700, color: '#111827', lineHeight: 1.2, textAlign: 'center', width: '100%', marginBottom: 6, overflowWrap: 'anywhere' },
+  resultTitle: { fontSize: 11, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, textAlign: 'center', width: '100%', marginBottom: 6, overflowWrap: 'anywhere' },
   resultContent: { display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 1, minWidth: 0 },
-  resultValue: { fontSize: 16, fontWeight: 800, color: '#14532d' },
-  resultUnit: { fontSize: 11, color: '#6b7280' },
-  resultTarget: { fontSize: 10, marginTop: 4, padding: '0 8px', color: '#6b7280', overflowWrap: 'anywhere' },
+  resultValue: { fontSize: 16, fontWeight: 800, color: 'var(--title-green)' },
+  resultUnit: { fontSize: 11, color: 'var(--text-3)' },
+  resultTarget: { fontSize: 10, marginTop: 4, padding: '0 8px', color: 'var(--text-3)', overflowWrap: 'anywhere' },
   resultIcon: {
     width: 42, height: 42, minWidth: 42, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1253,17 +1259,17 @@ const styles: Record<string, React.CSSProperties> = {
   /* RÉALISATIONS */
   realisationSection: { width: '100%', background: 'transparent', padding: 0, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 0 },
   kpiGroup: {
-    background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: 10,
+    background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 10,
     width: '100%', minWidth: 0, overflow: 'hidden', boxSizing: 'border-box',
   },
   realCard: {
-    display: 'flex', flexDirection: 'column', background: '#fafafa', padding: 10, gap: 4,
+    display: 'flex', flexDirection: 'column', background: 'var(--surface-3)', padding: 10, gap: 4,
     borderRadius: 10, justifyContent: 'space-between', minWidth: 0, overflow: 'hidden',
   },
   realTitle: { fontSize: 11, fontWeight: 700, textAlign: 'center', width: '100%', overflowWrap: 'anywhere' },
   realTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 8px', gap: 6 },
   realValue: { fontSize: 18, fontWeight: 800 },
-  realUnit: { fontSize: 11, color: '#666' },
+  realUnit: { fontSize: 11, color: 'var(--text-3)' },
   realIcon: {
     width: 42, height: 42, minWidth: 42, borderRadius: '50%',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -1272,11 +1278,11 @@ const styles: Record<string, React.CSSProperties> = {
 
   /* GRAPHIQUES */
   analyticsGroup: {
-    background: '#f8fafc', border: '1px solid #e5e7eb', borderRadius: 10, padding: 10,
+    background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 10,
     display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0,
   },
   chartCard: {
-    background: '#fff', borderRadius: 10, padding: 8, display: 'flex',
+    background: 'var(--surface)', borderRadius: 10, padding: 8, display: 'flex',
     flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
     minWidth: 0, overflow: 'hidden',
   },
@@ -1285,10 +1291,10 @@ const styles: Record<string, React.CSSProperties> = {
   donutCard: { width: '100%', minHeight: 240, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
   donutWrapper: { position: 'relative', width: '100%', height: 160 },
   donutCenter: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center', pointerEvents: 'none' },
-  donutCenterValue: { fontSize: 20, fontWeight: 800, color: '#111827', lineHeight: 1 },
-  donutCenterLabel: { fontSize: 10, color: '#6b7280', marginTop: 2 },
+  donutCenterValue: { fontSize: 20, fontWeight: 800, color: 'var(--text)', lineHeight: 1 },
+  donutCenterLabel: { fontSize: 10, color: 'var(--text-3)', marginTop: 2 },
   legendModern: { display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 6, marginTop: 8 },
   legendModernItem: { display: 'flex', alignItems: 'center', gap: 5, padding: '1px 3px' },
   legendDot: { width: 12, height: 12, borderRadius: '50%', flexShrink: 0 },
-  legendText: { fontSize: 11, fontWeight: 600, color: '#374151' },
+  legendText: { fontSize: 11, fontWeight: 600, color: 'var(--text-2)' },
 };
