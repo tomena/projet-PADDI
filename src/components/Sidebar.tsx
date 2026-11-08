@@ -316,6 +316,7 @@ export default function Sidebar() {
   const location = useLocation();
   const { lang } = useLanguage();
   const t = sidebarTxt[lang];
+  const { theme } = useTheme();
 
   // Module envoyé depuis Home.tsx : navigate("/dashboard", { state: { module: "paddi" } })
   const module: string = location.state?.module || "paddi";
@@ -496,8 +497,19 @@ export default function Sidebar() {
             {mobile ? <X size={18} /> : reduit ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
 
-          <div className={`sb-logo ${reduit ? "petit" : ""}`}>PADDI+</div>
-          {!reduit && <div className="sb-subtitle">{t.subtitle}</div>}
+          <div className="sb-logo">
+          <img
+            src={
+              reduit
+                ? "/logo-paddi-icone.svg"
+                : theme === "dark"
+                ? "/logo-paddi-sombre.svg"
+                : "/logo-paddi.svg"
+            }
+            alt="PADDI+"
+            style={{ width: reduit ? 36 : "100%", maxWidth: 200, display: "block" }}
+          />
+        </div>
         </div>
 
         {/* ======================== MENU ======================== */}
@@ -519,6 +531,9 @@ export default function Sidebar() {
 
         {/* ======================== QUITTER ===================== */}
         <div className="sb-pied">
+          <div style={{ marginBottom: 8 }}>
+            <ThemeToggle compact={reduit} />
+          </div>
           <button
             type="button"
             className="sb-quitter"
