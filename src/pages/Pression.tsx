@@ -468,6 +468,7 @@ function CouchePerte({ debut, fin }: { debut: number; fin: number }) {
 }
 
 // Voile clair sur tout ce qui est hors de la région / aire protégée choisie
+// (le fond de carte reste clair dans les deux thèmes : le voile aussi)
 function MasqueZone({ zone }: { zone: Zone }) {
   const map = useMap();
   useEffect(() => {
@@ -999,6 +1000,7 @@ export default function Pression() {
   }, [feuxRegionPeriode, apsVisibles, perte, anneeDebut, anneeFin, showFeux]);
 
   // ---- Styles des zones sur la carte ------------------------------------
+  // (le fond de carte reste clair dans les deux thèmes : ces couleurs sont conservées)
   const styleRegion = (z: Zone): L.PathOptions => {
     const sel = region !== TOUS && z.nom === region;
     return {
@@ -1643,7 +1645,8 @@ const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
 /* =====================================================================
-   PALETTE — pour changer l'ambiance, modifier uniquement ce bloc
+   PALETTE — pour changer l'ambiance, modifier uniquement ces deux blocs
+   (clair par défaut, puis surcharges du thème sombre)
    ===================================================================== */
 .pr{
   --fond-panneau:#f1f4f7;               /* mettre "transparent" pour reprendre le fond de l'application */
@@ -1655,6 +1658,33 @@ const CSS = `
   --rouge:rgb(200,15,15);
   --vert:#166534;
   --perte:#db2777;                      /* couleur des pastilles « perte de couvert » */
+
+  /* couleurs d'interface (boutons, champs, survols…) */
+  --champ-bg:#ffffff;
+  --champ-bord:#cbd5e1;
+  --hover:#f1f5f9;
+  --track:#e2e8f0;
+  --txt2:#334155;
+  --txt3:#475569;
+  --dis-bg:#f1f5f9;
+  --dis-txt:#94a3b8;
+  --sel-feu:#fef2f2;
+  --sel-perte:#fdf2f8;
+  --sel-ap:#dcfce7;
+  --sel-fond:#fee2e2;
+  --glass:rgba(255,255,255,.92);
+  --pop-bg:#ffffff;
+  --pop-bord:rgba(15,23,42,.12);
+  --btn-plein-bg:#0f172a;
+  --btn-plein-txt:#ffffff;
+  --btn-plein-hover:#1e293b;
+  --alerte-bg:#fff1f1;
+  --alerte-txt:rgb(160,10,10);
+  --alerte-bord:#f5b5b5;
+  --leaflet-bg:#e5e7eb;
+  --c-ap:#166534;
+  --c-periph:#b45309;
+
   --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --corps:'Figtree','Segoe UI',system-ui,sans-serif;
 
@@ -1662,6 +1692,45 @@ const CSS = `
   background:transparent;color:var(--txt);font-family:var(--corps);
   font-size:14px;overflow:hidden;box-sizing:border-box;
 }
+
+/* ---- Thème sombre ---- */
+:root[data-theme="dark"] .pr{
+  --fond-panneau:var(--bg);
+  --fond-entete:rgba(17,26,46,.95);
+  --carte:var(--surface);
+  --ligne:rgba(255,255,255,.12);
+  --txt:#e5e7eb;
+  --mut:#94a3b8;
+  --rouge:#ef4444;
+  --vert:#4ade80;
+  --perte:#f472b6;
+
+  --champ-bg:#16213a;
+  --champ-bord:rgba(255,255,255,.2);
+  --hover:rgba(255,255,255,.07);
+  --track:rgba(255,255,255,.14);
+  --txt2:#cbd5e1;
+  --txt3:#b6bfcc;
+  --dis-bg:rgba(255,255,255,.05);
+  --dis-txt:#64748b;
+  --sel-feu:rgba(239,68,68,.16);
+  --sel-perte:rgba(244,114,182,.16);
+  --sel-ap:rgba(74,222,128,.14);
+  --sel-fond:rgba(239,68,68,.2);
+  --glass:rgba(17,26,46,.92);
+  --pop-bg:#16213a;
+  --pop-bord:rgba(255,255,255,.15);
+  --btn-plein-bg:#e5e7eb;
+  --btn-plein-txt:#0f172a;
+  --btn-plein-hover:#ffffff;
+  --alerte-bg:rgba(239,68,68,.18);
+  --alerte-txt:#fca5a5;
+  --alerte-bord:rgba(248,113,113,.4);
+  --leaflet-bg:#1b2740;
+  --c-ap:#4ade80;
+  --c-periph:#f59e0b;
+}
+
 .pr *{box-sizing:border-box}
 .pr button,.pr select,.pr input{font-family:inherit}
 .pr button:focus-visible,.pr select:focus-visible,.pr input:focus-visible{outline:2px solid var(--rouge);outline-offset:2px}
@@ -1679,12 +1748,12 @@ const CSS = `
 .pr-etat{display:inline-flex;align-items:center;gap:7px;font-size:12px;color:var(--mut);margin-right:4px}
 .pr-etat i{width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,.18)}
 .pr-etat.err i{background:var(--rouge);box-shadow:0 0 0 3px rgba(200,15,15,.2)}
-.pr-btn{padding:8px 14px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
+.pr-btn{padding:8px 14px;border-radius:9px;border:1px solid var(--champ-bord);background:var(--champ-bg);color:var(--txt);
   font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
-.pr-btn:hover:not(:disabled){background:#f1f5f9}
+.pr-btn:hover:not(:disabled){background:var(--hover)}
 .pr-btn:disabled{opacity:.55;cursor:default}
-.pr-btn-plein{background:#0f172a;color:#fff;border-color:#0f172a}
-.pr-btn-plein:hover:not(:disabled){background:#1e293b}
+.pr-btn-plein{background:var(--btn-plein-bg);color:var(--btn-plein-txt);border-color:var(--btn-plein-bg)}
+.pr-btn-plein:hover:not(:disabled){background:var(--btn-plein-hover)}
 
 .pr-filtres{display:flex;gap:10px 32px;align-items:flex-start;flex-wrap:wrap;margin-top:12px}
 /* Deux groupes à deux lignes alignées : [couche + ses réglages] | [filtres] */
@@ -1696,35 +1765,35 @@ const CSS = `
 .pr-fctl{display:flex;align-items:center;gap:18px;min-width:0}
 .pr-inl{display:flex;align-items:center;gap:8px;min-width:0;white-space:nowrap;font-size:12px;color:var(--mut);font-weight:500}
 .pr-fgauche .pr-inl>span:first-child{min-width:46px}
-.pr-fgroupe select{height:36px;padding:0 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
+.pr-fgroupe select{height:36px;padding:0 10px;border-radius:9px;border:1px solid var(--champ-bord);background:var(--champ-bg);color:var(--txt);
   font-size:13px;min-width:140px;max-width:210px;cursor:pointer}
-.pr-fgroupe select:disabled{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}
+.pr-fgroupe select:disabled{background:var(--dis-bg);color:var(--dis-txt);cursor:not-allowed}
 .pr-fgroupe .pr-annees select{min-width:84px}
 .pr-fgroupe .pr-seg button{height:34px;padding:0 14px}
 .pr-fgroupe .pr-chk,.pr-fgroupe .pr-reset{height:36px}
 .pr-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
 .pr-champ>span{font-size:12px;color:var(--mut);font-weight:500}
-.pr-champ select{padding:8px 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;
+.pr-champ select{padding:8px 10px;border-radius:9px;border:1px solid var(--champ-bord);background:var(--champ-bg);
   color:var(--txt);font-size:13px;min-width:170px;max-width:260px;cursor:pointer}
-.pr-champ select:disabled{background:#f1f5f9;color:#94a3b8;cursor:not-allowed}
-.pr-seg{display:flex;border:1px solid #cbd5e1;border-radius:9px;overflow:hidden;background:#fff}
-.pr-seg button{padding:8px 14px;border:0;background:transparent;color:#475569;font-size:13px;cursor:pointer;font-weight:600}
-.pr-seg button+button{border-left:1px solid #cbd5e1}
+.pr-champ select:disabled{background:var(--dis-bg);color:var(--dis-txt);cursor:not-allowed}
+.pr-seg{display:flex;border:1px solid var(--champ-bord);border-radius:9px;overflow:hidden;background:var(--champ-bg)}
+.pr-seg button{padding:8px 14px;border:0;background:transparent;color:var(--txt3);font-size:13px;cursor:pointer;font-weight:600}
+.pr-seg button+button{border-left:1px solid var(--champ-bord)}
 .pr-seg button.on{background:var(--rouge);color:#fff}
-.pr-seg button:disabled{color:#94a3b8;background:#f1f5f9;cursor:not-allowed}
-.pr-reset{padding:8px 12px;border-radius:9px;border:1px dashed #94a3b8;background:transparent;color:var(--txt);
+.pr-seg button:disabled{color:var(--dis-txt);background:var(--dis-bg);cursor:not-allowed}
+.pr-reset{padding:8px 12px;border-radius:9px;border:1px dashed var(--mut);background:transparent;color:var(--txt);
   font-size:13px;font-weight:600;cursor:pointer}
 .pr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
 /* ---- Cases à cocher des couches d'analyse ---- */
 .pr-checks{display:flex;gap:6px;flex-wrap:wrap}
-.pr-chk{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid #cbd5e1;border-radius:9px;
-  background:#fff;font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;white-space:nowrap}
+.pr-chk{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid var(--champ-bord);border-radius:9px;
+  background:var(--champ-bg);font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;white-space:nowrap}
 .pr-chk input{accent-color:var(--rouge);width:15px;height:15px;margin:0;cursor:inherit}
-.pr-chk.on{border-color:var(--rouge);background:#fef2f2}
+.pr-chk.on{border-color:var(--rouge);background:var(--sel-feu)}
 .pr-chk.perte input{accent-color:var(--perte)}
-.pr-chk.perte.on{border-color:var(--perte);background:#fdf2f8}
-.pr-chk.off{opacity:.55;cursor:not-allowed;background:#f1f5f9}
+.pr-chk.perte.on{border-color:var(--perte);background:var(--sel-perte)}
+.pr-chk.off{opacity:.55;cursor:not-allowed;background:var(--dis-bg)}
 
 /* ---- Corps ---- */
 .pr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(440px,56%) 1fr}
@@ -1748,27 +1817,27 @@ const CSS = `
 .pr-chrono-barre{width:100%;border-radius:4px 4px 2px 2px;transition:height .3s,opacity .2s}
 .pr-chrono-legende{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--mut);margin-top:6px}
 
-.pr-attente-theme{background:var(--carte);border:1px dashed #94a3b8;border-radius:14px;padding:22px}
+.pr-attente-theme{background:var(--carte);border:1px dashed var(--mut);border-radius:14px;padding:22px}
 .pr-attente-theme h2{margin:0 0 8px;font-family:var(--titre);font-size:18px}
 .pr-attente-theme p{margin:0;color:var(--mut);line-height:1.5}
 
 /* ---- Grille 2 colonnes : une couleur par carte ---- */
 .pr-grille{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
-.pr-carte{--accent:#475569;background:var(--carte);border:1px solid var(--ligne);border-top:4px solid var(--accent);
+.pr-carte{--accent:var(--txt3);background:var(--carte);border:1px solid var(--ligne);border-top:4px solid var(--accent);
   border-radius:12px;padding:14px;min-width:0;display:flex;flex-direction:column;
   box-shadow:0 1px 3px rgba(15,23,42,.06)}
-.pr-carte.c1{--accent:rgb(200,15,15)}   /* rythme récent : rouge */
-.pr-carte.c2{--accent:#166534}          /* aires protégées : vert forêt */
-.pr-carte.c3{--accent:#6d28d9}          /* paysages : violet (comme sur la carte) */
+.pr-carte.c1{--accent:var(--rouge)}     /* rythme récent : rouge */
+.pr-carte.c2{--accent:var(--c-ap)}      /* aires protégées : vert forêt */
+.pr-carte.c3{--accent:#8b5cf6}          /* paysages : violet (comme sur la carte) */
 .pr-carte.c4{--accent:#0e7490}          /* micro-bassins : cyan (comme sur la carte) */
 .pr-carte.c5{--accent:var(--perte)}     /* évolution de la perte : rose */
-.pr-carte.c6{--accent:#b45309}          /* périphéries & communes : ocre */
+.pr-carte.c6{--accent:var(--c-periph)}  /* périphéries & communes : ocre */
 .pr-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;color:var(--txt);line-height:1.25}
-.pr-sstitre{margin:10px 0 6px;font-size:12px;font-weight:700;color:#334155}
+.pr-sstitre{margin:10px 0 6px;font-size:12px;font-weight:700;color:var(--txt2)}
 .pr-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
-.pr-carte-attente{background:#f8fafc;border-style:dashed;border-top-style:solid}
+.pr-carte-attente{background:var(--dis-bg);border-style:dashed;border-top-style:solid}
 .pr-vide{margin:auto 0;padding:8px 0;font-size:12.5px;color:var(--mut);font-style:italic}
-.pr-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;padding:5px 0;color:#334155}
+.pr-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:12.5px;padding:5px 0;color:var(--txt2)}
 .pr-ligne span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pr-ligne strong{font-variant-numeric:tabular-nums;color:var(--txt)}
 .pr-ligne .pr-vals{flex:none;display:flex;gap:12px;overflow:visible}
@@ -1779,62 +1848,62 @@ const CSS = `
 .pr-cle{display:flex;flex-wrap:wrap;gap:4px 14px;margin:-4px 0 8px;font-size:11px;color:var(--mut)}
 .pr-ligne-barre{margin-bottom:8px}
 .pr-barre.fine{height:4px;margin-top:3px}
-.pr-barre{height:6px;border-radius:3px;background:#e2e8f0;overflow:hidden}
+.pr-barre{height:6px;border-radius:3px;background:var(--track);overflow:hidden}
 .pr-barre i{display:block;height:100%;border-radius:3px;background:var(--accent);transition:width .3s}
 .pr-grand{font-family:var(--titre);font-weight:800;font-size:40px;color:var(--accent);line-height:1.05}
 .pr-liste{max-height:220px;overflow-y:auto;margin:0 -6px;padding:0 6px}
-.pr-cliquable{width:100%;border:0;background:transparent;color:#334155;cursor:pointer;text-align:left;
+.pr-cliquable{width:100%;border:0;background:transparent;color:var(--txt2);cursor:pointer;text-align:left;
   padding:6px 8px;margin:1px 0;border-radius:8px}
-.pr-cliquable:hover{background:#f1f5f9}
-.pr-cliquable.on{background:#dcfce7;outline:1px solid var(--accent)}
+.pr-cliquable:hover{background:var(--hover)}
+.pr-cliquable.on{background:var(--sel-ap);outline:1px solid var(--accent)}
 
 /* ---- Outils sur la carte ---- */
 .pr-outils{position:absolute;top:12px;right:12px;z-index:1010;display:flex;gap:8px}
 .pr-menu-wrap{position:relative}
 .pr-outil{display:flex;align-items:center;gap:8px;padding:9px 13px;border-radius:10px;
-  border:1px solid rgba(15,23,42,.18);background:rgba(255,255,255,.92);backdrop-filter:blur(10px);
+  border:1px solid var(--pop-bord);background:var(--glass);backdrop-filter:blur(10px);
   -webkit-backdrop-filter:blur(10px);color:var(--txt);font-size:13px;font-weight:700;cursor:pointer;
   box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.pr-outil:hover{background:#fff}
+.pr-outil:hover{background:var(--pop-bg)}
 .pr-apercu{width:18px;height:18px;border-radius:5px;border:1px solid rgba(15,23,42,.25);flex:none}
 .pr-apercu.grand{width:36px;height:36px;border-radius:8px}
-.pr-pop{position:absolute;top:calc(100% + 8px);z-index:1020;min-width:245px;background:#fff;
-  border:1px solid rgba(15,23,42,.12);border-radius:12px;padding:7px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.pr-pop{position:absolute;top:calc(100% + 8px);z-index:1020;min-width:245px;background:var(--pop-bg);
+  border:1px solid var(--pop-bord);border-radius:12px;padding:7px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
 .pr-pop-droite{right:0}
 .pr-pop-item{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:10px;border:0;
   border-radius:8px;background:transparent;color:var(--txt);cursor:pointer;font-size:13px;font-weight:600}
 .pr-pop-item span{color:var(--mut);font-weight:500}
-.pr-pop-item:hover:not(:disabled){background:#f1f5f9}
+.pr-pop-item:hover:not(:disabled){background:var(--hover)}
 .pr-pop-item:disabled{opacity:.5;cursor:default}
 .pr-top .pr-pop-item{flex-direction:column;align-items:flex-start;gap:2px}
 .pr-pop-fond{min-height:55px}
 .pr-top .pr-pop-fond{flex-direction:row;align-items:center}
-.pr-pop-fond.on{background:#fee2e2;outline:1px solid var(--rouge)}
+.pr-pop-fond.on{background:var(--sel-fond);outline:1px solid var(--rouge)}
 .pr-pop .pr-fond-check{margin-left:auto;color:var(--rouge);font-size:17px;font-weight:800}
 .pr-check{display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;cursor:pointer;
   font-size:13px;font-weight:600;color:var(--txt)}
-.pr-check:hover{background:#f1f5f9}
+.pr-check:hover{background:var(--hover)}
 .pr-check input{accent-color:var(--rouge);width:16px;height:16px}
 .pr-voile{position:absolute;inset:0;z-index:1005;background:transparent}
 
 /* ---- Légendes & messages sur la carte ---- */
 .pr-legendes{position:absolute;left:12px;bottom:12px;z-index:1000;display:flex;flex-direction:column;gap:8px}
 .pr-legende{position:absolute;left:12px;bottom:12px;z-index:1000;padding:11px 14px;border-radius:12px;
-  background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border:1px solid rgba(15,23,42,.15);font-size:12px;font-weight:600;display:flex;flex-direction:column;
+  background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--pop-bord);font-size:12px;font-weight:600;display:flex;flex-direction:column;
   gap:7px;box-shadow:0 3px 12px rgba(0,0,0,.15)}
 .pr-legendes .pr-legende{position:static}
 .pr-legende.pr-legende-zones{top:12px;bottom:auto}
-.pr-legende div{display:flex;align-items:center;gap:8px;color:#334155}
+.pr-legende div{display:flex;align-items:center;gap:8px;color:var(--txt2)}
 .pr-legende strong{color:var(--txt)}
 .pr-legende i{width:11px;height:11px;border-radius:50%;border:1px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.35);flex:none}
 .pr-alerte{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:1000;display:flex;gap:10px;
-  align-items:center;padding:9px 13px;border-radius:10px;background:#fff1f1;color:rgb(160,10,10);
-  font-size:12.5px;font-weight:700;border:1px solid #f5b5b5;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+  align-items:center;padding:9px 13px;border-radius:10px;background:var(--alerte-bg);color:var(--alerte-txt);
+  font-size:12.5px;font-weight:700;border:1px solid var(--alerte-bord);box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .pr-alerte button{border:0;background:rgb(200,15,15);color:#fff;border-radius:6px;padding:5px 9px;cursor:pointer;font-weight:700}
 
-.pr .leaflet-container{background:#e5e7eb;font-family:var(--corps)}
-.pr .leaflet-tooltip{background:#fff;color:var(--txt);border:1px solid #94a3b8;border-radius:5px;
+.pr .leaflet-container{background:var(--leaflet-bg);font-family:var(--corps)}
+.pr .leaflet-tooltip{background:var(--pop-bg);color:var(--txt);border:1px solid var(--mut);border-radius:5px;
   box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:13px;font-weight:700;padding:5px 8px}
 .pr .leaflet-tooltip-top:before,.pr .leaflet-tooltip-bottom:before{display:none}
 
