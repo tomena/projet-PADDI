@@ -159,58 +159,67 @@ const TREND = [
 ];
 const YEARS = [2030, 2029, 2028, 2027, 2026, 2025, 2024, 2023];
 
-const GREEN = "#1b5e20", GREEN_MID = "#4caf50", AMBER = "#d99a00", LIME = "#9aae2d", INK = "#1f2937", MUTED = "#6b7280", LINE = "#e5e7eb";
+/* Couleurs.
+   - GREEN : vert foncé de marque (fonds : badge, boutons, en-tête de tableau)
+   - CH    : vert des graphiques (plus clair, lisible sur fond sombre)
+   - GT    : vert pour du TEXTE (mélangé avec --text : lisible en clair comme en sombre)
+   - INK / MUTED / LINE : variables du thème (clair / sombre) */
+const GREEN = "#1b5e20", CH = "#2e7d32", GREEN_MID = "#4caf50", AMBER = "#d99a00", LIME = "#9aae2d";
+const GT = "color-mix(in srgb, #1b5e20 55%, var(--text))";
+const INK = "var(--text)", MUTED = "var(--text-3)", LINE = "var(--border)";
+const tonText = (c: string) => `color-mix(in srgb, ${c} 70%, var(--text))`;
 
 /* ================= STYLES RESPONSIVES ================= */
 const CSS = `
-.cs-root{background:#f1f5f2;min-height:100vh;padding:clamp(10px,2vw,24px);color:${INK};font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-sizing:border-box}
+.cs-root{background:var(--surface-2);min-height:100vh;padding:clamp(10px,2vw,24px);color:${INK};font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;box-sizing:border-box}
 .cs-root *{box-sizing:border-box}
 .cs-wrap{max-width:1680px;margin:0 auto;display:flex;flex-direction:column;gap:clamp(10px,1.4vw,18px)}
-.cs-card{background:#fff;border:1px solid #e3e9e5;border-radius:14px;padding:clamp(12px,1.6vw,20px);min-width:0}
+.cs-card{background:var(--surface);border:1px solid ${LINE};border-radius:14px;padding:clamp(12px,1.6vw,20px);min-width:0}
 .cs-header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;justify-content:space-between}
 .cs-brand{display:flex;align-items:center;gap:14px;min-width:0;flex:1 1 320px}
 .cs-badge{width:52px;height:52px;border-radius:14px;background:${GREEN};color:#fff;display:grid;place-items:center;flex:none}
-.cs-h1{margin:0;font-size:clamp(18px,2.2vw,26px);line-height:1.2;color:${GREEN};font-weight:750}
+.cs-h1{margin:0;font-size:clamp(18px,2.2vw,26px);line-height:1.2;color:${GT};font-weight:750}
 .cs-sub{margin:2px 0 0;font-size:clamp(12px,1.2vw,14px);color:${MUTED}}
 .cs-filters{display:grid;grid-template-columns:repeat(4,auto);gap:10px;align-items:end;flex:0 1 auto}
 .cs-field{display:flex;flex-direction:column;gap:4px;min-width:0}
-.cs-label{font-size:12px;font-weight:650;display:flex;align-items:center;gap:5px;color:#374151}
-.cs-select,.cs-input{height:38px;border:1px solid #d1d5db;border-radius:8px;padding:0 10px;font-size:13px;background:#fff;color:${INK};min-width:0;width:100%}
+.cs-label{font-size:12px;font-weight:650;display:flex;align-items:center;gap:5px;color:var(--text-2)}
+.cs-select,.cs-input{height:38px;border:1px solid ${LINE};border-radius:8px;padding:0 10px;font-size:13px;background:var(--surface-3);color:${INK};min-width:0;width:100%}
 .cs-select:focus-visible,.cs-input:focus-visible,.cs-btn:focus-visible,.cs-pg:focus-visible{outline:3px solid #86efac;outline-offset:1px}
 .cs-btn{height:38px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:8px;padding:0 14px;font-size:13px;font-weight:650;cursor:pointer;background:${GREEN};color:#fff;white-space:nowrap}
 .cs-btn:hover{background:#2e7d32}
-.cs-btn.alt{background:#fff;color:${GREEN};border:1px solid ${GREEN}}
-.cs-btn.alt:hover{background:#f0fdf4}
-.cs-banner{display:flex;gap:14px;align-items:center;background:#ecfdf5;border-color:#bbf7d0}
+.cs-btn.alt{background:var(--surface);color:${GT};border:1px solid ${GT}}
+.cs-btn.alt:hover{background:var(--surface-3)}
+.cs-btn:disabled{opacity:.5;cursor:not-allowed}
+.cs-banner{display:flex;gap:14px;align-items:center;background:color-mix(in srgb,#16a34a 14%,var(--surface));border-color:${LINE}}
 .cs-banner p{margin:0;font-size:clamp(12px,1.25vw,14px);line-height:1.55;font-weight:550}
 .cs-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(10px,1.4vw,18px)}
 .cs-kpi-donut{display:flex;align-items:center;gap:12px}
 .cs-donut{position:relative;width:112px;height:112px;flex:none}
 .cs-donut-c{position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:18px;pointer-events:none}
-.cs-eyebrow{font-size:12px;font-weight:700;color:#374151;line-height:1.35;margin:0 0 4px}
-.cs-big{font-size:clamp(26px,3vw,36px);font-weight:800;color:${GREEN};line-height:1.1}
+.cs-eyebrow{font-size:12px;font-weight:700;color:var(--text-2);line-height:1.35;margin:0 0 4px}
+.cs-big{font-size:clamp(26px,3vw,36px);font-weight:800;color:${GT};line-height:1.1}
 .cs-small{font-size:12px;color:${MUTED};margin-top:4px;line-height:1.4}
 .cs-charts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));align-items:stretch;gap:clamp(10px,1.4vw,18px)}
-.cs-title{font-size:13px;font-weight:700;line-height:1.35;margin:0 0 10px;color:#2f2f2f}
+.cs-title{font-size:13px;font-weight:700;line-height:1.35;margin:0 0 10px;color:${INK}}
 .cs-charts .cs-card{display:flex;flex-direction:column}
 .cs-charts .cs-title{min-height:calc(3 * 1.35em)}
 .cs-chart{width:100%;height:260px;margin-top:auto}
 .cs-tablewrap{padding:0;overflow:hidden}
 .cs-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px clamp(12px,1.6vw,20px);border-bottom:1px solid ${LINE}}
 .cs-search{position:relative;flex:1 1 240px;max-width:420px}
-.cs-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#9ca3af}
+.cs-search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:${MUTED}}
 .cs-search .cs-input{padding-left:34px}
 .cs-scroll{overflow-x:auto}
 .cs-table{width:100%;border-collapse:collapse;font-size:13px}
 .cs-table th{background:${GREEN};color:#fff;padding:11px 10px;text-align:center;font-weight:650;font-size:12px;line-height:1.3;border-right:1px solid rgba(255,255,255,.25)}
-.cs-table td{padding:11px 10px;border-bottom:1px solid ${LINE};border-right:1px solid #f0f0f0;vertical-align:top;line-height:1.45}
-.cs-table tbody tr:nth-child(even){background:#fafcfa}
-.cs-table tbody tr:hover{background:#f0fdf4}
+.cs-table td{padding:11px 10px;border-bottom:1px solid ${LINE};border-right:1px solid var(--border-soft);vertical-align:top;line-height:1.45}
+.cs-table tbody tr:nth-child(even){background:var(--surface-3)}
+.cs-table tbody tr:hover{background:color-mix(in srgb,#16a34a 14%,var(--surface))}
 .cs-c{text-align:center}
-.cs-pill{display:inline-block;min-width:26px;padding:2px 8px;border-radius:999px;background:#dcfce7;color:${GREEN};font-weight:700}
+.cs-pill{display:inline-block;min-width:26px;padding:2px 8px;border-radius:999px;background:rgba(22,163,74,.18);color:${GT};font-weight:700}
 .cs-foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:12px clamp(12px,1.6vw,20px);border-top:1px solid ${LINE};font-size:13px}
 .cs-pages{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.cs-pg{min-width:34px;height:34px;display:inline-grid;place-items:center;border:1px solid #d1d5db;background:#fff;border-radius:8px;cursor:pointer;font-weight:650;font-size:13px;color:${INK}}
+.cs-pg{min-width:34px;height:34px;display:inline-grid;place-items:center;border:1px solid ${LINE};background:var(--surface);border-radius:8px;cursor:pointer;font-weight:650;font-size:13px;color:${INK}}
 .cs-pg[disabled]{opacity:.4;cursor:not-allowed}
 .cs-pg.on{background:${GREEN};color:#fff;border-color:${GREEN}}
 .cs-empty{padding:32px 16px;text-align:center;color:${MUTED};font-size:14px}
@@ -221,10 +230,10 @@ const CSS = `
 @media (max-width:860px){
   .cs-table thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
   .cs-table,.cs-table tbody,.cs-table tr,.cs-table td{display:block;width:100%}
-  .cs-table tbody tr{border:1px solid ${LINE};border-radius:12px;margin:10px 12px;width:auto;padding:6px 0;background:#fff!important}
-  .cs-table td{border:none;border-bottom:1px dashed #eceff1;display:grid;grid-template-columns:42% 1fr;gap:10px;text-align:left!important;padding:8px 12px}
+  .cs-table tbody tr{border:1px solid ${LINE};border-radius:12px;margin:10px 12px;width:auto;padding:6px 0;background:var(--surface)!important}
+  .cs-table td{border:none;border-bottom:1px dashed ${LINE};display:grid;grid-template-columns:42% 1fr;gap:10px;text-align:left!important;padding:8px 12px}
   .cs-table td:last-child{border-bottom:none}
-  .cs-table td::before{content:attr(data-label);font-weight:700;color:${GREEN};font-size:12px}
+  .cs-table td::before{content:attr(data-label);font-weight:700;color:${GT};font-size:12px}
 }
 @media (max-width:520px){
   .cs-kpis{grid-template-columns:minmax(0,1fr)}
@@ -243,11 +252,11 @@ const Donut: React.FC<{ pct: number; color: string; fmt: (n: number) => string }
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Pie data={[{ v: pct }, { v: 100 - pct }]} dataKey="v" startAngle={90} endAngle={-270} innerRadius="74%" outerRadius="100%" stroke="none" isAnimationActive={false}>
-          <Cell fill={color} /><Cell fill="#ececec" />
+          <Cell fill={color} /><Cell fill="var(--track)" />
         </Pie>
       </PieChart>
     </ResponsiveContainer>
-    <div className="cs-donut-c" style={{ color }}>{fmt(pct)} %</div>
+    <div className="cs-donut-c" style={{ color: tonText(color) }}>{fmt(pct)} %</div>
   </div>
 );
 
@@ -351,8 +360,9 @@ const DecisionCOSAP: React.FC = () => {
     URL.revokeObjectURL(a.href);
   };
 
-  const tip = { fontSize: 12, borderRadius: 8, border: `1px solid ${LINE}` };
+  const tip = { fontSize: 12, borderRadius: 8, border: `1px solid ${LINE}`, background: "var(--surface)", color: INK };
   const axis = { fontSize: 11, fill: MUTED };
+  const cursorFill = { fill: "rgba(128,128,128,.14)" };
 
   const barBlock = (title: string, data: { name: string; v: number }[], color: string) => (
     <section className="cs-card" aria-label={title}>
@@ -360,10 +370,10 @@ const DecisionCOSAP: React.FC = () => {
       <div className="cs-chart">
         <ResponsiveContainer>
           <BarChart data={data} margin={{ top: 18, right: 8, left: -8, bottom: 22 }}>
-            <CartesianGrid vertical={false} stroke="#f0f0f0" />
-            <XAxis dataKey="name" tick={axis} tickLine={false} label={{ value: t.totalCosap(k.n), position: "insideBottom", offset: -14, fontSize: 11, fontWeight: 700 }} />
+            <CartesianGrid vertical={false} stroke="var(--border)" />
+            <XAxis dataKey="name" tick={axis} tickLine={false} label={{ value: t.totalCosap(k.n), position: "insideBottom", offset: -14, fontSize: 11, fontWeight: 700, fill: INK }} />
             <YAxis tick={axis} axisLine={false} tickLine={false} allowDecimals={false} width={34} />
-            <Tooltip contentStyle={tip} formatter={(v) => [v as number, t.nbCosap]} cursor={{ fill: "rgba(0,0,0,.04)" }} />
+            <Tooltip contentStyle={tip} formatter={(v) => [v as number, t.nbCosap]} cursor={cursorFill} />
             <Bar dataKey="v" fill={color} radius={[4, 4, 0, 0]} maxBarSize={44} label={{ position: "top", fontSize: 12, fill: INK }} />
           </BarChart>
         </ResponsiveContainer>
@@ -417,7 +427,7 @@ const DecisionCOSAP: React.FC = () => {
         {/* ===== KPI ===== */}
         <div className="cs-kpis">
           <section className="cs-card cs-kpi-donut">
-            <Donut pct={k.pctDec} color={GREEN} fmt={nf} />
+            <Donut pct={k.pctDec} color={CH} fmt={nf} />
             <div>
               <p className="cs-eyebrow">{t.kpiDecisions}</p>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{t.decisionsOf(k.included, k.target)}</div>
@@ -449,7 +459,7 @@ const DecisionCOSAP: React.FC = () => {
 
         {/* ===== GRAPHIQUES ===== */}
         <div className="cs-charts">
-          {barBlock(t.chartDec, k.dec, GREEN)}
+          {barBlock(t.chartDec, k.dec, CH)}
           {barBlock(t.chartFJ, k.fjBars, LIME)}
 
           <section className="cs-card" aria-label={t.trendTitle}>
@@ -457,13 +467,13 @@ const DecisionCOSAP: React.FC = () => {
             <div className="cs-chart">
               <ResponsiveContainer>
                 <LineChart data={TREND} margin={{ top: 10, right: 14, left: -8, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#f0f0f0" />
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="y" tick={axis} padding={{ left: 12, right: 12 }} />
                   <YAxis domain={[0, 100]} ticks={[0, 20, 40, 60, 80, 100]} tickFormatter={(v) => `${v}%`} tick={axis} axisLine={false} tickLine={false} width={44} />
                   <Tooltip contentStyle={tip} formatter={(v) => `${nf(v as number)} %`} />
-                  <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11 }} />
+                  <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11, color: "var(--text-2)" }} />
                   <ReferenceLine x={year} stroke="#9ca3af" strokeDasharray="4 4" />
-                  <Line type="monotone" dataKey="v" name={t.sDecisions} stroke={GREEN} strokeWidth={2.4} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="v" name={t.sDecisions} stroke={CH} strokeWidth={2.4} dot={{ r: 3 }} />
                   <Line type="monotone" dataKey="v2" name={t.sFJ} stroke={AMBER} strokeWidth={2.4} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -475,16 +485,16 @@ const DecisionCOSAP: React.FC = () => {
             <div className="cs-chart">
               <ResponsiveContainer>
                 <BarChart data={k.compare} margin={{ top: 10, right: 10, left: -8, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#f0f0f0" />
+                  <CartesianGrid vertical={false} stroke="var(--border)" />
                   <XAxis dataKey="name" tick={axis} interval={0} tickLine={false} />
                   <YAxis tick={axis} axisLine={false} tickLine={false} allowDecimals={false} width={34}
-                    label={{ value: t.nbDecisions, angle: -90, position: "insideLeft", offset: 22, fontSize: 11, fontWeight: 700 }} />
-                  <Tooltip contentStyle={tip} cursor={{ fill: "rgba(0,0,0,.04)" }} />
-                  <ReferenceLine y={3} stroke="#555" strokeDasharray="4 4" label={{ value: t.targetLine, position: "right", fontSize: 10, fill: "#555" }} />
-                  <Bar dataKey="high" stackId="a" name={t.lHigh} fill={GREEN} maxBarSize={36} radius={[4, 4, 0, 0]} />
+                    label={{ value: t.nbDecisions, angle: -90, position: "insideLeft", offset: 22, fontSize: 11, fontWeight: 700, fill: INK }} />
+                  <Tooltip contentStyle={tip} cursor={cursorFill} />
+                  <ReferenceLine y={3} stroke="var(--text-3)" strokeDasharray="4 4" label={{ value: t.targetLine, position: "right", fontSize: 10, fill: "var(--text-3)" }} />
+                  <Bar dataKey="high" stackId="a" name={t.lHigh} fill={CH} maxBarSize={36} radius={[4, 4, 0, 0]} />
                   <Bar dataKey="medium" stackId="a" name={t.lMed} fill={GREEN_MID} maxBarSize={36} radius={[4, 4, 0, 0]} />
                   <Bar dataKey="low" stackId="a" name={t.lLow} fill={AMBER} maxBarSize={36} />
-                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11 }} />
+                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11, color: "var(--text-2)" }} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
