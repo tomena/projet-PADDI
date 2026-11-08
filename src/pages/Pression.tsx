@@ -2,6 +2,257 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useLanguage } from '../context/LanguageContext';
+
+/* =====================================================================
+   TRADUCTIONS
+   `fr` sert de modèle : TypeScript impose les mêmes clés dans mg / en / de.
+   ===================================================================== */
+
+const fr = {
+  title: 'Zones de pression',
+  subtitle: 'Feux actifs, perte de couvert forestier et pression sur les aires protégées',
+  updating: 'Mise à jour…', offline: 'Hors ligne', dataAt: (h: string) => `Données de ${h}`,
+  refresh: 'Actualiser', refreshFires: 'Actualiser les feux', export: 'Exporter',
+  exportView: 'Vue actuelle', exportViewSub: (n: string) => `${n} feux filtrés · CSV`,
+  exportHisto: 'Historique du mois',
+  exportHistoSub: (n: number) => `${n} jour${n > 1 ? 's' : ''} enregistré${n > 1 ? 's' : ''} · CSV`,
+  exportHistoNone: 'Aucun jour enregistré pour l’instant',
+
+  firePoints: 'Points de feux actifs', period: 'Période', firePeriodAria: 'Période des feux',
+  reliability: 'Fiabilité', confAll: 'Toutes les détections', confNominal: 'Nominale et plus', confHigh: 'Élevée seulement',
+  lossLayer: 'Perte de couvert forestier', alerts: 'Alertes', alertsAria: 'Période des alertes',
+  years: 'Années', yearFrom: 'Année de début', yearTo: 'Année de fin', to: 'à',
+  region: 'Région', allRegions: 'Toutes les régions', protectedArea: 'Aire protégée',
+  allAPs: 'Toutes les aires protégées', allAPsOfRegion: 'Toutes celles de la région', reset: 'Réinitialiser',
+
+  noLayerTitle: 'Aucune couche sélectionnée',
+  noLayerText: 'Cochez « Points de feux actifs » et/ou « Perte de couvert forestier » pour afficher les statistiques et la carte.',
+  firesDetected: 'feux détectés', lastHours: (h: number) => `${h} dernières heures`,
+  chronoAria: 'Détections par tranche de 6 heures',
+  chronoTip: (n: number, a: number, b: number) => `${n} feux · il y a ${a} à ${b} h`,
+  ago72: 'il y a 72 h', now: 'maintenant',
+  forestLost: 'de couvert forestier perdu', lossAria: 'Alertes de perte de couvert par jour',
+  lossTip: (n: number, d: string) => `${n} alertes · ${d}`,
+  alertsDays: (n: string, j: number) => `${n} alertes · ${j} derniers jours`, today: 'aujourd’hui',
+
+  recentPace: 'Rythme récent', keyFires: 'feux (24 / 48 / 72 h)', keyAlerts: 'alertes (7 / 30 / 90 j)',
+  row24: '24 h · 7 j', row48: '48 h · 30 j', row72: '72 h · 90 j',
+  firesTitle: 'Feux détectés', last24: '24 dernières heures', last48: '48 dernières heures', last72: '72 dernières heures',
+  lossAlertsTitle: 'Alertes de perte de couvert', last7d: '7 derniers jours', last30d: '30 derniers jours', last90d: '90 derniers jours',
+  apTitle: 'Aires protégées', noAP: 'Aucune aire protégée dans cette région', loading: 'Chargement…',
+  yearlyTitle: 'Évolution annuelle de la perte', haLostPerYear: (p: string) => `Hectares perdus par an · ${p}`,
+  haPerYear: (n: string) => ` · ≈ ${n} ha/an`, unavailable: 'Données indisponibles',
+  aroundTitle: 'Autour des aires protégées', periphNote: (h: number) => `Périphéries de 5 km · ${h} h`,
+  pctShown: (p: number) => `${p} % des feux affichés`, noFireShown: 'Aucun feu affiché',
+  top3: 'Top 3 des communes', noFireZone: 'Aucun feu dans la zone choisie',
+
+  layersBtn: 'Couches',
+  layers: { feux: 'Détections de feux', perte: 'Perte de couvert forestier', paysages: 'Paysages', mbv: 'Micro-bassins', regions: 'Limites des régions', aires: 'Aires protégées', peripheries: 'Périphéries de 5 km' },
+  fonds: { satellite: 'Satellite', topo: 'Topographique', osm: 'OpenStreetMap' },
+  legFireAge: 'Ancienneté des feux', legLess24: 'Moins de 24 h', leg24_48: '24 à 48 h', leg48_72: '48 à 72 h',
+  legLoss: 'Perte de couvert forestier', legZones: 'Zones de l’aire protégée', legLandscapes: 'Paysages', legMicro: 'Micro-bassins',
+  retry: 'Réessayer',
+
+  tipFires: 'Feux détectés', tipHa: 'Superficie déboisée', na: 'n/d', keyFire: 'feux', keyHa: 'hectares déboisés', unitHa: 'ha',
+  popupTitle: 'Détection satellite', popupAt: (d: string, h: string) => `${d} à ${h} UTC`,
+  popupConf: 'Confiance', popupPower: 'Puissance', popupSat: 'Satellite',
+  conf: { h: 'élevée', n: 'nominale', l: 'faible', na: 'n/d' },
+
+  allMadagascar: 'Tout Madagascar',
+  defRegion: 'Région', defAP: 'Aire protégée sans nom', defCommune: 'Commune sans nom',
+  defLandscape: 'Paysage sans nom', defMicro: 'Micro-bassin sans nom',
+  errFirms: 'Impossible de récupérer les données FIRMS.', errGfw: 'Impossible de récupérer les alertes GFW.',
+
+  csvFires: ['date', 'heure_utc', 'latitude', 'longitude', 'region', 'confiance', 'puissance_mw', 'satellite', 'jour_nuit'],
+  csvHisto: ['date', 'type', 'nom', 'nombre_de_feux'],
+  csvTypes: { country: 'Madagascar', total: 'Total', region: 'Région', ap: 'Aire protégée' },
+};
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: 'Faritra iharan’ny tsindry',
+  subtitle: 'Doro mavitrika, fahaverezan’ny rakotra ala ary tsindry eo amin’ny faritra arovana',
+  updating: 'Fanavaozana…', offline: 'Tsy misy tambajotra', dataAt: (h) => `Angona tamin’ny ${h}`,
+  refresh: 'Havaozina', refreshFires: 'Havaozy ny doro', export: 'Hamoaka',
+  exportView: 'Fijery ankehitriny', exportViewSub: (n) => `doro ${n} voasivana · CSV`,
+  exportHisto: 'Tantaran’ny volana',
+  exportHistoSub: (n) => `andro ${n} voarakitra · CSV`,
+  exportHistoNone: 'Mbola tsy misy andro voarakitra',
+
+  firePoints: 'Teboka doro mavitrika', period: 'Vanim-potoana', firePeriodAria: 'Vanim-potoanan’ny doro',
+  reliability: 'Fahatokisana', confAll: 'Ny fanamarihana rehetra', confNominal: 'Antonony sy mihoatra', confHigh: 'Avo ihany',
+  lossLayer: 'Fahaverezan’ny rakotra ala', alerts: 'Fampitandremana', alertsAria: 'Vanim-potoanan’ny fampitandremana',
+  years: 'Taona', yearFrom: 'Taona fanombohana', yearTo: 'Taona farany', to: 'ka hatramin’ny',
+  region: 'Faritra', allRegions: 'Faritra rehetra', protectedArea: 'Faritra arovana',
+  allAPs: 'Faritra arovana rehetra', allAPsOfRegion: 'Izay rehetra ao amin’ny faritra', reset: 'Averina',
+
+  noLayerTitle: 'Tsy misy sosona voafidy',
+  noLayerText: 'Asio tick ny « Teboka doro mavitrika » sy/na ny « Fahaverezan’ny rakotra ala » mba hiseho ny antontan-kisary sy ny sarintany.',
+  firesDetected: 'doro hita', lastHours: (h) => `ora ${h} farany`,
+  chronoAria: 'Fanamarihana isaky ny ora 6',
+  chronoTip: (n, a, b) => `doro ${n} · ${a} ka hatramin’ny ${b} ora lasa`,
+  ago72: '72 ora lasa', now: 'ankehitriny',
+  forestLost: 'rakotra ala very', lossAria: 'Fampitandremana momba ny fahaverezan’ny rakotra isan’andro',
+  lossTip: (n, d) => `fampitandremana ${n} · ${d}`,
+  alertsDays: (n, j) => `fampitandremana ${n} · andro ${j} farany`, today: 'androany',
+
+  recentPace: 'Hafainganam-pandehana vao haingana', keyFires: 'doro (24 / 48 / 72 ora)', keyAlerts: 'fampitandremana (7 / 30 / 90 andro)',
+  row24: '24 ora · 7 andro', row48: '48 ora · 30 andro', row72: '72 ora · 90 andro',
+  firesTitle: 'Doro hita', last24: 'Ora 24 farany', last48: 'Ora 48 farany', last72: 'Ora 72 farany',
+  lossAlertsTitle: 'Fampitandremana momba ny fahaverezan’ny rakotra', last7d: 'Andro 7 farany', last30d: 'Andro 30 farany', last90d: 'Andro 90 farany',
+  apTitle: 'Faritra arovana', noAP: 'Tsy misy faritra arovana ao amin’ity faritra ity', loading: 'Mitondra…',
+  yearlyTitle: 'Fivoaran’ny fahaverezana isan-taona', haLostPerYear: (p) => `Hektara very isan-taona · ${p}`,
+  haPerYear: (n) => ` · ≈ ${n} ha/taona`, unavailable: 'Tsy misy angona',
+  aroundTitle: 'Manodidina ny faritra arovana', periphNote: (h) => `Manodidina 5 km · ${h} ora`,
+  pctShown: (p) => `${p} % amin’ny doro aseho`, noFireShown: 'Tsy misy doro aseho',
+  top3: 'Kaominina 3 ambony indrindra', noFireZone: 'Tsy misy doro ao amin’ny faritra nofidina',
+
+  layersBtn: 'Sosona',
+  layers: { feux: 'Fanamarihana doro', perte: 'Fahaverezan’ny rakotra ala', paysages: 'Tontolo', mbv: 'Mikro-basinina', regions: 'Sisin’ny faritra', aires: 'Faritra arovana', peripheries: 'Manodidina 5 km' },
+  fonds: { satellite: 'Zanabolana', topo: 'Topografika', osm: 'OpenStreetMap' },
+  legFireAge: 'Faha-taonan’ny doro', legLess24: 'Latsaky ny 24 ora', leg24_48: '24 ka hatramin’ny 48 ora', leg48_72: '48 ka hatramin’ny 72 ora',
+  legLoss: 'Fahaverezan’ny rakotra ala', legZones: 'Faritry ny faritra arovana', legLandscapes: 'Tontolo', legMicro: 'Mikro-basinina',
+  retry: 'Andramo indray',
+
+  tipFires: 'Doro hita', tipHa: 'Velarana nopotehina', na: 'n/a', keyFire: 'doro', keyHa: 'hektara nopotehina', unitHa: 'ha',
+  popupTitle: 'Fanamarihana avy amin’ny zanabolana', popupAt: (d, h) => `${d} tamin’ny ${h} UTC`,
+  popupConf: 'Fahatokisana', popupPower: 'Heriny', popupSat: 'Zanabolana',
+  conf: { h: 'avo', n: 'antonony', l: 'ambany', na: 'n/a' },
+
+  allMadagascar: 'Madagasikara manontolo',
+  defRegion: 'Faritra', defAP: 'Faritra arovana tsy misy anarana', defCommune: 'Kaominina tsy misy anarana',
+  defLandscape: 'Tontolo tsy misy anarana', defMicro: 'Mikro-basinina tsy misy anarana',
+  errFirms: 'Tsy afaka naka ny angona FIRMS.', errGfw: 'Tsy afaka naka ny fampitandremana GFW.',
+
+  csvFires: ['daty', 'ora_utc', 'latitiota', 'longitiota', 'faritra', 'fahatokisana', 'heriny_mw', 'zanabolana', 'andro_alina'],
+  csvHisto: ['daty', 'karazana', 'anarana', 'isan_ny_doro'],
+  csvTypes: { country: 'Madagasikara', total: 'Fitambarany', region: 'Faritra', ap: 'Faritra arovana' },
+};
+
+const en: Txt = {
+  title: 'Pressure zones',
+  subtitle: 'Active fires, forest cover loss and pressure on protected areas',
+  updating: 'Updating…', offline: 'Offline', dataAt: (h) => `Data as of ${h}`,
+  refresh: 'Refresh', refreshFires: 'Refresh fires', export: 'Export',
+  exportView: 'Current view', exportViewSub: (n) => `${n} filtered fires · CSV`,
+  exportHisto: 'Monthly history',
+  exportHistoSub: (n) => `${n} day${n > 1 ? 's' : ''} recorded · CSV`,
+  exportHistoNone: 'No day recorded yet',
+
+  firePoints: 'Active fire points', period: 'Period', firePeriodAria: 'Fire period',
+  reliability: 'Reliability', confAll: 'All detections', confNominal: 'Nominal and above', confHigh: 'High only',
+  lossLayer: 'Forest cover loss', alerts: 'Alerts', alertsAria: 'Alert period',
+  years: 'Years', yearFrom: 'Start year', yearTo: 'End year', to: 'to',
+  region: 'Region', allRegions: 'All regions', protectedArea: 'Protected area',
+  allAPs: 'All protected areas', allAPsOfRegion: 'All in the region', reset: 'Reset',
+
+  noLayerTitle: 'No layer selected',
+  noLayerText: 'Tick “Active fire points” and/or “Forest cover loss” to display the statistics and the map.',
+  firesDetected: 'fires detected', lastHours: (h) => `last ${h} hours`,
+  chronoAria: 'Detections per 6-hour block',
+  chronoTip: (n, a, b) => `${n} fires · ${a} to ${b} h ago`,
+  ago72: '72 h ago', now: 'now',
+  forestLost: 'of forest cover lost', lossAria: 'Forest cover loss alerts per day',
+  lossTip: (n, d) => `${n} alerts · ${d}`,
+  alertsDays: (n, j) => `${n} alerts · last ${j} days`, today: 'today',
+
+  recentPace: 'Recent pace', keyFires: 'fires (24 / 48 / 72 h)', keyAlerts: 'alerts (7 / 30 / 90 d)',
+  row24: '24 h · 7 d', row48: '48 h · 30 d', row72: '72 h · 90 d',
+  firesTitle: 'Fires detected', last24: 'Last 24 hours', last48: 'Last 48 hours', last72: 'Last 72 hours',
+  lossAlertsTitle: 'Forest cover loss alerts', last7d: 'Last 7 days', last30d: 'Last 30 days', last90d: 'Last 90 days',
+  apTitle: 'Protected areas', noAP: 'No protected area in this region', loading: 'Loading…',
+  yearlyTitle: 'Yearly trend of the loss', haLostPerYear: (p) => `Hectares lost per year · ${p}`,
+  haPerYear: (n) => ` · ≈ ${n} ha/year`, unavailable: 'Data unavailable',
+  aroundTitle: 'Around protected areas', periphNote: (h) => `5 km peripheries · ${h} h`,
+  pctShown: (p) => `${p} % of the fires shown`, noFireShown: 'No fire shown',
+  top3: 'Top 3 municipalities', noFireZone: 'No fire in the selected area',
+
+  layersBtn: 'Layers',
+  layers: { feux: 'Fire detections', perte: 'Forest cover loss', paysages: 'Landscapes', mbv: 'Micro-watersheds', regions: 'Region boundaries', aires: 'Protected areas', peripheries: '5 km peripheries' },
+  fonds: { satellite: 'Satellite', topo: 'Topographic', osm: 'OpenStreetMap' },
+  legFireAge: 'Fire age', legLess24: 'Less than 24 h', leg24_48: '24 to 48 h', leg48_72: '48 to 72 h',
+  legLoss: 'Forest cover loss', legZones: 'Protected-area zones', legLandscapes: 'Landscapes', legMicro: 'Micro-watersheds',
+  retry: 'Retry',
+
+  tipFires: 'Fires detected', tipHa: 'Deforested area', na: 'n/a', keyFire: 'fires', keyHa: 'hectares deforested', unitHa: 'ha',
+  popupTitle: 'Satellite detection', popupAt: (d, h) => `${d} at ${h} UTC`,
+  popupConf: 'Confidence', popupPower: 'Power', popupSat: 'Satellite',
+  conf: { h: 'high', n: 'nominal', l: 'low', na: 'n/a' },
+
+  allMadagascar: 'All of Madagascar',
+  defRegion: 'Region', defAP: 'Unnamed protected area', defCommune: 'Unnamed municipality',
+  defLandscape: 'Unnamed landscape', defMicro: 'Unnamed micro-watershed',
+  errFirms: 'Unable to retrieve FIRMS data.', errGfw: 'Unable to retrieve GFW alerts.',
+
+  csvFires: ['date', 'time_utc', 'latitude', 'longitude', 'region', 'confidence', 'power_mw', 'satellite', 'day_night'],
+  csvHisto: ['date', 'type', 'name', 'number_of_fires'],
+  csvTypes: { country: 'Madagascar', total: 'Total', region: 'Region', ap: 'Protected area' },
+};
+
+const de: Txt = {
+  title: 'Druckzonen',
+  subtitle: 'Aktive Brände, Waldverlust und Druck auf die Schutzgebiete',
+  updating: 'Aktualisierung…', offline: 'Offline', dataAt: (h) => `Daten von ${h}`,
+  refresh: 'Aktualisieren', refreshFires: 'Brände aktualisieren', export: 'Exportieren',
+  exportView: 'Aktuelle Ansicht', exportViewSub: (n) => `${n} gefilterte Brände · CSV`,
+  exportHisto: 'Monatsverlauf',
+  exportHistoSub: (n) => `${n} Tag${n > 1 ? 'e' : ''} gespeichert · CSV`,
+  exportHistoNone: 'Noch kein Tag gespeichert',
+
+  firePoints: 'Aktive Brandpunkte', period: 'Zeitraum', firePeriodAria: 'Zeitraum der Brände',
+  reliability: 'Zuverlässigkeit', confAll: 'Alle Erkennungen', confNominal: 'Nominal und höher', confHigh: 'Nur hoch',
+  lossLayer: 'Waldverlust', alerts: 'Warnungen', alertsAria: 'Zeitraum der Warnungen',
+  years: 'Jahre', yearFrom: 'Startjahr', yearTo: 'Endjahr', to: 'bis',
+  region: 'Region', allRegions: 'Alle Regionen', protectedArea: 'Schutzgebiet',
+  allAPs: 'Alle Schutzgebiete', allAPsOfRegion: 'Alle der Region', reset: 'Zurücksetzen',
+
+  noLayerTitle: 'Keine Ebene ausgewählt',
+  noLayerText: 'Aktivieren Sie „Aktive Brandpunkte“ und/oder „Waldverlust“, um die Statistiken und die Karte anzuzeigen.',
+  firesDetected: 'Brände erkannt', lastHours: (h) => `letzte ${h} Stunden`,
+  chronoAria: 'Erkennungen pro 6-Stunden-Block',
+  chronoTip: (n, a, b) => `${n} Brände · vor ${a} bis ${b} h`,
+  ago72: 'vor 72 h', now: 'jetzt',
+  forestLost: 'Waldfläche verloren', lossAria: 'Waldverlust-Warnungen pro Tag',
+  lossTip: (n, d) => `${n} Warnungen · ${d}`,
+  alertsDays: (n, j) => `${n} Warnungen · letzte ${j} Tage`, today: 'heute',
+
+  recentPace: 'Aktuelle Entwicklung', keyFires: 'Brände (24 / 48 / 72 h)', keyAlerts: 'Warnungen (7 / 30 / 90 T.)',
+  row24: '24 h · 7 T.', row48: '48 h · 30 T.', row72: '72 h · 90 T.',
+  firesTitle: 'Erkannte Brände', last24: 'Letzte 24 Stunden', last48: 'Letzte 48 Stunden', last72: 'Letzte 72 Stunden',
+  lossAlertsTitle: 'Waldverlust-Warnungen', last7d: 'Letzte 7 Tage', last30d: 'Letzte 30 Tage', last90d: 'Letzte 90 Tage',
+  apTitle: 'Schutzgebiete', noAP: 'Kein Schutzgebiet in dieser Region', loading: 'Wird geladen…',
+  yearlyTitle: 'Jährliche Entwicklung des Verlusts', haLostPerYear: (p) => `Verlorene Hektar pro Jahr · ${p}`,
+  haPerYear: (n) => ` · ≈ ${n} ha/Jahr`, unavailable: 'Daten nicht verfügbar',
+  aroundTitle: 'Rund um die Schutzgebiete', periphNote: (h) => `5-km-Randgebiete · ${h} h`,
+  pctShown: (p) => `${p} % der angezeigten Brände`, noFireShown: 'Kein Brand angezeigt',
+  top3: 'Top 3 der Gemeinden', noFireZone: 'Kein Brand im gewählten Gebiet',
+
+  layersBtn: 'Ebenen',
+  layers: { feux: 'Branderkennungen', perte: 'Waldverlust', paysages: 'Landschaften', mbv: 'Mikroeinzugsgebiete', regions: 'Regionsgrenzen', aires: 'Schutzgebiete', peripheries: '5-km-Randgebiete' },
+  fonds: { satellite: 'Satellit', topo: 'Topografisch', osm: 'OpenStreetMap' },
+  legFireAge: 'Alter der Brände', legLess24: 'Weniger als 24 h', leg24_48: '24 bis 48 h', leg48_72: '48 bis 72 h',
+  legLoss: 'Waldverlust', legZones: 'Zonen des Schutzgebiets', legLandscapes: 'Landschaften', legMicro: 'Mikroeinzugsgebiete',
+  retry: 'Erneut versuchen',
+
+  tipFires: 'Erkannte Brände', tipHa: 'Entwaldete Fläche', na: 'k. A.', keyFire: 'Brände', keyHa: 'Hektar entwaldet', unitHa: 'ha',
+  popupTitle: 'Satellitenerkennung', popupAt: (d, h) => `${d} um ${h} UTC`,
+  popupConf: 'Konfidenz', popupPower: 'Leistung', popupSat: 'Satellit',
+  conf: { h: 'hoch', n: 'nominal', l: 'niedrig', na: 'k. A.' },
+
+  allMadagascar: 'Ganz Madagaskar',
+  defRegion: 'Region', defAP: 'Schutzgebiet ohne Namen', defCommune: 'Gemeinde ohne Namen',
+  defLandscape: 'Landschaft ohne Namen', defMicro: 'Mikroeinzugsgebiet ohne Namen',
+  errFirms: 'FIRMS-Daten konnten nicht abgerufen werden.', errGfw: 'GFW-Warnungen konnten nicht abgerufen werden.',
+
+  csvFires: ['datum', 'uhrzeit_utc', 'breitengrad', 'laengengrad', 'region', 'konfidenz', 'leistung_mw', 'satellit', 'tag_nacht'],
+  csvHisto: ['datum', 'typ', 'name', 'anzahl_braende'],
+  csvTypes: { country: 'Madagaskar', total: 'Gesamt', region: 'Region', ap: 'Schutzgebiet' },
+};
+
+const TEXT: Record<string, Txt> = { fr, mg, en, de };
+const LOCALES: Record<string, string> = { fr: 'fr-FR', en: 'en-GB', de: 'de-DE', mg: 'fr-FR' };
+const makeNf = (loc: string) => (n: number) => n.toLocaleString(loc);
 
 /* =====================================================================
    TYPES & CONSTANTES
@@ -61,31 +312,24 @@ const CLE_NOM_MBV: string | null = 'Nom';
 const CANDIDATS_PAYSAGE = ['paysage', 'nom_paysage', 'nom', 'name'];
 const CANDIDATS_MBV = ['nom', 'nom_mbv', 'mbv', 'name'];
 
-const FONDS: Record<
-  string,
-  { label: string; url: string; attribution: string; apercu: string }
-> = {
+// Les libellés des fonds de carte sont dans les traductions (t.fonds)
+const FONDS: Record<string, { url: string; attribution: string; apercu: string }> = {
   satellite: {
-    label: 'Satellite',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles © Esri',
     apercu: 'linear-gradient(135deg,#2c4a33,#7d8a52)',
   },
   topo: {
-    label: 'Topographique',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
     attribution: 'Tiles © Esri',
     apercu: 'linear-gradient(135deg,#cfe3c0,#e8d9b0)',
   },
   osm: {
-    label: 'OpenStreetMap',
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '© OpenStreetMap',
     apercu: 'linear-gradient(135deg,#e9e2cf,#b7d1a0)',
   },
 };
-
-const nf = (n: number) => n.toLocaleString('fr-FR');
 
 const couleurAge = (age: number) =>
   age <= 24 ? 'rgb(200,15,15)' : age <= 48 ? '#f97316' : '#facc15';
@@ -94,7 +338,7 @@ const COULEUR_PERTE = '#dc6c9a';
 
 // Somme des hectares perdus entre deux années
 const sommeAnnees = (rows: PerteAn[] | null, debut: number, fin: number) =>
-  rows ? rows.filter((a) => a.annee >= debut && a.annee <= fin).reduce((t, a) => t + a.ha, 0) : null;
+  rows ? rows.filter((a) => a.annee >= debut && a.annee <= fin).reduce((s, a) => s + a.ha, 0) : null;
 
 // Tri : par nombre de feux si la couche feux est active, sinon par hectares
 const comparer = (parFeux: boolean) => (a: LigneMixte, b: LigneMixte) =>
@@ -389,7 +633,7 @@ function CoucheZones({
   return null;
 }
 
-function CoucheFeux({ feux }: { feux: Feu[] }) {
+function CoucheFeux({ feux, t, loc }: { feux: Feu[]; t: Txt; loc: string }) {
   const map = useMap();
 
   useEffect(() => {
@@ -408,13 +652,13 @@ function CoucheFeux({ feux }: { feux: Feu[] }) {
         renderer,
       });
       m.bindPopup(() => {
-        const conf = f.conf === 'h' ? 'élevée' : f.conf === 'n' ? 'nominale' : f.conf === 'l' ? 'faible' : 'n/d';
-        const jr = new Date(f.t).toLocaleDateString('fr-FR');
-        return `<div style="font:13px/1.5 system-ui"><strong>Détection satellite</strong><br/>
-          ${jr} à ${f.heure} UTC<br/>
-          Confiance : ${conf}<br/>
-          ${f.frp != null ? `Puissance : ${f.frp} MW<br/>` : ''}
-          ${f.sat ? `Satellite : ${f.sat}` : ''}</div>`;
+        const conf = t.conf[f.conf ?? 'na'];
+        const jr = new Date(f.t).toLocaleDateString(loc);
+        return `<div style="font:13px/1.5 system-ui"><strong>${t.popupTitle}</strong><br/>
+          ${t.popupAt(jr, f.heure)}<br/>
+          ${t.popupConf} : ${conf}<br/>
+          ${f.frp != null ? `${t.popupPower} : ${f.frp} MW<br/>` : ''}
+          ${f.sat ? `${t.popupSat} : ${f.sat}` : ''}</div>`;
       });
       m.addTo(groupe);
     });
@@ -429,7 +673,7 @@ function CoucheFeux({ feux }: { feux: Feu[] }) {
       map.off('zoomend', maj);
       map.removeLayer(groupe);
     };
-  }, [feux, map]);
+  }, [feux, t, loc, map]);
 
   return null;
 }
@@ -497,11 +741,15 @@ function ListeMixte({
   vide,
   feux,
   perte,
+  t,
+  nf,
 }: {
   items: LigneMixte[];
   vide: string;
   feux: boolean;
   perte: boolean;
+  t: Txt;
+  nf: (n: number) => string;
 }) {
   if (!items.length) return <p className="pr-vide">{vide}</p>;
   return (
@@ -512,13 +760,13 @@ function ListeMixte({
             <span>{i.nom}</span>
             <span className="pr-vals">
               {feux && (
-                <strong className="pr-v pr-v-feu" title="Feux détectés">
+                <strong className="pr-v pr-v-feu" title={t.tipFires}>
                   {nf(i.feux ?? 0)}
                 </strong>
               )}
               {perte && (
-                <strong className="pr-v pr-v-ha" title="Superficie déboisée">
-                  {i.err ? 'n/d' : i.ha == null ? '…' : `${nf(Math.round(i.ha))} ha`}
+                <strong className="pr-v pr-v-ha" title={t.tipHa}>
+                  {i.err ? t.na : i.ha == null ? '…' : `${nf(Math.round(i.ha))} ${t.unitHa}`}
                 </strong>
               )}
             </span>
@@ -539,12 +787,12 @@ function ListeMixte({
 }
 
 // Rappel des deux pastilles quand les deux couches sont actives
-function Cle({ feux, perte }: { feux: boolean; perte: boolean }) {
+function Cle({ feux, perte, t }: { feux: boolean; perte: boolean; t: Txt }) {
   if (!feux || !perte) return null;
   return (
     <p className="pr-cle">
-      <span className="pr-v pr-v-feu">feux</span>
-      <span className="pr-v pr-v-ha">hectares déboisés</span>
+      <span className="pr-v pr-v-feu">{t.keyFire}</span>
+      <span className="pr-v pr-v-ha">{t.keyHa}</span>
     </p>
   );
 }
@@ -566,6 +814,12 @@ function Redimension() {
    ===================================================================== */
 
 export default function Pression() {
+  // ---- Langue
+  const { lang } = useLanguage();
+  const t: Txt = TEXT[lang as string] ?? TEXT.fr;
+  const loc = LOCALES[lang as string] ?? 'fr-FR';
+  const nf = useMemo(() => makeNf(loc), [loc]);
+
   // ---- Filtres
   const [region, setRegion] = useState(TOUS);
   const [ap, setAp] = useState(TOUS);
@@ -600,42 +854,42 @@ export default function Pression() {
   const paysageData = useGeoJSON('/data/paddi_paysage.geojson');
   const mbvData = useGeoJSON('/data/paddi_mbv.geojson');
 
-  const regionsZ = useMemo(() => preparerZones(regionsData, 'nom_reg', 'Région'), [regionsData]);
-  const apZ = useMemo(() => preparerZones(apData, 'nom_ap', 'Aire protégée sans nom'), [apData]);
+  const regionsZ = useMemo(() => preparerZones(regionsData, 'nom_reg', t.defRegion), [regionsData, t.defRegion]);
+  const apZ = useMemo(() => preparerZones(apData, 'nom_ap', t.defAP), [apData, t.defAP]);
   const periphZ = useMemo(() => preparerZones(periphData, 'nom_ap', ''), [periphData]);
   const communesZ = useMemo(
-    () => preparerZones(communesData, 'NAME_4', 'Commune sans nom'),
-    [communesData]
+    () => preparerZones(communesData, 'NAME_4', t.defCommune),
+    [communesData, t.defCommune]
   );
 
   const paysagesZ = useMemo(
-    () => preparerZonesAuto(paysageData, CANDIDATS_PAYSAGE, CLE_NOM_PAYSAGE, 'Paysage sans nom'),
-    [paysageData]
+    () => preparerZonesAuto(paysageData, CANDIDATS_PAYSAGE, CLE_NOM_PAYSAGE, t.defLandscape),
+    [paysageData, t.defLandscape]
   );
   const mbvZ = useMemo(
-    () => preparerZonesAuto(mbvData, CANDIDATS_MBV, CLE_NOM_MBV, 'Micro-bassin sans nom'),
-    [mbvData]
+    () => preparerZonesAuto(mbvData, CANDIDATS_MBV, CLE_NOM_MBV, t.defMicro),
+    [mbvData, t.defMicro]
   );
 
   // ---- Feux NASA FIRMS
   const [feuxBruts, setFeuxBruts] = useState<any[]>([]);
   const [chargement, setChargement] = useState(true);
-  const [erreur, setErreur] = useState('');
+  const [erreur, setErreur] = useState(false); // le message affiché vient des traductions (t.errFirms)
   const [derniereMaj, setDerniereMaj] = useState<number | null>(null);
   const [maintenant, setMaintenant] = useState(Date.now());
 
   const chargerFeux = useCallback(async () => {
     try {
       setChargement(true);
-      setErreur('');
+      setErreur(false);
       const rep = await fetch('/api/firms');
-      if (!rep.ok) throw new Error('Impossible de récupérer les données FIRMS.');
+      if (!rep.ok) throw new Error('FIRMS');
       const geojson = await rep.json();
       setFeuxBruts(Array.isArray(geojson.features) ? geojson.features : []);
       setDerniereMaj(Date.now());
     } catch (e) {
       console.error(e);
-      setErreur(e instanceof Error ? e.message : 'Erreur inconnue');
+      setErreur(true);
     } finally {
       setChargement(false);
     }
@@ -805,9 +1059,7 @@ export default function Pression() {
   }, [feux, regionsZ, apZ]);
 
   const exporterVue = () => {
-    const lignes: (string | number)[][] = [
-      ['date', 'heure_utc', 'latitude', 'longitude', 'region', 'confiance', 'puissance_mw', 'satellite', 'jour_nuit'],
-    ];
+    const lignes: (string | number)[][] = [t.csvFires];
     feuxAffiches.forEach((f) => {
       const r = regionZone?.nom || regionsZ.find((z) => dansZone(f.lon, f.lat, z))?.nom || '';
       lignes.push([
@@ -816,7 +1068,7 @@ export default function Pression() {
         f.lat,
         f.lon,
         r,
-        f.conf === 'h' ? 'élevée' : f.conf === 'n' ? 'nominale' : f.conf === 'l' ? 'faible' : '',
+        f.conf ? t.conf[f.conf] : '',
         f.frp ?? '',
         f.sat,
         f.jn,
@@ -828,14 +1080,14 @@ export default function Pression() {
 
   const exporterHistorique = () => {
     const histo = lireHisto();
-    const lignes: (string | number)[][] = [['date', 'type', 'nom', 'nombre_de_feux']];
+    const lignes: (string | number)[][] = [t.csvHisto];
     Object.keys(histo)
       .sort()
       .forEach((jour) => {
         const h = histo[jour];
-        lignes.push([jour, 'Madagascar', 'Total', h.total]);
-        Object.entries(h.regions).forEach(([n, v]) => lignes.push([jour, 'Région', n, v]));
-        Object.entries(h.aps).forEach(([n, v]) => lignes.push([jour, 'Aire protégée', n, v]));
+        lignes.push([jour, t.csvTypes.country, t.csvTypes.total, h.total]);
+        Object.entries(h.regions).forEach(([n, v]) => lignes.push([jour, t.csvTypes.region, n, v]));
+        Object.entries(h.aps).forEach(([n, v]) => lignes.push([jour, t.csvTypes.ap, n, v]));
       });
     telechargerCSV(`feux_historique_${new Date().toISOString().slice(0, 10)}.csv`, lignes);
     setMenu(null);
@@ -868,10 +1120,10 @@ export default function Pression() {
     [apsVisibles]
   );
 
-  const portee = apZone ? apZone.nom : region !== TOUS ? region : 'Tout Madagascar';
+  const portee = apZone ? apZone.nom : region !== TOUS ? region : t.allMadagascar;
   const maxBloc = Math.max(1, ...chronologie);
   const heureMaj = derniereMaj
-    ? new Date(derniereMaj).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+    ? new Date(derniereMaj).toLocaleTimeString(loc, { hour: '2-digit', minute: '2-digit' })
     : '—';
 
   // Texte de période affiché sous les titres des cartes (selon les couches cochées)
@@ -885,26 +1137,26 @@ export default function Pression() {
   // ---- Déforestation : alertes GFW (une requête par région, 90 jours) -------
   const [alertes, setAlertes] = useState<any | null>(null);
   const [chargAlertes, setChargAlertes] = useState(false);
-  const [erreurAlertes, setErreurAlertes] = useState('');
+  const [erreurAlertes, setErreurAlertes] = useState(false); // message : t.errGfw
 
   useEffect(() => {
     if (!showPerte) return;
     const ctrl = new AbortController();
     setAlertes(null);
-    setErreurAlertes('');
+    setErreurAlertes(false);
     setChargAlertes(true);
     fetch(`/api/gfw?region=${encodeURIComponent(region === TOUS ? 'all' : region)}&jours=90`, {
       signal: ctrl.signal,
     })
       .then((r) => {
-        if (!r.ok) throw new Error('Impossible de récupérer les alertes GFW.');
+        if (!r.ok) throw new Error('GFW');
         return r.json();
       })
       .then((j) => setAlertes(j))
       .catch((e) => {
         if (e.name !== 'AbortError') {
           console.error(e);
-          setErreurAlertes(e instanceof Error ? e.message : 'Erreur inconnue');
+          setErreurAlertes(true);
         }
       })
       .finally(() => {
@@ -918,12 +1170,12 @@ export default function Pression() {
     const lignes = toutes.filter((l) => rangAlerte(l.confiance) >= RANG[confiance]);
     const depuis = (j: number) => new Date(Date.now() - j * 864e5).toISOString().slice(0, 10);
     const somme = (j: number, cle: 'alertes' | 'ha') =>
-      lignes.filter((l) => l.date >= depuis(j)).reduce((t, l) => t + (l[cle] || 0), 0);
+      lignes.filter((l) => l.date >= depuis(j)).reduce((s, l) => s + (l[cle] || 0), 0);
 
     const jours: { date: string; n: number }[] = [];
     for (let i = joursDef - 1; i >= 0; i--) {
       const d = depuis(i);
-      jours.push({ date: d, n: lignes.filter((l) => l.date === d).reduce((t, l) => t + l.alertes, 0) });
+      jours.push({ date: d, n: lignes.filter((l) => l.date === d).reduce((s, l) => s + l.alertes, 0) });
     }
 
     return {
@@ -1041,14 +1293,9 @@ export default function Pression() {
     fillOpacity: 0.16,
   });
 
-  const optionsCouches: [keyof typeof couches, string][] = [
-    ['feux', 'Détections de feux'],
-    ['perte', 'Perte de couvert forestier'],
-    ['paysages', 'Paysages'],
-    ['mbv', 'Micro-bassins'],
-    ['regions', 'Limites des régions'],
-    ['aires', 'Aires protégées'],
-    ['peripheries', 'Périphéries de 5 km'],
+  // Les libellés viennent des traductions (t.layers)
+  const optionsCouches: (keyof typeof couches)[] = [
+    'feux', 'perte', 'paysages', 'mbv', 'regions', 'aires', 'peripheries',
   ];
 
   const lignesAPCliquables = lignesAP.map((a) => ({
@@ -1074,37 +1321,31 @@ export default function Pression() {
               </svg>
             </div>
             <div>
-              <h1 className="pr-titre">Zones de pression</h1>
-              <p className="pr-sous">
-                Feux actifs, perte de couvert forestier et pression sur les aires protégées
-              </p>
+              <h1 className="pr-titre">{t.title}</h1>
+              <p className="pr-sous">{t.subtitle}</p>
             </div>
           </div>
 
           <div className="pr-actions">
             <span className={`pr-etat ${erreur ? 'err' : ''}`}>
-              <i /> {chargement ? 'Mise à jour…' : erreur ? 'Hors ligne' : `Données de ${heureMaj}`}
+              <i /> {chargement ? t.updating : erreur ? t.offline : t.dataAt(heureMaj)}
             </span>
-            <button className="pr-btn" onClick={chargerFeux} disabled={chargement} title="Actualiser les feux">
-              Actualiser
+            <button className="pr-btn" onClick={chargerFeux} disabled={chargement} title={t.refreshFires}>
+              {t.refresh}
             </button>
             <div className="pr-menu-wrap">
               <button className="pr-btn pr-btn-plein" onClick={() => setMenu(menu === 'export' ? null : 'export')}>
-                Exporter
+                {t.export}
               </button>
               {menu === 'export' && (
                 <div className="pr-pop pr-pop-droite">
                   <button className="pr-pop-item" onClick={exporterVue} disabled={!feuxAffiches.length}>
-                    <strong>Vue actuelle</strong>
-                    <span>{nf(feuxAffiches.length)} feux filtrés · CSV</span>
+                    <strong>{t.exportView}</strong>
+                    <span>{t.exportViewSub(nf(feuxAffiches.length))}</span>
                   </button>
                   <button className="pr-pop-item" onClick={exporterHistorique} disabled={!nbJoursHisto}>
-                    <strong>Historique du mois</strong>
-                    <span>
-                      {nbJoursHisto
-                        ? `${nbJoursHisto} jour${nbJoursHisto > 1 ? 's' : ''} enregistré${nbJoursHisto > 1 ? 's' : ''} · CSV`
-                        : 'Aucun jour enregistré pour l’instant'}
-                    </span>
+                    <strong>{t.exportHisto}</strong>
+                    <span>{nbJoursHisto ? t.exportHistoSub(nbJoursHisto) : t.exportHistoNone}</span>
                   </button>
                 </div>
               )}
@@ -1117,13 +1358,13 @@ export default function Pression() {
           <div className="pr-fgroupe pr-fgauche">
             <label className={`pr-chk ${showFeux ? 'on' : ''}`}>
               <input type="checkbox" checked={showFeux} onChange={() => setShowFeux((v) => !v)} />
-              Points de feux actifs
+              {t.firePoints}
             </label>
             <div className="pr-fctl">
               {showFeux && (
                 <div className="pr-inl">
-                  <span>Période</span>
-                  <div className="pr-seg" role="group" aria-label="Période des feux">
+                  <span>{t.period}</span>
+                  <div className="pr-seg" role="group" aria-label={t.firePeriodAria}>
                     {([24, 48, 72] as const).map((h) => (
                       <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
                         {h} h
@@ -1133,41 +1374,41 @@ export default function Pression() {
                 </div>
               )}
               <div className="pr-inl">
-                <span>Fiabilité</span>
+                <span>{t.reliability}</span>
                 <select
                   value={confiance}
                   disabled={!showFeux && !showPerte}
                   onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}
                 >
-                  <option value="l">Toutes les détections</option>
-                  <option value="n">Nominale et plus</option>
-                  <option value="h">Élevée seulement</option>
+                  <option value="l">{t.confAll}</option>
+                  <option value="n">{t.confNominal}</option>
+                  <option value="h">{t.confHigh}</option>
                 </select>
               </div>
             </div>
 
             <label className={`pr-chk perte ${showPerte ? 'on' : ''}`}>
               <input type="checkbox" checked={showPerte} onChange={() => setShowPerte((v) => !v)} />
-              Perte de couvert forestier
+              {t.lossLayer}
             </label>
             <div className="pr-fctl">
               {showPerte && (
                 <>
                   <div className="pr-inl">
-                    <span>Alertes</span>
-                    <div className="pr-seg" role="group" aria-label="Période des alertes">
+                    <span>{t.alerts}</span>
+                    <div className="pr-seg" role="group" aria-label={t.alertsAria}>
                       {([7, 30, 90] as const).map((j) => (
                         <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
-                          {j} j
+                          {j} {lang === 'mg' ? 'andro' : lang === 'en' ? 'd' : lang === 'de' ? 'T.' : 'j'}
                         </button>
                       ))}
                     </div>
                   </div>
                   <div className="pr-inl">
-                    <span>Années</span>
+                    <span>{t.years}</span>
                     <div className="pr-annees">
                       <select
-                        aria-label="Année de début"
+                        aria-label={t.yearFrom}
                         value={anneeDebut}
                         onChange={(e) => {
                           const v = Number(e.target.value);
@@ -1181,9 +1422,9 @@ export default function Pression() {
                           </option>
                         ))}
                       </select>
-                      <span>à</span>
+                      <span>{t.to}</span>
                       <select
-                        aria-label="Année de fin"
+                        aria-label={t.yearTo}
                         value={anneeFin}
                         onChange={(e) => {
                           const v = Number(e.target.value);
@@ -1207,9 +1448,9 @@ export default function Pression() {
           {/* Colonne de droite : filtres géographiques et fiabilité */}
           <div className="pr-fdroite">
             <label className="pr-champ">
-              <span>Région</span>
+              <span>{t.region}</span>
               <select value={region} onChange={(e) => choisirRegion(e.target.value)}>
-                <option value={TOUS}>Toutes les régions</option>
+                <option value={TOUS}>{t.allRegions}</option>
                 {nomsRegions.map((r) => (
                   <option key={r} value={r}>
                     {r}
@@ -1219,10 +1460,10 @@ export default function Pression() {
             </label>
 
             <label className="pr-champ">
-              <span>Aire protégée</span>
+              <span>{t.protectedArea}</span>
               <select value={apZone ? ap : TOUS} onChange={(e) => setAp(e.target.value)}>
                 <option value={TOUS}>
-                  {region === TOUS ? 'Toutes les aires protégées' : 'Toutes celles de la région'}
+                  {region === TOUS ? t.allAPs : t.allAPsOfRegion}
                 </option>
                 {nomsAP.map((n) => (
                   <option key={n} value={n}>
@@ -1234,7 +1475,7 @@ export default function Pression() {
 
             {filtresModifies && (
               <button className="pr-reset" onClick={reinitialiser}>
-                Réinitialiser
+                {t.reset}
               </button>
             )}
           </div>
@@ -1247,8 +1488,8 @@ export default function Pression() {
         <aside className="pr-panel">
           {!showFeux && !showPerte && (
             <section className="pr-attente-theme">
-              <h2>Aucune couche sélectionnée</h2>
-              <p>Cochez « Points de feux actifs » et/ou « Perte de couvert forestier » pour afficher les statistiques et la carte.</p>
+              <h2>{t.noLayerTitle}</h2>
+              <p>{t.noLayerText}</p>
             </section>
           )}
 
@@ -1261,18 +1502,18 @@ export default function Pression() {
                     <div className="pr-hero-haut">
                       <div className="pr-hero-nb">{nf(feuxAffiches.length)}</div>
                       <div className="pr-hero-txt">
-                        <strong>feux détectés</strong>
+                        <strong>{t.firesDetected}</strong>
                         <span>
-                          {portee} · {periode} dernières heures
+                          {portee} · {t.lastHours(periode)}
                         </span>
                       </div>
                     </div>
-                    <div className="pr-chrono" role="img" aria-label="Détections par tranche de 6 heures">
+                    <div className="pr-chrono" role="img" aria-label={t.chronoAria}>
                       {[...chronologie]
                         .map((n, i) => ({ n, i }))
                         .reverse()
                         .map(({ n, i }) => (
-                          <div key={i} className="pr-chrono-col" title={`${n} feux · il y a ${i * 6} à ${i * 6 + 6} h`}>
+                          <div key={i} className="pr-chrono-col" title={t.chronoTip(n, i * 6, i * 6 + 6)}>
                             <div
                               className="pr-chrono-barre"
                               style={{
@@ -1285,8 +1526,8 @@ export default function Pression() {
                         ))}
                     </div>
                     <div className="pr-chrono-legende">
-                      <span>il y a 72 h</span>
-                      <span>maintenant</span>
+                      <span>{t.ago72}</span>
+                      <span>{t.now}</span>
                     </div>
                   </div>
                 )}
@@ -1295,23 +1536,23 @@ export default function Pression() {
                   <div className="pr-hero-bloc perte">
                     <div className="pr-hero-haut">
                       <div className="pr-hero-nb">
-                        {defPerte.erreur ? 'n/d' : defPerte.total == null ? '…' : nf(Math.round(defPerte.total))}
-                        {defPerte.total != null && <small>ha</small>}
+                        {defPerte.erreur ? t.na : defPerte.total == null ? '…' : nf(Math.round(defPerte.total))}
+                        {defPerte.total != null && <small>{t.unitHa}</small>}
                       </div>
                       <div className="pr-hero-txt">
-                        <strong>de couvert forestier perdu</strong>
+                        <strong>{t.forestLost}</strong>
                         <span>
                           {portee} · {anneeDebut} – {anneeFin}
                         </span>
                       </div>
                     </div>
                     {erreurAlertes ? (
-                      <p className="pr-vide">{erreurAlertes}</p>
+                      <p className="pr-vide">{t.errGfw}</p>
                     ) : (
                       <>
-                        <div className="pr-chrono" role="img" aria-label="Alertes de perte de couvert par jour">
+                        <div className="pr-chrono" role="img" aria-label={t.lossAria}>
                           {defStats.jours.map((j) => (
-                            <div key={j.date} className="pr-chrono-col" title={`${j.n} alertes · ${j.date}`}>
+                            <div key={j.date} className="pr-chrono-col" title={t.lossTip(j.n, j.date)}>
                               <div
                                 className="pr-chrono-barre"
                                 style={{
@@ -1323,10 +1564,8 @@ export default function Pression() {
                           ))}
                         </div>
                         <div className="pr-chrono-legende">
-                          <span>
-                            {chargAlertes ? '…' : nf(defStats.total)} alertes · {joursDef} derniers jours
-                          </span>
-                          <span>aujourd’hui</span>
+                          <span>{t.alertsDays(chargAlertes ? '…' : nf(defStats.total), joursDef)}</span>
+                          <span>{t.today}</span>
                         </div>
                       </>
                     )}
@@ -1337,19 +1576,19 @@ export default function Pression() {
               <div className="pr-grille">
                 {/* CARTE 1 : rythme récent (barres des deux couches superposées) */}
                 <article className="pr-carte c1">
-                  <h2>Rythme récent</h2>
+                  <h2>{t.recentPace}</h2>
                   <p className="pr-note">{portee}</p>
 
                   {showFeux && showPerte && (
                     <>
                       <p className="pr-cle">
-                        <span className="pr-v pr-v-feu">feux (24 / 48 / 72 h)</span>
-                        <span className="pr-v pr-v-ha">alertes (7 / 30 / 90 j)</span>
+                        <span className="pr-v pr-v-feu">{t.keyFires}</span>
+                        <span className="pr-v pr-v-ha">{t.keyAlerts}</span>
                       </p>
                       {[
-                        ['24 h · 7 j', stats24, defStats.p7],
-                        ['48 h · 30 j', stats48, defStats.p30],
-                        ['72 h · 90 j', stats72, defStats.p90],
+                        [t.row24, stats24, defStats.p7],
+                        [t.row48, stats48, defStats.p30],
+                        [t.row72, stats72, defStats.p90],
                       ].map(([label, f, al]) => (
                         <div className="pr-ligne-barre" key={label as string}>
                           <div className="pr-ligne">
@@ -1372,11 +1611,11 @@ export default function Pression() {
 
                   {showFeux && !showPerte && (
                     <>
-                      <h3 className="pr-sstitre">Feux détectés</h3>
+                      <h3 className="pr-sstitre">{t.firesTitle}</h3>
                       {[
-                        ['24 dernières heures', stats24, 'rgb(200,15,15)'],
-                        ['48 dernières heures', stats48, '#f97316'],
-                        ['72 dernières heures', stats72, '#facc15'],
+                        [t.last24, stats24, 'rgb(200,15,15)'],
+                        [t.last48, stats48, '#f97316'],
+                        [t.last72, stats72, '#facc15'],
                       ].map(([label, val, col]) => (
                         <div className="pr-ligne-barre" key={label as string}>
                           <div className="pr-ligne">
@@ -1393,11 +1632,11 @@ export default function Pression() {
 
                   {showPerte && !showFeux && (
                     <>
-                      <h3 className="pr-sstitre">Alertes de perte de couvert</h3>
+                      <h3 className="pr-sstitre">{t.lossAlertsTitle}</h3>
                       {[
-                        ['7 derniers jours', defStats.p7, 'rgb(200,15,15)'],
-                        ['30 derniers jours', defStats.p30, '#f97316'],
-                        ['90 derniers jours', defStats.p90, '#facc15'],
+                        [t.last7d, defStats.p7, 'rgb(200,15,15)'],
+                        [t.last30d, defStats.p30, '#f97316'],
+                        [t.last90d, defStats.p90, '#facc15'],
                       ].map(([label, val, col]) => (
                         <div className="pr-ligne-barre" key={label as string}>
                           <div className="pr-ligne">
@@ -1415,35 +1654,37 @@ export default function Pression() {
 
                 {/* CARTE 2 : aires protégées */}
                 <article className="pr-carte c2">
-                  <h2>Aires protégées</h2>
+                  <h2>{t.apTitle}</h2>
                   <p className="pr-note">
-                    {region === TOUS ? 'Toutes les régions' : region} · {notePeriode}
+                    {region === TOUS ? t.allRegions : region} · {notePeriode}
                   </p>
-                  <Cle feux={showFeux} perte={showPerte} />
+                  <Cle feux={showFeux} perte={showPerte} t={t} />
                   <ListeMixte
                     items={lignesAPCliquables}
                     feux={showFeux}
                     perte={showPerte}
-                    vide={apZ.length ? 'Aucune aire protégée dans cette région' : 'Chargement…'}
+                    t={t}
+                    nf={nf}
+                    vide={apZ.length ? t.noAP : t.loading}
                   />
                 </article>
 
                 {/* CARTE 5 : évolution annuelle de la perte */}
                 {showPerte && (
                   <article className="pr-carte c5">
-                    <h2>Évolution annuelle de la perte</h2>
+                    <h2>{t.yearlyTitle}</h2>
                     <p className="pr-note">
-                      Hectares perdus par an · {portee}
-                      {defPerte.total != null && ` · ≈ ${nf(Math.round(defPerte.total / defPerte.nbAnnees))} ha/an`}
+                      {t.haLostPerYear(portee)}
+                      {defPerte.total != null && t.haPerYear(nf(Math.round(defPerte.total / defPerte.nbAnnees)))}
                     </p>
                     {defPerte.erreur ? (
-                      <p className="pr-vide">Données indisponibles</p>
+                      <p className="pr-vide">{t.unavailable}</p>
                     ) : (
                       defPerte.parAnnee.map((a) => (
                         <div className="pr-ligne-barre" key={a.annee}>
                           <div className="pr-ligne">
                             <span>{a.annee}</span>
-                            <strong>{defPerte.total == null ? '…' : `${nf(Math.round(a.ha))} ha`}</strong>
+                            <strong>{defPerte.total == null ? '…' : `${nf(Math.round(a.ha))} ${t.unitHa}`}</strong>
                           </div>
                           <div className="pr-barre">
                             <i style={{ width: `${(a.ha / defPerte.maxAn) * 100}%`, background: COULEUR_PERTE }} />
@@ -1457,15 +1698,15 @@ export default function Pression() {
                 {/* CARTE 6 : périphéries de 5 km + communes */}
                 {showFeux && (
                   <article className="pr-carte c6">
-                    <h2>Autour des aires protégées</h2>
-                    <p className="pr-note">Périphéries de 5 km · {periode} h</p>
+                    <h2>{t.aroundTitle}</h2>
+                    <p className="pr-note">{t.periphNote(periode)}</p>
                     <div className="pr-grand">{nf(feuxPeriph.length)}</div>
                     <p className="pr-note">
                       {feuxAffiches.length
-                        ? `${Math.round((feuxPeriph.length / feuxAffiches.length) * 100)} % des feux affichés`
-                        : 'Aucun feu affiché'}
+                        ? t.pctShown(Math.round((feuxPeriph.length / feuxAffiches.length) * 100))
+                        : t.noFireShown}
                     </p>
-                    <h3 className="pr-sstitre">Top 3 des communes</h3>
+                    <h3 className="pr-sstitre">{t.top3}</h3>
                     {topCommunes.length ? (
                       topCommunes.map((c, i) => (
                         <div className="pr-ligne-barre" key={c.nom + i}>
@@ -1482,7 +1723,7 @@ export default function Pression() {
                       ))
                     ) : (
                       <p className="pr-vide">
-                        {communesZ.length ? 'Aucun feu dans la zone choisie' : 'Chargement…'}
+                        {communesZ.length ? t.noFireZone : t.loading}
                       </p>
                     )}
                   </article>
@@ -1527,7 +1768,7 @@ export default function Pression() {
                 onClick={(z) => setAp(z.nom === ap ? TOUS : z.nom)}
               />
             )}
-            {showFeux && couches.feux && <CoucheFeux feux={feuxAffiches} />}
+            {showFeux && couches.feux && <CoucheFeux feux={feuxAffiches} t={t} loc={loc} />}
           </MapContainer>
 
           {/* Barre d'outils : fond de carte + couches */}
@@ -1535,7 +1776,7 @@ export default function Pression() {
             <div className="pr-menu-wrap">
               <button className="pr-outil" onClick={() => setMenu(menu === 'fond' ? null : 'fond')}>
                 <span className="pr-apercu" style={{ background: FONDS[fond].apercu }} />
-                {FONDS[fond].label}
+                {t.fonds[fond as keyof Txt['fonds']]}
               </button>
               {menu === 'fond' && (
                 <div className="pr-pop pr-pop-droite">
@@ -1549,7 +1790,7 @@ export default function Pression() {
                       }}
                     >
                       <span className="pr-apercu grand" style={{ background: f.apercu }} />
-                      <strong>{f.label}</strong>
+                      <strong>{t.fonds[id as keyof Txt['fonds']]}</strong>
                       {fond === id && <span className="pr-fond-check">✓</span>}
                     </button>
                   ))}
@@ -1559,22 +1800,22 @@ export default function Pression() {
 
             <div className="pr-menu-wrap">
               <button className="pr-outil" onClick={() => setMenu(menu === 'couches' ? null : 'couches')}>
-                Couches
+                {t.layersBtn}
               </button>
               {menu === 'couches' && (
                 <div className="pr-pop pr-pop-droite">
                   {optionsCouches
-                    .filter(([id]) =>
+                    .filter((id) =>
                       id === 'feux' ? showFeux : id === 'perte' ? showPerte : true
                     )
-                    .map(([id, label]) => (
+                    .map((id) => (
                     <label key={id} className="pr-check">
                       <input
                         type="checkbox"
                         checked={couches[id]}
                         onChange={() => setCouches((c) => ({ ...c, [id]: !c[id] }))}
                       />
-                      <span>{label}</span>
+                      <span>{t.layers[id]}</span>
                     </label>
                   ))}
                 </div>
@@ -1589,18 +1830,18 @@ export default function Pression() {
             <div className="pr-legendes">
               {showFeux && couches.feux && (
                 <div className="pr-legende">
-                  <strong>Ancienneté des feux</strong>
-                  <div><i style={{ background: 'rgb(200,15,15)' }} />Moins de 24 h</div>
-                  <div><i style={{ background: '#f97316' }} />24 à 48 h</div>
-                  <div><i style={{ background: '#facc15' }} />48 à 72 h</div>
+                  <strong>{t.legFireAge}</strong>
+                  <div><i style={{ background: 'rgb(200,15,15)' }} />{t.legLess24}</div>
+                  <div><i style={{ background: '#f97316' }} />{t.leg24_48}</div>
+                  <div><i style={{ background: '#facc15' }} />{t.leg48_72}</div>
                 </div>
               )}
               {showPerte && couches.perte && (
                 <div className="pr-legende">
-                  <strong>Perte de couvert forestier</strong>
+                  <strong>{t.legLoss}</strong>
                   <div>
                     <i style={{ background: COULEUR_PERTE }} />
-                    {anneeDebut} à {anneeFin}
+                    {anneeDebut} {t.to} {anneeFin}
                   </div>
                 </div>
               )}
@@ -1609,17 +1850,17 @@ export default function Pression() {
 
           {apZone && (couches.paysages || couches.mbv) && (
             <div className="pr-legende pr-legende-zones">
-              <strong>Zones de l’aire protégée</strong>
+              <strong>{t.legZones}</strong>
               {couches.paysages && (
                 <div>
                   <i style={{ background: 'rgba(139,92,246,.3)', border: '2px solid #6d28d9', boxShadow: 'none', borderRadius: 3 }} />
-                  Paysages
+                  {t.legLandscapes}
                 </div>
               )}
               {couches.mbv && (
                 <div>
                   <i style={{ background: 'rgba(34,211,238,.3)', border: '2px dashed #0e7490', boxShadow: 'none', borderRadius: 3 }} />
-                  Micro-bassins
+                  {t.legMicro}
                 </div>
               )}
             </div>
@@ -1627,8 +1868,8 @@ export default function Pression() {
 
           {erreur && (
             <div className="pr-alerte">
-              {erreur}
-              <button onClick={chargerFeux}>Réessayer</button>
+              {t.errFirms}
+              <button onClick={chargerFeux}>{t.retry}</button>
             </div>
           )}
         </main>
