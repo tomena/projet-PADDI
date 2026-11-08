@@ -3,10 +3,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 
 import {
-  LayoutDashboard, BarChart3, Flame, Trees, Users, Globe2, Landmark, Map, MapPinned, Settings,
-  Bot, Languages, Download, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Home,
-  FolderKanban, Database, Briefcase, DollarSign, Gavel, Wheat, Activity, ReceiptText, Store,
-  LogOut, Menu, X, ShieldAlert,
+  LayoutDashboard, BarChart3, Flame, Trees, Users, Globe2, Landmark, MapPinned,
+  Library, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Home,
+  FolderKanban, Database, Briefcase, DollarSign, Gavel, Wheat, Activity, Store,
+  Wallet, CalendarCheck, LogOut, Menu, X, ShieldAlert,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -40,6 +40,8 @@ const sidebarTxt = {
     costMonitoring: "Suivi des coûts",
     annualActivityMonitoring: "Suivi des activités annuelles",
 
+    library: "Bibliothèque",
+
     fireAnalysis: "Superficie brûlée",
     deforestation: "Déforestation",
     environment: "Environnement",
@@ -52,14 +54,7 @@ const sidebarTxt = {
 
     localEconomy: "Économie locale",
 
-    mapping: "Cartographie",
-    paddiIntervention: "Intervention de PADDI+",
     pressureZones: "Points de feux",
-
-    configuration: "Configuration",
-    artificialIntelligence: "Intelligence Artificielle",
-    languages: "Langues",
-    export: "Exportation",
 
     quit: "Quitter",
     openMenu: "Ouvrir le menu",
@@ -93,6 +88,8 @@ const sidebarTxt = {
     costMonitoring: "Fanaraha-maso ny fandaniana",
     annualActivityMonitoring: "Fanaraha-maso ny asa isan-taona",
 
+    library: "Tranomboky",
+
     fireAnalysis: "Faritra may",
     deforestation: "Fandripahana ala",
     environment: "Tontolo iainana",
@@ -105,14 +102,7 @@ const sidebarTxt = {
 
     localEconomy: "Toekarena eo an-toerana",
 
-    mapping: "Sarintany",
-    paddiIntervention: "Fandraisan'anjaran'ny PADDI+",
     pressureZones: "Tebok'afo",
-
-    configuration: "Fikirakirana",
-    artificialIntelligence: "Faharanitan-tsaina artifisialy",
-    languages: "Fiteny",
-    export: "Famoahana angona",
 
     quit: "Hiala",
     openMenu: "Sokafy ny menio",
@@ -146,6 +136,8 @@ const sidebarTxt = {
     costMonitoring: "Cost Monitoring",
     annualActivityMonitoring: "Annual Activity Monitoring",
 
+    library: "Library",
+
     fireAnalysis: "Burned Area",
     deforestation: "Deforestation",
     environment: "Environment",
@@ -158,14 +150,7 @@ const sidebarTxt = {
 
     localEconomy: "Local Economy",
 
-    mapping: "Mapping",
-    paddiIntervention: "PADDI+ Intervention",
     pressureZones: "Fire spots",
-
-    configuration: "Settings",
-    artificialIntelligence: "Artificial Intelligence",
-    languages: "Languages",
-    export: "Export",
 
     quit: "Quit",
     openMenu: "Open menu",
@@ -199,6 +184,8 @@ const sidebarTxt = {
     costMonitoring: "Kostenüberwachung",
     annualActivityMonitoring: "Jährliche Aktivitätsüberwachung",
 
+    library: "Bibliothek",
+
     fireAnalysis: "Verbrannte Flächen",
     deforestation: "Entwaldung",
     environment: "Umwelt",
@@ -211,14 +198,7 @@ const sidebarTxt = {
 
     localEconomy: "Lokale Wirtschaft",
 
-    mapping: "Kartierung",
-    paddiIntervention: "PADDI+-Intervention",
     pressureZones: "Feuerstellen",
-
-    configuration: "Konfiguration",
-    artificialIntelligence: "Künstliche Intelligenz",
-    languages: "Sprachen",
-    export: "Export",
 
     quit: "Beenden",
     openMenu: "Menü öffnen",
@@ -267,21 +247,15 @@ const MENUS: Record<string, Entree[]> = {
         lien("micro", Store, "microEnterprises", "micro-entreprises"),
       ]),
     ]),
-    lien("couts", ReceiptText, "costMonitoring", "suivi-couts"),
-    lien("annuel", Activity, "annualActivityMonitoring", "suivi-activites-annuelles"),
-    groupe("carto", Map, "mapping", [
-      lien("carte", MapPinned, "paddiIntervention", "carte"),
-    ]),
-    groupe("param", Settings, "configuration", [
-      lien("ia", Bot, "artificialIntelligence", "model"),
-      lien("langues", Languages, "languages", "language"),
-      lien("export", Download, "export", "export"),
-    ]),
+    // Wallet = argent / dépenses ; CalendarCheck = activités réalisées dans l'année
+    lien("couts", Wallet, "costMonitoring", "suivi-couts"),
+    lien("annuel", CalendarCheck, "annualActivityMonitoring", "suivi-activites-annuelles"),
+    lien("biblio", Library, "library", "bibliotheque"),
   ],
 
   environnement: [
     lien("feux", Flame, "fireAnalysis", "analyse-feux"),
-    lien("zones-brulees",  MapPinned,"burnedZonesMap","zones-brulees"),
+    lien("zones-brulees", MapPinned, "burnedZonesMap", "zones-brulees"),
     lien("deforestation", Trees, "deforestation", "deforestation"),
     lien("pression", ShieldAlert, "pressureZones", "pression"),
     lien("environnement", Globe2, "environment", "analyse-environnement"),
