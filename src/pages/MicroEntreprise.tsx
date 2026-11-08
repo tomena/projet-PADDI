@@ -45,10 +45,19 @@ const PROP = {
 const NONE = '__hors_ap__';
 const DEF = { cible: 50, debut: 2025, fin: 2030 };
 
-const GREEN = '#2E7D32', BLUE = '#1565C0', DARK = '#374151';
+// Couleurs de l'interface : variables du thème (clair / sombre), définies dans le CSS plus bas
+const GREEN = 'var(--c-green)', BLUE = 'var(--c-blue)', DARK = 'var(--txt2)';
+// Style des info-bulles et des textes Recharts (lisibles en clair et en sombre)
+const TIP = {
+  contentStyle: { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--ink)' },
+  itemStyle: { color: 'var(--ink)' },
+  labelStyle: { color: 'var(--ink)' },
+};
+const TICK = { fill: 'var(--txt2)' };
 const LOC: Record<Lang, string> = { fr: 'fr-FR', mg: 'fr-FR', en: 'en-US', de: 'de-DE' };
 const LI: Record<Lang, number> = { fr: 0, mg: 1, en: 2, de: 3 };
 const TYPES: Ty[] = ['MICRO', 'PETITE', 'MOYENNE', 'INIT'];
+// Couleurs des types (assez vives pour les deux thèmes ; aussi utilisées sur la carte Leaflet)
 const TC: Record<Ty, string> = { MICRO: '#689F38', PETITE: '#9CCC65', MOYENNE: '#F4B400', INIT: '#5E92F3' };
 const CVC = ['#689F38', '#9CCC65', '#F4B400', '#5E92F3', '#C7C7C7'];
 const AP_CATS = ['formation', 'equipement', 'technique', 'certification', 'commercial', 'financement'];
@@ -220,13 +229,13 @@ const Fit = ({ pts }: { pts: [number, number][] }) => {
 };
 const Donut = ({ v, color, label }: { v: number; color: string; label: string }) => (
   <div className="me-dn" role="img" aria-label={label}
-    style={{ background: `conic-gradient(${color} 0 ${Math.min(100, v)}%, #E5E7EB ${Math.min(100, v)}% 100%)` }}>
+    style={{ background: `conic-gradient(${color} 0 ${Math.min(100, v)}%, var(--track) ${Math.min(100, v)}% 100%)` }}>
     <span>{label}</span>
   </div>
 );
 const Kpi = ({ title, big, sub, sub2, color, icon: Ic }: { title: string; big: string; sub?: string; sub2?: string; color: string; icon: React.ComponentType<any> }) => (
   <div className="me-k" style={{ borderTopColor: color }}>
-    <div className="me-kh"><span className="me-ki" style={{ background: `${color}1a`, color }}><Ic size={18} /></span><span>{title}</span></div>
+    <div className="me-kh"><span className="me-ki" style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}><Ic size={18} /></span><span>{title}</span></div>
     <div className="me-kb" style={{ color }}>{big}</div>
     {sub && <div className="me-ks">{sub}</div>}
     {sub2 && <div className="me-ks">{sub2}</div>}
@@ -265,86 +274,96 @@ const useNarrow = () => {
   return n;
 };
 
+/* Les couleurs viennent de variables : valeurs claires dans « .me »,
+   surcharges du thème sombre dans « :root[data-theme="dark"] .me ».
+   (La carte Leaflet reste claire dans les deux thèmes.) */
 const CSS = `
-.me{background:#f4f6f5;min-height:100vh;font-family:Arial,system-ui,sans-serif;color:#111827}
+.me{--page:#f4f6f5;--card:#fff;--ink:#111827;--txt2:#374151;--mut:#6B7280;--line:#e5e7eb;--bd:#d1d5db;--track:#E5E7EB;
+  --gv:#1B5E20;--gb:#2E7D32;--glass:rgba(255,255,255,.95);
+  --c-green:#2E7D32;--c-blue:#1565C0;--c-lime:#7CB342;--c-dgreen:#1B5E20;
+  background:var(--page);min-height:100vh;font-family:Arial,system-ui,sans-serif;color:var(--ink)}
+:root[data-theme="dark"] .me{--page:var(--bg);--card:var(--surface);--ink:#e5e7eb;--txt2:#cbd5e1;--mut:#94a3b8;
+  --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
+  --gv:#81c784;--gb:#2E7D32;--glass:rgba(17,26,46,.95);
+  --c-green:#66bb6a;--c-blue:#64b5f6;--c-lime:#9ccc65;--c-dgreen:#81c784}
 .me *{box-sizing:border-box}
 .me :focus-visible{outline:3px solid #F9A825;outline-offset:2px}
 .me-h{background:#0b5d1e;color:#fff;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .me-h h2{margin:0;font-size:clamp(16px,2.4vw,22px);display:flex;align-items:center;gap:8px}
 .me-w{padding:clamp(8px,1.6vw,20px);display:flex;flex-direction:column;gap:12px;max-width:2200px;margin:0 auto}
-.me-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 12px;border-radius:8px;border:1px solid transparent;background:#2E7D32;color:#fff;font-weight:600;font-size:13px;cursor:pointer;flex-shrink:0}
+.me-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 12px;border-radius:8px;border:1px solid transparent;background:var(--gb);color:#fff;font-weight:600;font-size:13px;cursor:pointer;flex-shrink:0}
 .me-btn.o{background:transparent;border-color:rgba(255,255,255,.7)}
-.me-btn.l{background:#fff;color:#111827;border-color:#d1d5db;font-size:12px}
+.me-btn.l{background:var(--card);color:var(--ink);border-color:var(--bd);font-size:12px}
 .me-btn:disabled{opacity:.6;cursor:default}
 .me-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end}
-.me-f2{margin-top:8px;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:10px}
-.me-f label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#374151}
-.me select,.me input{height:38px;width:100%;min-width:0;border-radius:8px;border:1px solid #d1d5db;background:#fff;padding:0 10px;font-size:12px}
+.me-f2{margin-top:8px;padding:10px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+.me-f label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--txt2)}
+.me select,.me input{height:38px;width:100%;min-width:0;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--ink);padding:0 10px;font-size:12px}
 .me-n{background:#F9A825;color:#111827;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
-.me-c{background:#fff;border-radius:12px;padding:12px;border:1px solid #eee;min-width:0}
-.me-ct{margin:0 0 8px;color:#1B5E20;font-size:13px;font-weight:800}
-.me-sub{font-size:11px;color:#6B7280;margin:-4px 0 8px}
+.me-c{background:var(--card);border-radius:12px;padding:12px;border:1px solid var(--line);min-width:0}
+.me-ct{margin:0 0 8px;color:var(--gv);font-size:13px;font-weight:800}
+.me-sub{font-size:11px;color:var(--mut);margin:-4px 0 8px}
 .me-a{display:grid;gap:8px;grid-template-columns:1fr 2.5fr 1.3fr}
 .me-b{display:grid;gap:12px;grid-template-columns:1.3fr .8fr .8fr}
 .me-r{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
 .me-g2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
 .me-t{display:flex;flex-direction:column;align-items:center;text-align:center}
-.me-t p{font-size:12px;color:#6B7280;line-height:1.45;margin:6px 0 0;max-width:340px}
-.me-tv{font-size:clamp(26px,3vw,32px);font-weight:700;color:#2E7D32;line-height:1;margin-top:12px}
-.me-pb{width:100%;height:12px;background:#E5E7EB;border-radius:10px;overflow:hidden;margin-top:12px}
-.me-pb b{display:block;height:100%;background:#2E7D32;border-radius:10px}
+.me-t p{font-size:12px;color:var(--mut);line-height:1.45;margin:6px 0 0;max-width:340px}
+.me-tv{font-size:clamp(26px,3vw,32px);font-weight:700;color:var(--c-green);line-height:1;margin-top:12px}
+.me-pb{width:100%;height:12px;background:var(--track);border-radius:10px;overflow:hidden;margin-top:12px}
+.me-pb b{display:block;height:100%;background:var(--c-green);border-radius:10px}
 .me-cg{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
-.me-mc{border:1px solid #eee;border-radius:12px;padding:10px;display:flex;flex-direction:column;background:#fff}
+.me-mc{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;background:var(--card)}
 .me-mh{margin:-10px -10px 10px;padding:8px 6px;color:#fff;font-weight:700;font-size:11px;min-height:46px;display:flex;align-items:center;justify-content:center;text-align:center;border-radius:11px 11px 0 0;line-height:1.2}
 .me-mn{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:4px}
 .me-mi{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .me-mv{font-size:25px;font-weight:700;line-height:1}
-.me-sep{height:1px;background:rgba(0,0,0,.07);margin:12px 0}
+.me-sep{height:1px;background:var(--line);margin:12px 0}
 .me-dd{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:auto}
 .me-dd>div{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10px;font-weight:700;text-align:center}
 .me-dn{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center}
-.me-dn span{width:54px;height:54px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#374151}
-.me-k{background:#fff;border:1px solid #eee;border-top:4px solid;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px}
-.me-kh{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:#374151}
+.me-dn span{width:54px;height:54px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--txt2)}
+.me-k{background:var(--card);border:1px solid var(--line);border-top:4px solid;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px}
+.me-kh{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--txt2)}
 .me-ki{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 .me-kb{font-size:clamp(22px,2.4vw,28px);font-weight:800;line-height:1.1}
-.me-ks{font-size:11px;color:#6B7280}
+.me-ks{font-size:11px;color:var(--mut)}
 .me-pie{position:relative}
 .me-pc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
-.me-pc b{font-size:22px;color:#374151}.me-pc span{font-size:13px;color:#6B7280}
+.me-pc b{font-size:22px;color:var(--txt2)}.me-pc span{font-size:13px;color:var(--mut)}
 .me-leg{display:flex;flex-direction:column;gap:8px;margin-top:6px;font-size:12px}
 .me-leg>div{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .me-leg span{display:flex;align-items:center;gap:8px;min-width:0}
 .me-leg i{width:12px;height:12px;border-radius:3px;flex-shrink:0}
-.me-leg b{white-space:nowrap;color:#374151;font-variant-numeric:tabular-nums}
+.me-leg b{white-space:nowrap;color:var(--txt2);font-variant-numeric:tabular-nums}
 .me-map{position:relative;border-radius:10px;overflow:hidden}
-.me-lgd{position:absolute;bottom:10px;left:10px;z-index:999;background:rgba(255,255,255,.95);padding:8px 10px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:11px}
+.me-lgd{position:absolute;bottom:10px;left:10px;z-index:999;background:var(--glass);color:var(--ink);padding:8px 10px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:11px}
 .me-lgd div{display:flex;align-items:center;gap:6px;margin:3px 0}
 .me-lgd i{width:12px;height:12px;border-radius:50%;display:inline-block}
-.me-note{margin-top:8px;font-size:12px;color:#6B7280;text-align:center}
+.me-note{margin-top:8px;font-size:12px;color:var(--mut);text-align:center}
 .me-tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .me table{width:100%;border-collapse:collapse;font-size:13px}
-.me th{background:#2E7D32;color:#fff;padding:10px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.3);font-size:12px}
-.me td{padding:10px 8px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;font-size:12px;line-height:1.35}
+.me th{background:var(--gb);color:#fff;padding:10px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.3);font-size:12px}
+.me td{padding:10px 8px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);font-size:12px;line-height:1.35}
 .me td.c{text-align:center;white-space:nowrap}
 .me-bh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px}
-.me-bh h4{margin:0;color:#2E7D32;font-size:14px}
+.me-bh h4{margin:0;color:var(--c-green);font-size:14px}
 .me-ba{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .me-sb{position:relative;display:inline-flex;align-items:center}
 .me-sb svg{position:absolute;left:10px;pointer-events:none}
 .me-sb input{padding-left:32px;width:220px}
-.me-pg{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:13px;padding-top:10px;margin-top:10px;border-top:1px solid #eee}
+.me-pg{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:13px;padding-top:10px;margin-top:10px;border-top:1px solid var(--line)}
 .me-pg>div{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
-.me-pg>div:first-child{color:#6b7280;font-weight:700}
+.me-pg>div:first-child{color:var(--mut);font-weight:700}
 .me-pg>div:last-child{justify-content:flex-end;gap:8px;font-weight:600}
-.me-pg button{min-width:32px;height:32px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer;font-weight:600}
-.me-pg button.on{background:#2E7D32;color:#fff;border-color:#2E7D32}
+.me-pg button{min-width:32px;height:32px;border:1px solid var(--bd);background:var(--card);color:var(--ink);border-radius:6px;cursor:pointer;font-weight:600}
+.me-pg button.on{background:var(--gb);color:#fff;border-color:var(--gb)}
 .me-pg button:disabled{opacity:.4;cursor:default}
 .me-pg select{width:auto;height:32px}
 @media (max-width:1280px){.me-a{grid-template-columns:1fr 2fr}.me-a>.wide{grid-column:1/-1}.me-b{grid-template-columns:1fr 1fr}.me-b>.wide{grid-column:1/-1}}
 @media (max-width:900px){.me-pg{grid-template-columns:1fr;justify-items:center;text-align:center}.me-pg>div:last-child{justify-content:center}}
 @media (max-width:760px){.me-a,.me-b{grid-template-columns:1fr}.me-sb,.me-sb input{width:100%}.me-sb{flex:1 1 100%}}
-@media (max-width:560px){.me-btn span{display:none}.me-lgd{position:static;margin-top:8px;box-shadow:none;border:1px solid #e5e7eb}}
+@media (max-width:560px){.me-btn span{display:none}.me-lgd{position:static;margin-top:8px;box-shadow:none;border:1px solid var(--line)}}
 @media print{.np{display:none!important}.me-c,.me-k,.me-mc{break-inside:avoid}}
 `;
 
@@ -447,10 +466,11 @@ export default function MicroEntreprise() {
   const taux = pc(N, TARGET);
   const mp = rows.filter((r) => r.type !== 'INIT');
   const ini = rows.filter((r) => r.type === 'INIT');
+  // bg : fond de l'en-tête de la carte (texte blanc) ; color : couleur du texte et des chiffres (suit le thème)
   const cards = [
-    { k: 'mpme', title: t.cMpme, Ic: Building2, color: '#2E7D32', a: mp, den: N },
-    { k: 'ini', title: t.cIni, Ic: Leaf, color: '#7CB342', a: ini, den: N },
-    { k: 'all', title: t.cAll, Ic: Users, color: '#1B5E20', a: rows, den: TARGET },
+    { k: 'mpme', title: t.cMpme, Ic: Building2, bg: '#2E7D32', color: 'var(--c-green)', a: mp, den: N },
+    { k: 'ini', title: t.cIni, Ic: Leaf, bg: '#7CB342', color: 'var(--c-lime)', a: ini, den: N },
+    { k: 'all', title: t.cAll, Ic: Users, bg: '#1B5E20', color: 'var(--c-dgreen)', a: rows, den: TARGET },
   ].map((c) => ({ ...c, n: c.a.length, w: pc(sum(c.a, 'effW'), sum(c.a, 'eff')), y: pc(sum(c.a, 'effY'), sum(c.a, 'eff')) }));
 
   const cy = new Date().getFullYear();
@@ -469,10 +489,10 @@ export default function MicroEntreprise() {
   const ca1 = sum(rows, 'ca1');
   const caVar = ca0 ? ((ca1 - ca0) / ca0) * 100 : 0;
   const results = [
-    { k: 'r1', title: t.r1, icon: Package, color: '#2E7D32', big: pct(pc(offerN, N)), sub: fmt(t.ofEnt, nf(offerN), nf(N)), sub2: fmt(t.newOff, nf(sum(rows, 'nOff'))) },
+    { k: 'r1', title: t.r1, icon: Package, color: 'var(--c-green)', big: pct(pc(offerN, N)), sub: fmt(t.ofEnt, nf(offerN), nf(N)), sub2: fmt(t.newOff, nf(sum(rows, 'nOff'))) },
     { k: 'r2', title: t.r2, icon: Briefcase, color: BLUE, big: nf(sum(rows, 'jobs')), sub: fmt(t.jobsTot, nf(sum(rows, 'eff'))) },
     { k: 'r3', title: t.r3, icon: TrendingUp, color: '#F9A825', big: `${caVar >= 0 ? '+' : ''}${nf(caVar, 1)}%`, sub: fmt(t.caS, nf(ca0 / 1e6, 1), nf(ca1 / 1e6, 1)) },
-    { k: 'r4', title: t.r4, icon: FileCheck, color: '#7CB342', big: pct(pc(sum(rows, 'formal'), N)), sub: fmt(t.ofEnt, nf(sum(rows, 'formal')), nf(N)) },
+    { k: 'r4', title: t.r4, icon: FileCheck, color: 'var(--c-lime)', big: pct(pc(sum(rows, 'formal'), N)), sub: fmt(t.ofEnt, nf(sum(rows, 'formal')), nf(N)) },
     { k: 'r5', title: t.r5, icon: Landmark, color: '#FB8C00', big: pct(pc(sum(rows, 'fin'), N)), sub: fmt(t.ofEnt, nf(sum(rows, 'fin')), nf(N)) },
   ];
 
@@ -574,11 +594,11 @@ export default function MicroEntreprise() {
               <h3 className="me-ct" style={{ margin: 0 }}>{t.tgt}</h3>
               <p>{fmt(t.tgtTxt, nf(TARGET))}</p>
               <div className="me-tv">{nf(N)}</div>
-              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 4 }}>{fmt(t.of, nf(TARGET))}</div>
+              <div style={{ fontSize: 13, color: 'var(--mut)', marginTop: 4 }}>{fmt(t.of, nf(TARGET))}</div>
               <div style={{ fontSize: 12, fontWeight: 500, color: DARK, marginTop: 6 }}>{t.lab}</div>
               <div className="me-pb"><b style={{ width: `${Math.min(100, taux)}%` }} /></div>
               <div style={{ marginTop: 6, fontSize: 15, fontWeight: 800, color: GREEN }}>{pct(taux)}</div>
-              <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>{fmt(t.target, nf(TARGET))}</div>
+              <div style={{ fontSize: 12, color: 'var(--mut)', marginTop: 2 }}>{fmt(t.target, nf(TARGET))}</div>
             </div>
 
             <div className="me-c">
@@ -587,9 +607,9 @@ export default function MicroEntreprise() {
               <div className="me-cg">
                 {cards.map((c) => (
                   <div className="me-mc" key={c.k}>
-                    <div className="me-mh" style={{ background: c.color }}>{c.title}</div>
+                    <div className="me-mh" style={{ background: c.bg }}>{c.title}</div>
                     <div className="me-mn">
-                      <span className="me-mi" style={{ background: c.color }}><c.Ic size={22} color="#fff" strokeWidth={2.2} /></span>
+                      <span className="me-mi" style={{ background: c.bg }}><c.Ic size={22} color="#fff" strokeWidth={2.2} /></span>
                       <div>
                         <div className="me-mv" style={{ color: c.color }}>{nf(c.n)}</div>
                         <div style={{ fontSize: 12, fontWeight: 600, color: c.color, marginTop: 2 }}>({pct(pc(c.n, c.den))})</div>
@@ -610,11 +630,11 @@ export default function MicroEntreprise() {
               <h3 className="me-ct" style={{ margin: 0 }}>{t.evol}</h3>
               <ResponsiveContainer width="100%" height={narrow ? 230 : 270}>
                 <ComposedChart data={evol} margin={{ top: 14, right: 15, left: 0, bottom: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#e5e7eb" strokeDasharray="3 3" />
-                  <XAxis dataKey="year" tick={{ fontSize: 10 }} padding={{ left: 10 }} />
-                  <YAxis tick={{ fontSize: 10 }} width={32} domain={[0, (m: number) => Math.max(m, TARGET)]} />
-                  <Tooltip />
-                  <Legend verticalAlign="top" height={30} wrapperStyle={{ fontSize: 12 }} />
+                  <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+                  <XAxis dataKey="year" tick={{ fontSize: 10, ...TICK }} padding={{ left: 10 }} />
+                  <YAxis tick={{ fontSize: 10, ...TICK }} width={32} domain={[0, (m: number) => Math.max(m, TARGET)]} />
+                  <Tooltip {...TIP} />
+                  <Legend verticalAlign="top" height={30} wrapperStyle={{ fontSize: 12, color: 'var(--txt2)' }} />
                   <ReferenceLine y={TARGET} stroke="#9CA3AF" strokeDasharray="5 5" label={{ value: nf(TARGET), position: 'top', fill: '#9CA3AF', fontSize: 11 }} />
                   <Area dataKey="mpme" fill={GREEN} fillOpacity={0.12} stroke="none" legendType="none" />
                   <Line name={t.eMpme} dataKey="mpme" stroke={GREEN} strokeWidth={1.6} dot={{ r: 3 }} />
@@ -669,11 +689,11 @@ export default function MicroEntreprise() {
               <h3 className="me-ct" style={{ margin: 0, marginBottom: 8 }}>{t.apT}</h3>
               <ResponsiveContainer width="100%" height={appuiData.length * 38 + 30}>
                 <BarChart data={appuiData} layout="vertical" margin={{ left: 0, right: 36 }}>
-                  <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                  <YAxis dataKey="name" type="category" width={narrow ? 100 : 150} tick={{ fontSize: 11 }} interval={0} />
-                  <Tooltip />
+                  <XAxis type="number" tick={{ fontSize: 11, ...TICK }} allowDecimals={false} />
+                  <YAxis dataKey="name" type="category" width={narrow ? 100 : 150} tick={{ fontSize: 11, ...TICK }} interval={0} />
+                  <Tooltip {...TIP} />
                   <Bar dataKey="value" fill={GREEN} barSize={18} radius={[0, 3, 3, 0]}>
-                    <LabelList dataKey="value" position="right" style={{ fontSize: 11, fontWeight: 700 }} />
+                    <LabelList dataKey="value" position="right" style={{ fontSize: 11, fontWeight: 700, fill: 'var(--txt2)' }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -682,13 +702,13 @@ export default function MicroEntreprise() {
               <h3 className="me-ct" style={{ margin: 0, marginBottom: 8 }}>{t.ca}</h3>
               <ResponsiveContainer width="100%" height={appuiData.length * 38 + 30}>
                 <BarChart data={caData} margin={{ top: 18, right: 8, left: 0 }}>
-                  <CartesianGrid vertical={false} stroke="#e5e7eb" strokeDasharray="3 3" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} />
-                  <YAxis tick={{ fontSize: 11 }} width={44} />
-                  <Tooltip formatter={(v: any) => `${nf(v, 1)} M Ar`} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar name={t.ca0} dataKey="before" fill="#9CA3AF" maxBarSize={36}><LabelList dataKey="before" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 10 }} /></Bar>
-                  <Bar name={t.ca1} dataKey="after" fill={GREEN} maxBarSize={36}><LabelList dataKey="after" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 10, fontWeight: 700 }} /></Bar>
+                  <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10, ...TICK }} interval={0} />
+                  <YAxis tick={{ fontSize: 11, ...TICK }} width={44} />
+                  <Tooltip {...TIP} formatter={(v: any) => `${nf(v, 1)} M Ar`} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--txt2)' }} />
+                  <Bar name={t.ca0} dataKey="before" fill="#9CA3AF" maxBarSize={36}><LabelList dataKey="before" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 10, fill: 'var(--txt2)' }} /></Bar>
+                  <Bar name={t.ca1} dataKey="after" fill={GREEN} maxBarSize={36}><LabelList dataKey="after" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 10, fontWeight: 700, fill: 'var(--txt2)' }} /></Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -700,7 +720,7 @@ export default function MicroEntreprise() {
               <h4>{t.tb.title}</h4>
               <div className="me-ba">
                 <span className="me-sb">
-                  <Search size={16} color="#888" />
+                  <Search size={16} color="var(--mut)" />
                   <input placeholder={t.tb.search} aria-label={t.tb.search} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
                 </span>
                 <button className="me-btn np" onClick={exportCsv}>{t.tb.exp}<Download size={16} /></button>
