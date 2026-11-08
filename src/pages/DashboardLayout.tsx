@@ -8,7 +8,8 @@ export default function DashboardLayout() {
         display: "flex",
         height: "100vh",
         overflow: "hidden",
-        background: "#f3f4f6",
+        background: "var(--bg)",
+        color: "var(--text)",
       }}
     >
       <Sidebar />
@@ -16,6 +17,7 @@ export default function DashboardLayout() {
       <main
         style={{
           flex: 1,
+          minWidth: 0,
           overflowY: "auto",
         }}
       >
