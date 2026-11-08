@@ -319,6 +319,10 @@ const SCALE_YEAR: [number, string][] = [[3, "#7f1d1d"], [1.5, "#dc2626"], [0.5, 
 const colorOf = (pct: number | null, scale: [number, string][]) =>
   pct == null ? "#cbd5e1" : (scale.find(([m]) => pct >= m) || scale[scale.length - 1])[1];
 
+// Thème : couleur de donnée → texte / fond lisibles en clair comme en sombre
+const tonText = (c: string) => `color-mix(in srgb, ${c} 70%, var(--text))`;
+const TICK = { fontSize: 11, fill: "var(--text-3)" };
+
 /* ============================ OUTILS ============================ */
 const num = (v: any) => Number(String(v ?? 0).replace(",", ".")) || 0;
 const same = (a: any, b: any) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
@@ -429,84 +433,90 @@ const around = (z: Zone, c: Zone) => zoneIn(z, c) || zoneIn(c, z);
 const toZones = (feats: any[], key: string, def: string): Zone[] =>
   feats.filter((f) => f?.geometry).map((f) => ({ nom: f.properties?.[key] || def, feature: f, bbox: bboxOf(f.geometry) }));
 
-/* ============================ STYLES RESPONSIFS ============================ */
+/* ============================ STYLES RESPONSIFS ============================
+   Couleurs d'interface : variables du thème (var(--surface), var(--text)…).
+   Reste en couleur fixe : couleurs de données, bouton actif (#0b4ea2),
+   et tout ce qui est posé SUR la carte (fond Esri clair dans les deux thèmes). */
 const CSS = `
-.df{padding:clamp(8px,1.6vw,16px);background:#eef3f8;min-height:100vh;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1f2937;max-width:2400px;margin:0 auto}
+.df{--bleu:color-mix(in srgb,#0b4ea2 60%,var(--text));
+  padding:clamp(8px,1.6vw,16px);background:var(--surface-2);min-height:100vh;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text);max-width:2400px;margin:0 auto}
 .df *{box-sizing:border-box}
-.df-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.df-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .df-brand{display:flex;align-items:center;gap:12px;min-width:0}
 .df-logo{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#166534,#22a05a);position:relative}
-.df-logo svg.f{position:absolute;right:-5px;bottom:-5px;background:#fff;border-radius:50%;padding:3px}
-.df-h1{margin:0;color:#0b4ea2;font-size:clamp(17px,2.4vw,24px);font-weight:700;line-height:1.2}
-.df-sub{margin:2px 0 0;font-size:12px;color:#6b7280}
+.df-logo svg.f{position:absolute;right:-5px;bottom:-5px;background:var(--surface);border-radius:50%;padding:3px}
+.df-h1{margin:0;color:var(--bleu);font-size:clamp(17px,2.4vw,24px);font-weight:700;line-height:1.2}
+.df-sub{margin:2px 0 0;font-size:12px;color:var(--text-3)}
 .df-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .df-f{display:flex;flex-direction:column;gap:4px;min-width:130px;flex:1 1 130px}
-.df-f label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#374151}
-.df-gfw{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#374151;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;cursor:pointer;white-space:nowrap}
-.df select,.df-sel{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;background:#f9fafb;font-weight:600;font-size:12px;cursor:pointer}
+.df-f label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-2)}
+.df-gfw{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-2);padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface-3);cursor:pointer;white-space:nowrap}
+.df select,.df-sel{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-3);color:var(--text);font-weight:600;font-size:12px;cursor:pointer}
 .df select:focus-visible,.df input:focus-visible,.df button:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
-.df-rank{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-bottom:10px;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;font-size:12px}
-.df-rank-t{display:flex;align-items:center;gap:8px;font-weight:700;color:#003399;font-size:13px;flex:1 1 280px}
+.df-rank{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-bottom:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:12px}
+.df-rank-t{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--bleu);font-size:13px;flex:1 1 280px}
 .df-rank-i{display:flex;align-items:center;gap:6px}
 .df-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:10px;margin-bottom:10px}
-.df-kpi{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;min-height:96px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.df-kpi{--cc:color-mix(in srgb,var(--c) 72%,var(--text));
+  display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;min-height:96px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .df-badge{flex:none;width:56px;height:56px;border-radius:15px;display:grid;place-items:center;background:var(--bg)}
 .df-kpi-txt{min-width:0;display:flex;flex-direction:column;gap:4px}
-.df-kpi-t{font-size:11.5px;font-weight:700;line-height:1.25;color:var(--c)}
-.df-kpi-v{font-size:clamp(17px,1.5vw,21px);font-weight:800;color:var(--c);line-height:1.1;word-break:break-word}
-.df-kpi-s{font-size:11px;font-weight:600;color:#475569;line-height:1.3}
+.df-kpi-t{font-size:11.5px;font-weight:700;line-height:1.25;color:var(--cc)}
+.df-kpi-v{font-size:clamp(17px,1.5vw,21px);font-weight:800;color:var(--cc);line-height:1.1;word-break:break-word}
+.df-kpi-s{font-size:11px;font-weight:600;color:var(--text-2);line-height:1.3}
 .df-body{display:grid;grid-template-columns:1fr;gap:10px}
 .df-left{display:grid;grid-template-columns:1fr;gap:10px;align-content:start;min-width:0}
 @media(min-width:700px){.df-left{grid-template-columns:repeat(2,minmax(0,1fr))}.df-wide{grid-column:1/-1}}
 @media(min-width:1100px){.df-body{grid-template-columns:minmax(0,56fr) minmax(0,44fr)}.df-mapcard{position:sticky;top:10px;height:calc(100vh - 24px);max-height:900px}}
 @media(max-width:1099px){.df-mapcard{order:-1;height:68vh;min-height:420px}}
-.df-card{background:#fff;border:1px solid #d9d9d9;border-radius:10px;padding:10px;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-.df-ct{margin:0 0 8px;text-align:center;font-size:12px;font-weight:700;font-style:italic;color:#d32f2f;line-height:1.3}
+.df-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.df-ct{margin:0 0 8px;text-align:center;font-size:12px;font-weight:700;font-style:italic;color:color-mix(in srgb,#d32f2f 80%,var(--text));line-height:1.3}
 .df-chart{height:clamp(190px,15vw,250px)}
-.df-note{margin:6px 0 0;font-size:11px;color:#64748b;text-align:center}
-.df-tip{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
-.df-tip b{display:block;margin-bottom:4px;color:#0f172a}
+.df-note{margin:6px 0 0;font-size:11px;color:var(--text-3);text-align:center}
+.df-tip{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.df-tip b{display:block;margin-bottom:4px;color:var(--text)}
 .df-tip div{display:flex;justify-content:space-between;gap:14px}
 .df-bar-tools{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 10px;margin-bottom:4px}
-.df-chips{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:#334155;justify-content:center}
+.df-chips{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--text-2);justify-content:center}
 .df-chips span{display:inline-flex;align-items:center;gap:5px}
 .df-chips i{width:11px;height:11px;border-radius:3px;display:inline-block}
 .df-chips i.dot{border-radius:50%}
 .df-chips i.ln{height:3px;width:16px;border-radius:2px}
-.df-seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;background:#fff}
-.df-seg button{padding:5px 10px;border:0;background:transparent;color:#475569;font-size:12px;font-weight:600;cursor:pointer}
-.df-seg button+button{border-left:1px solid #cbd5e1}
+.df-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.df-seg button{padding:5px 10px;border:0;background:transparent;color:var(--text-2);font-size:12px;font-weight:600;cursor:pointer}
+.df-seg button+button{border-left:1px solid var(--border)}
 .df-seg button.on{background:#0b4ea2;color:#fff}
 .df-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
-.df-zone{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:6px 8px 2px}
+.df-zone{background:var(--surface-3);border:1px solid var(--border-soft);border-radius:10px;padding:6px 8px 2px}
 .df-zh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
-.df-zt{display:flex;align-items:center;gap:6px;color:#1565c0;font-size:12px;font-weight:700}
-.df-vchip{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap;background:#e0f2fe;color:#075985}
+.df-zt{display:flex;align-items:center;gap:6px;color:color-mix(in srgb,#1565c0 70%,var(--text));font-size:12px;font-weight:700}
+.df-vchip{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap;background:rgba(14,165,233,.18);color:color-mix(in srgb,#0284c7 70%,var(--text))}
 .df-mapcard{min-height:520px}
-.df-tools{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px;font-size:12px;font-weight:600;color:#374151}
+.df-tools{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px;font-size:12px;font-weight:600;color:var(--text-2)}
 .df-tools label{display:flex;align-items:center;gap:5px;cursor:pointer}
 .df-tools .df-sel{width:auto}
-.df-time{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:6px 10px;background:#f1f5f9;border-radius:10px}
+.df-time{display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:6px 10px;background:var(--surface-3);border-radius:10px}
 .df-time input[type=range]{flex:1;min-width:80px;accent-color:#b91c1c;cursor:pointer}
-.df-time strong{min-width:42px;text-align:right;font-size:15px;color:#b91c1c}
+.df-time strong{min-width:42px;text-align:right;font-size:15px;color:color-mix(in srgb,#b91c1c 75%,var(--text))}
 .df-play{flex:none;width:34px;height:34px;border-radius:50%;border:0;background:#b91c1c;color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 2px 6px rgba(185,28,28,.4);transition:transform .15s}
 .df-play:hover{transform:scale(1.08)}
-.df-map{position:relative;flex:1;min-height:340px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;isolation:isolate}
+.df-map{position:relative;flex:1;min-height:340px;border-radius:8px;overflow:hidden;border:1px solid var(--border);isolation:isolate}
 .df-map .leaflet-container{position:absolute;inset:0;font-family:inherit;background:#e5e7eb}
+/* éléments posés sur la carte : restent clairs (fond Esri clair) -> texte sombre fixe */
 .df-legend{position:absolute;left:8px;bottom:8px;z-index:1000;display:flex;flex-direction:column;gap:6px;max-width:68%}
-.df-lg{background:rgba(255,255,255,.94);padding:6px 9px;border-radius:8px;font-size:11px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.df-lg{background:rgba(255,255,255,.94);color:#0f172a;padding:6px 9px;border-radius:8px;font-size:11px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .df-lg div{display:flex;align-items:center;gap:6px;margin-top:2px}
 .df-lg i{width:13px;height:10px;display:inline-block;border:1px solid #9ca3af}
 .df-lg i.bub{width:12px;height:12px;border-radius:50%;background:rgba(29,78,216,.55);border:1.5px solid #fff;box-shadow:0 0 0 1px #1d4ed8}
 .df-lg i.pix{background:#dc6c9a;border-color:#dc6c9a}
-.df-apbox{position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);border-radius:10px;padding:8px 11px;box-shadow:0 1px 6px rgba(0,0,0,.28);font-size:11px;max-width:60%;border-left:4px solid #166534}
+.df-apbox{position:absolute;left:8px;top:8px;z-index:1000;background:rgba(255,255,255,.95);color:#0f172a;border-radius:10px;padding:8px 11px;box-shadow:0 1px 6px rgba(0,0,0,.28);font-size:11px;max-width:60%;border-left:4px solid #166534}
 .df-apbox b{display:block;font-size:13px;color:#14532d}
 .df-apbox span{color:#64748b}
 .df-apbox div{display:flex;justify-content:space-between;gap:12px;margin-top:3px}
 .df-apbox strong{color:#b91c1c;white-space:nowrap}
 .df-lbl{background:none;border:0}
 .df-lbl span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-weight:700;color:#0f172a;text-shadow:0 0 2px #fff,0 0 3px #fff,0 0 4px #fff;pointer-events:none}
-.df-load{padding:30px;text-align:center;color:#0b4ea2;font-weight:600}
+.df-load{padding:30px;text-align:center;color:var(--bleu);font-weight:600}
 .df .leaflet-tooltip{font-size:12px;font-weight:600;line-height:1.5}
 @media(max-width:560px){.df-lg{font-size:10px;padding:4px 6px}.df-legend{max-width:80%}.df-apbox{max-width:75%}}
 @media(prefers-reduced-motion:reduce){.df *{transition:none!important}}
@@ -551,13 +561,13 @@ const Ranking = ({ items, f }: any) => (
   </>
 );
 
-// étiquette d'axe inclinée : les 5 premières communes sont mises en avant
+// étiquette d'axe inclinée : les premières communes sont mises en avant
 const RankTick = ({ x, y, payload, index, top = 0 }: any) => {
   const nom = String(payload.value);
   const hot = index < top;
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={12} textAnchor="end" transform="rotate(-30)" fill={hot ? "#b91c1c" : "#475569"} fontSize={11} fontWeight={hot ? 700 : 400}>
+      <text x={0} y={0} dy={12} textAnchor="end" transform="rotate(-30)" fill={hot ? "#ef4444" : "var(--text-2)"} fontSize={11} fontWeight={hot ? 700 : 400}>
         {hot ? `${index + 1}. ` : ""}{nom.length > 9 ? `${nom.substring(0, 9)}…` : nom}
       </text>
     </g>
@@ -584,19 +594,19 @@ const EvolutionChart = ({ data, year, peak, t, f }: any) => (
     <div className="df-chips">
       <span><i style={{ background: "#93c5fd" }} />{t.surface}</span>
       <span><i className="ln" style={{ background: "#dc2626" }} />{t.lossRate}</span>
-      {peak?.annee ? <span style={{ color: "#dc2626", fontWeight: 700 }}>▲ {t.peak} : {peak.annee} ({f.pct(peak.taux, 2)})</span> : null}
+      {peak?.annee ? <span style={{ color: tonText("#dc2626"), fontWeight: 700 }}>▲ {t.peak} : {peak.annee} ({f.pct(peak.taux, 2)})</span> : null}
     </div>
     <div className="df-chart">
       <ResponsiveContainer width="100%" height="100%">
         <ComposedChart data={data} margin={{ top: 24, right: 14, left: -6, bottom: 0 }}>
-          <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="annee" interval={0} angle={-45} textAnchor="end" height={44} tick={{ fontSize: 10, fill: "#64748b" }} axisLine={{ stroke: "#94a3b8" }} tickLine={false} />
-          <YAxis yAxisId="l" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={compact} width={42} />
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="annee" interval={0} angle={-45} textAnchor="end" height={44} tick={{ fontSize: 10, fill: "var(--text-3)" }} axisLine={{ stroke: "var(--text-3)" }} tickLine={false} />
+          <YAxis yAxisId="l" tick={TICK} axisLine={false} tickLine={false} tickFormatter={compact} width={42} />
           <YAxis yAxisId="r" orientation="right" hide domain={[0, (m: number) => Math.max(1, m * 1.25)]} />
-          <Tooltip content={<EvoTip f={f} t={t} />} cursor={{ fill: "rgba(11,78,162,.06)" }} />
+          <Tooltip content={<EvoTip f={f} t={t} />} cursor={{ fill: "rgba(59,130,246,.10)" }} />
           <Bar yAxisId="l" dataKey="superficie" name={t.surface} radius={[3, 3, 0, 0]}>
             {data.map((d: any) => (
-              <Cell key={d.annee} fill={d.annee === year ? "#1d4ed8" : d.annee < year ? "#93c5fd" : "#dbeafe"} />
+              <Cell key={d.annee} fill={d.annee === year ? "#3b82f6" : d.annee < year ? "#93c5fd" : "rgba(147,197,253,.3)"} />
             ))}
           </Bar>
           <Line
@@ -605,13 +615,13 @@ const EvolutionChart = ({ data, year, peak, t, f }: any) => (
               if (!peak?.annee || p.payload.annee !== peak.annee) return <g key={`d${p.index}`} />;
               return (
                 <g key={`d${p.index}`}>
-                  <circle cx={p.cx} cy={p.cy} r={5} fill="#dc2626" stroke="#fff" strokeWidth={1.5} />
-                  <text x={p.cx} y={p.cy - 11} textAnchor="middle" fontSize={11} fontWeight={700} fill="#dc2626">{p.payload.taux.toFixed(1)}%</text>
+                  <circle cx={p.cx} cy={p.cy} r={5} fill="#dc2626" stroke="var(--surface)" strokeWidth={1.5} />
+                  <text x={p.cx} y={p.cy - 11} textAnchor="middle" fontSize={11} fontWeight={700} fill="#ef4444">{p.payload.taux.toFixed(1)}%</text>
                 </g>
               );
             }}
           />
-          <ReferenceLine yAxisId="l" x={year} stroke="#1d4ed8" strokeDasharray="4 4" />
+          <ReferenceLine yAxisId="l" x={year} stroke="#3b82f6" strokeDasharray="4 4" />
         </ComposedChart>
       </ResponsiveContainer>
     </div>
@@ -645,16 +655,16 @@ const TopChart = ({ data, share, mode, setMode, n, setN, year, t, f }: any) => (
               <stop offset="0%" stopColor="#dc2626" stopOpacity={0.95} /><stop offset="100%" stopColor="#fca5a5" stopOpacity={0.7} />
             </linearGradient>
           </defs>
-          <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-          <XAxis dataKey="commune" interval={0} tick={<RankTick top={3} />} axisLine={{ stroke: "#94a3b8" }} tickLine={false} />
-          <YAxis yAxisId="l" tickFormatter={compact} width={42} tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+          <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="commune" interval={0} tick={<RankTick top={3} />} axisLine={{ stroke: "var(--text-3)" }} tickLine={false} />
+          <YAxis yAxisId="l" tickFormatter={compact} width={42} tick={TICK} axisLine={false} tickLine={false} />
           <YAxis yAxisId="r" orientation="right" hide domain={[0, 100]} />
-          <Tooltip content={<TopTip f={f} t={t} />} cursor={{ fill: "rgba(220,38,38,.06)" }} />
+          <Tooltip content={<TopTip f={f} t={t} />} cursor={{ fill: "rgba(220,38,38,.08)" }} />
           <Bar yAxisId="l" dataKey="superficie" name={t.surfaceHa} fill="url(#dfRed)" radius={[4, 4, 0, 0]} barSize={26}>
             <LabelList dataKey="superficie" position="insideTop" fill="#fff" fontSize={9} fontWeight={700} formatter={(v: number) => compact(v)} />
           </Bar>
           <Line yAxisId="r" type="monotone" dataKey="pct" name={t.cumulative} stroke="#64748b" strokeWidth={2} strokeDasharray="5 5" dot={{ r: 2.5 }}>
-            <LabelList dataKey="pct" position="top" fill="#111827" fontSize={10} fontWeight={700} formatter={(v: number) => `${Math.round(v)}%`} />
+            <LabelList dataKey="pct" position="top" fill="var(--text)" fontSize={10} fontWeight={700} formatter={(v: number) => `${Math.round(v)}%`} />
           </Line>
         </ComposedChart>
       </ResponsiveContainer>
@@ -671,8 +681,8 @@ const CmpTip = ({ active, payload, label, year, cmpYear, f }: any) => {
   return (
     <div className="df-tip">
       <b>{d.commune}</b>
-      <div><span style={{ color: "#c2410c" }}>{cmpYear}</span><strong>{f.ha(d.y1)}</strong></div>
-      <div><span style={{ color: "#7c2d12" }}>{year}</span><strong>{f.ha(d.y2)}</strong></div>
+      <div><span style={{ color: tonText("#f97316") }}>{cmpYear}</span><strong>{f.ha(d.y1)}</strong></div>
+      <div><span style={{ color: tonText("#c2410c") }}>{year}</span><strong>{f.ha(d.y2)}</strong></div>
       <div style={{ color: diff === 0 ? "#64748b" : diff > 0 ? "#dc2626" : "#16a34a", fontWeight: 700 }}>
         <span>{diff === 0 ? "—" : diff > 0 ? "▲" : "▼"}</span><span>{f.ha(Math.abs(diff))}</span>
       </div>
@@ -710,10 +720,10 @@ const CompareChart = ({ data, zone, setZone, cmpYear, setCmpYear, years, year, t
       <div className="df-chart">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={data} margin={{ top: 24, right: 8, left: -4, bottom: 30 }} barGap={1} barCategoryGap="20%">
-            <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="commune" interval={0} tick={<RankTick />} axisLine={{ stroke: "#94a3b8" }} tickLine={false} />
-            <YAxis tickFormatter={compact} width={42} tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, (m: number) => Math.ceil(m * 1.1)]} />
-            <Tooltip content={<CmpTip year={year} cmpYear={cmpYear} f={f} />} cursor={{ fill: "rgba(194,65,12,.06)" }} />
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="commune" interval={0} tick={<RankTick />} axisLine={{ stroke: "var(--text-3)" }} tickLine={false} />
+            <YAxis tickFormatter={compact} width={42} tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} domain={[0, (m: number) => Math.ceil(m * 1.1)]} />
+            <Tooltip content={<CmpTip year={year} cmpYear={cmpYear} f={f} />} cursor={{ fill: "rgba(234,88,12,.08)" }} />
             <Bar dataKey="y1" name={String(cmpYear)} fill="#fdba74" barSize={12} radius={[2, 2, 0, 0]} />
             <Bar dataKey="y2" name={String(year)} fill="#c2410c" barSize={12} radius={[2, 2, 0, 0]} />
             <Line type="monotone" dataKey="m" stroke="none" dot={false} activeDot={false} legendType="none" tooltipType="none" isAnimationActive={false}>
@@ -735,14 +745,14 @@ const DecadeChart = ({ blocks, ap, t, f }: any) => (
         return (
           <div key={b.key} className="df-zone">
             <div className="df-zh">
-              <span className="df-zt" style={{ color: b.color }}><Icon size={14} />{b.title}</span>
+              <span className="df-zt" style={{ color: tonText(b.color) }}><Icon size={14} />{b.title}</span>
               <span className="df-vchip">{t.total} : {f.int(b.total)} ha</span>
             </div>
             <ResponsiveContainer width="100%" height={108}>
               <BarChart data={b.rows} layout="vertical" margin={{ top: 2, right: 16, left: 0, bottom: 2 }} barCategoryGap="18%">
                 <XAxis type="number" hide domain={[0, (m: number) => Math.max(1, m * 1.25)]} />
-                <YAxis type="category" dataKey="periode" width={92} tick={{ fontSize: 11, fill: "#334155" }} axisLine={false} tickLine={false} />
-                <Bar dataKey="valeur" barSize={22} radius={[0, 4, 4, 0]} background={{ fill: "#eef2f7", radius: 4 }}>
+                <YAxis type="category" dataKey="periode" width={92} tick={{ fontSize: 11, fill: "var(--text-2)" }} axisLine={false} tickLine={false} />
+                <Bar dataKey="valeur" barSize={22} radius={[0, 4, 4, 0]} background={{ fill: "var(--track)", radius: 4 }}>
                   {b.shades.map((c: string, i: number) => <Cell key={i} fill={c} />)}
                   <LabelList
                     dataKey="valeur"
@@ -751,7 +761,7 @@ const DecadeChart = ({ blocks, ap, t, f }: any) => (
                       const text = `${Math.round(value).toLocaleString()} ha`;
                       const inside = width > text.length * 6.2 + 16;
                       return (
-                        <text x={inside ? x + width - 8 : x + width + 6} y={y + height / 2} dy={4} textAnchor={inside ? "end" : "start"} fill={inside ? "#fff" : "#1f2937"} fontSize={11} fontWeight={700}>{text}</text>
+                        <text x={inside ? x + width - 8 : x + width + 6} y={y + height / 2} dy={4} textAnchor={inside ? "end" : "start"} fill={inside ? "#fff" : "var(--text)"} fontSize={11} fontWeight={700}>{text}</text>
                       );
                     }}
                   />
@@ -844,7 +854,8 @@ const CouchePerte = ({ debut, fin }: { debut: number; fin: number }) => {
   return null;
 };
 
-/* voile clair sur tout ce qui est hors des zones (AP + périphérie, ou région) */
+/* voile clair sur tout ce qui est hors des zones (AP + périphérie, ou région)
+   (reste clair dans les deux thèmes : il se superpose au fond de carte Esri) */
 const MasqueZones = ({ zones }: { zones: Zone[] }) => {
   const map = useMap();
   useEffect(() => {
@@ -1212,8 +1223,8 @@ export default function Deforestation() {
     { title: t.kpiCumulativeRate, color: "#ea580c", tint: "#ff6600", icon: <BadgePercent size={30} color="#ea580c" />, value: f.pct(tauxPerte, 2) },
     {
       title: t.kpiMostAffected, color: "#003399", tint: "#1d4ed8", icon: <MapPinned size={30} color="#1d4ed8" />,
-      value: <span style={{ color: "#b40000" }}>{communeImpactee.commune}</span>,
-      sub: <>{t.loss} <strong style={{ color: "#dc2626" }}>{f.pct(communeImpactee.taux, 1)}</strong> {t.forestCover}</>,
+      value: <span style={{ color: tonText("#b40000") }}>{communeImpactee.commune}</span>,
+      sub: <>{t.loss} <strong style={{ color: tonText("#dc2626") }}>{f.pct(communeImpactee.taux, 1)}</strong> {t.forestCover}</>,
     },
   ];
 
@@ -1262,7 +1273,7 @@ export default function Deforestation() {
       {!baseOk ? (
         <div className="df-load">{t.loading}</div>
       ) : !baseDef.length ? (
-        <div className="df-load" style={{ color: "#b91c1c" }}>{t.noBase}</div>
+        <div className="df-load" style={{ color: "#ef4444" }}>{t.noBase}</div>
       ) : (
         <>
           <div className="df-rank">
