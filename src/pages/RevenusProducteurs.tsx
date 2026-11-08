@@ -97,6 +97,7 @@ const fr = {
   ind: 'Bénéficiaires individuels (C3)', grp: 'Groupements bénéficiaires (C3)', tot: 'Total',
   evol: 'Évolution annuelle des bénéficiaires C3', sTot: 'Total bénéficiaires C3', sProd: 'Producteurs (C3)', sCible: 'Trajectoire cible', lTot: 'Total bénéficiaires', lProd: 'Producteurs',
   path: 'Parcours d’appui des bénéficiaires (C3)', pf: 'Bénéficiaires ayant obtenu une formation', pd: 'Bénéficiaires ayant obtenu une dotation', pa: 'Bénéficiaires ayant obtenu un aménagement',
+  step1: 'des bénéficiaires formés ont reçu une dotation', step2: 'des bénéficiaires dotés ont obtenu un aménagement',
   note: 'Les pourcentages sont calculés par rapport au total des bénéficiaires C3 ({0}).',
   map: 'Localisation des producteurs (C3)', pop: 'Producteurs :', lg: 'Nb producteurs', hint: 'Cliquez sur une limite pour filtrer (région, district, commune).',
   tb: { title: 'Détails des bénéficiaires C3', search: 'Rechercher...', exp: 'Exporter', cols: ['Id', 'Nombre de formations', 'Spécification de la formation', 'Date', 'Nombre de dotations', 'Spécification de la dotation', 'Date', 'Nombre d’aménagements', 'Spécification de l’aménagement', 'Date'],
@@ -113,6 +114,7 @@ const mg: D = {
   ind: 'Mpahazo tombontsoa tsirairay (C3)', grp: 'Vondrona mpahazo tombontsoa (C3)', tot: 'Total',
   evol: 'Fivoaran’ny mpahazo tombontsoa C3 isan-taona', sTot: 'Mpahazo tombontsoa C3 rehetra', sProd: 'Mpamokatra (C3)', sCible: 'Làlana tanjona', lTot: 'Mpahazo tombontsoa rehetra', lProd: 'Mpamokatra',
   path: 'Lalana fanampiana ny mpahazo tombontsoa (C3)', pf: 'Mpahazo tombontsoa nahazo fampiofanana', pd: 'Mpahazo tombontsoa nahazo fanomezana', pa: 'Mpahazo tombontsoa nahazo fanamboarana',
+  step1: 'amin’ireo nahazo fampiofanana no nahazo fanomezana', step2: 'amin’ireo nahazo fanomezana no nahazo fanamboarana',
   note: 'Ny isan-jato dia kajiana amin’ny mpahazo tombontsoa C3 rehetra ({0}).',
   map: 'Toeran’ny mpamokatra (C3)', pop: 'Mpamokatra :', lg: 'Isan’ny mpamokatra', hint: 'Tsindrio ny sisintany mba hanivana (faritra, distrika, kaominina).',
   tb: { title: 'Antsipiriany momba ny mpahazo tombontsoa C3', search: 'Hikaroka...', exp: 'Hamoaka', cols: ['Id', 'Isan’ny fampiofanana', 'Famaritana ny fampiofanana', 'Daty', 'Isan’ny fanomezana', 'Famaritana ny fanomezana', 'Daty', 'Isan’ny fanamboarana', 'Famaritana ny fanamboarana', 'Daty'],
@@ -128,6 +130,7 @@ const en: D = {
   ind: 'Individual beneficiaries (C3)', grp: 'Beneficiary groups (C3)', tot: 'Total',
   evol: 'Annual trend of C3 beneficiaries', sTot: 'Total C3 beneficiaries', sProd: 'Producers (C3)', sCible: 'Target trajectory', lTot: 'Total beneficiaries', lProd: 'Producers',
   path: 'Support pathway of beneficiaries (C3)', pf: 'Beneficiaries who received training', pd: 'Beneficiaries who received an in-kind grant', pa: 'Beneficiaries who received site improvements',
+  step1: 'of trained beneficiaries received an in-kind grant', step2: 'of beneficiaries with a grant received site improvements',
   note: 'Percentages are calculated against total C3 beneficiaries ({0}).',
   map: 'Producer locations (C3)', pop: 'Producers:', lg: 'No. of producers', hint: 'Click a boundary to filter (region, district, municipality).',
   tb: { title: 'Details of C3 beneficiaries', search: 'Search...', exp: 'Export', cols: ['Id', 'Number of trainings', 'Training details', 'Date', 'Number of in-kind grants', 'In-kind grant details', 'Date', 'Number of improvements', 'Improvement details', 'Date'],
@@ -143,6 +146,7 @@ const de: D = {
   ind: 'Einzelbegünstigte (C3)', grp: 'Begünstigte Gruppen (C3)', tot: 'Gesamt',
   evol: 'Jährliche Entwicklung der C3-Begünstigten', sTot: 'Begünstigte C3 gesamt', sProd: 'Produzenten (C3)', sCible: 'Zielpfad', lTot: 'Begünstigte gesamt', lProd: 'Produzenten',
   path: 'Unterstützungspfad der Begünstigten (C3)', pf: 'Begünstigte mit Schulung', pd: 'Begünstigte mit Sachleistung', pa: 'Begünstigte mit Standortverbesserung',
+  step1: 'der geschulten Begünstigten erhielten eine Sachleistung', step2: 'der Begünstigten mit Sachleistung erhielten eine Standortverbesserung',
   note: 'Die Prozentsätze beziehen sich auf alle C3-Begünstigten ({0}).',
   map: 'Standorte der Produzenten (C3)', pop: 'Produzenten:', lg: 'Anz. Produzenten', hint: 'Klicken Sie auf eine Grenze, um zu filtern (Region, Distrikt, Gemeinde).',
   tb: { title: 'Details der C3-Begünstigten', search: 'Suchen...', exp: 'Exportieren', cols: ['ID', 'Anzahl Schulungen', 'Details der Schulung', 'Datum', 'Anzahl Sachleistungen', 'Details der Sachleistung', 'Datum', 'Anzahl Verbesserungen', 'Details der Verbesserung', 'Datum'],
@@ -256,13 +260,21 @@ const CSS = `
 .rp td.c{text-align:center;white-space:nowrap}
 .rp td.s{font-size:11px;line-height:1.35}
 .rp tr.tot td{background:#f0f8eb;font-weight:700}
-.rp-flow{display:flex;align-items:center;justify-content:space-between;gap:4px;margin-top:15px}
-.rp-box{flex:1;border:1.5px solid;border-radius:13px;padding:12px 8px;text-align:center;min-width:0}
-.rp-ic{width:36px;height:36px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center}
-.rp-pl{font-size:11px;font-weight:700;line-height:1.4;min-height:52px}
+.rp-pc{display:flex;flex-direction:column}
+.rp-flow{display:flex;flex-direction:column;align-items:stretch;margin-top:10px}
+.rp-pc .rp-flow{flex:1;justify-content:center}
+.rp-box{display:flex;align-items:center;gap:12px;border:1.5px solid;border-radius:13px;padding:10px 12px;min-width:0}
+.rp-pt{flex:1;min-width:0}
+.rp-pr{text-align:right;flex-shrink:0}
+.rp-mb{height:6px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-top:6px}
+.rp-mb b{display:block;height:100%}
+.rp-ic{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.rp-pl{font-size:12px;font-weight:700;line-height:1.35}
 .rp-pvv{font-size:20px;font-weight:800}
 .rp-pp{font-size:12px;color:#6b7280}
-.rp-ar{font-size:18px;color:#9ca3af;flex-shrink:0}
+.rp-ar{align-self:center;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;font-size:12px;color:#6b7280;padding:4px 0;text-align:center}
+.rp-ar span{font-size:18px;line-height:1;color:#9ca3af}
+.rp-ar b{color:#166534;font-size:13px}
 .rp-note{margin-top:16px;font-size:13px;color:#6b7280;text-align:center}
 .rp-map{position:relative;border-radius:12px;overflow:hidden}
 .rp-lgd{position:absolute;bottom:12px;left:12px;z-index:999;background:rgba(255,255,255,.95);padding:10px 12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:12px}
@@ -290,7 +302,7 @@ const CSS = `
 @media (max-width:1100px){.rp-top{grid-template-columns:repeat(3,1fr)}.rp-top>.wide{grid-column:1/-1}}
 @media (max-width:760px){.rp-mid{grid-template-columns:1fr}.rp-pg{grid-template-columns:1fr;justify-items:center;text-align:center}.rp-pg>div:last-child{justify-content:center}}
 @media (max-width:640px){.rp{padding:8px}.rp-top{grid-template-columns:1fr 1fr}.rp-top>.tg{grid-column:1/-1}.rp-sb,.rp-sb input{width:100%}.rp-sb{flex:1 1 100%}}
-@media (max-width:560px){.rp-btn span{display:none}.rp-btn{padding:0 12px}.rp-flow{flex-direction:column}.rp-ar{transform:rotate(90deg)}.rp-lgd{position:static;margin-top:8px;box-shadow:none;border:1px solid #e5e7eb}}
+@media (max-width:560px){.rp-btn span{display:none}.rp-btn{padding:0 12px}.rp-lgd{position:static;margin-top:8px;box-shadow:none;border:1px solid #e5e7eb}}
 @media print{.np{display:none!important}.rp-c{break-inside:avoid}}
 `;
 
@@ -410,7 +422,13 @@ export default function RevenusProducteurs() {
     const a = base.filter((r) => r.year <= y);
     return { year: y, total: y <= cy ? sum(a, 'm') : null, prod: y <= cy ? sum(a, 'p') : null, cible: Math.round((TARGET * (i + 1)) / nY) };
   });
-  const path = PATH.map((x) => { const v = sum(rows.filter((r) => r[x.k] > 0), 'm'); return { ...x, v, p: pc(v, ben) }; });
+  const path = PATH.map((x, i) => {
+    const prev = i ? PATH[i - 1].k : null;
+    const v = sum(rows.filter((r) => r[x.k] > 0), 'm');
+    const from = prev ? sum(rows.filter((r) => r[prev] > 0), 'm') : 0;
+    const both = prev ? sum(rows.filter((r) => r[prev] > 0 && r[x.k] > 0), 'm') : 0;
+    return { ...x, v, p: pc(v, ben), conv: prev ? pc(both, from) : 0 }; // conv = taux de passage depuis l'étape précédente
+  });
 
   /* ----- Carte : un point par localité ----- */
   const spots = useMemo(() => {
@@ -564,17 +582,22 @@ export default function RevenusProducteurs() {
             </ResponsiveContainer>
           </div>
 
-          <div className="rp-c">
+          <div className="rp-c rp-pc">
             <div className="rp-ct">{t.path}</div>
             <div className="rp-flow">
               {path.map((x, i) => (
                 <React.Fragment key={x.k}>
-                  {i > 0 && <div className="rp-ar" aria-hidden="true">→</div>}
+                  {i > 0 && <div className="rp-ar"><span aria-hidden="true">↓</span><b>{pct(x.conv)}</b>{t[i === 1 ? 'step1' : 'step2']}</div>}
                   <div className="rp-box" style={{ borderColor: x.b }}>
                     <div className="rp-ic" style={{ background: x.bg, color: x.c }}><x.Ic size={20} /></div>
-                    <div className="rp-pl">{t[x.lab]}</div>
-                    <div className="rp-pvv" style={{ color: x.c }}>{nf(x.v)}</div>
-                    <div className="rp-pp">({pct(x.p)})</div>
+                    <div className="rp-pt">
+                      <div className="rp-pl">{t[x.lab]}</div>
+                      <div className="rp-mb"><b style={{ width: `${Math.min(100, x.p)}%`, background: x.c }} /></div>
+                    </div>
+                    <div className="rp-pr">
+                      <div className="rp-pvv" style={{ color: x.c }}>{nf(x.v)}</div>
+                      <div className="rp-pp">({pct(x.p)})</div>
+                    </div>
                   </div>
                 </React.Fragment>
               ))}
