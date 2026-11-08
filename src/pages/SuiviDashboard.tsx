@@ -32,11 +32,25 @@ export interface DashboardConfig {
   extras?: { key: 'cep' | 'feu'; flag: 'is_cep' | 'is_pare_feu'; icon: 'cep' | 'feu' }[];
 }
 
+/* Couleurs
+   - G / STATUT : valeurs « réelles » (hex) utilisées sur la carte Leaflet, qui reste claire dans les deux thèmes
+   - GV / STATUT_UI : variables du thème (clair / sombre) pour tout le reste de l'interface */
 const G = '#1b5e20';
+const GV = 'var(--gv)';
+const BAD = 'var(--bad)';
 const PAL = ['#2e7d32', '#66bb6a', '#D4E157', '#FFB300', '#64B5F6', '#a5d6a7', '#8d6e63'];
 const STATUT: Record<string, string> = { 'Validé': G, 'En attente': '#FFB300', 'Rejeté': '#c62828' };
+const STATUT_UI: Record<string, string> = { 'Validé': GV, 'En attente': '#FFB300', 'Rejeté': BAD };
 const FILTERS: FilterKey[] = ['annee', 'region', 'aire_protegee', 'paysage', 'district', 'commune', 'fokontany', 'mbv', 'statut'];
 const ICONS: Record<string, React.ComponentType<any>> = { cep: Users, feu: Flame };
+
+// Style des info-bulles Recharts (lisibles en clair et en sombre)
+const TIP = {
+  contentStyle: { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--txt)' },
+  itemStyle: { color: 'var(--txt)' },
+  labelStyle: { color: 'var(--txt)' },
+};
+const TICK = { fill: 'var(--txt2)' };
 
 let LOC = 'fr-FR'; // mis à jour à chaque rendu selon la langue active
 const fr = (n: number | string, d = 0) => Number(n || 0).toLocaleString(LOC, { maximumFractionDigits: d });
@@ -51,8 +65,16 @@ const group = (rows: Parcelle[], key: keyof Parcelle) => {
     .sort((a, b) => b.value - a.value);
 };
 
+/* Les couleurs viennent de variables : valeurs claires dans « .sv »,
+   surcharges du thème sombre dans « :root[data-theme="dark"] .sv ». */
 const CSS = `
-.sv{--g:clamp(8px,1.2vw,16px);background:#f4f6f5;min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:#374151}
+.sv{--g:clamp(8px,1.2vw,16px);
+  --page:#f4f6f5;--card:#fff;--txt:#374151;--txt2:#4b5563;--mut:#6b7280;--line:#e5e7eb;--bd:#d1d5db;--track:#e5e7eb;
+  --gv:#1b5e20;--gb:#1b5e20;--bad:#c62828;--e1:rgba(27,94,32,.08);--e2:rgba(27,94,32,.02);--map-bg:#e5e7eb;
+  background:var(--page);min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--txt)}
+:root[data-theme="dark"] .sv{--page:var(--bg);--card:var(--surface);--txt:#e5e7eb;--txt2:#cbd5e1;--mut:#94a3b8;
+  --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
+  --gv:#66bb6a;--gb:#2e7d32;--bad:#f87171;--e1:rgba(102,187,106,.14);--e2:rgba(102,187,106,.04);--map-bg:#1b2740}
 .sv *{box-sizing:border-box}
 .sv-h{background:#0b5d1e;color:#fff;padding:10px clamp(12px,2vw,24px);display:flex;justify-content:space-between;align-items:center;gap:12px}
 .sv-h h2{margin:0;font-size:clamp(15px,2.4vw,22px);line-height:1.2}
@@ -61,35 +83,36 @@ const CSS = `
 .sv-w{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px);display:grid;gap:var(--g)}
 .sv-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .sv-f label{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px;min-width:0}
-.sv-f select{height:38px;width:100%;min-width:0;border:1px solid #d1d5db;border-radius:8px;padding:0 8px;background:#fff}
+.sv-f select{height:38px;width:100%;min-width:0;border:1px solid var(--bd);border-radius:8px;padding:0 8px;background:var(--card);color:var(--txt)}
 .sv-k{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:var(--g)}
 .sv-r{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:var(--g)}
-.sv-c{background:#fff;border-radius:10px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0;display:flex;flex-direction:column}
-.sv-c h4{margin:0 0 10px;text-align:center;color:${G};font-size:14px}
-.sv-e{border-left:6px solid ${G};background:linear-gradient(90deg,rgba(27,94,32,.08),rgba(27,94,32,.02))}
+.sv-c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0;display:flex;flex-direction:column}
+.sv-c h4{margin:0 0 10px;text-align:center;color:var(--gv);font-size:14px}
+.sv-e{border-left:6px solid var(--gv);background:linear-gradient(90deg,var(--e1),var(--e2)),var(--card)}
 .sv-e p{margin:0;text-align:center;font-size:14px;line-height:1.6}
-.sv-big{font-size:clamp(20px,2.4vw,30px);font-weight:800;color:${G};text-align:center;line-height:1.1}
+.sv-big{font-size:clamp(20px,2.4vw,30px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
 .sv-sub{font-size:12px;font-weight:700;text-align:center;margin-top:6px}
 .sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center}
 .sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-.sv-bar{height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin:3px 0 10px}
+.sv-bar{height:8px;background:var(--track);border-radius:4px;overflow:hidden;margin:3px 0 10px}
 .sv-bar b{display:block;height:100%}
 .sv-map{min-height:420px}
-.sv-map .leaflet-container{flex:1;min-height:340px;width:100%;border-radius:8px;z-index:0}
+.sv-map .leaflet-container{flex:1;min-height:340px;width:100%;border-radius:8px;z-index:0;background:var(--map-bg)}
 .sv-tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
 .sv-tb h4{margin:0}
-.sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid #ddd;border-radius:8px}
-.sv-btn{display:inline-flex;gap:6px;align-items:center;padding:8px 12px;background:${G};color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600}
+.sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--txt)}
+.sv-btn{display:inline-flex;gap:6px;align-items:center;padding:8px 12px;background:var(--gb);color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600}
 .sv-t{overflow-x:auto}
 .sv-t table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
-.sv-t th{background:${G};color:#fff;padding:10px;border-right:1px solid rgba(255,255,255,.3)}
-.sv-t td{padding:10px;border-bottom:1px solid #e5e7eb;border-right:1px solid #e5e7eb;text-align:center}
+.sv-t th{background:var(--gb);color:#fff;padding:10px;border-right:1px solid rgba(255,255,255,.3)}
+.sv-t td{padding:10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center}
 .sv-t td.l{text-align:left}
 .sv-pg{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px}
 .sv-pg div{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
-.sv-pg button{min-width:32px;height:32px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer;font-weight:600}
-.sv-pg button.on{background:${G};color:#fff;border-color:${G}}
+.sv-pg button{min-width:32px;height:32px;border:1px solid var(--bd);background:var(--card);color:var(--txt);border-radius:6px;cursor:pointer;font-weight:600}
+.sv-pg button.on{background:var(--gb);color:#fff;border-color:var(--gb)}
 .sv-pg button:disabled{opacity:.4;cursor:default}
+.sv-pg select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
 .sv-msg{padding:40px 16px;text-align:center}
 @media(max-width:520px){.sv-e{grid-column:auto}.sv-pg{justify-content:center}}
 @media(min-width:2200px){.sv{font-size:18px}.sv-c h4{font-size:18px}.sv-t table{font-size:16px}}
@@ -128,12 +151,12 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
       <div style={{ height: 200 }}>
         <ResponsiveContainer>
           <PieChart>
-            <Pie data={data} dataKey="value" innerRadius="55%" outerRadius="85%">
+            <Pie data={data} dataKey="value" innerRadius="55%" outerRadius="85%" stroke="var(--card)">
               {data.map((d, i) => <Cell key={d.name} fill={PAL[i % PAL.length]} />)}
             </Pie>
-            <Tooltip formatter={(v: any) => `${fr(v)} ha`} />
-            <text x="50%" y="48%" textAnchor="middle" fontSize={15} fontWeight="700" fill={G}>{fr(t)} ha</text>
-            <text x="50%" y="58%" textAnchor="middle" fontSize={11} fill="#6b7280">(100 %)</text>
+            <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
+            <text x="50%" y="48%" textAnchor="middle" fontSize={15} fontWeight="700" fill="var(--gv)">{fr(t)} ha</text>
+            <text x="50%" y="58%" textAnchor="middle" fontSize={11} fill="var(--mut)">(100 %)</text>
           </PieChart>
         </ResponsiveContainer>
       </div>
@@ -154,9 +177,9 @@ function Gauge({ pct }: { pct: number }) {
       <ResponsiveContainer>
         <PieChart>
           <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="65%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none">
-            <Cell fill={G} /><Cell fill="#e0e0e0" />
+            <Cell fill="var(--gv)" /><Cell fill="var(--track)" />
           </Pie>
-          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize={14} fontWeight="700" fill={G}>{fr(pct, 1)} %</text>
+          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize={14} fontWeight="700" fill="var(--gv)">{fr(pct, 1)} %</text>
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -288,7 +311,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
             <div className="sv-c"><h4>{t.k.taux}</h4><Gauge pct={(vTot / cible) * 100} /></div>
             <div className="sv-c">
               <h4>{t.k.ecart}</h4>
-              <div className="sv-big" style={{ color: ecart >= 0 ? G : '#c62828' }}>{ecart >= 0 ? '+' : ''}{fr(ecart)} ha</div>
+              <div className="sv-big" style={{ color: ecart >= 0 ? GV : BAD }}>{ecart >= 0 ? '+' : ''}{fr(ecart)} ha</div>
               <div className="sv-sub">{t.k.expected(cy, fr(attendu))}</div>
             </div>
             <div className="sv-c">
@@ -312,11 +335,11 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               <h4>{t.c.region}</h4>
               <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 36 + 30)}>
                 <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 48 }}>
-                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => fr(v)} />
-                  <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700 }} />
-                  <Tooltip formatter={(v: any) => `${fr(v)} ha`} />
-                  <Bar dataKey="value" fill={G} barSize={20} radius={[0, 2, 2, 0]}>
-                    <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600 }} />
+                  <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
+                  <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
+                  <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
+                  <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
+                    <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -329,13 +352,13 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               <h4>{t.c.evol}</h4>
               <ResponsiveContainer width="100%" height={narrow ? 240 : 300}>
                 <LineChart data={evolution} margin={{ left: 0, right: 16, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="annee" tick={{ fontSize: 11 }} padding={{ left: 15, right: 15 }} />
-                  <YAxis tick={{ fontSize: 11 }} domain={[0, cible]} tickFormatter={(v) => fr(v)} width={64} />
-                  <Tooltip formatter={(v: any) => `${fr(v)} ha`} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+                  <XAxis dataKey="annee" tick={{ fontSize: 11, ...TICK }} padding={{ left: 15, right: 15 }} />
+                  <YAxis tick={{ fontSize: 11, ...TICK }} domain={[0, cible]} tickFormatter={(v) => fr(v)} width={64} />
+                  <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--txt2)' }} />
                   <Line name={t.ev.declare} dataKey="declare" stroke="#FFB300" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line name={t.ev.valide} dataKey="valide" stroke={G} strokeWidth={3} dot={{ r: 4 }} />
+                  <Line name={t.ev.valide} dataKey="valide" stroke="var(--gv)" strokeWidth={3} dot={{ r: 4 }} />
                   <Line name={t.ev.cible(fr(cible))} dataKey="cible" stroke="#9e9e9e" strokeDasharray="5 5" dot={false} />
                 </LineChart>
               </ResponsiveContainer>
@@ -345,10 +368,10 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               {statuts.map((s) => (
                 <div key={s.name}>
                   <div className="sv-lg" style={{ marginTop: 0 }}>
-                    <span><i style={{ background: STATUT[s.name] }} />{tv(s.name)}</span>
+                    <span><i style={{ background: STATUT_UI[s.name] }} />{tv(s.name)}</span>
                     <span><b>{fr(s.value)} ha</b> ({fr(dTot ? (s.value / dTot) * 100 : 0, 1)} %)</span>
                   </div>
-                  <div className="sv-bar"><b style={{ width: `${dTot ? (s.value / dTot) * 100 : 0}%`, background: STATUT[s.name] }} /></div>
+                  <div className="sv-bar"><b style={{ width: `${dTot ? (s.value / dTot) * 100 : 0}%`, background: STATUT_UI[s.name] }} /></div>
                 </div>
               ))}
               <div className="sv-sub">{t.c.prec(fr(prec, 1))}</div>
@@ -369,7 +392,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                 <FitBounds feats={filtered} />
               </MapContainer>
               <div className="sv-lg" style={{ justifyContent: 'center', gap: 14 }}>
-                {Object.entries(STATUT).map(([s, c]) => <span key={s}><i style={{ background: c }} />{tv(s)}</span>)}
+                {Object.entries(STATUT_UI).map(([s, c]) => <span key={s}><i style={{ background: c }} />{tv(s)}</span>)}
               </div>
             </div>
           </section>
@@ -379,7 +402,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               <h4>{t.table.title(fr(table.length))}</h4>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <span style={{ position: 'relative', display: 'inline-flex' }}>
-                  <Search size={16} style={{ position: 'absolute', left: 10, top: 11, color: '#888' }} />
+                  <Search size={16} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--mut)' }} />
                   <input style={{ paddingLeft: 32 }} placeholder={t.table.search} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
                 </span>
                 <button className="sv-btn" onClick={exportCsv}><Download size={16} />{t.table.export}</button>
@@ -393,8 +416,8 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                     <tr key={r.id}>
                       <td>{r.id}</td><td>{r.utilisateur}</td><td className="l">{tp(r.pratique)}</td>
                       <td>{dateFmt(r.debut)}</td><td>{dateFmt(r.fin)}</td>
-                      <td style={{ fontWeight: 600, color: G }}>{fr(r.superficie_ha, 2)}</td>
-                      <td style={{ color: STATUT[r.statut], fontWeight: 600 }}>{tv(r.statut)}</td>
+                      <td style={{ fontWeight: 600, color: GV }}>{fr(r.superficie_ha, 2)}</td>
+                      <td style={{ color: STATUT_UI[r.statut], fontWeight: 600 }}>{tv(r.statut)}</td>
                     </tr>
                   ))}
                   {!slice.length && <tr><td colSpan={7}>{t.table.none}</td></tr>}
@@ -402,7 +425,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               </table>
             </div>
             <div className="sv-pg">
-              <span style={{ fontWeight: 700, color: '#6b7280' }}>
+              <span style={{ fontWeight: 700, color: 'var(--mut)' }}>
                 {table.length ? t.table.showing(fr((cur - 1) * per + 1), fr(Math.min(cur * per, table.length)), fr(table.length)) : t.table.empty}
               </span>
               <div>
