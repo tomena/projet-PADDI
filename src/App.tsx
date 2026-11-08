@@ -2,7 +2,6 @@ import { Routes, Route } from "react-router-dom";
 
 import Home from "./pages/Home";
 import DashboardLayout from "./pages/DashboardLayout";
-import Carte from "./pages/Carte";
 
 import Dashboard from "./pages/Dashboard";
 import Analyse from "./pages/Analyse";
@@ -26,6 +25,7 @@ import Beneficiaires from "./pages/Beneficiaires";
 import DecisionCOSAP from "./pages/DecisionCOSAP";
 import MesureRegionale from "./pages/MesureRegionale";
 import ZonesBrulees from "./pages/ZonesBrulees";
+import Bibliotheque from "./pages/Bibliotheque";
 
 export default function App() {
   const data = {
@@ -115,6 +115,9 @@ export default function App() {
           path="mesures-regionales"
           element={<MesureRegionale />}
         />
+
+        {/* Bibliothèque */}
+        <Route path="bibliotheque" element={<Bibliotheque />} />
 
         {/* Route de secours */}
         <Route
