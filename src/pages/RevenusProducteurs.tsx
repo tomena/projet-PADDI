@@ -42,19 +42,21 @@ const DEF = { cible: 7000, debut: 2025, fin: 2030 }; // repli si absent de metad
 
 const LOC: Record<Lang, string> = { fr: 'fr-FR', mg: 'fr-FR', en: 'en-US', de: 'de-DE' };
 const LI: Record<Lang, number> = { fr: 0, mg: 1, en: 2, de: 3 };
+// Classes de la carte (hex : la carte Leaflet reste claire dans les deux thèmes)
 const CLASSES = [
   { max: 50, c: '#16a34a', l: '1 – 50' }, { max: 100, c: '#4ade80', l: '51 – 100' }, { max: 250, c: '#facc15', l: '101 – 250' },
   { max: 500, c: '#fb923c', l: '251 – 500' }, { max: Infinity, c: '#ef4444', l: '501+' },
 ];
 const colorOf = (v: number) => (CLASSES.find((k) => v <= k.max) ?? CLASSES[4]).c;
+// Couleurs du parcours d'appui : variables du thème (clair / sombre)
 const PATH = [
-  { k: 'nF', Ic: GraduationCap, c: '#ca8a04', b: '#facc15', bg: '#fef3c7', lab: 'pf' },
-  { k: 'nD', Ic: Gift, c: '#2563eb', b: '#60a5fa', bg: '#dbeafe', lab: 'pd' },
-  { k: 'nA', Ic: Wrench, c: '#4b5563', b: '#d1d5db', bg: '#f3f4f6', lab: 'pa' },
+  { k: 'nF', Ic: GraduationCap, c: 'var(--p1)', b: '#facc15', bg: 'var(--p1bg)', lab: 'pf' },
+  { k: 'nD', Ic: Gift, c: 'var(--p2)', b: '#60a5fa', bg: 'var(--p2bg)', lab: 'pd' },
+  { k: 'nA', Ic: Wrench, c: 'var(--p3)', b: '#9ca3af', bg: 'var(--p3bg)', lab: 'pa' },
 ] as const;
 const SERIES = [
   { k: 'total', c: '#16a34a', n: 'sTot', l: 'lTot' },
-  { k: 'prod', c: '#2563eb', n: 'sProd', l: 'lProd' },
+  { k: 'prod', c: 'var(--blue)', n: 'sProd', l: 'lProd' },
   { k: 'cible', c: '#9ca3af', n: 'sCible', l: 'sCible' },
 ] as const;
 const HEAD = ['hg', 'hy', 'hy', 'hy', 'hb', 'hb', 'hb', 'hg', 'hg', 'hg'];
@@ -208,7 +210,7 @@ const Fit = ({ pts }: { pts: [number, number][] }) => {
 };
 const Donut = ({ v, label }: { v: number; label: string }) => (
   <div className="rp-dn" role="img" aria-label={label}
-    style={{ background: `conic-gradient(#3f8f00 0 ${Math.min(100, v)}%, #dfe8d7 ${Math.min(100, v)}% 100%)` }}>
+    style={{ background: `conic-gradient(#3f8f00 0 ${Math.min(100, v)}%, var(--track) ${Math.min(100, v)}% 100%)` }}>
     <span>{label}</span>
   </div>
 );
@@ -222,87 +224,98 @@ const useNarrow = () => {
   return n;
 };
 
+/* Les couleurs viennent de variables : valeurs claires dans « .rp »,
+   surcharges du thème sombre dans « :root[data-theme="dark"] .rp ».
+   (La carte Leaflet reste claire dans les deux thèmes.) */
 const CSS = `
-.rp{padding:12px;min-height:100vh;width:100%;max-width:2200px;margin:0 auto;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;color:#111827;display:flex;flex-direction:column;gap:12px}
+.rp{--ink:#111827;--txt2:#374151;--mut:#6b7280;--card:#fff;--line:#e5e7eb;--bd:#d1d5db;--track:#dfe8d7;
+  --gv:#166534;--gb:#166534;--tot:#f0f8eb;--glass:rgba(255,255,255,.95);--blue:#2563eb;
+  --hy:#fef3c7;--hb:#dbeafe;--hg:#f3f4f6;
+  --p1:#ca8a04;--p1bg:#fef3c7;--p2:#2563eb;--p2bg:#dbeafe;--p3:#4b5563;--p3bg:#f3f4f6;
+  padding:12px;min-height:100vh;width:100%;max-width:2200px;margin:0 auto;font-family:Inter,system-ui,-apple-system,'Segoe UI',sans-serif;color:var(--ink);display:flex;flex-direction:column;gap:12px}
+:root[data-theme="dark"] .rp{--ink:#e5e7eb;--txt2:#cbd5e1;--mut:#94a3b8;--card:var(--surface);--line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);
+  --track:rgba(255,255,255,.14);--gv:#4ade80;--gb:#15803d;--tot:rgba(74,222,128,.12);--glass:rgba(17,26,46,.95);--blue:#60a5fa;
+  --hy:rgba(250,204,21,.18);--hb:rgba(96,165,250,.2);--hg:rgba(255,255,255,.08);
+  --p1:#facc15;--p1bg:rgba(250,204,21,.18);--p2:#60a5fa;--p2bg:rgba(96,165,250,.2);--p3:#cbd5e1;--p3bg:rgba(255,255,255,.1)}
 .rp *{box-sizing:border-box}
 .rp :focus-visible{outline:3px solid #facc15;outline-offset:2px}
 .rp-h{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.rp-t{display:flex;align-items:center;gap:10px;font-size:clamp(18px,2.6vw,24px);font-weight:800;color:#166534}
-.rp-btn{height:42px;padding:0 18px;border-radius:10px;background:#166534;color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;cursor:pointer;border:none;flex-shrink:0}
-.rp-btn.l{background:#fff;color:#111827;border:1px solid #d1d5db;height:38px;padding:0 12px;font-weight:600;font-size:12px}
+.rp-t{display:flex;align-items:center;gap:10px;font-size:clamp(18px,2.6vw,24px);font-weight:800;color:var(--gv)}
+.rp-btn{height:42px;padding:0 18px;border-radius:10px;background:var(--gb);color:#fff;display:inline-flex;align-items:center;justify-content:center;gap:8px;font-weight:700;cursor:pointer;border:none;flex-shrink:0}
+.rp-btn.l{background:var(--card);color:var(--ink);border:1px solid var(--bd);height:38px;padding:0 12px;font-weight:600;font-size:12px}
 .rp-btn:disabled{opacity:.6;cursor:default}
 .rp-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end}
-.rp-f2{margin-top:8px;padding:10px;background:#fff;border:1px solid #e5e7eb;border-radius:12px}
+.rp-f2{margin-top:8px;padding:10px;background:var(--card);border:1px solid var(--line);border-radius:12px}
 .rp-f label{display:flex;flex-direction:column;gap:6px;font-size:12px;font-weight:500}
-.rp select,.rp input{height:38px;width:100%;min-width:0;border-radius:8px;border:1px solid #d1d5db;background:#fff;padding:0 10px;font-size:12px}
-.rp-n{background:#facc15;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
-.rp-c{background:#fff;border-radius:14px;padding:12px;border:1px solid #e5e7eb;min-width:0}
-.rp-ct{font-size:13px;font-weight:700;color:#166534;margin-bottom:6px}
+.rp select,.rp input{height:38px;width:100%;min-width:0;border-radius:8px;border:1px solid var(--bd);background:var(--card);color:var(--ink);padding:0 10px;font-size:12px}
+.rp-n{background:#facc15;color:#111827;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
+.rp-c{background:var(--card);border-radius:14px;padding:12px;border:1px solid var(--line);min-width:0}
+.rp-ct{font-size:13px;font-weight:700;color:var(--gv);margin-bottom:6px}
 .rp-top{display:grid;gap:8px;grid-template-columns:1.5fr 1fr 1fr 3fr}
 .rp-mid{display:grid;gap:12px;grid-template-columns:1.6fr 1fr 1.6fr}
 .rp-ctr{display:flex;flex-direction:column;align-items:center;justify-content:center}
-.rp-sub{font-size:12px;color:#374151;margin-bottom:10px}
-.rp-big{font-size:clamp(22px,2.6vw,28px);font-weight:800;text-align:center;color:#166534;line-height:1}
+.rp-sub{font-size:12px;color:var(--txt2);margin-bottom:10px}
+.rp-big{font-size:clamp(22px,2.6vw,28px);font-weight:800;text-align:center;color:var(--gv);line-height:1}
 .rp-bs{text-align:center;font-weight:700;font-size:13px;margin:4px 0 10px}
-.rp-pb{width:100%;height:18px;border-radius:999px;overflow:hidden;background:#dfe8d7}
+.rp-pb{width:100%;height:18px;border-radius:999px;overflow:hidden;background:var(--track)}
 .rp-pb b{display:block;height:100%;background:linear-gradient(90deg,#4ade80,#3f8f00)}
-.rp-pv{text-align:center;margin-top:6px;font-weight:800;font-size:15px;color:#166534}
-.rp-tg{text-align:center;margin-top:4px;color:#4b5563;font-size:12px}
+.rp-pv{text-align:center;margin-top:6px;font-weight:800;font-size:15px;color:var(--gv)}
+.rp-tg{text-align:center;margin-top:4px;color:var(--txt2);font-size:12px}
 .rp-dn{width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.rp-dn span{width:70px;height:70px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#166534}
+.rp-dn span{width:70px;height:70px;border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:var(--gv)}
 .rp-dt{font-size:12px;font-weight:700;text-align:center;margin-bottom:12px}
 .rp-tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .rp table{width:100%;border-collapse:collapse;font-size:12px}
-.rp th{background:#3f8f00;color:#fff;padding:9px 6px;text-align:center;border:1px solid #d1d5db}
-.rp th.hy,.rp th.hb,.rp th.hg{color:#111827;font-size:11px;padding:7px 4px}
-.rp th.hy{background:#fef3c7}.rp th.hb{background:#dbeafe}.rp th.hg{background:#f3f4f6}
-.rp td{padding:9px 6px;border:1px solid #e5e7eb}
+.rp th{background:#3f8f00;color:#fff;padding:9px 6px;text-align:center;border:1px solid var(--bd)}
+.rp th.hy,.rp th.hb,.rp th.hg{color:var(--ink);font-size:11px;padding:7px 4px}
+.rp th.hy{background:var(--hy)}.rp th.hb{background:var(--hb)}.rp th.hg{background:var(--hg)}
+.rp td{padding:9px 6px;border:1px solid var(--line)}
 .rp td.c{text-align:center;white-space:nowrap}
 .rp td.s{font-size:11px;line-height:1.35}
-.rp tr.tot td{background:#f0f8eb;font-weight:700}
+.rp tr.tot td{background:var(--tot);font-weight:700}
 .rp-pc{display:flex;flex-direction:column}
 .rp-flow{display:flex;flex-direction:column;align-items:stretch;margin-top:10px}
 .rp-pc .rp-flow{flex:1;justify-content:center}
 .rp-box{display:flex;align-items:center;gap:12px;border:1.5px solid;border-radius:13px;padding:10px 12px;min-width:0}
 .rp-pt{flex:1;min-width:0}
 .rp-pr{text-align:right;flex-shrink:0}
-.rp-mb{height:6px;border-radius:999px;background:#e5e7eb;overflow:hidden;margin-top:6px}
+.rp-mb{height:6px;border-radius:999px;background:var(--track);overflow:hidden;margin-top:6px}
 .rp-mb b{display:block;height:100%}
 .rp-ic{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .rp-pl{font-size:12px;font-weight:700;line-height:1.35}
 .rp-pvv{font-size:20px;font-weight:800}
-.rp-pp{font-size:12px;color:#6b7280}
-.rp-ar{align-self:center;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;font-size:12px;color:#6b7280;padding:4px 0;text-align:center}
-.rp-ar span{font-size:18px;line-height:1;color:#9ca3af}
-.rp-ar b{color:#166534;font-size:13px}
-.rp-note{margin-top:16px;font-size:13px;color:#6b7280;text-align:center}
+.rp-pp{font-size:12px;color:var(--mut)}
+.rp-ar{align-self:center;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--mut);padding:4px 0;text-align:center}
+.rp-ar span{font-size:18px;line-height:1;color:var(--mut)}
+.rp-ar b{color:var(--gv);font-size:13px}
+.rp-note{margin-top:16px;font-size:13px;color:var(--mut);text-align:center}
 .rp-map{position:relative;border-radius:12px;overflow:hidden}
-.rp-lgd{position:absolute;bottom:12px;left:12px;z-index:999;background:rgba(255,255,255,.95);padding:10px 12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:12px}
+.rp-lgd{position:absolute;bottom:12px;left:12px;z-index:999;background:var(--glass);color:var(--ink);padding:10px 12px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);font-size:12px}
 .rp-lgd b{display:block;margin-bottom:8px}
 .rp-lr{display:flex;align-items:center;gap:8px;margin-bottom:5px}
 .rp-lr i{width:14px;height:14px;border-radius:50%;display:inline-block}
 .rp-lg2{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:6px;font-size:12px}
-.rp-lg2 button{display:flex;align-items:center;gap:6px;background:none;border:0;cursor:pointer;font-size:12px;padding:2px 0}
+.rp-lg2 button{display:flex;align-items:center;gap:6px;background:none;color:var(--ink);border:0;cursor:pointer;font-size:12px;padding:2px 0}
 .rp-lg2 i{width:10px;height:10px;display:inline-block}
 .rp-bh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-.rp-bt{background:#166534;color:#fff;padding:6px 12px;border-radius:10px 10px 0 0;font-weight:700;font-size:12px}
+.rp-bt{background:var(--gb);color:#fff;padding:6px 12px;border-radius:10px 10px 0 0;font-weight:700;font-size:12px}
 .rp-ba{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .rp-sb{position:relative;display:inline-flex;align-items:center}
 .rp-sb svg{position:absolute;left:9px;pointer-events:none}
 .rp-sb input{padding-left:30px;width:200px;height:34px}
-.rp-pg{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:12px;padding-top:8px;border-top:1px solid #e5e7eb}
+.rp-pg{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;font-size:12px;padding-top:8px;border-top:1px solid var(--line)}
 .rp-pg>div{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
-.rp-pg>div:first-child{color:#6b7280}
+.rp-pg>div:first-child{color:var(--mut)}
 .rp-pg>div:last-child{justify-content:flex-end;gap:8px}
-.rp-pg button{width:30px;height:30px;border-radius:6px;border:1px solid #d1d5db;background:#fff;cursor:pointer}
-.rp-pg button.on{background:#166534;color:#fff;border-color:#166534;font-weight:700}
+.rp-pg button{width:30px;height:30px;border-radius:6px;border:1px solid var(--bd);background:var(--card);color:var(--ink);cursor:pointer}
+.rp-pg button.on{background:var(--gb);color:#fff;border-color:var(--gb);font-weight:700}
 .rp-pg button:disabled{opacity:.4;cursor:default}
 .rp-pg select{width:auto;height:30px}
 @media (max-width:1280px){.rp-mid{grid-template-columns:1fr 1fr}.rp-mid>.wide{grid-column:1/-1}}
 @media (max-width:1100px){.rp-top{grid-template-columns:repeat(3,1fr)}.rp-top>.wide{grid-column:1/-1}}
 @media (max-width:760px){.rp-mid{grid-template-columns:1fr}.rp-pg{grid-template-columns:1fr;justify-items:center;text-align:center}.rp-pg>div:last-child{justify-content:center}}
 @media (max-width:640px){.rp{padding:8px}.rp-top{grid-template-columns:1fr 1fr}.rp-top>.tg{grid-column:1/-1}.rp-sb,.rp-sb input{width:100%}.rp-sb{flex:1 1 100%}}
-@media (max-width:560px){.rp-btn span{display:none}.rp-btn{padding:0 12px}.rp-lgd{position:static;margin-top:8px;box-shadow:none;border:1px solid #e5e7eb}}
+@media (max-width:560px){.rp-btn span{display:none}.rp-btn{padding:0 12px}.rp-lgd{position:static;margin-top:8px;box-shadow:none;border:1px solid var(--line)}}
 @media print{.np{display:none!important}.rp-c{break-inside:avoid}}
 `;
 
@@ -566,15 +579,15 @@ export default function RevenusProducteurs() {
             </div>
             <ResponsiveContainer width="100%" height={narrow ? 220 : 270}>
               <LineChart data={evol} margin={{ top: 20, right: 20, left: 0, bottom: 10 }}>
-                <CartesianGrid vertical={false} stroke="#e5e7eb" strokeDasharray="3 3" />
-                <XAxis dataKey="year" axisLine={{ stroke: '#9ca3af' }} tickLine={false} tick={{ fontSize: 11, fill: '#6b7280' }} padding={{ left: 15, right: 15 }} />
-                <YAxis tickFormatter={formatK} axisLine={{ stroke: '#9ca3af' }} tickLine={false} tick={{ fontSize: 11, fill: '#6b7280' }} width={44} />
-                <Tooltip formatter={(v: any) => nf(v)} contentStyle={{ backgroundColor: '#fff', borderRadius: 12, border: '1px solid #e5e7eb' }} />
+                <CartesianGrid vertical={false} stroke="var(--line)" strokeDasharray="3 3" />
+                <XAxis dataKey="year" axisLine={{ stroke: '#9ca3af' }} tickLine={false} tick={{ fontSize: 11, fill: 'var(--mut)' }} padding={{ left: 15, right: 15 }} />
+                <YAxis tickFormatter={formatK} axisLine={{ stroke: '#9ca3af' }} tickLine={false} tick={{ fontSize: 11, fill: 'var(--mut)' }} width={44} />
+                <Tooltip formatter={(v: any) => nf(v)} contentStyle={{ backgroundColor: 'var(--card)', color: 'var(--ink)', borderRadius: 12, border: '1px solid var(--line)' }} itemStyle={{ color: 'var(--ink)' }} labelStyle={{ color: 'var(--ink)' }} />
                 <Legend content={() => null} />
                 {SERIES.map((s) => vis[s.k] && (
                   <Line key={s.k} type="monotone" dataKey={s.k} name={t[s.n]} stroke={s.c} strokeWidth={s.k === 'cible' ? 2 : 3}
                     strokeDasharray={s.k === 'cible' ? '5 5' : undefined}
-                    dot={s.k === 'cible' ? false : { r: 4, fill: '#fff', stroke: s.c, strokeWidth: 2 }} activeDot={{ r: 7 }}
+                    dot={s.k === 'cible' ? false : { r: 4, fill: 'var(--card)', stroke: s.c, strokeWidth: 2 }} activeDot={{ r: 7 }}
                     isAnimationActive animationDuration={1200} animationEasing="ease-out"
                     label={s.k === 'cible' ? undefined : { position: 'top', fontSize: 10, fill: s.c }} />
                 ))}
@@ -640,7 +653,7 @@ export default function RevenusProducteurs() {
             <div className="rp-bt">{t.tb.title}</div>
             <div className="rp-ba">
               <span className="rp-sb">
-                <Search size={16} color="#6b7280" />
+                <Search size={16} color="var(--mut)" />
                 <input placeholder={t.tb.search} aria-label={t.tb.search} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
               </span>
               <button className="rp-btn l np" onClick={exportCsv}>{t.tb.exp}<Download size={16} /></button>
