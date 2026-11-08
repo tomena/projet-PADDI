@@ -334,7 +334,8 @@ function useGeoJSON(url: string) {
 /* ================= CSS RESPONSIVE =================
    - les grilles de page réagissent à la largeur réelle de la page (container query « sc »)
    - les grilles de donuts réagissent à la largeur de leur carte
-   - sur grands écrans (≥1920 px) toute la page est agrandie (zoom) pour rester lisible. */
+   - sur grands écrans (≥1920 px) toute la page est agrandie (zoom) pour rester lisible.
+   Les couleurs utilisent les variables du thème (clair / sombre). */
 
 const RESPONSIVE_CSS = `
 .sc-page{container-type:inline-size;container-name:sc;width:100%;font-family:Inter,system-ui,sans-serif}
@@ -345,23 +346,23 @@ const RESPONSIVE_CSS = `
 @media (min-width:3840px){.sc-zoom{zoom:2.3}}
 
 .sc-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) 240px;gap:16px;align-items:stretch;padding:16px;
-  background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;box-sizing:border-box}
+  background:var(--surface-2);border:1px solid var(--border);border-radius:14px;box-sizing:border-box}
 .sc-actions{display:flex;flex-direction:column;justify-content:center;gap:9px}
 .sc-btn{width:100%;height:38px;padding:0 12px;border-radius:8px;font-size:12px;display:flex;align-items:center;
   justify-content:center;gap:7px;cursor:pointer;transition:background .2s ease}
 .sc-btn-primary{border:1px solid #2563eb;background:#2563eb;color:#fff;font-weight:700;box-shadow:0 2px 5px rgba(37,99,235,.16)}
 .sc-btn-primary:hover{background:#1d4ed8}
-.sc-btn-ghost{border:1px solid #cbd5e1;background:#fff;color:#475569;font-weight:600}
-.sc-btn-ghost:hover{background:#f1f5f9}
+.sc-btn-ghost{border:1px solid var(--border);background:var(--surface);color:var(--text-2);font-weight:600}
+.sc-btn-ghost:hover{background:var(--surface-2)}
 .sc-select{font-size:13px}
 
 .sc-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1.1fr) minmax(0,.9fr);gap:8px;align-items:stretch}
 .sc-bottom{display:grid;grid-template-columns:minmax(0,.55fr) minmax(0,.9fr) minmax(0,2.3fr);gap:8px;align-items:stretch}
 .sc-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.2fr);gap:8px 12px;align-items:center;
-  padding:8px 12px;background:#fff;border:1px solid #dbe4f0;border-radius:10px}
+  padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:10px}
 .sc-footer-head{grid-column:1/-1}
 
-.sc-card{container-type:inline-size;background:#fff;border-radius:12px;border:1px solid #dbe4f0;display:flex;flex-direction:column;
+.sc-card{container-type:inline-size;background:var(--surface);border-radius:12px;border:1px solid var(--border);display:flex;flex-direction:column;
   min-width:0;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04)}
 .sc-kpirow{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px}
 
@@ -374,7 +375,7 @@ const RESPONSIVE_CSS = `
 .sc-donut{container-type:inline-size}
 .sc-two{display:flex;justify-content:space-between;align-items:stretch;gap:4px;width:100%;margin-top:auto;padding-top:8px}
 .sc-two>div{flex:1;min-width:0;text-align:center}
-.sc-two>.sc-sep{flex:none;width:1px;background:#cbd5e1}
+.sc-two>.sc-sep{flex:none;width:1px;background:var(--border)}
 
 @container (max-width:699px){.sc-d5{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @container (max-width:279px){.sc-d4{grid-template-columns:minmax(0,1fr);grid-template-rows:none;grid-auto-flow:row}}
@@ -410,9 +411,9 @@ function Ring({ percent, color, size = 72, inner = 18, outer = 30, font = 11 }: 
     <div style={{ position: "relative", width: size, height: size, margin: "0 auto", flexShrink: 0 }}>
       <PieChart width={size} height={size}>
         <Pie data={[{ value: p }, { value: 100 - p }]} innerRadius={inner} outerRadius={outer}
-          startAngle={90} endAngle={-270} dataKey="value">
+          startAngle={90} endAngle={-270} dataKey="value" stroke="none">
           <Cell fill={color} />
-          <Cell fill="#e5e7eb" />
+          <Cell fill="var(--track)" />
         </Pie>
       </PieChart>
       <div style={{
@@ -429,7 +430,7 @@ function TableRow({ icon: Icon, color, title, amount, percent, index, fill }: an
   const p = clampPct(percent);
   const c = getProgressColor(p);
   return (
-    <div className="sc-cols" style={{ ...styles.row, ...(fill ? { flex: 1 } : null), background: index % 2 === 0 ? "#fff" : "#f8fafc" }}>
+    <div className="sc-cols" style={{ ...styles.row, ...(fill ? { flex: 1 } : null), background: index % 2 === 0 ? "var(--surface)" : "var(--surface-2)" }}>
       <div style={styles.cellFlex}>
         <Icon size={18} color={color} style={{ flexShrink: 0 }} />
         <div style={styles.rowTitle}>{title}</div>
@@ -448,8 +449,8 @@ function TableRow({ icon: Icon, color, title, amount, percent, index, fill }: an
 function TotalRow({ label, amount, percent, color }: any) {
   return (
     <div className="sc-cols" style={styles.totalRow}>
-      <div style={{ fontWeight: 900, fontSize: 12, color: "#1d4ed8" }}>{label}</div>
-      <div style={{ fontWeight: 800, fontSize: 12, color: "#1d4ed8", whiteSpace: "nowrap" }}>{amount}</div>
+      <div style={{ fontWeight: 900, fontSize: 12, color: "var(--accent)" }}>{label}</div>
+      <div style={{ fontWeight: 800, fontSize: 12, color: "var(--accent)", whiteSpace: "nowrap" }}>{amount}</div>
       <div style={{ fontSize: 12, fontWeight: 800, color, textAlign: "center" }}>{percent.toFixed(1)}%</div>
     </div>
   );
@@ -463,7 +464,7 @@ function RateCard({ title, color, percent, dec, plan, icon: Icon, labels }: any)
       style={{
         ...styles.donutCard,
         border: `1.5px solid ${color}33`,
-        background: "#f8fafc",
+        background: "var(--surface-2)",
         borderTop: `2px solid ${color}`,
       }}
     >
@@ -775,24 +776,24 @@ export default function SuiviCouts() {
 
             <ResponsiveContainer width="100%" height={170}>
               <BarChart data={yearlyData} margin={{ top: 30, right: 16, left: 0, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#dbeafe" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis
                   dataKey="year"
-                  tick={{ fontSize: 11, fill: "#334155", fontWeight: 700 }}
-                  axisLine={{ stroke: "#1e293b", strokeWidth: 2 }}
-                  tickLine={{ stroke: "#1e293b", strokeWidth: 1.5 }}
+                  tick={{ fontSize: 11, fill: "var(--text-2)", fontWeight: 700 }}
+                  axisLine={{ stroke: "var(--text-2)", strokeWidth: 2 }}
+                  tickLine={{ stroke: "var(--text-2)", strokeWidth: 1.5 }}
                 />
                 <YAxis
                   width={42}
                   domain={[0, "auto"]}
                   tickFormatter={(v) => (v === 0 ? "0" : `${v}M`)}
-                  tick={{ fontSize: 11, fill: "#334155", fontWeight: 700 }}
-                  axisLine={{ stroke: "#1e293b", strokeWidth: 2 }}
-                  tickLine={{ stroke: "#1e293b", strokeWidth: 1.5 }}
+                  tick={{ fontSize: 11, fill: "var(--text-2)", fontWeight: 700 }}
+                  axisLine={{ stroke: "var(--text-2)", strokeWidth: 2 }}
+                  tickLine={{ stroke: "var(--text-2)", strokeWidth: 1.5 }}
                 />
                 <Bar dataKey="value" radius={[3, 3, 0, 0]} barSize={22}>
                   {yearlyData.map((entry, index) => (
-                    <Cell key={index} fill={entry.value === maxYear ? "#1e3a8a" : "#94a3b8"} />
+                    <Cell key={index} fill={entry.value === maxYear ? "#2563eb" : "#94a3b8"} />
                   ))}
                   <LabelList
                     position="top"
@@ -800,10 +801,10 @@ export default function SuiviCouts() {
                       const { x, y, width, value, index } = props;
                       return (
                         <g>
-                          <text x={x + width / 2} y={y - 16} textAnchor="middle" fill="#1d4ed8" fontSize="10" fontWeight="700">
+                          <text x={x + width / 2} y={y - 16} textAnchor="middle" fill="#2563eb" fontSize="10" fontWeight="700">
                             {(Number(value) || 0).toFixed(2)}M
                           </text>
-                          <text x={x + width / 2} y={y - 3} textAnchor="middle" fill="#64748b" fontSize="9" fontWeight="700">
+                          <text x={x + width / 2} y={y - 3} textAnchor="middle" fill="#94a3b8" fontSize="9" fontWeight="700">
                             {yearlyData[index]?.percent ?? 0}%
                           </text>
                         </g>
@@ -826,7 +827,7 @@ export default function SuiviCouts() {
                 onChange={(e) => setBailleur(e.target.value)}
                 style={{
                   fontSize: 12, fontWeight: 700, width: 70, height: 25, padding: "0 8px", borderRadius: 8,
-                  border: "1px solid #cbd5e1", cursor: "pointer", outline: "none", flexShrink: 0,
+                  border: "1px solid var(--border)", cursor: "pointer", outline: "none", flexShrink: 0,
                   backgroundColor: bailleur === "BMZ" ? "#eff6ff" : "#fefce8",
                   color: bailleur === "BMZ" ? "#1d4ed8" : "#854d0e",
                 }}
@@ -874,7 +875,7 @@ export default function SuiviCouts() {
               ))}
             </div>
 
-            <TotalRow label={t.total} amount={eur(dec.totalOutputs)} percent={totalOutPct} color="#1d4ed8" />
+            <TotalRow label={t.total} amount={eur(dec.totalOutputs)} percent={totalOutPct} color="#2563eb" />
           </div>
         </div>
 
@@ -882,13 +883,13 @@ export default function SuiviCouts() {
         <div className="sc-bottom">
           {/* Avancement global */}
           <div className="sc-card">
-            <div style={{ ...styles.subHead, color: "#1d4ed8" }}>{t.globalProgress}</div>
+            <div style={{ ...styles.subHead, color: "var(--accent)" }}>{t.globalProgress}</div>
 
             <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, paddingBottom: 6 }}>
               <Ring percent={tauxAvancement} color={getProgressColor(tauxAvancement)} size={100} inner={25} outer={42} font={16} />
 
               <div style={{ width: "100%" }}>
-                <div style={{ ...styles.summaryRow, borderBottom: "1px solid #e5e7eb" }}>
+                <div style={{ ...styles.summaryRow, borderBottom: "1px solid var(--border)" }}>
                   <span style={styles.summaryLabel}>{t.disbursed}</span>
                   <span style={{ fontWeight: 900, color: "#2563eb" }}>{eur(decaisse)}</span>
                 </div>
@@ -902,7 +903,7 @@ export default function SuiviCouts() {
 
           {/* Par composante */}
           <div className="sc-card">
-            <div style={{ ...styles.subHead, color: "#1d4ed8" }}>{t.progressComponent}</div>
+            <div style={{ ...styles.subHead, color: "var(--accent)" }}>{t.progressComponent}</div>
             <div className="sc-d4">
               {tauxComposantes.map((item, i) => (
                 <BarRateCard key={i} {...item} labels={rateLabels} />
@@ -912,7 +913,7 @@ export default function SuiviCouts() {
 
           {/* Par instrument */}
           <div className="sc-card">
-            <div style={{ ...styles.subHead, color: "#15803d" }}>{t.progressInstrument}</div>
+            <div style={{ ...styles.subHead, color: "#16a34a" }}>{t.progressInstrument}</div>
             <div className="sc-d5" style={{ "--n": tauxInstruments.length } as React.CSSProperties}>
               {tauxInstruments.map((item, i) => (
                 <RateCard key={i} {...item} labels={rateLabels} />
@@ -969,7 +970,8 @@ export default function SuiviCouts() {
   );
 }
 
-/* ================= STYLES (la mise en page est dans RESPONSIVE_CSS) ================= */
+/* ================= STYLES (la mise en page est dans RESPONSIVE_CSS) =================
+   Couleurs : variables du thème (var(--surface), var(--text)…) définies dans theme.css. */
 
 const styles: Record<string, React.CSSProperties> = {
   header: {
@@ -993,16 +995,16 @@ const styles: Record<string, React.CSSProperties> = {
 
   /* filtres */
   bigFilter: {
-    display: "flex", alignItems: "center", gap: 13, padding: "13px 15px", background: "#fff",
-    border: "1px solid #e2e8f0", borderRadius: 11, minHeight: 78, boxSizing: "border-box", minWidth: 0,
+    display: "flex", alignItems: "center", gap: 13, padding: "13px 15px", background: "var(--surface)",
+    border: "1px solid var(--border)", borderRadius: 11, minHeight: 78, boxSizing: "border-box", minWidth: 0,
   },
-  filterIcon: { width: 42, height: 42, minWidth: 42, borderRadius: 10, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center" },
-  filterLabel: { display: "block", fontSize: 10, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 },
+  filterIcon: { width: 42, height: 42, minWidth: 42, borderRadius: 10, background: "var(--blue-soft)", display: "flex", alignItems: "center", justifyContent: "center" },
+  filterLabel: { display: "block", fontSize: 10, fontWeight: 800, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 },
   bigSelect: {
-    width: "100%", height: 32, padding: "0 28px 0 10px", border: "1px solid #cbd5e1", borderRadius: 7,
-    background: "#fff", color: "#0f172a", fontWeight: 700, outline: "none", cursor: "pointer", boxSizing: "border-box",
+    width: "100%", height: 32, padding: "0 28px 0 10px", border: "1px solid var(--border)", borderRadius: 7,
+    background: "var(--surface)", color: "var(--text)", fontWeight: 700, outline: "none", cursor: "pointer", boxSizing: "border-box",
   },
-  filterSub: { fontSize: 10, color: "#94a3b8", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  filterSub: { fontSize: 10, color: "var(--text-3)", marginTop: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
 
   /* cartes */
   cardHeader: {
@@ -1013,39 +1015,39 @@ const styles: Record<string, React.CSSProperties> = {
   subHead: { padding: "8px 10px", fontWeight: 900, fontSize: 10, lineHeight: 1.25, letterSpacing: 0.3, textAlign: "center" },
 
   kpiTile: { display: "flex", alignItems: "center", gap: 10, flex: "1 1 220px", minWidth: 0, padding: "6px 0 6px 6px" },
-  kpiIconWrap: { width: 44, height: 44, borderRadius: 12, background: "#eff6ff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  kpiIconWrap: { width: 44, height: 44, borderRadius: 12, background: "var(--blue-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   kpiContent: { display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, textAlign: "left", minWidth: 0 },
-  kpiTopLabel: { fontSize: 11, fontWeight: 700, color: "#2563eb", letterSpacing: 0.5, textTransform: "uppercase" },
-  kpiMainValue: { fontSize: "clamp(16px, 1vw + 10px, 20px)", fontWeight: 800, color: "#2563eb", lineHeight: 1.1 },
-  kpiDivider: { height: 1, background: "#e5e7eb", margin: "6px 0", width: "100%" },
-  kpiSubLabel: { fontSize: 10, color: "#94a3b8", fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" },
-  kpiSubValue: { fontSize: 13, fontWeight: 800, color: "#0f172a", marginTop: 2 },
-  kpiLabel: { fontSize: 11, fontWeight: 800, color: "#2563eb", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 },
+  kpiTopLabel: { fontSize: 11, fontWeight: 700, color: "var(--accent)", letterSpacing: 0.5, textTransform: "uppercase" },
+  kpiMainValue: { fontSize: "clamp(16px, 1vw + 10px, 20px)", fontWeight: 800, color: "var(--accent)", lineHeight: 1.1 },
+  kpiDivider: { height: 1, background: "var(--border)", margin: "6px 0", width: "100%" },
+  kpiSubLabel: { fontSize: 10, color: "var(--text-3)", fontWeight: 600, letterSpacing: 0.3, textTransform: "uppercase" },
+  kpiSubValue: { fontSize: 13, fontWeight: 800, color: "var(--text)", marginTop: 2 },
+  kpiLabel: { fontSize: 11, fontWeight: 800, color: "var(--accent)", marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.4 },
 
-  chartTitle: { textAlign: "center", color: "#2563eb", fontWeight: 900, fontSize: 10, marginBottom: 5, letterSpacing: 0.5, padding: "0 8px" },
-  chartUnit: { color: "#64748b", fontSize: 10, fontWeight: 800, marginBottom: 4, marginLeft: 18 },
+  chartTitle: { textAlign: "center", color: "var(--accent)", fontWeight: 900, fontSize: 10, marginBottom: 5, letterSpacing: 0.5, padding: "0 8px" },
+  chartUnit: { color: "var(--text-3)", fontSize: 10, fontWeight: 800, marginBottom: 4, marginLeft: 18 },
 
   /* tableaux */
   tableHeader: {
-    padding: "9px 12px", fontSize: 10, fontWeight: 800, color: "#475569", background: "#f1f5f9",
-    borderBottom: "2px solid #cbd5e1", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+    padding: "9px 12px", fontSize: 10, fontWeight: 800, color: "var(--text-2)", background: "var(--surface-2)",
+    borderBottom: "2px solid var(--border)", textTransform: "uppercase", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
   },
-  row: { minHeight: 42, padding: "4px 12px", borderBottom: "1px solid #eef2f7" },
-  totalRow: { padding: "8px 12px", borderTop: "1px solid black", marginTop: "auto" },
+  row: { minHeight: 42, padding: "4px 12px", borderBottom: "1px solid var(--border-soft)" },
+  totalRow: { padding: "8px 12px", borderTop: "1px solid var(--text-3)", marginTop: "auto" },
   cellFlex: { display: "flex", alignItems: "center", gap: 8, minWidth: 0 },
   rowTitle: {
-    fontSize: 11, fontWeight: 600, color: "#111827", lineHeight: 1.15, display: "-webkit-box",
+    fontSize: 11, fontWeight: 600, color: "var(--text)", lineHeight: 1.15, display: "-webkit-box",
     WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", wordBreak: "break-word",
   },
   amount: { fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" },
   progressCell: { display: "flex", alignItems: "center", gap: 4, minWidth: 0 },
   percentLeft: { fontSize: 10, fontWeight: 700, textAlign: "right", minWidth: 36 },
-  progress: { flex: 1, minWidth: 20, height: 8, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" },
+  progress: { flex: 1, minWidth: 20, height: 8, background: "var(--track)", borderRadius: 999, overflow: "hidden" },
   progressFill: { height: "100%", borderRadius: 999, transition: "width 1s ease-in-out" },
 
   /* avancement global */
   summaryRow: { display: "grid", gridTemplateColumns: "1fr auto", gap: 8, padding: "8px 12px", fontSize: 11 },
-  summaryLabel: { fontWeight: 700, color: "#475569" },
+  summaryLabel: { fontWeight: 700, color: "var(--text-2)" },
 
   /* cartes donuts */
   donutCard: {
@@ -1053,12 +1055,12 @@ const styles: Record<string, React.CSSProperties> = {
     width: "100%", boxSizing: "border-box", overflow: "hidden", alignItems: "center", boxShadow: "0 2px 6px rgba(0,0,0,0.04)",
   },
   donutTitle: { fontSize: "clamp(7.5px, 7.5cqw, 9px)", fontWeight: 900, lineHeight: 1.15, minHeight: "3.5em", textAlign: "center", letterSpacing: 0.2 },
-  smallLabel: { fontSize: 9, fontWeight: 900, color: "#64748b", lineHeight: 1.1, whiteSpace: "nowrap" },
-  money: { fontWeight: 900, fontSize: 11, color: "#0f172a", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
+  smallLabel: { fontSize: 9, fontWeight: 900, color: "var(--text-3)", lineHeight: 1.1, whiteSpace: "nowrap" },
+  money: { fontWeight: 900, fontSize: 11, color: "var(--text)", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
 
   /* textes des cartes « instrument » : suivent la largeur de la carte (8 cartes côte à côte) */
-  rateLabel: { fontSize: "clamp(6.5px, 6.8cqw, 9px)", fontWeight: 900, color: "#64748b", lineHeight: 1.1, whiteSpace: "nowrap" },
-  rateMoney: { fontWeight: 900, fontSize: "clamp(8px, 9.5cqw, 11px)", color: "#0f172a", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
+  rateLabel: { fontSize: "clamp(6.5px, 6.8cqw, 9px)", fontWeight: 900, color: "var(--text-3)", lineHeight: 1.1, whiteSpace: "nowrap" },
+  rateMoney: { fontWeight: 900, fontSize: "clamp(8px, 9.5cqw, 11px)", color: "var(--text)", whiteSpace: "nowrap", lineHeight: 1.2, marginTop: 2 },
 
   /* carte « composante » avec barre de progression */
   barCard: {
@@ -1071,22 +1073,22 @@ const styles: Record<string, React.CSSProperties> = {
     display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
   },
   barCardPct: { fontSize: 13, fontWeight: 900, lineHeight: 1.1, flexShrink: 0 },
-  barTrack: { width: "100%", height: 10, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" },
+  barTrack: { width: "100%", height: 10, background: "var(--track)", borderRadius: 999, overflow: "hidden" },
   barCardBottom: { display: "flex", alignItems: "stretch", gap: 8 },
-  vSep: { width: 1, background: "#cbd5e1", flex: "none" },
+  vSep: { width: 1, background: "var(--border)", flex: "none" },
 
   rowsFill: { flex: 1, display: "flex", flexDirection: "column" },
 
   /* légende */
-  footerHeader: { fontSize: 11, fontWeight: 800, color: "#1d4ed8", letterSpacing: 0.4 },
-  footerLegend: { display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 11, fontWeight: 700, color: "#334155" },
+  footerHeader: { fontSize: 11, fontWeight: 800, color: "var(--accent)", letterSpacing: 0.4 },
+  footerLegend: { display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", fontSize: 11, fontWeight: 700, color: "var(--text-2)" },
   legendItem: { display: "flex", alignItems: "center", gap: 6 },
   dot: { width: 12, height: 12, borderRadius: 999, display: "inline-block", flexShrink: 0 },
-  footerInfo: { display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "#475569", fontWeight: 600 },
+  footerInfo: { display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--text-2)", fontWeight: 600 },
   footerCTA: {
     display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8,
-    background: "#ecfdf5", padding: "6px 10px", borderRadius: 8, border: "1px solid #a7f3d0",
+    background: "var(--green-soft)", padding: "6px 10px", borderRadius: 8, border: "1px solid var(--border)",
   },
-  ctaIcon: { width: 32, height: 32, borderRadius: 8, background: "#d1fae5", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  ctaIcon: { width: 32, height: 32, borderRadius: 8, background: "var(--green-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   ctaButton: { background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" },
 };
