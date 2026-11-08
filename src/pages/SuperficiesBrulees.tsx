@@ -127,12 +127,19 @@ const getColorByAntenne = (a: string) => COULEUR_ANTENNE[a] || '#64748b';
 
 const statutDe = (reduction: number, has: boolean) =>
   !has ? 'nodata' : reduction >= 25 ? 'reached' : reduction >= 15 ? 'onTrack' : reduction >= 5 ? 'toReinforce' : 'late';
+
+// Badges de statut : teinte calculée à partir de la couleur de barre (fonctionne en clair et en sombre)
+const mk = (k: string, bar: string) => ({
+  k, bar,
+  c: `color-mix(in srgb, ${bar} 65%, var(--text))`,
+  bg: `color-mix(in srgb, ${bar} 18%, transparent)`,
+});
 const ST: any = {
-  reached: { k: 'reached', c: '#1d4ed8', bg: '#dbeafe', bar: '#2563eb' },
-  onTrack: { k: 'onTrack', c: '#15803d', bg: '#dcfce7', bar: '#16a34a' },
-  toReinforce: { k: 'toReinforce', c: '#b45309', bg: '#fef3c7', bar: '#f59e0b' },
-  late: { k: 'late', c: '#b91c1c', bg: '#fee2e2', bar: '#dc2626' },
-  nodata: { k: 'noData', c: '#64748b', bg: '#f1f5f9', bar: '#cbd5e1' },
+  reached: mk('reached', '#2563eb'),
+  onTrack: mk('onTrack', '#16a34a'),
+  toReinforce: mk('toReinforce', '#f59e0b'),
+  late: mk('late', '#dc2626'),
+  nodata: mk('noData', '#94a3b8'),
 };
 
 function telechargerCSV(nom: string, lignes: (string | number)[][]) {
@@ -147,6 +154,14 @@ const num = (v: any) => Number(String(v ?? 0).replace(',', '.')) || 0;
 const fr1 = (v: number) => Number(v ?? 0).toFixed(1).replace('.', ',');
 const formatHa = (v: number) =>
   Number(v ?? 0).toLocaleString('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' ha';
+
+// Recharts : couleurs via les variables du thème (clair / sombre)
+const TICK = { fontSize: 11, fill: 'var(--text-3)' };
+const TT = {
+  contentStyle: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text)', fontSize: 12 },
+  labelStyle: { color: 'var(--text)', fontWeight: 700 },
+  itemStyle: { color: 'var(--text-2)' },
+};
 
 /* =====================================================================
    COUCHES LEAFLET
@@ -528,7 +543,7 @@ export default function SuperficiesBrulees({ data }: any) {
                       <Pie data={dataDonut} innerRadius="68%" outerRadius="100%" startAngle={90} endAngle={-270}
                            dataKey="value" stroke="none" isAnimationActive={false}>
                         <Cell fill={donutColor} />
-                        <Cell fill="#e5e7eb" />
+                        <Cell fill="var(--track)" />
                       </Pie>
                     </PieChart>
                   </ResponsiveContainer>
@@ -567,27 +582,28 @@ export default function SuperficiesBrulees({ data }: any) {
             <div className="sbr-graph">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={evolution} margin={{ top: 18, right: 24, left: -8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="annee" tick={{ fontSize: 11 }} padding={{ left: 12, right: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="annee" tick={TICK} stroke="var(--text-3)" padding={{ left: 12, right: 12 }} />
                   <YAxis
-                    tick={{ fontSize: 11 }}
+                    tick={TICK}
+                    stroke="var(--text-3)"
                     tickFormatter={(v) => `${v}%`}
                     domain={[
                       (m: number) => Math.floor(Math.min(m, -30) / 5) * 5,
                       (m: number) => Math.ceil(Math.max(m, 0) / 5) * 5,
                     ]}
                   />
-                  <Tooltip formatter={(v: any) => `${fr1(v)} %`} labelFormatter={(l) => `${t.year} ${l}`} />
+                  <Tooltip {...TT} formatter={(v: any) => `${fr1(v)} %`} labelFormatter={(l) => `${t.year} ${l}`} />
                   <ReferenceLine y={-25} stroke="#16a34a" strokeDasharray="5 5"
-                    label={{ value: t.targetLine, position: 'insideBottomLeft', fill: '#15803d', fontSize: 11 }} />
+                    label={{ value: t.targetLine, position: 'insideBottomLeft', fill: '#16a34a', fontSize: 11 }} />
                   <Line type="linear" dataKey="traj" name={t.trajectory} stroke="#64748b" strokeWidth={2}
                         strokeDasharray="6 4" dot={false} connectNulls />
-                  <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11 }} />
+                  <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11, color: 'var(--text-2)' }} />
                   <Line type="monotone" dataKey="valeur" name={t.burnedVariation} stroke="#c80f0f"
                         strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} connectNulls={false}
                         label={({ x, y, value }: any) =>
                           value == null || Number(value) === 0 ? null : (
-                            <text x={x} y={y - 9} fontSize={10} fontWeight={700} fill="#111827" textAnchor="middle">
+                            <text x={x} y={y - 9} fontSize={10} fontWeight={700} fill="var(--text)" textAnchor="middle">
                               {fr1(value)}%
                             </text>
                           )} />
@@ -613,13 +629,13 @@ export default function SuperficiesBrulees({ data }: any) {
             <div className="sbr-graph sbr-graph-grand">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={comparisonDisplay} margin={{ top: 10, right: 24, left: -8, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="annee" tick={{ fontSize: 11 }} padding={{ left: 12, right: 12 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v)}%`} domain={[(m: number) => Math.floor(Math.min(m, -25) / 10) * 10, (m: number) => Math.ceil(Math.max(m, 0) / 10) * 10]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="annee" tick={TICK} stroke="var(--text-3)" padding={{ left: 12, right: 12 }} />
+                  <YAxis tick={TICK} stroke="var(--text-3)" tickFormatter={(v) => `${Math.round(v)}%`} domain={[(m: number) => Math.floor(Math.min(m, -25) / 10) * 10, (m: number) => Math.ceil(Math.max(m, 0) / 10) * 10]}>
                     <Label value="Variation (%)" angle={-90} position="insideLeft"
-                           style={{ textAnchor: 'middle', fontSize: 11, fontWeight: 600, fill: '#475569' }} />
+                           style={{ textAnchor: 'middle', fontSize: 11, fontWeight: 600, fill: 'var(--text-3)' }} />
                   </YAxis>
-                  <Tooltip formatter={(v: any) => `${fr1(v)} %`} labelFormatter={(l) => `${t.year} ${l}`} />
+                  <Tooltip {...TT} formatter={(v: any) => `${fr1(v)} %`} labelFormatter={(l) => `${t.year} ${l}`} />
                   <ReferenceLine y={-25} stroke="#dc2626" strokeDasharray="5 5"
                     label={{ value: t.targetLine, position: 'insideBottomLeft', fill: '#dc2626', fontSize: 11 }} />
                   {AP_LIST.filter((a) => !hidden.includes(a.code)).map((a) => (
@@ -709,16 +725,21 @@ export default function SuperficiesBrulees({ data }: any) {
 }
 
 /* =====================================================================
-   STYLES (feuille locale : media queries + même palette que Pression)
+   STYLES : alias locaux -> variables globales du thème (clair / sombre)
    ===================================================================== */
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600&display=swap');
 
-/* .sbr est un « conteneur » : tout s'adapte à la largeur réellement disponible
-   (sidebar ouverte ou réduite), pas à la largeur de la fenêtre. */
 .sbr{
-  --fond-panneau:#f1f4f7; --fond-entete:rgba(255,255,255,.95); --carte:#fff; --ligne:#e2e8f0;
-  --txt:#0f172a; --mut:#64748b; --rouge:rgb(200,15,15);
+  --fond-panneau:var(--surface-2);
+  --fond-entete:color-mix(in srgb,var(--surface) 95%,transparent);
+  --carte:var(--surface);
+  --ligne:var(--border);
+  --txt:var(--text);
+  --mut:var(--text-3);
+  --tuile:var(--surface-3);
+  --hover:var(--surface-3);
+  --rouge:rgb(200,15,15);
   --titre:'Bricolage Grotesque','Segoe UI',system-ui,sans-serif;
   --corps:'Figtree','Segoe UI',system-ui,sans-serif;
   width:100%;min-width:0;max-width:100%;container-type:inline-size;container-name:sbr;
@@ -727,7 +748,6 @@ const CSS = `
 .sbr *{box-sizing:border-box}
 .sbr button,.sbr select{font-family:inherit}
 .sbr button:focus-visible,.sbr select:focus-visible,.sbr a:focus-visible{outline:2px solid var(--rouge);outline-offset:2px}
-/* --sbr-offset : hauteur d'un éventuel en-tête global de ton application (ex. 64px) */
 .sbr-in{height:calc(100dvh - var(--sbr-offset,0px));min-height:560px;display:flex;flex-direction:column}
 
 /* ---- En-tête ---- */
@@ -742,25 +762,25 @@ const CSS = `
 .sbr-filtres{display:flex;gap:12px;align-items:flex-end;flex-wrap:nowrap;margin-top:0;margin-left:auto}
 .sbr-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
 .sbr-champ>span{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--mut);font-weight:500}
-.sbr-champ select{padding:8px 10px;border-radius:9px;border:1px solid #cbd5e1;background:#fff;color:var(--txt);
+.sbr-champ select{padding:8px 10px;border-radius:9px;border:1px solid var(--ligne);background:var(--surface);color:var(--txt);
   font-size:13px;min-width:150px;max-width:210px;cursor:pointer}
 .sbr-reset{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border-radius:9px;
-  border:1px dashed #94a3b8;background:transparent;color:var(--txt);font-size:13px;font-weight:600;cursor:pointer}
+  border:1px dashed var(--mut);background:transparent;color:var(--txt);font-size:13px;font-weight:600;cursor:pointer}
 .sbr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
 
 .sbr-export{position:relative;align-self:flex-end}
-.sbr-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid #0f172a;
-  background:#0f172a;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
-.sbr-btn:hover{background:#1e293b}
-.sbr-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:250px;background:#fff;
-  border:1px solid rgba(15,23,42,.12);border-radius:12px;padding:7px;box-shadow:0 8px 28px rgba(0,0,0,.18)}
+.sbr-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:9px;border:1px solid #14532d;
+  background:#14532d;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.sbr-btn:hover{background:#166534}
+.sbr-pop{position:absolute;top:calc(100% + 8px);right:0;z-index:30;min-width:250px;background:var(--surface);
+  border:1px solid var(--ligne);border-radius:12px;padding:7px;box-shadow:0 8px 28px rgba(0,0,0,.35)}
 .sbr-pop-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;
   padding:10px;border:0;border-radius:8px;background:transparent;color:var(--txt);cursor:pointer;font-size:13px}
 .sbr-pop-item span{color:var(--mut);font-size:11.5px}
-.sbr-pop-item:hover{background:#f1f5f9}
+.sbr-pop-item:hover{background:var(--hover)}
 .sbr-print-titre{display:none}
 
-/* ---- Corps : panneau (plus large) + carte (plus étroite, pleine hauteur) ---- */
+/* ---- Corps ---- */
 .sbr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,66%) minmax(0,1fr)}
 .sbr-panel{container-type:inline-size;container-name:sbrp;overflow-y:auto;padding:16px;
   background:var(--fond-panneau);border-right:1px solid var(--ligne);min-width:0}
@@ -771,7 +791,7 @@ const CSS = `
 
 /* ---- Cartes ---- */
 .sbr-carte{background:var(--carte);border:1px solid var(--ligne);border-radius:14px;padding:16px;min-width:0;
-  box-shadow:0 1px 3px rgba(15,23,42,.06);display:flex;flex-direction:column;container-type:inline-size;container-name:sbc}
+  box-shadow:0 1px 3px rgba(0,0,0,.08);display:flex;flex-direction:column;container-type:inline-size;container-name:sbc}
 .sbr-carte:nth-of-type(1){border-top:4px solid var(--rouge)}
 .sbr-carte:nth-of-type(2){border-top:4px solid #16a34a}
 .sbr-carte:nth-of-type(3){border-top:4px solid #2563eb}
@@ -783,7 +803,7 @@ const CSS = `
 .sbr-kpi-haut{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:12px;align-items:stretch}
 .sbr-stats-col{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:8px}
 .sbr-stats-bas{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
-.sbr-tuile{background:#f8fafc;border:1px solid var(--ligne);border-radius:10px;padding:8px 10px;min-width:0;
+.sbr-tuile{background:var(--tuile);border:1px solid var(--ligne);border-radius:10px;padding:8px 10px;min-width:0;
   display:flex;flex-direction:column;justify-content:center;gap:2px}
 .sbr-tuile span{font-size:11px;color:var(--mut);line-height:1.25}
 .sbr-tuile strong{font-family:var(--titre);font-size:clamp(13px,1.15vw,16px);font-weight:700;
@@ -799,46 +819,47 @@ const CSS = `
 .sbr-graph-grand{flex:1;min-height:240px}
 
 .sbr-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.sbr-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid #cbd5e1;
-  background:#fff;color:var(--txt);font-size:11.5px;cursor:pointer;max-width:100%}
+.sbr-chip{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;border:1px solid var(--ligne);
+  background:var(--surface);color:var(--txt);font-size:11.5px;cursor:pointer;max-width:100%}
 .sbr-chip b{font-weight:700}
 .sbr-chip i{width:10px;height:10px;border-radius:50%;flex:none}
-.sbr-chip.off{opacity:.45;text-decoration:line-through;background:#f8fafc}
-.sbr-chip:hover{background:#f1f5f9}
+.sbr-chip.off{opacity:.45;text-decoration:line-through;background:var(--tuile)}
+.sbr-chip:hover{background:var(--hover)}
 
 /* ---- Classement ---- */
 .sbr-rang{list-style:none;margin:0;padding:0;display:grid;gap:4px}
 .sbr-rang button{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px 12px;
   align-items:center;width:100%;padding:6px 10px;border:0;border-radius:8px;background:transparent;
   cursor:pointer;text-align:left;font-size:12.5px;color:var(--txt)}
-.sbr-rang button:hover{background:#f1f5f9}
-.sbr-rang button.on{background:#dcfce7;outline:1px solid #16a34a}
+.sbr-rang button:hover{background:var(--hover)}
+.sbr-rang button.on{background:rgba(22,163,74,.18);outline:1px solid #16a34a}
 .sbr-rang .nom{display:flex;align-items:center;gap:8px;font-weight:600;min-width:0;overflow:hidden;
   text-overflow:ellipsis;white-space:nowrap}
 .sbr-rang .nom i{width:10px;height:10px;border-radius:50%;flex:none}
 .sbr-rang .val{font-variant-numeric:tabular-nums;order:3;min-width:60px;text-align:right}
-.sbr-piste{grid-column:1/-1;order:5;position:relative;height:8px;background:#e2e8f0;border-radius:4px}
+.sbr-piste{grid-column:1/-1;order:5;position:relative;height:8px;background:var(--track);border-radius:4px}
 .sbr-piste i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;transition:width .3s}
-.sbr-piste u{position:absolute;top:-3px;bottom:-3px;left:62.5%;width:2px;background:#0f172a;opacity:.65}
+.sbr-piste u{position:absolute;top:-3px;bottom:-3px;left:62.5%;width:2px;background:var(--txt);opacity:.65}
 .sbr-statut{order:4;font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap}
 
 .sbr-footer{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;
-  background:#ecfdf5;color:var(--txt);text-decoration:none;font-size:13px}
-.sbr-footer strong{margin-left:auto;color:#15803d;text-decoration:underline}
+  background:color-mix(in srgb,#16a34a 14%,var(--surface));border:1px solid var(--ligne);
+  color:var(--txt);text-decoration:none;font-size:13px}
+.sbr-footer strong{margin-left:auto;color:var(--title-green);text-decoration:underline}
 
-/* ---- Carte ---- */
+/* ---- Carte : fond Esri clair dans les deux thèmes -> contrôles en couleurs claires FIXES ---- */
 .sbr .leaflet-container{background:#e5e7eb;font-family:var(--corps)}
-.sbr .sbr-ap-label{background:#fff;border:1px solid #94a3b8;border-radius:5px;font-size:12px;font-weight:700;
+.sbr .sbr-ap-label{background:#fff;color:#0f172a;border:1px solid #94a3b8;border-radius:5px;font-size:12px;font-weight:700;
   box-shadow:0 2px 8px rgba(0,0,0,.2);padding:3px 7px}
 .sbr .sbr-ap-label:before{display:none}
 .sbr-outils{position:absolute;top:12px;right:12px;z-index:1000;display:flex;border-radius:10px;overflow:hidden;
   border:1px solid rgba(15,23,42,.18);background:rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(0,0,0,.15)}
-.sbr-outils button{padding:9px 12px;border:0;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:var(--txt)}
+.sbr-outils button{padding:9px 12px;border:0;background:transparent;font-size:13px;font-weight:700;cursor:pointer;color:#0f172a}
 .sbr-outils button+button{border-left:1px solid rgba(15,23,42,.15)}
 .sbr-outils button.on{background:var(--rouge);color:#fff}
 .sbr-legende{position:absolute;right:12px;bottom:64px;z-index:1000;padding:10px 13px;border-radius:12px;
   background:rgba(255,255,255,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
-  border:1px solid rgba(15,23,42,.15);font-size:12px;display:flex;flex-direction:column;gap:6px;
+  border:1px solid rgba(15,23,42,.15);font-size:12px;color:#0f172a;display:flex;flex-direction:column;gap:6px;
   box-shadow:0 3px 12px rgba(0,0,0,.15);max-width:200px}
 .sbr-legende div{display:flex;align-items:center;gap:8px;color:#334155;font-weight:600}
 .sbr-legende .carre{width:14px;height:14px;border-radius:3px;flex:none}
@@ -848,7 +869,6 @@ const CSS = `
   .sbr-piste{grid-column:auto;order:2}
 }
 
-/* ---- Adaptation au PANNEAU (largeur réelle disponible) ---- */
 @container sbrp (min-width:620px){
   .sbr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
@@ -857,7 +877,6 @@ const CSS = `
   .sbr-stats-col{grid-template-rows:none}
 }
 
-/* ---- Adaptation à la ZONE (sidebar ouverte ou réduite) ---- */
 @container sbr (max-width:1279px){
   .sbr-body{grid-template-columns:minmax(0,62%) minmax(0,1fr)}
 }
@@ -872,7 +891,6 @@ const CSS = `
   .sbr-graph{min-height:340px}
   .sbr-graph-grand{min-height:380px}
 }
-/* Tablette & mobile : carte au-dessus, la page défile */
 @container sbr (max-width:1023px){
   .sbr-in{height:auto;min-height:0}
   .sbr-top{position:sticky;top:0}
@@ -896,12 +914,17 @@ const CSS = `
   .sbr-champ select{min-width:140px}
   .sbr-footer strong{margin-left:0}
 }
-/* ---- Impression / PDF : seulement les 4 cartes ---- */
+
+/* ---- Impression / PDF : toujours en clair, même en thème sombre ---- */
 @media print{
   @page{size:A4 landscape;margin:10mm}
   body *{visibility:hidden}
   .sbr-panel,.sbr-panel *{visibility:visible}
-  .sbr-panel{position:absolute;left:0;top:0;width:100%;overflow:visible;border:0;padding:0;background:#fff;
+  .sbr-panel{
+    --surface:#fff;--surface-2:#f1f4f7;--surface-3:#f8fafc;--border:#e2e8f0;--track:#e2e8f0;
+    --text:#0f172a;--text-2:#334155;--text-3:#64748b;--title-green:#15803d;
+    --carte:#fff;--ligne:#e2e8f0;--txt:#0f172a;--mut:#64748b;--tuile:#f8fafc;--hover:#f1f5f9;
+    position:absolute;left:0;top:0;width:100%;overflow:visible;border:0;padding:0;background:#fff;color:#0f172a;
     -webkit-print-color-adjust:exact;print-color-adjust:exact}
   .sbr-in{height:auto}
   .sbr-print-titre{display:block;grid-column:1/-1;font-family:var(--titre);font-size:16px;font-weight:700}
