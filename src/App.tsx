@@ -47,7 +47,6 @@ export default function App() {
         <Route index element={<Dashboard data={data} />} />
       
         {/* Intervention de PADDI+ */}
-        <Route path="carte" element={<Carte />} />
         <Route path="zones-brulees" element={<ZonesBrulees />}/>
         <Route path="analyse-feux" element={<AnalyseFeux />} />
         <Route path="deforestation" element={<Deforestation />} />
