@@ -1,0 +1,77 @@
+/* =====================================================================
+   THÈME CLAIR / SOMBRE
+   Toutes les pages utilisent ces variables : var(--surface), var(--text)...
+   Le thème actif est porté par <html data-theme="light|dark">.
+   ===================================================================== */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-2: #f9fafb;
+  --text: #111827;
+  --text-2: #4b5563;
+  --text-3: #6b7280;
+  --border: rgba(0, 0, 0, 0.09);
+  --border-soft: rgba(0, 0, 0, 0.06);
+  --hover: rgba(0, 0, 0, 0.045);
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.07);
+  --green: #166534;
+  --green-soft: #f0fdf4;
+  --danger: #b91c1c;
+  --danger-soft: #fef2f2;
+  --overlay: rgba(15, 23, 42, 0.45);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1220;
+  --surface: #111a2e;
+  --surface-2: #16213a;
+  --text: #e5e7eb;
+  --text-2: #b6bfcc;
+  --text-3: #8b97a8;
+  --border: rgba(255, 255, 255, 0.12);
+  --border-soft: rgba(255, 255, 255, 0.08);
+  --hover: rgba(255, 255, 255, 0.07);
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.14);
+  --green: #4ade80;
+  --green-soft: rgba(74, 222, 128, 0.1);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --overlay: rgba(0, 0, 0, 0.65);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* Bouton de bascule */
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.theme-toggle:hover { background: var(--hover); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.theme-toggle.compact { justify-content: center; padding: 9px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  body { transition: none; }
+}
