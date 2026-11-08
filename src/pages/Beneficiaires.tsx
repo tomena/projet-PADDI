@@ -46,15 +46,26 @@ const DEF_START = 2025;     // metadata.debut
 const DEF_END = 2030;       // metadata.fin
 interface Meta { cible_total?: number; cible_confirmation?: number; debut?: number; fin?: number }
 const CATS: Cat[] = ['C2', 'C3', 'C4'];
+/* Couleurs
+   - CATC : valeurs hex, utilisées sur la carte Leaflet (qui reste claire dans les deux thèmes)
+   - CATU / STC / WOMEN / YOUTH / RED : variables du thème (clair / sombre) pour le reste */
 const CATC: Record<Cat, string> = { C2: '#2e7d32', C3: '#1976d2', C4: '#f9a825' };
-const STC: Record<St, string> = { valid: '#2e7d32', pending: '#f9a825', rejected: '#c62828' };
-const WOMEN = '#2e7d32';
-const YOUTH = '#1976d2';
-const RED = '#c62828';
+const CATU: Record<Cat, string> = { C2: 'var(--c-green)', C3: 'var(--c-blue)', C4: '#f9a825' };
+const STC: Record<St, string> = { valid: 'var(--c-green)', pending: '#f9a825', rejected: 'var(--c-red)' };
+const WOMEN = 'var(--c-green)';
+const YOUTH = 'var(--c-blue)';
+const RED = 'var(--c-red)';
+// Style des info-bulles et des textes Recharts (lisibles en clair et en sombre)
+const TIP = {
+  contentStyle: { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--ink)' },
+  itemStyle: { color: 'var(--ink)' },
+  labelStyle: { color: 'var(--ink)' },
+};
+const TICK = { fill: 'var(--txt2)' };
 // Couleurs des cartes « Jalons de collecte » (reprises de l'ancienne page)
 const MC = [
-  { Ic: Users, c: '#2e7d32', bg: 'rgba(46,125,50,0.06)' },
-  { Ic: ClipboardCheck, c: '#1976d2', bg: 'rgba(25,118,210,0.06)' },
+  { Ic: Users, c: 'var(--c-green)', bg: 'rgba(46,125,50,0.06)' },
+  { Ic: ClipboardCheck, c: 'var(--c-blue)', bg: 'rgba(25,118,210,0.06)' },
   { Ic: CheckCircle2, c: '#f9a825', bg: 'rgba(245,124,0,0.06)' },
 ];
 const LOC: Record<Lang, string> = { fr: 'fr-FR', mg: 'fr-FR', en: 'en-US', de: 'de-DE' };
@@ -204,23 +215,33 @@ type K = (typeof FK)[number];
 const PRIMARY: K[] = ['year', 'region', 'cat', 'st'];
 const SECOND: K[] = ['ap', 'paysage', 'district', 'commune', 'fokontany', 'mbv'];
 
+/* Les couleurs viennent de variables : valeurs claires dans « .sv »,
+   surcharges du thème sombre dans « :root[data-theme="dark"] .sv ».
+   (Les cartes Leaflet restent claires dans les deux thèmes.) */
 const CSS = `
-.sv{font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:#f3f5f1;min-height:100vh;color:#1c2b24;font-size:14px}
+.sv{--page:#f3f5f1;--card:#fff;--ink:#1c2b24;--txt2:#374151;--mut:#556;--line:#e1e6e2;--bd:#c9d1cb;--track:#e5e7eb;
+  --gv:#1b5e20;--gb:#2e7d32;--gb2:#1b5e20;--tot:#e8f5e9;
+  --c-green:#2e7d32;--c-blue:#1976d2;--c-red:#c62828;--c-slate:#455a64;--warn-bg:#fff8e1;
+  font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--page);min-height:100vh;color:var(--ink);font-size:14px}
+:root[data-theme="dark"] .sv{--page:var(--bg);--card:var(--surface);--ink:#e5e7eb;--txt2:#cbd5e1;--mut:#94a3b8;
+  --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
+  --gv:#66bb6a;--gb:#2e7d32;--gb2:#2e7d32;--tot:rgba(102,187,106,.14);
+  --c-green:#66bb6a;--c-blue:#64b5f6;--c-red:#f87171;--c-slate:#94a3b8;--warn-bg:rgba(249,168,37,.14)}
 .sv *{box-sizing:border-box}
 .sv-h{position:sticky;top:0;z-index:20;background:#0b5d1e;color:#fff;padding:10px clamp(10px,2vw,24px);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between}
 .sv-h h2{margin:0;font-size:clamp(16px,2.4vw,22px);display:flex;align-items:center;gap:8px}
 .sv-hb{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .sv-b{display:inline-flex;align-items:center;gap:6px;border-radius:8px;border:1px solid transparent;padding:7px 12px;font-weight:700;font-size:13px;cursor:pointer;min-height:36px;background:#2e7d32;color:#fff}
 .sv-b.o{background:transparent;color:#fff;border-color:rgba(255,255,255,.6)}
-.sv-b.l{background:#fff;color:#1c2b24;border-color:#c9d1cb}
+.sv-b.l{background:var(--card);color:var(--ink);border-color:var(--bd)}
 .sv :focus-visible{outline:3px solid #f9a825;outline-offset:2px}
 .sv-w{padding:clamp(8px,2vw,24px);display:flex;flex-direction:column;gap:14px;max-width:1600px;margin:0 auto}
-.sv-demo{background:#fff8e1;border:1px solid #f9a825;border-radius:8px;padding:8px 12px;font-size:12px}
+.sv-demo{background:var(--warn-bg);border:1px solid #f9a825;border-radius:8px;padding:8px 12px;font-size:12px}
 .sv-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;align-items:end}
-.sv-f label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:#374151}
-.sv select,.sv input{height:38px;border-radius:8px;border:1px solid #c9d1cb;padding:0 10px;background:#fff;font-size:13px;width:100%;min-width:0}
+.sv-f label{display:flex;flex-direction:column;gap:4px;font-size:12px;font-weight:600;color:var(--txt2)}
+.sv select,.sv input{height:38px;border-radius:8px;border:1px solid var(--bd);padding:0 10px;background:var(--card);color:var(--ink);font-size:13px;width:100%;min-width:0}
 .sv-s{display:flex;align-items:center;gap:8px;background:#2e7d32;color:#fff;margin:6px 0 0;padding:9px 12px;border-radius:8px;font-size:clamp(13px,1.6vw,16px)}
-.sv-f2{margin-top:8px;padding:10px;background:#fff;border:1px solid #e1e6e2;border-radius:10px}
+.sv-f2{margin-top:8px;padding:10px;background:var(--card);border:1px solid var(--line);border-radius:10px}
 .sv-n{background:#f9a825;color:#1c2b24;border-radius:10px;padding:0 6px;font-size:11px;font-style:normal}
 .k5{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr))}
 .kc{display:flex;flex-direction:column;align-items:center;text-align:center;border-top:4px solid #2e7d32}
@@ -235,31 +256,31 @@ const CSS = `
 .y3{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px}
 .g{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
 .g2{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
-.c{background:#fff;border-radius:10px;padding:12px;border:1px solid #e1e6e2;min-width:0}
-.c h4{margin:0 0 8px;font-size:13px;color:#1b5e20}
+.c{background:var(--card);border-radius:10px;padding:12px;border:1px solid var(--line);min-width:0}
+.c h4{margin:0 0 8px;font-size:13px;color:var(--gv)}
 .big{font-size:clamp(24px,3.4vw,34px);font-weight:800;line-height:1.1}
-.sub{font-size:12px;color:#556;margin-top:4px}
-.bar{height:10px;background:#e5e7eb;border-radius:6px;overflow:hidden;margin-top:8px}
+.sub{font-size:12px;color:var(--mut);margin-top:4px}
+.bar{height:10px;background:var(--track);border-radius:6px;overflow:hidden;margin-top:8px}
 .bar b{display:block;height:100%}
 .dn{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;pointer-events:none}
 .tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .sv table{width:100%;border-collapse:collapse;font-size:12px;text-align:center}
-.sv th{background:#2e7d32;color:#fff;padding:8px 6px;border:1px solid #cfd8d1;white-space:nowrap}
-.sv td{padding:7px 6px;border:1px solid #e1e6e2}
+.sv th{background:var(--gb);color:#fff;padding:8px 6px;border:1px solid var(--line);white-space:nowrap}
+.sv td{padding:7px 6px;border:1px solid var(--line)}
 .sv td.l{text-align:left}
-.sv tr.tot td{background:#e8f5e9;font-weight:700}
+.sv tr.tot td{background:var(--tot);font-weight:700}
 .row{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:8px}
 .row i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px}
 .ms{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
-.ms>div{border:1px solid #d0d0d0;border-radius:10px;padding:10px;text-align:center}
-.ab{background:rgba(46,125,50,.06);border-color:#2e7d32}
+.ms>div{border:1px solid var(--bd);border-radius:10px;padding:10px;text-align:center}
+.ab{background:rgba(46,125,50,.06);border-color:var(--gb)}
 .ab p{font-size:12px;line-height:1.55;margin:0 0 8px;max-width:70ch}
 .tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
 .tb>div{display:flex;gap:8px;flex-wrap:wrap}
 .pg{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px}
 .pg div{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
-.pg button{min-width:34px;height:34px;border:1px solid #c9d1cb;background:#fff;border-radius:6px;cursor:pointer;font-weight:600}
-.pg button.on{background:#1b5e20;color:#fff;border-color:#1b5e20}
+.pg button{min-width:34px;height:34px;border:1px solid var(--bd);background:var(--card);color:var(--ink);border-radius:6px;cursor:pointer;font-weight:600}
+.pg button.on{background:var(--gb2);color:#fff;border-color:var(--gb2)}
 .pg button:disabled{opacity:.4;cursor:default}
 .pg label{display:flex;align-items:center;gap:6px}
 .pg select{width:auto}
@@ -272,10 +293,10 @@ const CSS = `
 const Sec = ({ icon: Ic, text }: { icon: React.ComponentType<any>; text: string }) => (
   <h3 className="sv-s"><Ic size={18} style={{ flexShrink: 0 }} />{text}</h3>
 );
-const Kpi = ({ title, big, sub, color = '#2e7d32', icon: Ic, v, label }: { title: string; big: string; sub?: string; color?: string; icon?: React.ComponentType<any>; v: number; label: string }) => (
+const Kpi = ({ title, big, sub, color = 'var(--c-green)', icon: Ic, v, label }: { title: string; big: string; sub?: string; color?: string; icon?: React.ComponentType<any>; v: number; label: string }) => (
   <div className="c kc" style={{ borderTopColor: color }}>
     <div className="kh">
-      {Ic && <span className="ki" style={{ background: `${color}1a`, color }}><Ic size={18} /></span>}
+      {Ic && <span className="ki" style={{ background: `color-mix(in srgb, ${color} 12%, transparent)`, color }}><Ic size={18} /></span>}
       <h4>{title}</h4>
     </div>
     <Donut v={v} color={color} label={label} h={120} />
@@ -288,7 +309,7 @@ const Donut = ({ v, color, label, h = 150 }: { v: number; color: string; label: 
     <ResponsiveContainer>
       <PieChart>
         <Pie data={[{ n: 'a', v: Math.min(100, v) }, { n: 'b', v: Math.max(0, 100 - v) }]} dataKey="v" innerRadius="64%" outerRadius="90%" startAngle={90} endAngle={-270} stroke="none">
-          <Cell fill={color} /><Cell fill="#e5e7eb" />
+          <Cell fill={color} /><Cell fill="var(--track)" />
         </Pie>
       </PieChart>
     </ResponsiveContainer>
@@ -483,9 +504,9 @@ const Beneficiaires: React.FC = () => {
     return { ...w, done: w.y <= cy, ben: sum(a, 'p'), enq: e, rate: pc(sum(a, 'ok'), e), traj: Math.round((TARGET * (w.y - START + 1)) / nY) };
   });
   const mLabels = [t.cols.ben, t.cf.enq, t.cf.rate];
-  const rc = rate >= TARGET_CONF ? '#2e7d32' : RED;
+  const rc = rate >= TARGET_CONF ? 'var(--c-green)' : RED;
   const cfItems: { Ic: React.ComponentType<any>; c: string; bg: string; title: string; value: string; subs: string[]; bar?: number }[] = [
-    { Ic: ClipboardCheck, c: '#1976d2', bg: 'rgba(25,118,210,0.06)', title: t.cf.enq, value: nf(enq), subs: [`${t.cf.cov} : ${pct(cov)}`] },
+    { Ic: ClipboardCheck, c: 'var(--c-blue)', bg: 'rgba(25,118,210,0.06)', title: t.cf.enq, value: nf(enq), subs: [`${t.cf.cov} : ${pct(cov)}`] },
     { Ic: CheckCircle2, c: '#f9a825', bg: 'rgba(245,124,0,0.06)', title: t.cf.ok, value: nf(ok), subs: [] },
     { Ic: Target, c: rc, bg: rate >= TARGET_CONF ? 'rgba(46,125,50,0.06)' : 'rgba(198,40,40,0.06)', title: t.cf.rate, value: enq ? pct(rate) : '—',
       subs: [`${fmt(t.cf.tar, TARGET_CONF)}${enq ? ` · ${rate >= TARGET_CONF ? t.cf.met : t.cf.not}` : ''}`, enq ? fmt(t.cf.ci, nf(margin, 1)) : ''], bar: enq ? rate : undefined },
@@ -546,9 +567,9 @@ const Beneficiaires: React.FC = () => {
         <section className="k5">
           <Kpi icon={Target} title={t.k.total} v={pc(reach, TARGET)} label={pct(pc(reach, TARGET))} big={nf(reach)} sub={fmt(t.k.of, nf(TARGET))} />
           <Kpi icon={gap >= 0 ? TrendingUp : TrendingDown} title={t.k.gap} v={pc(gap + expected, expected)} label={pct(pc(gap + expected, expected))}
-            big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? '#2e7d32' : RED} />
+            big={`${gap >= 0 ? '+' : ''}${nf(gap)}`} sub={fmt(t.k.exp, cy, nf(expected))} color={gap >= 0 ? 'var(--c-green)' : RED} />
           <Kpi icon={FileText} title={t.k.decl} v={pc(reach, decl)} label={pct(pc(reach, decl))} big={nf(decl)}
-            sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="#455a64" />
+            sub={fmt(t.k.vp, nf(pc(reach, decl), 1), nf(rows.length))} color="var(--c-slate)" />
           <Kpi icon={Users} title={t.k.w} v={women} label={pct(women)} big={nf(sum(val, 'w'))} sub={fmt(t.k.p, '').trim()} color={WOMEN} />
           <Kpi icon={User} title={t.k.y} v={youth} label={pct(youth)} big={nf(sum(val, 'y'))} sub={fmt(t.k.p, '').trim()} color={YOUTH} />
         </section>
@@ -569,13 +590,13 @@ const Beneficiaires: React.FC = () => {
             <h4>{t.c.evol}</h4>
             <ResponsiveContainer width="100%" height={narrow ? 200 : 230}>
               <LineChart data={evol} margin={{ left: 0, right: 16, top: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="y" tick={{ fontSize: 11 }} padding={{ left: 15, right: 15 }} />
-                <YAxis tick={{ fontSize: 11 }} domain={[0, TARGET]} tickFormatter={(v: number) => nf(v)} width={60} />
-                <Tooltip formatter={(v: any) => nf(v)} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
+                <XAxis dataKey="y" tick={{ fontSize: 11, ...TICK }} padding={{ left: 15, right: 15 }} />
+                <YAxis tick={{ fontSize: 11, ...TICK }} domain={[0, TARGET]} tickFormatter={(v: number) => nf(v)} width={60} />
+                <Tooltip {...TIP} formatter={(v: any) => nf(v)} />
+                <Legend wrapperStyle={{ fontSize: 12, color: 'var(--txt2)' }} />
                 <Line name={t.ev.decl} dataKey="decl" stroke="#f9a825" strokeWidth={2} dot={{ r: 3 }} />
-                <Line name={t.ev.val} dataKey="val" stroke="#2e7d32" strokeWidth={3} dot={{ r: 4 }} />
+                <Line name={t.ev.val} dataKey="val" stroke="var(--c-green)" strokeWidth={3} dot={{ r: 4 }} />
                 <Line name={`${t.ev.tar} (${nf(TARGET)})`} dataKey="tar" stroke="#9e9e9e" strokeDasharray="5 5" dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -584,11 +605,11 @@ const Beneficiaires: React.FC = () => {
             <h4>{t.c.reg}</h4>
             <ResponsiveContainer width="100%" height={Math.max(190, regions.length * 34 + 20)}>
               <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 40 }}>
-                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => nf(v)} />
-                <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11 }} interval={0} />
-                <Tooltip formatter={(v: any) => nf(v)} />
-                <Bar dataKey="value" fill="#2e7d32" barSize={18} radius={[0, 3, 3, 0]}>
-                  <LabelList dataKey="value" position="right" formatter={(v: any) => nf(v)} style={{ fontSize: 11, fontWeight: 600 }} />
+                <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v: number) => nf(v)} />
+                <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, ...TICK }} interval={0} />
+                <Tooltip {...TIP} formatter={(v: any) => nf(v)} />
+                <Bar dataKey="value" fill="var(--c-green)" barSize={18} radius={[0, 3, 3, 0]}>
+                  <LabelList dataKey="value" position="right" formatter={(v: any) => nf(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -603,7 +624,7 @@ const Beneficiaires: React.FC = () => {
                 <thead><tr>{[t.cols.cat, t.cols.act, t.cols.ben, t.cols.share, t.cols.w, t.cols.y].map((h) => <th key={h}>{h}</th>)}</tr></thead>
                 <tbody>
                   {byCat.map((r) => (
-                    <tr key={r.c}><td><b style={{ color: CATC[r.c] }}>{r.c}</b></td><td>{nf(r.n)}</td><td>{nf(r.p)}</td><td>{pct(r.share)}</td><td>{pct(r.w)}</td><td>{pct(r.j)}</td></tr>
+                    <tr key={r.c}><td><b style={{ color: CATU[r.c] }}>{r.c}</b></td><td>{nf(r.n)}</td><td>{nf(r.p)}</td><td>{pct(r.share)}</td><td>{pct(r.w)}</td><td>{pct(r.j)}</td></tr>
                   ))}
                   <tr className="tot"><td>{t.cols.tot}</td><td>{nf(val.length)}</td><td>{nf(reach)}</td><td>{pct(reach ? 100 : 0)}</td><td>{pct(women)}</td><td>{pct(youth)}</td></tr>
                 </tbody>
@@ -611,10 +632,10 @@ const Beneficiaires: React.FC = () => {
             </div>
             <ResponsiveContainer width="100%" height={190}>
               <PieChart>
-                <Pie data={byCat.map((r) => ({ name: r.c, value: r.p }))} dataKey="value" nameKey="name" innerRadius="45%" outerRadius="80%" label={(e: any) => e.name}>
-                  {CATS.map((c) => <Cell key={c} fill={CATC[c]} />)}
+                <Pie data={byCat.map((r) => ({ name: r.c, value: r.p }))} dataKey="value" nameKey="name" innerRadius="45%" outerRadius="80%" stroke="var(--card)" label={(e: any) => e.name}>
+                  {CATS.map((c) => <Cell key={c} fill={CATU[c]} />)}
                 </Pie>
-                <Tooltip formatter={(v: any) => nf(v)} />
+                <Tooltip {...TIP} formatter={(v: any) => nf(v)} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -640,7 +661,7 @@ const Beneficiaires: React.FC = () => {
               </MapContainer>
             </div>
             <div className="row" style={{ justifyContent: 'center', gap: 14 }}>
-              {CATS.map((c) => <span key={c}><i style={{ background: CATC[c] }} />{c}</span>)}
+              {CATS.map((c) => <span key={c}><i style={{ background: CATU[c] }} />{c}</span>)}
             </div>
             <div className="sub" style={{ textAlign: 'center' }}>{t.hint}</div>
           </div>
@@ -654,13 +675,13 @@ const Beneficiaires: React.FC = () => {
               <h4>{ch.title}</h4>
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={ch.data} margin={{ top: 18, right: 8, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="k" tick={{ fontSize: 12, fontWeight: 600 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v}%`} width={42} />
-                  <Tooltip formatter={(v: any) => pct(v)} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar name={t.k.w} dataKey="w" fill={WOMEN} maxBarSize={40}><LabelList dataKey="w" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 11, fontWeight: 700 }} /></Bar>
-                  <Bar name={t.k.y} dataKey="j" fill={YOUTH} maxBarSize={40}><LabelList dataKey="j" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 11, fontWeight: 700 }} /></Bar>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                  <XAxis dataKey="k" tick={{ fontSize: 12, fontWeight: 600, ...TICK }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, ...TICK }} tickFormatter={(v: number) => `${v}%`} width={42} />
+                  <Tooltip {...TIP} formatter={(v: any) => pct(v)} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--txt2)' }} />
+                  <Bar name={t.k.w} dataKey="w" fill={WOMEN} maxBarSize={40}><LabelList dataKey="w" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 11, fontWeight: 700, fill: 'var(--txt2)' }} /></Bar>
+                  <Bar name={t.k.y} dataKey="j" fill={YOUTH} maxBarSize={40}><LabelList dataKey="j" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 11, fontWeight: 700, fill: 'var(--txt2)' }} /></Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -672,7 +693,7 @@ const Beneficiaires: React.FC = () => {
         <section className="g3">
           <div className="c">
             <h4>{t.cf.sum}</h4>
-            <div style={{ border: '1px solid #d0d0d0', borderRadius: 10, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div style={{ border: '1px solid var(--bd)', borderRadius: 10, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {cfItems.map((x, k) => (
                 <div key={k} style={{ border: `1px solid ${x.c}`, background: x.bg, borderRadius: 8, padding: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <x.Ic size={22} color={x.c} style={{ flexShrink: 0 }} />
@@ -694,10 +715,10 @@ const Beneficiaires: React.FC = () => {
                   ? [nf(m.ben), m.enq ? nf(m.enq) : '—', m.enq ? pct(m.rate) : '—']
                   : [`≥ ${nf(m.traj)}`, '—', `≥ ${TARGET_CONF} %`];
                 return (
-                  <div key={m.y} style={{ border: '1px solid #d0d0d0', borderRadius: 10, padding: 8 }}>
+                  <div key={m.y} style={{ border: '1px solid var(--bd)', borderRadius: 10, padding: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 8, fontSize: 13 }}>
                       <span><b style={{ fontSize: 15 }}>{m.y}</b> · {m.k}</span>
-                      <b style={{ color: m.done ? '#2e7d32' : '#757575' }}>{m.done ? t.cf.done : t.cf.soon}</b>
+                      <b style={{ color: m.done ? 'var(--c-green)' : 'var(--mut)' }}>{m.done ? t.cf.done : t.cf.soon}</b>
                     </div>
                     <div className="y3">
                       {MC.map((x, k) => (
@@ -719,7 +740,7 @@ const Beneficiaires: React.FC = () => {
           <h4>{t.ab.t}</h4>
           <p>{t.ab.p1}</p>
           <p>{t.ab.p2}</p>
-          {CATS.map((c) => <p key={c}><b style={{ color: CATC[c] }}>{c} :</b> {t.ab[c]}</p>)}
+          {CATS.map((c) => <p key={c}><b style={{ color: CATU[c] }}>{c} :</b> {t.ab[c]}</p>)}
           </div>
         </section>
 
@@ -729,14 +750,14 @@ const Beneficiaires: React.FC = () => {
             {enq ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={byCat.filter((r) => r.enq).map((r) => ({ k: r.c, v: pc(r.ok, r.enq) }))} margin={{ top: 18, right: 8, left: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="k" tick={{ fontSize: 12, fontWeight: 600 }} />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v}%`} width={42} />
-                  <Tooltip formatter={(v: any) => pct(v)} />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--line)" />
+                  <XAxis dataKey="k" tick={{ fontSize: 12, fontWeight: 600, ...TICK }} />
+                  <YAxis domain={[0, 100]} tick={{ fontSize: 11, ...TICK }} tickFormatter={(v: number) => `${v}%`} width={42} />
+                  <Tooltip {...TIP} formatter={(v: any) => pct(v)} />
                   <ReferenceLine y={TARGET_CONF} stroke={RED} strokeDasharray="5 5" label={{ value: `${TARGET_CONF} %`, fill: RED, fontSize: 11, position: 'insideTopRight' }} />
                   <Bar dataKey="v" maxBarSize={50} radius={[3, 3, 0, 0]}>
-                    {byCat.filter((r) => r.enq).map((r) => <Cell key={r.c} fill={CATC[r.c]} />)}
-                    <LabelList dataKey="v" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 11, fontWeight: 700 }} />
+                    {byCat.filter((r) => r.enq).map((r) => <Cell key={r.c} fill={CATU[r.c]} />)}
+                    <LabelList dataKey="v" position="top" formatter={(v: any) => nf(v, 1)} style={{ fontSize: 11, fontWeight: 700, fill: 'var(--txt2)' }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -746,11 +767,11 @@ const Beneficiaires: React.FC = () => {
             <h4>{t.cf.sk}</h4>
             <ResponsiveContainer width="100%" height={Math.max(260, skills.length * 30 + 30)}>
               <BarChart data={skills} layout="vertical" margin={{ left: 0, right: 40 }}>
-                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${v}%`} />
-                <YAxis dataKey="name" type="category" width={narrow ? 110 : 190} interval={0} tick={{ fontSize: 10 }} />
-                <Tooltip formatter={(v: any) => `${nf(v, 1)} %`} />
-                <Bar dataKey="value" fill="#2e7d32" barSize={14} radius={[0, 3, 3, 0]}>
-                  <LabelList dataKey="value" position="right" formatter={(v: any) => `${nf(v, 1)}%`} style={{ fontSize: 10, fontWeight: 700 }} />
+                <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v: number) => `${v}%`} />
+                <YAxis dataKey="name" type="category" width={narrow ? 110 : 190} interval={0} tick={{ fontSize: 10, ...TICK }} />
+                <Tooltip {...TIP} formatter={(v: any) => `${nf(v, 1)} %`} />
+                <Bar dataKey="value" fill="var(--c-green)" barSize={14} radius={[0, 3, 3, 0]}>
+                  <LabelList dataKey="value" position="right" formatter={(v: any) => `${nf(v, 1)}%`} style={{ fontSize: 10, fontWeight: 700, fill: 'var(--txt2)' }} />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -764,7 +785,7 @@ const Beneficiaires: React.FC = () => {
             <h4 style={{ margin: 0 }}>{fmt(t.tb.title, nf(table.length))}</h4>
             <div>
               <span style={{ position: 'relative', display: 'inline-flex', flex: '1 1 200px' }}>
-                <Search size={16} style={{ position: 'absolute', left: 10, top: 11, color: '#888' }} />
+                <Search size={16} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--mut)' }} />
                 <input style={{ paddingLeft: 32 }} placeholder={t.tb.search} aria-label={t.tb.search} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
               </span>
               <button className="sv-b np" onClick={exportCsv}><Download size={16} /><span>{t.tb.exp}</span></button>
@@ -777,7 +798,7 @@ const Beneficiaires: React.FC = () => {
                 {slice.map((r) => (
                   <tr key={r.id}>
                     <td>{r.id}</td>
-                    <td style={{ color: CATC[r.cat], fontWeight: 700 }}>{r.cat}</td>
+                    <td style={{ color: CATU[r.cat], fontWeight: 700 }}>{r.cat}</td>
                     <td>{r.region}</td><td>{r.ap}</td><td>{r.district}</td><td>{r.commune}</td>
                     <td className="l">{sk(r.sk)}</td>
                     <td>{nf(r.p)}</td><td>{nf(r.w)}</td><td>{nf(r.y)}</td><td>{dFmt(r.date)}</td>
@@ -789,7 +810,7 @@ const Beneficiaires: React.FC = () => {
             </table>
           </div>
           <div className="pg np">
-            <b style={{ color: '#6b7280' }}>{table.length ? fmt(t.tb.show, nf((cur - 1) * per + 1), nf(Math.min(cur * per, table.length)), nf(table.length)) : '0'}</b>
+            <b style={{ color: 'var(--mut)' }}>{table.length ? fmt(t.tb.show, nf((cur - 1) * per + 1), nf(Math.min(cur * per, table.length)), nf(table.length)) : '0'}</b>
             <div>
               <button disabled={cur === 1} onClick={() => setPage(1)} aria-label={t.tb.first}>⏮</button>
               <button disabled={cur === 1} onClick={() => setPage(cur - 1)} aria-label={t.tb.prev}>◀</button>
