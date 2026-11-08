@@ -128,6 +128,13 @@ const TXT: Record<string, Txt> = { fr, mg, en, de };
 const DATE_LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
 const makeNf = (loc: string) => (n: number) => n.toLocaleString(loc, { maximumFractionDigits: 1 });
 
+/* Thème : couleur de donnée → texte / fond lisibles en clair comme en sombre */
+const tonText = (c: string) => `color-mix(in srgb, ${c} 70%, var(--text))`;
+const tonBg = (c: string) => `color-mix(in srgb, ${c} 18%, transparent)`;
+const TICK = { fontSize: 11, fill: "var(--text-3)" };
+const TT = {
+  fontSize: 12, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text)",
+};
 
 /* ============================ TYPES & DONNÉES ============================ */
 type Status = "done" | "progress" | "late";
@@ -168,11 +175,11 @@ const TRAJECTOIRE = [
 const YEARS = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
 const PAGE_SIZES = [5, 10, 20];
 
-// Une seule source de vérité pour les statuts (remplace 3 blocs JSX dupliqués)
-const STATUS: Record<Status, { color: string; bg: string; Icon: typeof Check }> = {
-  done: { color: "#15803d", bg: "#dcfce7", Icon: Check },
-  progress: { color: "#b45309", bg: "#fef3c7", Icon: Clock },
-  late: { color: "#b91c1c", bg: "#fee2e2", Icon: AlertTriangle },
+// Une seule source de vérité pour les statuts (couleur de donnée ; texte et fond de pastille calculés)
+const STATUS: Record<Status, { color: string; Icon: typeof Check }> = {
+  done: { color: "#15803d", Icon: Check },
+  progress: { color: "#b45309", Icon: Clock },
+  late: { color: "#b91c1c", Icon: AlertTriangle },
 };
 const statusOf = (v: number): Status => (v >= 80 ? "done" : v >= 50 ? "progress" : "late");
 
@@ -227,9 +234,9 @@ const Logo = () => (
 
 /* ============================ SOUS-COMPOSANTS ============================ */
 const StatusChip = memo(({ status, label }: { status: Status; label: string }) => {
-  const { color, bg, Icon } = STATUS[status];
+  const { color, Icon } = STATUS[status];
   return (
-    <span className="sv-chip" style={{ color, background: bg }}>
+    <span className="sv-chip" style={{ color: tonText(color), background: tonBg(color) }}>
       <Icon size={14} aria-hidden /> {label}
     </span>
   );
@@ -238,7 +245,7 @@ const StatusChip = memo(({ status, label }: { status: Status; label: string }) =
 const Kpi = memo(({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) => (
   <div className="sv-card sv-kpi">
     <span className="sv-muted">{label}</span>
-    <strong style={{ color: tone }}>{value}</strong>
+    <strong style={{ color: tone ? tonText(tone) : undefined }}>{value}</strong>
     {sub && <small className="sv-muted">{sub}</small>}
   </div>
 ));
@@ -376,7 +383,7 @@ export default function SuiviSystemes() {
             <ResponsiveContainer width="100%" height={210}>
               <PieChart>
                 <Pie data={donut} dataKey="v" innerRadius="68%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none" isAnimationActive={false}>
-                  <Cell fill="#16a34a" /><Cell fill="#e5e7eb" />
+                  <Cell fill="#16a34a" /><Cell fill="var(--track)" />
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
@@ -388,12 +395,12 @@ export default function SuiviSystemes() {
         <Card title={t.trajTitle}>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={TRAJECTOIRE} margin={{ top: 16, right: 24, left: -8, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="annee" tick={{ fontSize: 11 }} />
-              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-              <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={{ fontSize: 12 }} />
-              <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11 }} />
-              <ReferenceLine x={f.year} stroke="#6b7280" strokeDasharray="4 4" label={{ value: t.yearLine, fontSize: 10, position: "top" }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="annee" tick={TICK} stroke="var(--text-3)" />
+              <YAxis domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={TICK} stroke="var(--text-3)" />
+              <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={TT} labelStyle={{ color: "var(--text)", fontWeight: 700 }} />
+              <Legend verticalAlign="bottom" iconType="line" wrapperStyle={{ fontSize: 11, color: "var(--text-2)" }} />
+              <ReferenceLine x={f.year} stroke="var(--text-3)" strokeDasharray="4 4" label={{ value: t.yearLine, fontSize: 10, position: "top", fill: "var(--text-3)" }} />
               <Line dataKey="prevu" name={t.planned} stroke="#9ca3af" strokeDasharray="6 4" strokeWidth={2} dot={{ r: 3 }} isAnimationActive={false} />
               <Line dataKey="realise" name={t.actual} stroke="#16a34a" strokeWidth={3} dot={{ r: 4 }} isAnimationActive={false} />
             </LineChart>
@@ -405,14 +412,14 @@ export default function SuiviSystemes() {
             <>
               <ResponsiveContainer width="100%" height={barData.length * 42 + 30}>
                 <BarChart data={barData} layout="vertical" margin={{ top: 4, right: 36, left: 0, bottom: 0 }} barCategoryGap="30%">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
-                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="name" width={104} tick={{ fontSize: 11 }} interval={0} />
-                  <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={{ fontSize: 12 }} />
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                  <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tick={TICK} stroke="var(--text-3)" />
+                  <YAxis type="category" dataKey="name" width={104} tick={{ fontSize: 11, fill: "var(--text-2)" }} stroke="var(--text-3)" interval={0} />
+                  <Tooltip formatter={(v: number) => `${nf(v)} %`} contentStyle={TT} labelStyle={{ color: "var(--text)", fontWeight: 700 }} />
                   <ReferenceLine x={80} stroke="#16a34a" strokeDasharray="4 4" />
                   <Bar dataKey="avancement" name={t.progress} radius={[0, 4, 4, 0]} isAnimationActive={false}>
                     {barData.map((r) => <Cell key={r.name} fill={STATUS[statusOf(r.avancement)].color} />)}
-                    <LabelList dataKey="avancement" position="right" formatter={(v: number) => `${nf(v)}%`} style={{ fontSize: 11, fontWeight: 700 }} />
+                    <LabelList dataKey="avancement" position="right" formatter={(v: number) => `${nf(v)}%`} style={{ fontSize: 11, fontWeight: 700, fill: "var(--text)" }} />
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -495,9 +502,11 @@ export default function SuiviSystemes() {
   );
 }
 
-/* ==================== STYLES (CSS réel = media queries possibles) ==================== */
+/* ==================== STYLES ====================
+   Variables locales = alias vers les variables globales du thème (clair / sombre). */
 const CSS = `
-.sv{--g:#16a34a;--ink:#111827;--muted:#6b7280;--line:#e5e7eb;--bg:#f3f4f6;
+.sv{--g:#16a34a;--gt:color-mix(in srgb,#15803d 70%,var(--text));
+  --ink:var(--text);--muted:var(--text-3);--line:var(--border);--bg:var(--surface-2);
   font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--bg);
   padding:clamp(10px,2vw,24px);display:flex;flex-direction:column;gap:16px;box-sizing:border-box;min-height:100%}
 .sv *,.sv *::before,.sv *::after{box-sizing:border-box}
@@ -506,16 +515,16 @@ const CSS = `
 .sv-muted{color:var(--muted);font-size:13px;margin:2px 0 0}
 .sv-head{display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:flex-end}
 .sv-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
-.sv-filters label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#374151}
+.sv-filters label{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--text-2)}
 .sv-filters label>span{display:flex;gap:5px;align-items:center}
-.sv select,.sv input[type=text],.sv input:not([type]){padding:8px;border:1px solid #d1d5db;border-radius:8px;background:#fff;font-size:13px;min-width:0}
+.sv select,.sv input[type=text],.sv input:not([type]){padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface-3);color:var(--text);font-size:13px;min-width:0}
 .sv .sv-check{flex-direction:row;align-items:center;gap:6px;font-size:12px}
 .sv-btn{display:inline-flex;gap:6px;align-items:center;padding:8px 12px;border:1px solid var(--g);background:var(--g);color:#fff;border-radius:8px;cursor:pointer;font-size:13px}
-.sv-btn-ghost{background:#fff;color:#15803d}
+.sv-btn-ghost{background:var(--surface);color:var(--gt)}
 .sv button:focus-visible,.sv select:focus-visible,.sv input:focus-visible,.sv a:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
-.sv-banner{display:flex;gap:12px;align-items:center;background:#ecfdf5;color:#065f46;border-radius:12px;padding:12px 14px;font-size:13px;font-weight:700;line-height:1.4}
+.sv-banner{display:flex;gap:12px;align-items:center;background:color-mix(in srgb,#16a34a 14%,var(--surface));border:1px solid var(--border);color:var(--gt);border-radius:12px;padding:12px 14px;font-size:13px;font-weight:700;line-height:1.4}
 .sv-banner svg{flex-shrink:0;color:var(--g)}
-.sv-card{background:#fff;border-radius:12px;padding:14px;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.sv-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;min-width:0;box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .sv-card-title{font-size:13px;font-weight:700;margin:0 0 8px;text-align:center}
 .sv-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
 .sv-kpi{display:flex;flex-direction:column;gap:2px}
@@ -523,30 +532,30 @@ const CSS = `
 .sv-charts{display:grid;grid-template-columns:1fr;gap:16px}
 .sv-donut{position:relative}
 .sv-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
-.sv-donut-center strong{font-size:26px;color:var(--g)}
+.sv-donut-center strong{font-size:26px;color:var(--gt)}
 .sv-donut-center small{color:var(--muted)}
 .sv-center{text-align:center;font-size:12px;margin:4px 0 0}
 .sv-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;margin-top:8px}
 .sv-legend span{display:flex;align-items:center;gap:6px}
 .sv-legend i{width:12px;height:12px;border-radius:3px}
 .sv-alerts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;font-size:13px}
-.sv-alerts li{display:flex;gap:8px;align-items:flex-start;background:#fef2f2;color:#991b1b;padding:8px 10px;border-radius:8px}
+.sv-alerts li{display:flex;gap:8px;align-items:flex-start;background:rgba(239,68,68,.14);color:color-mix(in srgb,#b91c1c 65%,var(--text));padding:8px 10px;border-radius:8px}
 .sv-alerts svg{flex-shrink:0;margin-top:2px}
 .sv-empty{text-align:center;color:var(--muted);font-size:13px;padding:14px}
 .sv-scroll{overflow-x:auto}
 .sv-table{width:100%;border-collapse:collapse;font-size:13px}
-.sv-table th{background:var(--g);color:#fff;text-align:left;padding:10px 12px;font-size:13px;white-space:nowrap}
+.sv-table th{background:#16a34a;color:#fff;text-align:left;padding:10px 12px;font-size:13px;white-space:nowrap}
 .sv-th-btn{all:unset;cursor:pointer;display:inline-flex;gap:6px;align-items:center}
 .sv-th-btn:focus-visible{outline:2px solid #fff}
 .sv-table td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
-.sv-table tbody tr:nth-child(even){background:#f9fafb}
-.sv-table a{color:#15803d;display:inline-flex;gap:5px;align-items:center}
-.sv-bar{height:6px;background:var(--line);border-radius:4px;min-width:80px;overflow:hidden;margin-bottom:3px}
+.sv-table tbody tr:nth-child(even){background:var(--surface-3)}
+.sv-table a{color:var(--gt);display:inline-flex;gap:5px;align-items:center}
+.sv-bar{height:6px;background:var(--track);border-radius:4px;min-width:80px;overflow:hidden;margin-bottom:3px}
 .sv-bar i{display:block;height:100%}
 .sv-chip{display:inline-flex;gap:6px;align-items:center;padding:3px 10px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
 .sv-pager{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px}
 .sv-pager label,.sv-pager div{display:flex;gap:6px;align-items:center}
-.sv-pager button{padding:4px 8px;border:1px solid #d1d5db;background:#fff;border-radius:6px;cursor:pointer;display:flex}
+.sv-pager button{padding:4px 8px;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:6px;cursor:pointer;display:flex}
 .sv-pager button:disabled{opacity:.4;cursor:not-allowed}
 .sv-page{padding:0 6px}
 .sv-note{text-align:center}
@@ -555,7 +564,7 @@ const CSS = `
 @media(max-width:760px){
   .sv-filters{width:100%}.sv-filters label:not(.sv-check){flex:1 1 140px}.sv-filters select,.sv-filters input{width:100%}
   .sv-table thead{display:none}
-  .sv-table tr{display:block;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:6px 12px;background:#fff!important}
+  .sv-table tr{display:block;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:6px 12px;background:var(--surface)!important}
   .sv-table td{display:flex;justify-content:space-between;align-items:center;gap:14px;border:0;padding:6px 0;text-align:right}
   .sv-table td::before{content:attr(data-label);font-weight:600;color:var(--muted);text-align:left;flex-shrink:0}
   .sv-table td[colspan]{display:block}.sv-table td[colspan]::before{content:none}
