@@ -165,6 +165,12 @@ const SCALE_M: [number, string][] = [[500, "#991b1b"], [200, "#ef4444"], [100, "
 const colorOf = (ha: number | null, scale: [number, string][]) => (ha == null ? "#cbd5e1" : (scale.find(([m]) => ha >= m) || scale[scale.length - 1])[1]);
 const ageColor = (h: number) => (h <= 24 ? "rgb(200,15,15)" : h <= 48 ? "#f97316" : "#facc15");
 
+// Thème : couleur de donnée → texte / fond lisibles en clair comme en sombre
+const tonText = (c: string) => `color-mix(in srgb, ${c} 70%, var(--text))`;
+const tonBg = (c: string) => `color-mix(in srgb, ${c} 18%, transparent)`;
+const TICK = { fontSize: 11, fill: "var(--text-3)" };
+const BLEU_TOTAL = "rgba(59,130,246,.18)"; // fond « Total » des barres d'impact
+
 /* ============================ OUTILS ============================ */
 const num = (v: any) => Number(String(v ?? 0).replace(",", ".")) || 0;
 const same = (a: any, b: any) => String(a).trim() === String(b).trim();
@@ -255,62 +261,68 @@ const parseFires = (features: any[]) => {
   return out;
 };
 
-/* ============================ STYLES RESPONSIVES ============================ */
+/* ============================ STYLES RESPONSIVES ============================
+   Couleurs d'interface : variables du thème (var(--surface), var(--text)…).
+   Reste en couleur fixe : couleurs de données, bouton actif (#0b4ea2),
+   et tout ce qui est posé SUR la carte (fond Esri clair dans les deux thèmes). */
 const CSS = `
-.fx{padding:clamp(8px,1.6vw,16px);background:#eef3f8;min-height:100vh;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1f2937}
+.fx{--bleu:color-mix(in srgb,#0b4ea2 60%,var(--text));
+  padding:clamp(8px,1.6vw,16px);background:var(--surface-2);min-height:100vh;box-sizing:border-box;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--text)}
 .fx *{box-sizing:border-box}
-.fx-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.fx-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .fx-brand{display:flex;align-items:center;gap:12px;min-width:0}
 .fx-logo{flex:none;width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#0b4ea2,#1d78d6);position:relative}
-.fx-logo svg.f{position:absolute;right:-5px;bottom:-5px;background:#fff;border-radius:50%;padding:3px}
-.fx-h1{margin:0;color:#0b4ea2;font-size:clamp(17px,2.4vw,24px);font-weight:700;line-height:1.2}
-.fx-sub{margin:2px 0 0;font-size:12px;color:#6b7280}
+.fx-logo svg.f{position:absolute;right:-5px;bottom:-5px;background:var(--surface);border-radius:50%;padding:3px}
+.fx-h1{margin:0;color:var(--bleu);font-size:clamp(17px,2.4vw,24px);font-weight:700;line-height:1.2}
+.fx-sub{margin:2px 0 0;font-size:12px;color:var(--text-3)}
 .fx-filters{display:flex;flex-wrap:wrap;gap:10px}
 .fx-f{display:flex;flex-direction:column;gap:4px;min-width:130px;flex:1 1 130px}
-.fx-f label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#374151}
-.fx select,.fx-sel{width:100%;padding:8px 10px;border-radius:8px;border:1px solid #d1d5db;background:#f9fafb;font-weight:600;font-size:12px;cursor:pointer}
+.fx-f label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-2)}
+.fx select,.fx-sel{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-3);color:var(--text);font-weight:600;font-size:12px;cursor:pointer}
 .fx select:focus-visible,.fx input:focus-visible,.fx button:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
-.fx-rank{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-bottom:10px;padding:10px 14px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;font-size:12px}
-.fx-rank-t{display:flex;align-items:center;gap:8px;font-weight:700;color:#003399;font-size:13px;flex:1 1 280px}
+.fx-rank{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-bottom:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:12px}
+.fx-rank-t{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--bleu);font-size:13px;flex:1 1 280px}
 .fx-rank-i{display:flex;align-items:center;gap:6px}
 .fx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:10px;margin-bottom:10px}
-.fx-kpi{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid #e2e8f0;border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;min-height:96px;box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.fx-kpi{--cc:color-mix(in srgb,var(--c) 72%,var(--text));
+  display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;min-height:96px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .fx-badge{flex:none;width:56px;height:56px;border-radius:15px;display:grid;place-items:center;position:relative;background:var(--bg)}
-.fx-badge .fl{position:absolute;right:-6px;bottom:-6px;background:#fff;border-radius:50%;padding:2px;box-shadow:0 0 0 1px #e5e7eb}
+.fx-badge .fl{position:absolute;right:-6px;bottom:-6px;background:var(--surface);border-radius:50%;padding:2px;box-shadow:0 0 0 1px var(--border)}
 .fx-kpi-txt{min-width:0;display:flex;flex-direction:column;gap:4px}
-.fx-kpi-t{font-size:11.5px;font-weight:700;line-height:1.25;color:var(--c)}
-.fx-kpi-v{font-size:clamp(17px,1.5vw,21px);font-weight:800;color:var(--c);display:flex;align-items:center;gap:6px;line-height:1.1;word-break:break-word}
-.fx-kpi-s{font-size:11px;font-weight:600;color:#475569;line-height:1.3}
+.fx-kpi-t{font-size:11.5px;font-weight:700;line-height:1.25;color:var(--cc)}
+.fx-kpi-v{font-size:clamp(17px,1.5vw,21px);font-weight:800;color:var(--cc);display:flex;align-items:center;gap:6px;line-height:1.1;word-break:break-word}
+.fx-kpi-s{font-size:11px;font-weight:600;color:var(--text-2);line-height:1.3}
 .fx-body{display:grid;grid-template-columns:1fr;gap:10px}
 .fx-left{display:grid;grid-template-columns:1fr;gap:10px;align-content:start;min-width:0}
 @media(min-width:700px){.fx-left{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:1100px){.fx-body{grid-template-columns:minmax(0,58fr) minmax(0,42fr)}}
 @media(max-width:1099px){.fx-mapcard{order:-1;height:64vh;min-height:380px}}
-.fx-card{background:#fff;border:1px solid #d9d9d9;border-radius:10px;padding:10px;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-.fx-ct{margin:0 0 8px;text-align:center;font-size:12px;font-weight:700;font-style:italic;color:#d32f2f;line-height:1.3}
+.fx-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.fx-ct{margin:0 0 8px;text-align:center;font-size:12px;font-weight:700;font-style:italic;color:color-mix(in srgb,#d32f2f 80%,var(--text));line-height:1.3}
 .fx-chart{height:270px}
-.fx-note{margin:6px 0 0;font-size:11px;color:#64748b;text-align:center}
-.fx-tip{background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.15)}
-.fx-tip b{display:block;margin-bottom:4px;color:#0f172a}
+.fx-note{margin:6px 0 0;font-size:11px;color:var(--text-3);text-align:center}
+.fx-tip{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
+.fx-tip b{display:block;margin-bottom:4px;color:var(--text)}
 .fx-tip div{display:flex;justify-content:space-between;gap:14px}
 .fx-bar-tools{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 10px;margin-bottom:4px}
-.fx-lg-chips{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:#334155}
+.fx-lg-chips{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--text-2)}
 .fx-lg-chips span{display:inline-flex;align-items:center;gap:5px}
 .fx-lg-chips i{width:11px;height:11px;border-radius:3px;display:inline-block}
-.fx-seg{display:inline-flex;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;background:#fff}
-.fx-seg button{padding:5px 10px;border:0;background:transparent;color:#475569;font-size:12px;font-weight:600;cursor:pointer}
-.fx-seg button+button{border-left:1px solid #cbd5e1}
+.fx-seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--surface)}
+.fx-seg button{padding:5px 10px;border:0;background:transparent;color:var(--text-2);font-size:12px;font-weight:600;cursor:pointer}
+.fx-seg button+button{border-left:1px solid var(--border)}
 .fx-seg button.on{background:#0b4ea2;color:#fff}
 .fx-mapcard{min-height:520px}
-.fx-tools{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px;font-size:12px;font-weight:600;color:#374151}
+.fx-tools{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin-bottom:8px;font-size:12px;font-weight:600;color:var(--text-2)}
 .fx-tools label{display:flex;align-items:center;gap:5px;cursor:pointer}
 .fx-tools .fx-sel{width:auto}
-.fx-ico{display:grid;place-items:center;width:30px;height:30px;border:1px solid #d1d5db;border-radius:8px;background:#f9fafb;cursor:pointer}
-.fx-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:#fee2e2;color:#991b1b;font-weight:700}
-.fx-map{position:relative;flex:1;min-height:340px;border-radius:8px;overflow:hidden;border:1px solid #e5e7eb;isolation:isolate}
+.fx-ico{display:grid;place-items:center;width:30px;height:30px;border:1px solid var(--border);border-radius:8px;background:var(--surface-3);color:var(--text);cursor:pointer}
+.fx-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;background:rgba(239,68,68,.18);color:color-mix(in srgb,#dc2626 70%,var(--text));font-weight:700}
+.fx-map{position:relative;flex:1;min-height:340px;border-radius:8px;overflow:hidden;border:1px solid var(--border);isolation:isolate}
 .fx-map .leaflet-container{position:absolute;inset:0;font-family:inherit;background:#e5e7eb}
+/* légendes posées sur la carte : restent claires (fond Esri clair) -> texte sombre fixe */
 .fx-legend{position:absolute;left:8px;bottom:8px;z-index:1000;display:flex;flex-direction:column;gap:6px;max-width:60%}
-.fx-lg{background:rgba(255,255,255,.94);padding:6px 9px;border-radius:8px;font-size:11px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+.fx-lg{background:rgba(255,255,255,.94);color:#0f172a;padding:6px 9px;border-radius:8px;font-size:11px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
 .fx-lg div{display:flex;align-items:center;gap:6px;margin-top:2px}
 .fx-lg i{width:13px;height:10px;display:inline-block;border:1px solid #9ca3af}
 .fx-lg i.dot{width:10px;height:10px;border-radius:50%;border:1px solid #fff;box-shadow:0 0 0 1px rgba(15,23,42,.35)}
@@ -319,13 +331,13 @@ const CSS = `
 .fx-lg .fx-lg-scale{flex-direction:column;align-items:flex-start;gap:0;margin-top:0}
 .fx-lg .fx-lg-per{flex-direction:column;align-items:flex-start;justify-content:center;gap:0;margin-top:0;padding-left:9px;border-left:1px solid #e2e8f0;line-height:1.3;color:#475569}
 .fx-lg-per b{color:#b91c1c;font-size:12px;text-transform:capitalize}
-.fx-zone{background:#f8fafc;border:1px solid #eef2f7;border-radius:10px;padding:6px 8px 2px;margin-bottom:8px}
+.fx-zone{background:var(--surface-3);border:1px solid var(--border-soft);border-radius:10px;padding:6px 8px 2px;margin-bottom:8px}
 .fx-zh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
-.fx-zt{display:flex;align-items:center;gap:6px;color:#1565c0;font-size:12px;font-weight:700}
+.fx-zt{display:flex;align-items:center;gap:6px;color:color-mix(in srgb,#1565c0 70%,var(--text));font-size:12px;font-weight:700}
 .fx-vchip{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
 .fx-lbl{background:none;border:0}
 .fx-lbl span{position:absolute;transform:translate(-50%,-50%);white-space:nowrap;font-weight:700;color:#0f172a;text-shadow:0 0 2px #fff,0 0 3px #fff,0 0 4px #fff;pointer-events:none}
-.fx-load{padding:30px;text-align:center;color:#0b4ea2;font-weight:600}
+.fx-load{padding:30px;text-align:center;color:var(--bleu);font-weight:600}
 .fx .leaflet-tooltip{font-size:12px;font-weight:600}
 @media(max-width:560px){.fx-lg{font-size:10px;padding:4px 6px}.fx-legend{max-width:75%}}
 @media(prefers-reduced-motion:reduce){.fx *{transition:none!important}}
@@ -417,9 +429,9 @@ const MonthlyChart = ({ data, year, t }: any) => {
                 <stop offset="0%" stopColor="#dc2626" stopOpacity={0.38} /><stop offset="100%" stopColor="#dc2626" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="mois" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-            <YAxis domain={[0, (max: number) => Math.ceil(max * 1.1)]} tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={compact} width={42} />
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="mois" tick={TICK} axisLine={false} tickLine={false} />
+            <YAxis domain={[0, (max: number) => Math.ceil(max * 1.1)]} tick={TICK} axisLine={false} tickLine={false} tickFormatter={compact} width={42} />
             <Tooltip content={<MonthTip year={year} />} cursor={{ stroke: "#94a3b8", strokeDasharray: "4 4" }} />
             <Area type="natural" dataKey={`y${year - 1}`} name={`${year - 1}`} stroke="#2563eb" strokeWidth={2} fill="url(#gPrev)" dot={false} activeDot={{ r: 4 }} />
             <Area type="natural" dataKey={`y${year}`} name={`${year}`} stroke="#dc2626" strokeWidth={2.5} fill="url(#gCur)" dot={false} activeDot={{ r: 4.5 }} />
@@ -442,20 +454,20 @@ const HistoricalChart = ({ zones, year, t }: any) => (
         { nom: t.highPressureYears, val: z.difficile },
       ];
       const v = z.moyenne !== 0 ? ((z.annee - z.moyenne) / z.moyenne) * 100 : 0;
-      const [vc, vbg, sym] = v > 0 ? ["#b91c1c", "#fee2e2", "▲"] : v < 0 ? ["#1d4ed8", "#dbeafe", "▼"] : ["#15803d", "#dcfce7", "="];
+      const [base, sym] = v > 0 ? ["#dc2626", "▲"] : v < 0 ? ["#2563eb", "▼"] : ["#16a34a", "="];
       const Icon = z.kind === "5km" ? MapPinned : Trees;
       return (
         <div key={z.zone} className="fx-zone">
           <div className="fx-zh">
             <span className="fx-zt"><Icon size={14} />{z.zone}</span>
-            <span className="fx-vchip" style={{ color: vc, background: vbg }} title={t.historicalAverage}>{sym} {v > 0 ? "+" : ""}{v.toFixed(1)} %</span>
+            <span className="fx-vchip" style={{ color: tonText(base), background: tonBg(base) }} title={t.historicalAverage}>{sym} {v > 0 ? "+" : ""}{v.toFixed(1)} %</span>
           </div>
           <ResponsiveContainer width="100%" height={104}>
             <BarChart data={rows} layout="vertical" margin={{ top: 2, right: 10, left: 0, bottom: 2 }} barCategoryGap="18%">
               <XAxis type="number" hide domain={[0, (m: number) => Math.max(1, m * 1.3)]} />
-              <YAxis type="category" dataKey="nom" width={108} tick={{ fontSize: 11, fill: "#334155" }} axisLine={false} tickLine={false} />
-              <ReferenceLine x={z.moyenne} stroke="#475569" strokeDasharray="4 3" />
-              <Bar dataKey="val" barSize={20} radius={[0, 4, 4, 0]} background={{ fill: "#eef2f7", radius: 4 }}>
+              <YAxis type="category" dataKey="nom" width={108} tick={{ fontSize: 11, fill: "var(--text-2)" }} axisLine={false} tickLine={false} />
+              <ReferenceLine x={z.moyenne} stroke="var(--text-3)" strokeDasharray="4 3" />
+              <Bar dataKey="val" barSize={20} radius={[0, 4, 4, 0]} background={{ fill: "var(--track)", radius: 4 }}>
                 {["#9ca3af", "#EAB308", "#d32f2f"].map((c, i) => <Cell key={i} fill={c} />)}
                 <LabelList
                   dataKey="val"
@@ -464,7 +476,7 @@ const HistoricalChart = ({ zones, year, t }: any) => (
                     const text = `${Math.round(value).toLocaleString("fr-FR")} ha`;
                     const inside = width > text.length * 6.2 + 16;
                     return (
-                      <text x={inside ? x + width - 8 : x + width + 6} y={y + height / 2} dy={4} textAnchor={inside ? "end" : "start"} fill={inside ? (index === 1 ? "#3f2d00" : "#fff") : "#1f2937"} fontSize={11} fontWeight={700}>{text}</text>
+                      <text x={inside ? x + width - 8 : x + width + 6} y={y + height / 2} dy={4} textAnchor={inside ? "end" : "start"} fill={inside ? (index === 1 ? "#3f2d00" : "#fff") : "var(--text)"} fontSize={11} fontWeight={700}>{text}</text>
                     );
                   }}
                 />
@@ -483,7 +495,7 @@ const RankTick = ({ x, y, payload, index }: any) => {
   const top5 = index < 5;
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={0} y={0} dy={12} textAnchor="end" transform="rotate(-30)" fill={top5 ? "#b91c1c" : "#475569"} fontSize={11} fontWeight={top5 ? 700 : 400}>
+      <text x={0} y={0} dy={12} textAnchor="end" transform="rotate(-30)" fill={top5 ? "#ef4444" : "var(--text-2)"} fontSize={11} fontWeight={top5 ? 700 : 400}>
         {top5 ? `${index + 1}. ` : ""}{nom.length > 9 ? nom.substring(0, 9) + "…" : nom}
       </text>
     </g>
@@ -496,7 +508,7 @@ const CustomTotalBar = ({ x, y, width, height, payload }: any) => {
   const w = width * 0.45, gap = 2, x0 = x + (width - (w * 2 + gap)) / 2;
   return (
     <g>
-      <rect x={x} y={y} width={width} height={height} fill="#d9edf7" rx={4} />
+      <rect x={x} y={y} width={width} height={height} fill={BLEU_TOTAL} rx={4} />
       <rect x={x0} y={y + height - hInt} width={w} height={hInt} fill="#ff0000" />
       <rect x={x0 + w + gap} y={y + height - hPer} width={w} height={hPer} fill="#ffff00" />
     </g>
@@ -529,7 +541,7 @@ const ImpactChart = ({ all, ap, t, n, setN }: any) => {
     <Card title={`${t.fireImpact.replace("11", String(n))} ${ap}`}>
       <div className="fx-bar-tools">
         <div className="fx-lg-chips">
-          {chip("#ff0000", t.insideAP)}{chip("#ffff00", t.peripheral5km, "1px solid #999")}{chip("#d9edf7", t.total)}
+          {chip("#ff0000", t.insideAP)}{chip("#ffff00", t.peripheral5km, "1px solid #999")}{chip(BLEU_TOTAL, t.total, "1px solid rgba(59,130,246,.5)")}
         </div>
         <div className="fx-seg" role="group" aria-label="Top">
           {[5, 11].map((k) => <button key={k} className={n === k ? "on" : ""} onClick={() => setN(k)}>{t.topN} {k}</button>)}
@@ -538,10 +550,10 @@ const ImpactChart = ({ all, ap, t, n, setN }: any) => {
       <div className="fx-chart">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 20, right: 8, left: -4, bottom: 30 }} barCategoryGap="22%">
-            <CartesianGrid stroke="#e5e7eb" strokeDasharray="3 3" vertical={false} />
+            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="commune" interval={0} tick={<RankTick />} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
-            <YAxis domain={[0, top]} ticks={ticks} tickFormatter={compact} width={40} tick={{ fill: "#555", fontSize: 11 }} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
-            <Tooltip content={<ImpactTip t={t} />} cursor={{ fill: "rgba(11,78,162,.06)" }} />
+            <YAxis domain={[0, top]} ticks={ticks} tickFormatter={compact} width={40} tick={TICK} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
+            <Tooltip content={<ImpactTip t={t} />} cursor={{ fill: "rgba(59,130,246,.10)" }} />
             <Bar dataKey="total" name="Total" shape={<CustomTotalBar />} barSize={22}>
               <LabelList dataKey="total" position="top" fill="#0099ff" fontSize={10} formatter={(v: number) => Math.round(v).toLocaleString("fr-FR")} />
             </Bar>
@@ -564,7 +576,7 @@ const Gauge = ({ variation, t }: any) => {
   };
   const tick = (a: number, len: number) => {
     const p1 = polar(a, R + 20), p2 = polar(a, R + 20 - len);
-    return <line key={a} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#555" strokeWidth="2" />;
+    return <line key={a} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="var(--text-3)" strokeWidth="2" />;
   };
   const color = variation < 0 ? "#2e7d32" : variation > 0 ? "#d32f2f" : "#1565c0";
   return (
@@ -572,20 +584,20 @@ const Gauge = ({ variation, t }: any) => {
       <svg width="100%" viewBox="0 0 500 260" style={{ maxHeight: 270 }}>
         {["#dcfce7", "#86efac", "#4ade80", "#16a34a"].map((c, i) => arc(-180 + i * 45, -180 + (i + 1) * 45, c))}
         {["#991b1b", "#ef4444", "#f87171", "#fecaca"].map((c, i) => arc(i * 45, (i + 1) * 45, c))}
-        <text x="135" y="125" fontSize="16" fontWeight="600">0</text>
-        <text x="240" y="15" fontSize="15" fontWeight="600">50</text>
-        <text x="350" y="120" fontSize="16" fontWeight="600">100</text>
-        <text x="240" y="240" fontSize="15" fontWeight="600">-50</text>
+        <text x="135" y="125" fontSize="16" fontWeight="600" fill="var(--text)">0</text>
+        <text x="240" y="15" fontSize="15" fontWeight="600" fill="var(--text)">50</text>
+        <text x="350" y="120" fontSize="16" fontWeight="600" fill="var(--text)">100</text>
+        <text x="240" y="240" fontSize="15" fontWeight="600" fill="var(--text)">-50</text>
         <g style={{ transform: `rotate(${angle}deg)`, transformOrigin: `${cx}px ${cy}px`, transition: "transform .8s ease-out" }}>
-          <polygon points={`${cx},${cy - 6} ${cx + R - 2},${cy} ${cx},${cy + 6}`} fill="#111" />
+          <polygon points={`${cx},${cy - 6} ${cx + R - 2},${cy} ${cx},${cy + 6}`} fill="var(--text)" />
         </g>
-        <circle cx={cx} cy={cy} r="10" fill="#111" />
-        <circle cx={cx} cy={cy} r="4" fill="#fff" />
+        <circle cx={cx} cy={cy} r="10" fill="var(--text)" />
+        <circle cx={cx} cy={cy} r="4" fill="var(--surface)" />
         {Array.from({ length: 21 }).map((_, i) => (
           <React.Fragment key={i}>{tick(-180 + i * 9, i % 5 === 0 ? 18 : 10)}{tick(i * 9, i % 5 === 0 ? 18 : 10)}</React.Fragment>
         ))}
       </svg>
-      <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color }}>
+      <div style={{ textAlign: "center", fontSize: 12, fontWeight: 700, color: tonText(color) }}>
         {variation < 0 ? `${t.decreased} ${Math.abs(variation)} %.` : variation > 0 ? `${t.increased} ${variation} %.` : t.unchanged}
       </div>
     </Card>
@@ -746,7 +758,7 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           )}
         </div>
       </div>
-      {err ? <p className="fx-note" style={{ color: "#b91c1c" }}>{t.fireErr}</p>
+      {err ? <p className="fx-note" style={{ color: "#ef4444" }}>{t.fireErr}</p>
         : !fires.length ? <p className="fx-note">{t.noFire}</p>
         : !zones.length ? <p className="fx-note">{t.noZones}</p> : null}
     </Card>
@@ -981,7 +993,7 @@ export default function AnalyseFeux() {
       {!baseOk ? (
         <div className="fx-load">{t.loading}</div>
       ) : !baseFeux.length ? (
-        <div className="fx-load" style={{ color: "#b91c1c" }}>{t.noBase}</div>
+        <div className="fx-load" style={{ color: "#ef4444" }}>{t.noBase}</div>
       ) : (
         <>
           <div className="fx-rank">
@@ -1005,7 +1017,7 @@ export default function AnalyseFeux() {
             />
             <KPI
               title={t.mostAffected} color="#003399" tint="#1d4ed8" icon={<MapPinned size={30} color="#1d4ed8" />}
-              value={<span style={{ color: "#b40000" }}>{communePlusTouchee?.commune ?? "--"}</span>}
+              value={<span style={{ color: tonText("#b40000") }}>{communePlusTouchee?.commune ?? "--"}</span>}
               sub={communePlusTouchee ? `${t.with} ${fmtHa(communePlusTouchee.total)} ${t.totalBurnedSurface}` : undefined}
             />
           </div>
