@@ -848,15 +848,15 @@ export default function Pression() {
 
   // ---- Données géographiques
   const regionsData = useGeoJSON('/data/madagascar_24_region.geojson');
-  const apData = useGeoJSON('/data/aire_protegee_paddi.geojson');
+  const apData = useGeoJSON('/data/ap_terrestre_madagascar.geojson');
   const communesData = useGeoJSON('/data/madagascar_communes.json');
   const periphData = useGeoJSON('/data/peripherie_5km_paddi.geojson');
   const paysageData = useGeoJSON('/data/paddi_paysage.geojson');
   const mbvData = useGeoJSON('/data/paddi_mbv.geojson');
 
   const regionsZ = useMemo(() => preparerZones(regionsData, 'nom_reg', t.defRegion), [regionsData, t.defRegion]);
-  const apZ = useMemo(() => preparerZones(apData, 'nom_ap', t.defAP), [apData, t.defAP]);
-  const periphZ = useMemo(() => preparerZones(periphData, 'nom_ap', ''), [periphData]);
+  const apZ = useMemo(() => preparerZones(apData, 'SHORT_NAME', t.defAP), [apData, t.defAP]);
+  const periphZ = useMemo(() => preparerZones(periphData, 'SHORT_NAME', ''), [periphData]);
   const communesZ = useMemo(
     () => preparerZones(communesData, 'NAME_4', t.defCommune),
     [communesData, t.defCommune]
