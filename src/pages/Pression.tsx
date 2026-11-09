@@ -933,10 +933,22 @@ export default function Pression() {
   );
 
   // aires protégées et périphéries de la région choisie uniquement
-  const apsVisibles = useMemo(
-    () => (regionZone ? apZ.filter((z) => zoneDansRegion(z, regionZone)) : apZ),
-    [apZ, regionZone]
-  );
+  const apsVisibles = useMemo(() => {
+  if (!regionZone) return apZ;
+
+  return apZ.filter((z) => {
+    const regionAP = normaliser(z.feature.properties?.REGION);
+    const regionSelectionnee = normaliser(regionZone.nom);
+
+    // Priorité au champ REGION du GeoJSON
+    if (regionAP) {
+      return regionAP === regionSelectionnee;
+    }
+
+    // Solution de secours si REGION est absent
+    return zoneDansRegion(z, regionZone);
+  });
+}, [apZ, regionZone]);
   const periphVisibles = useMemo(
     () => (regionZone ? periphZ.filter((z) => zoneDansRegion(z, regionZone)) : periphZ),
     [periphZ, regionZone]
