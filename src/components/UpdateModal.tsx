@@ -7,6 +7,7 @@ import {
   UTILISATEURS_ADMIN,
 } from "../utils/parseCoutsExcel";
 import { analyserFichierDecaissement } from "../utils/parseDecaissementExcel";
+import { ModalPortal, useModalLock } from "./ModalKit";
 
 interface UpdateModalProps {
   onClose: () => void;
@@ -15,13 +16,33 @@ interface UpdateModalProps {
 }
 
 /* =========================================================
-   STYLES RESPONSIVES
-   Les media queries sont impossibles en style inline : on utilise
-   des classes "um-*" avec !important pour passer devant les styles
-   inline uniquement quand l'écran est petit. Sur ordinateur, le rendu
-   reste identique à l'ancien.
+   STYLES RESPONSIVES + THÈME CLAIR / SOMBRE
+   - Les media queries sont impossibles en style inline : on utilise des
+     classes "um-*" avec !important pour passer devant les styles inline
+     uniquement quand l'écran est petit ou très grand.
+   - Les couleurs viennent de variables « --um-* » : valeurs claires dans
+     « .um-modal », surcharges dans « :root[data-theme="dark"] .um-modal ».
 ========================================================= */
 const RESPONSIVE_CSS = `
+.um-modal {
+  --um-card: #ffffff; --um-soft: #f8fafc; --um-line: #e2e8f0; --um-bd: #cbd5e1;
+  --um-ink: #0f172a; --um-txt2: #475569; --um-txt3: #334155; --um-mut: #94a3b8; --um-mut2: #64748b;
+  --um-accent: #2563eb; --um-accent-txt: #1d4ed8; --um-blue-soft: #eff6ff;
+  --um-act-bg: #f8fbff; --um-act-bd: #93c5fd;
+  --um-green: #16a34a; --um-green-txt: #166534; --um-green-soft: #dcfce7; --um-green-bg: #f0fdf4; --um-green-bd: #bbf7d0; --um-green-dash: #86efac;
+  --um-err-bg: #fef2f2; --um-err-bd: #fecaca; --um-err-txt: #b91c1c; --um-err: #dc2626;
+  --um-disabled-bg: #f1f5f9;
+}
+:root[data-theme="dark"] .um-modal {
+  --um-card: var(--surface, #111a2e); --um-soft: #16213a; --um-line: rgba(255,255,255,.12); --um-bd: rgba(255,255,255,.2);
+  --um-ink: #e5e7eb; --um-txt2: #cbd5e1; --um-txt3: #cbd5e1; --um-mut: #94a3b8; --um-mut2: #94a3b8;
+  --um-accent: #60a5fa; --um-accent-txt: #93c5fd; --um-blue-soft: rgba(96,165,250,.16);
+  --um-act-bg: rgba(96,165,250,.12); --um-act-bd: rgba(96,165,250,.5);
+  --um-green: #4ade80; --um-green-txt: #86efac; --um-green-soft: rgba(74,222,128,.18); --um-green-bg: rgba(74,222,128,.1); --um-green-bd: rgba(74,222,128,.35); --um-green-dash: rgba(74,222,128,.5);
+  --um-err-bg: rgba(248,113,113,.14); --um-err-bd: rgba(248,113,113,.4); --um-err-txt: #fca5a5; --um-err: #f87171;
+  --um-disabled-bg: rgba(255,255,255,.05);
+}
+
 .um-overlay {
   overflow-y: auto !important;
   overscroll-behavior: contain;
@@ -118,6 +139,18 @@ const RESPONSIVE_CSS = `
   .um-overlay { align-items: flex-start !important; }
   .um-modal   { max-height: none !important; margin: 0 auto; }
   .um-header, .um-footer { padding-top: 8px !important; padding-bottom: 8px !important; }
+}
+
+/* ---------- Grands écrans : fenêtre plus large, textes plus lisibles ---------- */
+@media (min-width: 1600px) {
+  .um-modal { max-width: 680px !important; }
+  .um-modal select, .um-footer button { font-size: 13px !important; }
+  .um-text-small { font-size: 12px !important; }
+}
+@media (min-width: 2560px) {
+  .um-modal { max-width: 860px !important; }
+  .um-modal select, .um-footer button { font-size: 17px !important; min-height: 50px; }
+  .um-text-small { font-size: 15px !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -401,19 +434,28 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
     onClose();
   };
 
+  // Échap ferme la fenêtre + la page de derrière est bloquée
+  useModalLock(handleClose);
+
   return (
-    <>
+    <ModalPortal>
       <style>{RESPONSIVE_CSS}</style>
 
       {/* OVERLAY */}
       <div className="um-overlay" style={styles.overlay} onClick={handleClose}>
         {/* MODAL */}
-        <div className="um-modal" style={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div
+          className="um-modal"
+          style={styles.modal}
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* HEADER */}
           <div className="um-header" style={styles.header}>
             <div className="um-header-left" style={styles.headerLeft}>
               <div style={styles.headerIcon}>
-                <RefreshCw size={20} color="#2563eb" />
+                <RefreshCw size={20} color="var(--um-accent)" />
               </div>
 
               <div>
@@ -544,10 +586,10 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
                         ...styles.select,
                         ...(!peutChoisirUnite
                           ? {
-                              backgroundColor: "#f1f5f9",
-                              color: "#475569",
+                              backgroundColor: "var(--um-disabled-bg)",
+                              color: "var(--um-txt2)",
                               cursor: "not-allowed",
-                              borderColor: "#cbd5e1",
+                              borderColor: "var(--um-bd)",
                             }
                           : {}),
                       }}
@@ -653,7 +695,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
                   {fichier ? (
                     <>
                       <div style={styles.fileIcon}>
-                        <FileSpreadsheet size={24} color="#16a34a" />
+                        <FileSpreadsheet size={24} color="var(--um-green)" />
                       </div>
 
                       <div style={styles.fileName}>{fichier.name}</div>
@@ -669,7 +711,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
                   ) : (
                     <>
                       <div style={styles.uploadIcon}>
-                        <Upload size={22} color="#2563eb" />
+                        <Upload size={22} color="var(--um-accent)" />
                       </div>
 
                       <div style={styles.uploadTitle}>Choisir le fichier Excel</div>
@@ -686,7 +728,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
             {/* MESSAGE ERREUR */}
             {erreur && (
               <div className="um-text-small" style={styles.errorMessage} role="alert">
-                <AlertCircle size={16} color="#dc2626" style={{ flexShrink: 0 }} />
+                <AlertCircle size={16} color="var(--um-err)" style={{ flexShrink: 0 }} />
                 <span>{erreur}</span>
               </div>
             )}
@@ -694,7 +736,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
             {/* MESSAGE SUCCÈS */}
             {message && (
               <div className="um-text-small" style={styles.successMessage} role="status">
-                <CheckCircle2 size={16} color="#16a34a" style={{ flexShrink: 0 }} />
+                <CheckCircle2 size={16} color="var(--um-green)" style={{ flexShrink: 0 }} />
                 <span>{message}</span>
               </div>
             )}
@@ -733,10 +775,11 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
           </div>
         </div>
       </div>
-    </>
+    </ModalPortal>
   );
 }
 
+/* Couleurs : variables « --um-* » définies dans RESPONSIVE_CSS (thème clair / sombre) */
 const styles: { [key: string]: React.CSSProperties } = {
   overlay: {
     position: "fixed",
@@ -754,11 +797,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   modal: {
     width: "100%",
     maxWidth: 570,
-    background: "#ffffff",
+    background: "var(--um-card)",
+    color: "var(--um-ink)",
     borderRadius: 16,
     boxShadow: "0 25px 60px rgba(15, 23, 42, 0.22)",
     overflow: "hidden",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--um-line)",
   },
 
   header: {
@@ -766,8 +810,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     justifyContent: "space-between",
     padding: "18px 20px",
-    borderBottom: "1px solid #e2e8f0",
-    background: "#ffffff",
+    borderBottom: "1px solid var(--um-line)",
+    background: "var(--um-card)",
   },
 
   headerLeft: {
@@ -780,7 +824,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: 40,
     height: 40,
     borderRadius: 10,
-    background: "#eff6ff",
+    background: "var(--um-blue-soft)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -790,13 +834,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   title: {
     fontSize: 15,
     fontWeight: 800,
-    color: "#0f172a",
+    color: "var(--um-ink)",
     lineHeight: 1.2,
   },
 
   subtitle: {
     fontSize: 10,
-    color: "#94a3b8",
+    color: "var(--um-mut)",
     marginTop: 4,
   },
 
@@ -805,8 +849,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     height: 34,
     border: "none",
     borderRadius: 8,
-    background: "#f8fafc",
-    color: "#64748b",
+    background: "var(--um-soft)",
+    color: "var(--um-mut2)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -821,7 +865,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   sectionTitle: {
     fontSize: 10,
     fontWeight: 800,
-    color: "#64748b",
+    color: "var(--um-mut2)",
     textTransform: "uppercase",
     letterSpacing: "0.06em",
     marginBottom: 11,
@@ -839,9 +883,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     flex: 1,
     minHeight: 48,
     padding: "0 16px",
-    border: "1px solid #e2e8f0",
+    border: "1px solid var(--um-line)",
     borderRadius: 10,
-    background: "#ffffff",
+    background: "var(--um-card)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -852,8 +896,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   choiceActive: {
-    border: "1px solid #93c5fd",
-    background: "#f8fbff",
+    border: "1px solid var(--um-act-bd)",
+    background: "var(--um-act-bg)",
     boxShadow: "0 2px 6px rgba(37, 99, 235, 0.06)",
   },
 
@@ -868,12 +912,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   choiceText: {
     fontSize: 12,
     fontWeight: 700,
-    color: "#475569",
+    color: "var(--um-txt2)",
     whiteSpace: "nowrap",
   },
 
   choiceTextActive: {
-    color: "#1d4ed8",
+    color: "var(--um-accent-txt)",
   },
 
   levelContainer: {
@@ -882,15 +926,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     gap: 12,
     padding: "10px 12px",
-    background: "#f8fafc",
-    border: "1px solid #e2e8f0",
+    background: "var(--um-soft)",
+    border: "1px solid var(--um-line)",
     borderRadius: 9,
   },
 
   levelLabel: {
     fontSize: 10,
     fontWeight: 800,
-    color: "#64748b",
+    color: "var(--um-mut2)",
     marginBottom: 1,
   },
 
@@ -898,10 +942,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: 190,
     height: 34,
     padding: "0 10px",
-    border: "1px solid #cbd5e1",
+    border: "1px solid var(--um-bd)",
     borderRadius: 7,
-    background: "#ffffff",
-    color: "#0f172a",
+    background: "var(--um-card)",
+    color: "var(--um-ink)",
     fontSize: 11,
     fontWeight: 700,
     outline: "none",
@@ -922,9 +966,9 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   uploadBox: {
     minHeight: 135,
-    border: "1.5px dashed #cbd5e1",
+    border: "1.5px dashed var(--um-bd)",
     borderRadius: 11,
-    background: "#f8fafc",
+    background: "var(--um-soft)",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
@@ -937,15 +981,15 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   uploadBoxSelected: {
-    border: "1.5px dashed #86efac",
-    background: "#f0fdf4",
+    border: "1.5px dashed var(--um-green-dash)",
+    background: "var(--um-green-bg)",
   },
 
   uploadIcon: {
     width: 43,
     height: 43,
     borderRadius: 10,
-    background: "#eff6ff",
+    background: "var(--um-blue-soft)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -956,7 +1000,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: 43,
     height: 43,
     borderRadius: 10,
-    background: "#dcfce7",
+    background: "var(--um-green-soft)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -966,18 +1010,18 @@ const styles: { [key: string]: React.CSSProperties } = {
   uploadTitle: {
     fontSize: 12,
     fontWeight: 800,
-    color: "#334155",
+    color: "var(--um-txt3)",
   },
 
   uploadDescription: {
     fontSize: 10,
-    color: "#64748b",
+    color: "var(--um-mut2)",
     marginTop: 4,
   },
 
   uploadFormat: {
     fontSize: 9,
-    color: "#94a3b8",
+    color: "var(--um-mut)",
     marginTop: 5,
   },
 
@@ -988,18 +1032,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     whiteSpace: "nowrap",
     fontSize: 12,
     fontWeight: 800,
-    color: "#166534",
+    color: "var(--um-green-txt)",
   },
 
   fileInfo: {
     fontSize: 9,
-    color: "#64748b",
+    color: "var(--um-mut2)",
     marginTop: 3,
   },
 
   changeFile: {
     fontSize: 9,
-    color: "#2563eb",
+    color: "var(--um-accent)",
     marginTop: 7,
     fontWeight: 700,
   },
@@ -1011,9 +1055,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: 12,
     padding: "9px 11px",
     borderRadius: 8,
-    background: "#fef2f2",
-    border: "1px solid #fecaca",
-    color: "#b91c1c",
+    background: "var(--um-err-bg)",
+    border: "1px solid var(--um-err-bd)",
+    color: "var(--um-err-txt)",
     fontSize: 10,
     fontWeight: 600,
     overflowWrap: "anywhere",
@@ -1026,9 +1070,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: 12,
     padding: "9px 11px",
     borderRadius: 8,
-    background: "#f0fdf4",
-    border: "1px solid #bbf7d0",
-    color: "#166534",
+    background: "var(--um-green-bg)",
+    border: "1px solid var(--um-green-bd)",
+    color: "var(--um-green-txt)",
     fontSize: 10,
     fontWeight: 600,
     overflowWrap: "anywhere",
@@ -1040,17 +1084,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     gap: 10,
     padding: "14px 20px",
-    borderTop: "1px solid #e2e8f0",
-    background: "#f8fafc",
+    borderTop: "1px solid var(--um-line)",
+    background: "var(--um-soft)",
   },
 
   cancelButton: {
     height: 38,
     padding: "0 16px",
     borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    background: "#ffffff",
-    color: "#475569",
+    border: "1px solid var(--um-bd)",
+    background: "var(--um-card)",
+    color: "var(--um-txt2)",
     fontSize: 11,
     fontWeight: 700,
     cursor: "pointer",
@@ -1076,8 +1120,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: 6,
     padding: "3px 8px",
     borderRadius: 6,
-    background: "#eff6ff",
-    color: "#1d4ed8",
+    background: "var(--um-blue-soft)",
+    color: "var(--um-accent-txt)",
     fontSize: 10,
     fontWeight: 700,
   },
@@ -1091,7 +1135,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   lastUpdate: {
     marginTop: 5,
     fontSize: 10,
-    color: "#64748b",
+    color: "var(--um-mut2)",
     fontWeight: 600,
   },
 };
