@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { X, Save, History, RotateCcw } from "lucide-react";
+import { ModalPortal, useModalLock } from "./ModalKit";
 
 interface UpdateActivitesModalProps {
   isOpen: boolean;
   onClose: () => void;
   userName?: string;
-  identifiant: string;
-  motDePasse: string;
+  // jeton de session signé par le serveur (même connexion que pour les coûts)
+  token: string;
 }
 
 /* =========================================================
@@ -240,15 +241,17 @@ const HISTORIQUE_COLONNES = [
 ];
 
 interface HistoriqueModalProps {
-  identifiant: string;
-  motDePasse: string;
+  token: string;
   onClose: () => void;
 }
 
-function HistoriqueModal({ identifiant, motDePasse, onClose }: HistoriqueModalProps) {
+function HistoriqueModal({ token, onClose }: HistoriqueModalProps) {
   const [entries, setEntries] = useState<any[]>([]);
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(true);
+
+  // Échap ferme l'historique (et pas la fenêtre de mise à jour qui est dessous)
+  useModalLock(onClose);
 
   useEffect(() => {
     let cancelled = false;
@@ -258,8 +261,7 @@ function HistoriqueModal({ identifiant, motDePasse, onClose }: HistoriqueModalPr
         const response = await fetch(`/api/historique-geojson?t=${Date.now()}`, {
           cache: "no-store",
           headers: {
-            "x-paddi-identifiant": identifiant,
-            "x-paddi-password": motDePasse,
+            Authorization: `Bearer ${token}`,
             "Cache-Control": "no-cache",
           },
         });
@@ -269,7 +271,7 @@ function HistoriqueModal({ identifiant, motDePasse, onClose }: HistoriqueModalPr
         if (!response.ok) {
           throw new Error(
             response.status === 401
-              ? "Accès non autorisé : vérifie les identifiants de session."
+              ? "Accès non autorisé : la session a expiré, fermez cette fenêtre et reconnectez-vous."
               : `Erreur API historique (${response.status}) : ${texte}`
           );
         }
@@ -307,7 +309,7 @@ function HistoriqueModal({ identifiant, motDePasse, onClose }: HistoriqueModalPr
     return () => {
       cancelled = true;
     };
-  }, [identifiant, motDePasse]);
+  }, [token]);
 
   // Une ligne par changement réel (ancienne valeur ≠ nouvelle valeur)
   const lignes = entries.flatMap((e, i) => {
@@ -332,53 +334,56 @@ function HistoriqueModal({ identifiant, motDePasse, onClose }: HistoriqueModalPr
   });
 
   return (
-    <div className="uam-overlay uam-overlay-top">
-      <div className="uam-modal uam-modal-history" role="dialog" aria-modal="true">
-        <div className="uam-header">
-          <div className="uam-header-text">
-            <h2 className="uam-title">Historique des mises à jour</h2>
-            <p className="uam-subtitle">
-              Consultez les modifications effectuées sur les activités.
-            </p>
+    <ModalPortal>
+      <style>{css}</style>
+      <div className="uam-overlay uam-overlay-top" onClick={onClose}>
+        <div className="uam-modal uam-modal-history" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+          <div className="uam-header">
+            <div className="uam-header-text">
+              <h2 className="uam-title">Historique des mises à jour</h2>
+              <p className="uam-subtitle">
+                Consultez les modifications effectuées sur les activités.
+              </p>
+            </div>
+
+            <button type="button" onClick={onClose} className="uam-close" title="Fermer" aria-label="Fermer">
+              <X size={21} />
+            </button>
           </div>
 
-          <button type="button" onClick={onClose} className="uam-close" title="Fermer">
-            <X size={21} />
-          </button>
-        </div>
-
-        <div className="uam-hbody">
-          {chargement ? (
-            <div className="uam-hmsg">Chargement de l'historique...</div>
-          ) : erreur ? (
-            <div className="uam-hmsg is-error">{erreur}</div>
-          ) : lignes.length === 0 ? (
-            <div className="uam-hmsg">Aucune modification enregistrée.</div>
-          ) : (
-            <table className="uam-table">
-              <thead>
-                <tr>
-                  {HISTORIQUE_COLONNES.map((titre) => (
-                    <th key={titre}>{titre}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {lignes.map((l: any) => (
-                  <tr key={l.key}>
-                    {l.cells.map((cell: unknown, k: number) => (
-                      <td key={k}>{String(cell)}</td>
+          <div className="uam-hbody">
+            {chargement ? (
+              <div className="uam-hmsg">Chargement de l'historique...</div>
+            ) : erreur ? (
+              <div className="uam-hmsg is-error">{erreur}</div>
+            ) : lignes.length === 0 ? (
+              <div className="uam-hmsg">Aucune modification enregistrée.</div>
+            ) : (
+              <table className="uam-table">
+                <thead>
+                  <tr>
+                    {HISTORIQUE_COLONNES.map((titre) => (
+                      <th key={titre}>{titre}</th>
                     ))}
-                    <td>{String(l.ancienne)}</td>
-                    <td>{String(l.nouvelle)}</td>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody>
+                  {lignes.map((l: any) => (
+                    <tr key={l.key}>
+                      {l.cells.map((cell: unknown, k: number) => (
+                        <td key={k}>{String(cell)}</td>
+                      ))}
+                      <td>{String(l.ancienne)}</td>
+                      <td>{String(l.nouvelle)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </ModalPortal>
   );
 }
 
@@ -390,8 +395,7 @@ export default function UpdateActivitesModal({
   isOpen,
   onClose,
   userName,
-  identifiant,
-  motDePasse,
+  token,
 }: UpdateActivitesModalProps) {
   const [group, setGroup] = useState<Group>("taux");
   const [tab, setTab] = useState<Record<Group, string>>({
@@ -406,6 +410,9 @@ export default function UpdateActivitesModal({
   const [values, setValues] = useState<Record<string, string>>({});
   const [showValidation, setShowValidation] = useState(false);
   const [showHistorique, setShowHistorique] = useState(false);
+
+  // Échap ferme la fenêtre + la page de derrière est bloquée (seulement quand elle est ouverte)
+  useModalLock(onClose, isOpen);
 
   /* ---------- Chargement de l'enregistrement existant ---------- */
   useEffect(() => {
@@ -506,7 +513,7 @@ export default function UpdateActivitesModal({
       const response = await fetch("/api/update-geojson", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifiant, motDePasse, annee, mois, uc, updates }),
+        body: JSON.stringify({ token, annee, mois, uc, updates }),
       });
 
       const result = await response.json();
@@ -533,7 +540,7 @@ export default function UpdateActivitesModal({
   const section = SECTIONS[tab[group]];
 
   return (
-    <>
+    <ModalPortal>
       <style>{css}</style>
 
       <div className="uam-overlay">
@@ -557,7 +564,7 @@ export default function UpdateActivitesModal({
                 <span>Historique</span>
               </button>
 
-              <button type="button" className="uam-close" onClick={onClose} title="Fermer">
+              <button type="button" className="uam-close" onClick={onClose} title="Fermer" aria-label="Fermer">
                 <X size={21} />
               </button>
             </div>
@@ -657,18 +664,16 @@ export default function UpdateActivitesModal({
       </div>
 
       {showHistorique && (
-        <HistoriqueModal
-          identifiant={identifiant}
-          motDePasse={motDePasse}
-          onClose={() => setShowHistorique(false)}
-        />
+        <HistoriqueModal token={token} onClose={() => setShowHistorique(false)} />
       )}
-    </>
+    </ModalPortal>
   );
 }
 
 /* =========================================================
    STYLES (classes CSS pour pouvoir utiliser les media queries)
+   Les couleurs viennent de variables : valeurs claires dans « .uam-modal »,
+   surcharges du thème sombre dans « :root[data-theme="dark"] .uam-modal ».
 ========================================================= */
 
 const css = `
@@ -691,14 +696,28 @@ const css = `
 .uam-overlay-top { z-index: 10000; }
 
 .uam-modal {
+  --u-card: #fff; --u-soft: #f8fafc; --u-line: #e5e7eb; --u-bd: #d1d5db;
+  --u-ink: #1f2937; --u-txt2: #374151; --u-txt3: #4b5563; --u-mut: #6b7280;
+  --u-g: #15803d; --u-gt: #15803d; --u-gsoft: #f0fdf4;
+  --u-welcome-bg: #dcfce7; --u-welcome-txt: #166534;
+  --u-ro: #f3f4f6; --u-th-bg: #f0f5f1; --u-th-txt: #245c3a; --u-err: #dc2626;
   width: min(1050px, 100%);
   max-height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background: var(--u-card);
+  color: var(--u-ink);
+  border: 1px solid var(--u-line);
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+}
+:root[data-theme="dark"] .uam-modal {
+  --u-card: var(--surface, #111a2e); --u-soft: #16213a; --u-line: rgba(255,255,255,.12); --u-bd: rgba(255,255,255,.2);
+  --u-ink: #e5e7eb; --u-txt2: #cbd5e1; --u-txt3: #b6bfcc; --u-mut: #94a3b8;
+  --u-g: #15803d; --u-gt: #4ade80; --u-gsoft: rgba(74,222,128,.12);
+  --u-welcome-bg: rgba(74,222,128,.2); --u-welcome-txt: #86efac;
+  --u-ro: rgba(255,255,255,.06); --u-th-bg: #16301f; --u-th-txt: #86efac; --u-err: #f87171;
 }
 .uam-modal-history { width: min(900px, 100%); }
 
@@ -721,8 +740,8 @@ const css = `
   margin-top: 6px;
   padding: 3px 8px;
   border-radius: 6px;
-  background: #dcfce7;
-  color: #166534;
+  background: var(--u-welcome-bg);
+  color: var(--u-welcome-txt);
   font-size: 10px;
   font-weight: 700;
 }
@@ -757,20 +776,20 @@ const css = `
 
 /* ----- Contenu ----- */
 .uam-content { flex: 1; min-height: 0; overflow-y: auto; padding: 22px; -webkit-overflow-scrolling: touch; }
-.uam-section-title { font-size: 15px; font-weight: 700; color: #1f2937; margin-bottom: 12px; }
-.uam-subtitle-block { font-size: 14px; font-weight: 700; color: #374151; margin: 22px 0 10px; }
+.uam-section-title { font-size: 15px; font-weight: 700; color: var(--u-ink); margin-bottom: 12px; }
+.uam-subtitle-block { font-size: 14px; font-weight: 700; color: var(--u-txt2); margin: 22px 0 10px; }
 
 .uam-context { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-bottom: 14px; }
 .uam-full { margin-bottom: 16px; }
-.uam-slabel { display: block; font-size: 12px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+.uam-slabel { display: block; font-size: 12px; font-weight: 600; color: var(--u-txt2); margin-bottom: 6px; }
 .uam-select {
   width: 100%;
   height: 40px;
   padding: 0 11px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--u-bd);
   border-radius: 8px;
-  background: #fff;
-  color: #374151;
+  background: var(--u-card);
+  color: var(--u-txt2);
   font-size: 13px;
 }
 
@@ -778,55 +797,57 @@ const css = `
 .uam-choice {
   text-align: left;
   padding: 15px 17px;
-  background: #fff;
-  border: 1px solid #d1d5db;
+  background: var(--u-card);
+  border: 1px solid var(--u-bd);
   border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
 }
-.uam-choice.is-active { background: #f0fdf4; border: 2px solid #15803d; box-shadow: 0 2px 8px rgba(21, 128, 61, 0.1); }
-.uam-choice-title { color: #1f2937; font-size: 14px; font-weight: 700; margin-bottom: 4px; }
-.uam-choice-desc { color: #6b7280; font-size: 12px; }
+.uam-choice.is-active { background: var(--u-gsoft); border: 2px solid var(--u-g); box-shadow: 0 2px 8px rgba(21, 128, 61, 0.1); }
+.uam-choice-title { color: var(--u-ink); font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+.uam-choice-desc { color: var(--u-mut); font-size: 12px; }
 
 .uam-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .uam-tab {
   padding: 9px 13px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--u-bd);
   border-radius: 8px;
-  background: #fff;
-  color: #4b5563;
+  background: var(--u-card);
+  color: var(--u-txt3);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
-.uam-tab.is-active { background: #15803d; border-color: #15803d; color: #fff; }
+.uam-tab.is-active { background: var(--u-g); border-color: var(--u-g); color: #fff; }
 
 .uam-choice.is-invalid,
-.uam-tab.is-invalid { border: 2px solid #dc2626; box-shadow: 0 0 0 1px #dc2626; }
+.uam-tab.is-invalid { border: 2px solid var(--u-err); box-shadow: 0 0 0 1px var(--u-err); }
 
-.uam-form-section { margin-top: 18px; padding: 18px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 12px; }
+.uam-form-section { margin-top: 18px; padding: 18px; background: var(--u-soft); border: 1px solid var(--u-line); border-radius: 12px; }
 .uam-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
-.uam-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; min-width: 0; }
-.uam-flabel { display: block; font-size: 12px; line-height: 1.4; font-weight: 600; color: #374151; margin-bottom: 8px; min-height: 34px; }
+.uam-card { background: var(--u-card); border: 1px solid var(--u-line); border-radius: 10px; padding: 12px; min-width: 0; }
+.uam-flabel { display: block; font-size: 12px; line-height: 1.4; font-weight: 600; color: var(--u-txt2); margin-bottom: 8px; min-height: 34px; }
 
 .uam-input {
   width: 100%;
   height: 38px;
   box-sizing: border-box;
   padding: 0 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid var(--u-bd);
   border-radius: 7px;
+  background: var(--u-card);
+  color: var(--u-ink);
   font-size: 13px;
 }
-.uam-input.is-readonly { background: #f3f4f6; color: #4b5563; }
-.uam-pct { display: flex; align-items: center; height: 38px; border: 1px solid #d1d5db; border-radius: 7px; background: #fff; overflow: hidden; }
-.uam-pct-input { flex: 1; min-width: 0; height: 100%; padding: 0 10px; border: none; outline: none; font-size: 13px; }
-.uam-pct-symbol { padding: 0 10px; color: #15803d; font-weight: 700; font-size: 13px; }
+.uam-input.is-readonly { background: var(--u-ro); color: var(--u-txt3); }
+.uam-pct { display: flex; align-items: center; height: 38px; border: 1px solid var(--u-bd); border-radius: 7px; background: var(--u-card); overflow: hidden; }
+.uam-pct-input { flex: 1; min-width: 0; height: 100%; padding: 0 10px; border: none; outline: none; background: transparent; color: var(--u-ink); font-size: 13px; }
+.uam-pct-symbol { padding: 0 10px; color: var(--u-gt); font-weight: 700; font-size: 13px; }
 
 .uam-card.is-invalid,
 .uam-input.is-invalid,
-.uam-pct.is-invalid { border: 1px solid #dc2626; box-shadow: 0 0 0 1px #dc2626; }
+.uam-pct.is-invalid { border: 1px solid var(--u-err); box-shadow: 0 0 0 1px var(--u-err); }
 
 /* ----- Footer ----- */
 .uam-footer {
@@ -837,8 +858,8 @@ const css = `
   flex-wrap: wrap;
   gap: 10px;
   padding: 14px 20px;
-  border-top: 1px solid #e5e7eb;
-  background: #fff;
+  border-top: 1px solid var(--u-line);
+  background: var(--u-card);
 }
 .uam-footer-right { display: flex; gap: 8px; }
 .uam-btn {
@@ -855,13 +876,13 @@ const css = `
   touch-action: manipulation;
 }
 .uam-btn-reset,
-.uam-btn-cancel { border: 1px solid #d1d5db; background: #fff; color: #4b5563; }
+.uam-btn-cancel { border: 1px solid var(--u-bd); background: var(--u-card); color: var(--u-txt3); }
 .uam-btn-save { border: none; background: #15803d; color: #fff; font-weight: 700; }
 
 /* ----- Historique ----- */
 .uam-hbody { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-.uam-hmsg { padding: 30px; text-align: center; color: #6b7280; }
-.uam-hmsg.is-error { color: #dc2626; }
+.uam-hmsg { padding: 30px; text-align: center; color: var(--u-mut); }
+.uam-hmsg.is-error { color: var(--u-err); }
 .uam-table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
 .uam-table th {
   position: sticky;
@@ -869,12 +890,12 @@ const css = `
   z-index: 2;
   min-width: 100px;
   padding: 10px;
-  border: 1px solid #dce5dd;
-  background: #f0f5f1;
-  color: #245c3a;
+  border: 1px solid var(--u-line);
+  background: var(--u-th-bg);
+  color: var(--u-th-txt);
   line-height: 1.2;
 }
-.uam-table td { padding: 10px; border: 1px solid #e2e8e3; vertical-align: top; white-space: nowrap; }
+.uam-table td { padding: 10px; border: 1px solid var(--u-line); vertical-align: top; white-space: nowrap; }
 
 /* ----- Accessibilité ----- */
 .uam-close:focus-visible,
@@ -884,7 +905,7 @@ const css = `
 .uam-btn:focus-visible,
 .uam-select:focus-visible,
 .uam-input:focus-visible { outline: 3px solid rgba(21, 128, 61, 0.45); outline-offset: 2px; }
-.uam-pct:focus-within { border-color: #15803d; box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.25); }
+.uam-pct:focus-within { border-color: var(--u-g); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.25); }
 
 /* ---------- Tablettes / petits écrans (≤ 720px) ---------- */
 @media (max-width: 720px) {
@@ -944,6 +965,13 @@ const css = `
 @media (min-width: 1600px) {
   .uam-modal { width: min(1200px, 100%); }
   .uam-modal-history { width: min(1100px, 100%); }
+}
+@media (min-width: 2560px) {
+  .uam-modal { width: min(1500px, 100%); }
+  .uam-modal-history { width: min(1400px, 100%); }
+  .uam-title { font-size: 26px; }
+  .uam-flabel, .uam-slabel, .uam-tab, .uam-btn, .uam-select, .uam-input, .uam-pct-input { font-size: 16px; }
+  .uam-table { font-size: 16px; }
 }
 
 /* ---------- Écrans tactiles ---------- */
