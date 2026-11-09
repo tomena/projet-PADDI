@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "crypto";
 
