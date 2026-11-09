@@ -1,12 +1,13 @@
 /**
- * AnalyseTerritoriale.tsx — Madagascar : Région → District → Commune → Parcelle tracée
+ * AnalyseTerritoriale.tsx — Madagascar : Région → District → Commune
  *
- * Dépendances : leaflet, @types/leaflet, lucide-react. Aucun Tailwind requis.
+ * Dépendances : leaflet, @types/leaflet, lucide-react (déjà chez vous). Aucun Tailwind requis.
  *
- * Données (toutes en ligne, appelées depuis le navigateur, sans clé API côté page) :
- *  - Limites administratives : geoBoundaries (régions, districts, communes), plusieurs miroirs essayés en parallèle
- *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m (2017-2024)
- *  - Perte de couvert arboré : tuiles Global Forest Watch (UMD/Hansen), sans clé
+ * À ADAPTER (section LIMITES ci-dessous) : les chemins de vos fichiers districts et communes.
+ * Le nom du territoire est détecté automatiquement (voir NOM_CLES).
+ *
+ * Données externes appelées depuis le navigateur, sans clé API :
+ *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m (ImageServer public)
  *  - Altitude : Open-Meteo Elevation (Copernicus DEM 90 m) → pente
  *  - Pluie annuelle : Open-Meteo Archive
  *  - Bassins versants : BASSINS_GEOJSON_URL (à fournir, ex. HydroBASINS)
@@ -14,41 +15,43 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { ChevronRight, RotateCcw, PenTool, Check, X, Trash2 } from "lucide-react";
+import { ChevronRight, RotateCcw } from "lucide-react";
 
 /* ===================== CONFIGURATION ===================== */
 
 type Level = "ADM1" | "ADM2" | "ADM3";
 
+/** Vos fichiers locaux d'abord ; geoBoundaries sert de secours. MODIFIEZ ADM2 et ADM3. */
+const LIMITES: Record<Level, string> = {
+  ADM1: "/data/madagascar_24_region.geojson",
+  ADM2: "/data/madagascar_district.geojson",
+  ADM3: "/data/madagascar_commune.geojson",
+};
 const NOM_CLES = ["shapename", "nom_region", "region", "nom_district", "district", "nom_commune", "commune",
   "adm3_fr", "adm2_fr", "adm1_fr", "name_3", "name_2", "name_1", "nom", "name", "libelle"];
 
 const BASSINS_GEOJSON_URL = ""; // ex. "/data/bassins_versants.geojson"
-const LC_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
-const LOSS_FIRST = 2001, LOSS_LAST = 2024; // période disponible pour la perte de couvert arboré
+const LC_YEAR = 2023;
 const FONDS = {
   sat: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   topo: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
 };
 const MADA: L.LatLngBoundsExpression = [[-25.9, 43.0], [-11.8, 50.7]];
-const LAURITE = "#ff7a3d", CYAN = "#22d3ee";
+const LAURITE = "#ff7a3d";
 
 const ESRI = "https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/exportImage";
 type Box = { minLon: number; minLat: number; maxLon: number; maxLat: number };
-const esriUrl = (b: Box, W: number, H: number, year: number) =>
+const esriUrl = (b: Box, W: number, H: number) =>
   `${ESRI}?f=image&format=png&bbox=${b.minLon},${b.minLat},${b.maxLon},${b.maxLat}&bboxSR=4326&imageSR=4326&size=${W},${H}` +
-  `&interpolation=RSP_NearestNeighbor&time=${Date.UTC(year, 0, 1)},${Date.UTC(year, 11, 31)}`;
-const lossUrl = (from: number, to: number) =>
-  `https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=${from}&end_year=${to}&tcd=30&render_type=true_color`;
+  `&interpolation=RSP_NearestNeighbor&time=${Date.UTC(LC_YEAR, 0, 1)},${Date.UTC(LC_YEAR, 11, 31)}`;
 
 const GH = "wmgeolab/geoBoundaries", REV = "9469f09";
-const sources = (l: Level) => {
+const secours = (l: Level) => {
   const f = `releaseData/gbOpen/MDG/${l}/geoBoundaries-MDG-${l}_simplified.geojson`;
   return [`https://raw.githubusercontent.com/${GH}/${REV}/${f}`, `https://cdn.jsdelivr.net/gh/${GH}@${REV}/${f}`,
     `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`];
 };
 
-// Légende Esri Sentinel-2 10 m. Les nuages (dernier) sont exclus des pourcentages.
 const CLASSES = [
   { n: "Couvert arboré", c: [57, 125, 73] },
   { n: "Savane et parcours", c: [227, 226, 195] },
@@ -60,7 +63,7 @@ const CLASSES = [
   { n: "Neige et glace", c: [168, 235, 255] },
   { n: "Nuages", c: [97, 97, 97] },
 ];
-const N_VALID = 8;
+const N_VALID = 7;
 const rgb = (c: number[]) => `rgb(${c.join(",")})`;
 const SLOPES = [
   { n: "Plat, moins de 5 %", max: 5, col: "#7fb069" },
@@ -88,20 +91,9 @@ const bbox = (f: Feat): Box => {
   polys(f).forEach((p) => p[0].forEach(([x, y]) => { a = Math.min(a, x); b = Math.min(b, y); c = Math.max(c, x); d = Math.max(d, y); }));
   return { minLon: a, minLat: b, maxLon: c, maxLat: d };
 };
-const bigRing = (f: Feat) => [...polys(f)].sort((p, q) => q[0].length - p[0].length)[0][0];
 const center = (f: Feat): [number, number] => {
-  const r = bigRing(f);
+  const r = [...polys(f)].sort((p, q) => q[0].length - p[0].length)[0][0];
   return [r.reduce((s, p) => s + p[0], 0) / r.length, r.reduce((s, p) => s + p[1], 0) / r.length];
-};
-/** vrai si l'entité `c` est contenue dans `p` (centre + 5 points échantillonnés, vote à la majorité) */
-const childOf = (c: Feat, p: Feat) => {
-  const [cx, cy] = center(c), r = bigRing(c);
-  let hits = inFeat(cx, cy, p) ? 3 : 0;
-  for (let i = 0; i < 5; i++) {
-    const q = r[Math.floor((i * r.length) / 5)];
-    if (inFeat(q[0] * 0.8 + cx * 0.2, q[1] * 0.8 + cy * 0.2, p)) hits++;
-  }
-  return hits >= 5;
 };
 const areaKm2 = (f: Feat) => {
   const ring = (r: Ring) => {
@@ -123,54 +115,42 @@ const nameOf = (f: Feat) => {
   return (v as string) || "Sans nom";
 };
 const nf = (n: number, d = 0) => n.toLocaleString("fr-FR", { maximumFractionDigits: d });
-const fmtArea = (km2: number) => (km2 < 10 ? `${nf(km2 * 100, km2 < 0.1 ? 2 : 1)} ha` : `${nf(km2)} km²`);
 
-/** Veille un polygone « monde moins la zone » pour estomper l'extérieur de la zone choisie. */
-const veil = (f: Feat) => {
-  const monde: L.LatLngTuple[] = [[-89, -179], [-89, 179], [89, 179], [89, -179]];
-  const trous = polys(f).map((p) => p[0].map(([x, y]) => [y, x] as L.LatLngTuple));
-  return L.polygon([monde, ...trous], { stroke: false, fillColor: "#f1f4f7", fillOpacity: 0.78, interactive: false });
-};
-
-const CACHE: Partial<Record<Level, Feat[]>> = {};
-/** Les miroirs sont interrogés en parallèle : le premier GeoJSON valide gagne. */
-function loadLevel(l: Level): Promise<Feat[]> {
-  if (CACHE[l]) return Promise.resolve(CACHE[l]!);
-  const tries = sources(l).map((u) =>
-    fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((j) => {
+async function loadLevel(l: Level): Promise<Feat[]> {
+  for (const url of [LIMITES[l], ...secours(l)]) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json(); // lève une erreur si la réponse est une page HTML
       const feats: Feat[] = (j?.features ?? []).filter((f: Feat) => f?.geometry && /Polygon/.test(f.geometry.type));
-      if (!feats.length) throw new Error("vide");
-      return feats;
-    }));
-  return new Promise((ok, ko) => {
-    let left = tries.length;
-    tries.forEach((p) => p.then((v) => { CACHE[l] = v; ok(v); }).catch(() => { if (--left === 0) ko(new Error(`Limites ${l} indisponibles en ligne. Vérifiez votre connexion et réessayez.`)); }));
-  });
+      if (feats.length) return feats;
+    } catch { /* source suivante */ }
+  }
+  throw new Error(`Limites ${l} introuvables. Vérifiez le chemin ${LIMITES[l]} dans la section LIMITES.`);
 }
 
 /* ===================== ANALYSE ===================== */
 
 type Part = { n: string; pct: number; col: string };
 type Result = {
-  land: Part[]; slope: Part[]; cloudPct: number;
+  land: Part[]; slope: Part[];
   elevMin: number; elevMax: number; elevMean: number;
   rain: number | null; areaKm2: number;
   cropSteep: number; treePct: number; cropPct: number; barePct: number; steepPct: number; wetPct: number;
   bassin: string | null; resolution: string;
 };
 
-async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Result> {
+async function analyse(f: Feat, signal: AbortSignal): Promise<Result> {
   const b = bbox(f);
   const midLat = (b.minLat + b.maxLat) / 2;
-  const wKm = Math.max(0.01, (b.maxLon - b.minLon) * 111.32 * Math.cos((midLat * Math.PI) / 180));
-  const hKm = Math.max(0.01, (b.maxLat - b.minLat) * 110.54);
-  const Lpx = Math.max(40, Math.min(700, Math.ceil(Math.max(wKm, hKm) * 100))); // 100 px/km = 10 m, résolution native
-  const W = wKm >= hKm ? Lpx : Math.max(24, Math.round((Lpx * wKm) / hKm));
-  const H = wKm >= hKm ? Math.max(24, Math.round((Lpx * hKm) / wKm)) : Lpx;
+  const wKm = (b.maxLon - b.minLon) * 111.32 * Math.cos((midLat * Math.PI) / 180);
+  const hKm = (b.maxLat - b.minLat) * 110.54;
+  const W = wKm >= hKm ? 700 : Math.max(120, Math.round((700 * wKm) / hKm));
+  const H = wKm >= hKm ? Math.max(120, Math.round((700 * hKm) / wKm)) : 700;
 
   const img = new Image();
   img.crossOrigin = "anonymous";
-  img.src = esriUrl(b, W, H, year);
+  img.src = esriUrl(b, W, H);
   await img.decode();
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const cx = cv.getContext("2d", { willReadFrequently: true })!;
@@ -194,33 +174,26 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     return best;
   };
   const cnt = new Array(CLASSES.length).fill(0); let tot = 0;
-  for (let i = 0; i < W * H; i++) if (mask[i * 4 + 3] > 128) { const c = cls(i); if (c >= 0) { cnt[c]++; if (c < N_VALID) tot++; } }
-  if (!tot) throw new Error("Aucune donnée d'occupation du sol reçue pour cette zone (service Esri indisponible ou zone entièrement nuageuse).");
+  for (let i = 0; i < W * H; i++) if (mask[i * 4 + 3] > 128) { const c = cls(i); if (c >= 0 && c < N_VALID) { cnt[c]++; tot++; } }
+  if (!tot) throw new Error("Aucune donnée d'occupation du sol reçue (service Esri indisponible).");
 
-  // Grille d'altitude 10×10, élargie à ~1,3 km minimum pour les très petites zones (parcelles)
-  const N = 10, minSpan = 0.012;
-  const small = b.maxLon - b.minLon < minSpan || b.maxLat - b.minLat < minSpan;
-  const sLon = Math.max(b.maxLon - b.minLon, minSpan), sLat = Math.max(b.maxLat - b.minLat, minSpan);
-  const e0 = (b.minLon + b.maxLon) / 2 - sLon / 2, n1 = (b.minLat + b.maxLat) / 2 + sLat / 2;
-  const dLon = sLon / (N - 1), dLat = sLat / (N - 1);
+  const N = 10, dLon = (b.maxLon - b.minLon) / (N - 1), dLat = (b.maxLat - b.minLat) / (N - 1);
   const lats: number[] = [], lons: number[] = [];
-  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { lats.push(+(n1 - i * dLat).toFixed(5)); lons.push(+(e0 + j * dLon).toFixed(5)); }
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { lats.push(+(b.maxLat - i * dLat).toFixed(5)); lons.push(+(b.minLon + j * dLon).toFixed(5)); }
   const el = await (await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lats.join(",")}&longitude=${lons.join(",")}`, { signal })).json();
   const z: number[] = el.elevation;
   const dx = dLon * 111320 * Math.cos((midLat * Math.PI) / 180), dy = dLat * 110540;
   const sc = new Array(SLOPES.length).fill(0); let sn = 0, cropSteep = 0, cropN = 0;
   for (let i = 1; i < N - 1; i++) for (let j = 1; j < N - 1; j++) {
     const k = i * N + j;
-    const ins = inFeat(lons[k], lats[k], f);
-    if (!ins && !small) continue;
+    if (!inFeat(lons[k], lats[k], f)) continue;
     const s = Math.hypot((z[k + 1] - z[k - 1]) / (2 * dx), (z[k - N] - z[k + N]) / (2 * dy)) * 100;
     sc[SLOPES.findIndex((t) => s < t.max)]++; sn++;
-    if (!ins) continue;
     const c = cls(Math.min(H - 1, Math.max(0, Math.floor(Y(lats[k])))) * W + Math.min(W - 1, Math.max(0, Math.floor(X(lons[k])))));
     if (c === 2) { cropN++; if (s >= 15) cropSteep++; }
   }
   const inside = z.filter((_, k) => inFeat(lons[k], lats[k], f));
-  const zs = small || !inside.length ? z : inside;
+  const zs = inside.length ? inside : z;
 
   let rain: number | null = null;
   try {
@@ -241,32 +214,27 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
 
   const pct = (c: number) => (cnt[c] / tot) * 100;
   return {
-    // toutes les classes présentes dans la zone, de la plus grande à la plus petite
-    land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) })).filter((x) => x.pct > 0).sort((a, c) => c.pct - a.pct),
-    cloudPct: (cnt[8] / (tot + cnt[8])) * 100,
+    land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) })).filter((x) => x.pct > 0.05).sort((a, c) => c.pct - a.pct),
     slope: SLOPES.map((s, i) => ({ n: s.n, pct: sn ? (sc[i] / sn) * 100 : 0, col: s.col })),
     elevMin: Math.min(...zs), elevMax: Math.max(...zs), elevMean: zs.reduce((a, c) => a + c, 0) / zs.length,
     rain, areaKm2: areaKm2(f),
     cropSteep: cropN ? (cropSteep / cropN) * 100 : 0,
     treePct: pct(0), cropPct: pct(2), barePct: pct(4), steepPct: sn ? ((sc[2] + sc[3]) / sn) * 100 : 0, wetPct: pct(6),
-    bassin,
-    resolution: small
-      ? "10 m pour l'occupation du sol ; relief à 90 m autour de la parcelle (indicatif)"
-      : `${nf((wKm * 1000) / W)} m par pixel pour l'occupation, ${nf(Math.max(dx, dy) / 1000, 1)} km entre points d'altitude`,
+    bassin, resolution: `${nf((wKm * 1000) / W)} m par pixel pour l'occupation, ${nf(Math.max(dx, dy) / 1000, 1)} km entre points d'altitude`,
   };
 }
 
-function useAnalysis(f: Feat | null, year: number) {
+function useAnalysis(f: Feat | null) {
   const [s, setS] = useState<{ res: Result | null; busy: boolean; err: string }>({ res: null, busy: false, err: "" });
   useEffect(() => {
     if (!f) { setS({ res: null, busy: false, err: "" }); return; }
     const c = new AbortController();
     setS({ res: null, busy: true, err: "" });
-    analyse(f, c.signal, year)
+    analyse(f, c.signal)
       .then((res) => !c.signal.aborted && setS({ res, busy: false, err: "" }))
       .catch((e) => !c.signal.aborted && setS({ res: null, busy: false, err: e?.message || "Erreur d'analyse" }));
     return () => c.abort();
-  }, [f, year]);
+  }, [f]);
   return s;
 }
 
@@ -296,132 +264,80 @@ function orientations(r: Result) {
     o.push({ lvl: "info", t: "Intensification durable en terrain plat", d: "Terrain peu pentu et très cultivé : conditions favorables pour intensifier (rotations, fertilisation organique) et alléger la pression sur les forêts." });
   if (!o.length)
     o.push({ lvl: "info", t: "Aucun signal prioritaire", d: "Les indicateurs calculés ne montrent pas de pression marquée. Affinez par un diagnostic de terrain." });
-  o.push({ lvl: "info", t: "Lire aussi la carte de déforestation", d: "Les zones roses de la carte de droite montrent où le couvert arboré a déjà disparu : ce sont les premiers candidats à la restauration, surtout s'ils sont sur pente." });
   return o;
 }
 
 /* ===================== COMPOSANT ===================== */
 
-const ROWS = ["Région", "District", "Commune", "Parcelle"];
+const rows3 = ["Région", "District", "Commune"];
 
 export default function AnalyseTerritoriale() {
-  const elA = useRef<HTMLDivElement>(null), elB = useRef<HTMLDivElement>(null);
-  const mapA = useRef<L.Map | null>(null), mapB = useRef<L.Map | null>(null);
-  const baseA = useRef<L.TileLayer | null>(null), baseB = useRef<L.TileLayer | null>(null);
-  const ov = useRef<L.ImageOverlay | null>(null), loss = useRef<L.TileLayer | null>(null);
-  const kids = useRef<L.GeoJSON | null>(null), outA = useRef<L.GeoJSON | null>(null), outB = useRef<L.GeoJSON | null>(null);
-  const veilB = useRef<L.Polygon | null>(null), draft = useRef<L.FeatureGroup | null>(null);
-  const pts = useRef<L.LatLng[]>([]);
+  const mapEl = useRef<HTMLDivElement>(null);
+  const map = useRef<L.Map | null>(null);
+  const base = useRef<L.TileLayer | null>(null);
+  const ov = useRef<L.ImageOverlay | null>(null);
+  const kids = useRef<L.GeoJSON | null>(null);
+  const outline = useRef<L.GeoJSON | null>(null);
   const pickRef = useRef<(l: Level, i: number) => void>(() => {});
 
   const [regs, setRegs] = useState<Feat[]>([]);
   const [adm2, setAdm2] = useState<Feat[] | null>(null);
   const [adm3, setAdm3] = useState<Feat[] | null>(null);
   const [ri, setRi] = useState(""), [di, setDi] = useState(""), [ci, setCi] = useState("");
-  const [parcel, setParcel] = useState<Feat | null>(null);
-  const [drawing, setDrawing] = useState(false), [nPts, setNPts] = useState(0);
   const [fond, setFond] = useState<"sat" | "topo">("sat");
-  const [wcOn, setWcOn] = useState(true), [lcYear, setLcYear] = useState(2023);
-  const [dfFrom, setDfFrom] = useState(2015), [dfTo, setDfTo] = useState(LOSS_LAST);
-  const [mask, setMask] = useState(true), [sync, setSync] = useState(true);
+  const [wcOn, setWcOn] = useState(false);
   const [show, setShow] = useState(false);
   const [loadErr, setLoadErr] = useState("");
 
   const rF = ri !== "" ? regs[+ri] : null;
   const dists = useMemo(
-    () => (rF && adm2 ? adm2.filter((d) => childOf(d, rF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b))) : []),
+    () => (rF && adm2 ? adm2.filter((d) => inFeat(...center(d), rF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b))) : []),
     [rF, adm2]);
   const dF = di !== "" ? dists[+di] ?? null : null;
   const coms = useMemo(
-    () => (dF && adm3 ? adm3.filter((c) => childOf(c, dF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b))) : []),
+    () => (dF && adm3 ? adm3.filter((c) => inFeat(...center(c), dF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b))) : []),
     [dF, adm3]);
   const cF = ci !== "" ? coms[+ci] ?? null : null;
-  const admin = cF || dF || rF;
-  const selected = parcel || admin;
-  const hi = parcel ? CYAN : LAURITE;
+  const selected = cF || dF || rF;
 
-  const rRes = useAnalysis(rF, lcYear), dRes = useAnalysis(dF, lcYear), cRes = useAnalysis(cF, lcYear), pRes = useAnalysis(parcel, lcYear);
-  const current = parcel ? pRes : cF ? cRes : dF ? dRes : rRes;
+  const rRes = useAnalysis(rF), dRes = useAnalysis(dF), cRes = useAnalysis(cF);
+  const current = cF ? cRes : dF ? dRes : rRes;
 
   const list = !rF ? regs : !dF ? dists : coms;
   const kidLevel: Level = !rF ? "ADM1" : !dF ? "ADM2" : "ADM3";
 
-  /* ----- tracé de parcelle ----- */
-  const redraw = () => {
-    const g = draft.current; if (!g) return;
-    g.clearLayers();
-    const p = pts.current;
-    if (p.length >= 3) L.polygon(p, { color: CYAN, weight: 2.5, dashArray: "6 4", fillColor: CYAN, fillOpacity: 0.15, interactive: false }).addTo(g);
-    else if (p.length > 1) L.polyline(p, { color: CYAN, weight: 2.5, dashArray: "6 4", interactive: false }).addTo(g);
-    p.forEach((q) => L.circleMarker(q, { radius: 5, color: "#fff", weight: 2, fillColor: CYAN, fillOpacity: 1, interactive: false }).addTo(g));
-    setNPts(p.length);
-  };
-  const cancelDraw = () => { pts.current = []; draft.current?.clearLayers(); setNPts(0); setDrawing(false); };
-  const finishDraw = () => {
-    const p = pts.current;
-    if (p.length < 3) return;
-    const ring = [...p.map((q) => [q.lng, q.lat]), [p[0].lng, p[0].lat]];
-    setParcel({ type: "Feature", properties: { shapeName: "Parcelle tracée" }, geometry: { type: "Polygon", coordinates: [ring] } });
-    cancelDraw();
-  };
-  const startDraw = () => { setParcel(null); pts.current = []; draft.current?.clearLayers(); setNPts(0); setDrawing(true); };
+  const onRegion = (v: string) => { setRi(v); setDi(""); setCi(""); };
+  const onDistrict = (v: string) => { setDi(v); setCi(""); };
+  pickRef.current = (l, i) => (l === "ADM1" ? onRegion : l === "ADM2" ? onDistrict : setCi)(String(i));
+  const reset = () => { setRi(""); setDi(""); setCi(""); };
 
-  const onRegion = (v: string) => { setRi(v); setDi(""); setCi(""); setParcel(null); };
-  const onDistrict = (v: string) => { setDi(v); setCi(""); setParcel(null); };
-  const onCommune = (v: string) => { setCi(v); setParcel(null); };
-  pickRef.current = (l, i) => (l === "ADM1" ? onRegion : l === "ADM2" ? onDistrict : onCommune)(String(i));
-  const reset = () => { onRegion(""); cancelDraw(); };
-
-  /* ----- chargement des limites en ligne ----- */
+  /* chargement des limites */
   useEffect(() => { loadLevel("ADM1").then(setRegs).catch((e) => setLoadErr(e.message)); }, []);
   useEffect(() => { if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message)); }, [rF, adm2]);
   useEffect(() => { if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message)); }, [dF, adm3]);
   useEffect(() => { setShow(false); }, [selected]);
 
-  /* ----- création des deux cartes ----- */
+  /* carte */
   useEffect(() => {
-    const mk = (el: HTMLDivElement) => {
-      const m = L.map(el, { zoomControl: false, zoomSnap: 0.25 }).fitBounds(MADA);
-      L.control.zoom({ position: "bottomright" }).addTo(m);
-      L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
-      return m;
-    };
-    const a = mk(elA.current!), b = mk(elB.current!);
-    b.createPane("perte").style.zIndex = "250";
-    draft.current = L.featureGroup().addTo(a);
-    mapA.current = a; mapB.current = b;
-    const ro = new ResizeObserver(() => { a.invalidateSize(); b.invalidateSize(); });
-    ro.observe(elA.current!); ro.observe(elB.current!);
-    return () => { ro.disconnect(); a.remove(); b.remove(); };
+    const m = L.map(mapEl.current!, { zoomControl: true, zoomSnap: 0.25 }).fitBounds(MADA);
+    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
+    map.current = m;
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(mapEl.current!);
+    return () => { ro.disconnect(); m.remove(); };
   }, []);
 
-  /* synchronisation des deux vues */
   useEffect(() => {
-    const a = mapA.current!, b = mapB.current!;
-    if (!sync) return;
-    let lock = false;
-    const link = (s: L.Map, d: L.Map) => () => { if (lock) return; lock = true; d.setView(s.getCenter(), s.getZoom(), { animate: false }); lock = false; };
-    const fa = link(a, b), fb = link(b, a);
-    a.on("move", fa); b.on("move", fb);
-    fa();
-    return () => { a.off("move", fa); b.off("move", fb); };
-  }, [sync]);
-
-  /* fonds de carte */
-  useEffect(() => {
-    baseA.current?.remove(); baseB.current?.remove();
-    baseA.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(mapA.current!);
-    baseB.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(mapB.current!);
-    baseA.current.bringToBack(); baseB.current.bringToBack();
+    base.current?.remove();
+    base.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map.current!);
+    base.current.bringToBack();
   }, [fond]);
 
-  /* carte A : entités cliquables du niveau suivant */
   useEffect(() => {
     kids.current?.remove();
     if (!list.length) return;
     const idx = new Map<Feat, number>(list.map((f, i) => [f, i]));
     kids.current = L.geoJSON(list as any, {
-      interactive: !drawing,
       style: () => ({ color: "#ffffff", weight: 1.2, fillColor: "#ffffff", fillOpacity: 0.06 }),
       onEachFeature: (f, layer) => {
         const p = layer as L.Path;
@@ -430,76 +346,33 @@ export default function AnalyseTerritoriale() {
         p.on("mouseout", () => p.setStyle({ fillOpacity: 0.06, weight: 1.2 }));
         p.on("click", () => pickRef.current(kidLevel, idx.get(f as any)!));
       },
-    }).addTo(mapA.current!);
-    outA.current?.bringToFront();
-  }, [list, kidLevel, drawing]);
+    }).addTo(map.current!);
+    outline.current?.bringToFront();
+  }, [list, kidLevel]);
 
-  /* carte A : contour de la sélection et zoom */
   useEffect(() => {
-    outA.current?.remove();
-    if (!selected) { mapA.current?.flyToBounds(MADA, { duration: 1 }); return; }
-    outA.current = L.geoJSON(selected as any, { interactive: false, style: { color: hi, weight: 3.5, fill: false } }).addTo(mapA.current!);
-    mapA.current!.flyToBounds(outA.current.getBounds(), { padding: [40, 40], maxZoom: parcel ? 17 : undefined, duration: 1.2 });
+    outline.current?.remove();
+    if (!selected) { map.current?.flyToBounds(MADA, { duration: 1 }); return; }
+    outline.current = L.geoJSON(selected as any, { interactive: false, style: { color: LAURITE, weight: 3.5, fill: false } }).addTo(map.current!);
+    map.current!.flyToBounds(outline.current.getBounds(), { padding: [40, 40], duration: 1.2 });
   }, [selected]);
 
-  /* carte A : image d'occupation du sol */
   useEffect(() => {
     ov.current?.remove();
-    if (!wcOn || !mapA.current) return;
+    if (!wcOn || !map.current) return;
     const b = selected ? bbox(selected) : { minLon: 43.2, minLat: -25.7, maxLon: 50.6, maxLat: -11.9 };
-    const midLat = (b.minLat + b.maxLat) / 2;
-    const wKm = (b.maxLon - b.minLon) * 111.32 * Math.cos((midLat * Math.PI) / 180), hKm = (b.maxLat - b.minLat) * 110.54;
-    const Lpx = Math.max(64, Math.min(1400, Math.ceil(Math.max(wKm, hKm) * 100)));
-    const W = wKm >= hKm ? Lpx : Math.max(32, Math.round((Lpx * wKm) / hKm)), H = wKm >= hKm ? Math.max(32, Math.round((Lpx * hKm) / wKm)) : Lpx;
-    ov.current = L.imageOverlay(esriUrl(b, W, H, lcYear), [[b.minLat, b.minLon], [b.maxLat, b.maxLon]], { opacity: 0.62, interactive: false }).addTo(mapA.current);
-    outA.current?.bringToFront();
-  }, [wcOn, selected, lcYear]);
+    const w = (b.maxLon - b.minLon) / (b.maxLat - b.minLat);
+    const W = w >= 1 ? 1400 : Math.round(1400 * w), H = w >= 1 ? Math.round(1400 / w) : 1400;
+    ov.current = L.imageOverlay(esriUrl(b, W, H), [[b.minLat, b.minLon], [b.maxLat, b.maxLon]], { opacity: 0.62, interactive: false }).addTo(map.current);
+    outline.current?.bringToFront();
+  }, [wcOn, selected]);
 
-  /* carte A : tracé de parcelle (clics) */
-  useEffect(() => {
-    const m = mapA.current!;
-    if (!drawing) return;
-    m.getContainer().style.cursor = "crosshair";
-    m.doubleClickZoom.disable();
-    const click = (e: L.LeafletMouseEvent) => { pts.current.push(e.latlng); redraw(); };
-    const dbl = () => { pts.current.pop(); redraw(); finishDraw(); };
-    const key = (e: KeyboardEvent) => e.key === "Escape" && cancelDraw();
-    m.on("click", click); m.on("dblclick", dbl);
-    window.addEventListener("keydown", key);
-    return () => {
-      m.off("click", click); m.off("dblclick", dbl);
-      window.removeEventListener("keydown", key);
-      m.getContainer().style.cursor = ""; m.doubleClickZoom.enable();
-    };
-  }, [drawing]);
-
-  /* carte B : perte de couvert arboré (Global Forest Watch) */
-  useEffect(() => {
-    loss.current?.remove();
-    loss.current = L.tileLayer(lossUrl(dfFrom, dfTo), { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }).addTo(mapB.current!);
-  }, [dfFrom, dfTo]);
-
-  /* carte B : contour, voile hors zone, zoom si non synchronisée */
-  useEffect(() => {
-    const m = mapB.current!;
-    veilB.current?.remove(); outB.current?.remove();
-    if (!selected) { if (!sync) m.flyToBounds(MADA, { duration: 1 }); return; }
-    if (mask) veilB.current = veil(selected).addTo(m);
-    outB.current = L.geoJSON(selected as any, { interactive: false, style: { color: hi, weight: 3, fill: false } }).addTo(m);
-    if (!sync) m.flyToBounds(outB.current.getBounds(), { padding: [40, 40], maxZoom: parcel ? 17 : undefined, duration: 1.2 });
-  }, [selected, mask]);
-
-  const levels = [{ f: rF, s: rRes }, { f: dF, s: dRes }, { f: cF, s: cRes }, { f: parcel, s: pRes }];
+  const levels = [{ f: rF, s: rRes }, { f: dF, s: dRes }, { f: cF, s: cRes }];
   const res = current.res;
   const advice = useMemo(() => (res ? orientations(res) : []), [res]);
   const score = res ? vuln(res) : 0;
-  const hint = drawing
-    ? `Cliquez pour poser les sommets (${nPts}). Double-clic ou « Terminer » pour fermer, Échap pour annuler.`
-    : !rF ? "Cliquez sur une région pour zoomer" : !dF ? "Cliquez sur un district" : !cF ? "Cliquez sur une commune" : "Cliquez sur une autre commune pour comparer";
-  const legend = res ? res.land : CLASSES.slice(0, N_VALID).map((k) => ({ n: k.n, pct: 0, col: rgb(k.c) }));
-  const lvlText = parcel
-    ? `Parcelle tracée${admin ? ` dans ${nameOf(admin)}` : ""}`
-    : cF ? `Commune de ${nameOf(dF!)}, ${nameOf(rF!)}` : dF ? `District de ${nameOf(rF!)}` : "Région";
+  const hint = !rF ? "Cliquez sur une région pour zoomer" : !dF ? "Cliquez sur un district" : !cF ? "Cliquez sur une commune" : "Cliquez sur une autre commune pour comparer";
+  const legendClasses = CLASSES.slice(0, N_VALID);
 
   return (
     <div className="at">
@@ -508,11 +381,11 @@ export default function AnalyseTerritoriale() {
       <header className="at-head">
         <div>
           <h1>Analyse territoriale</h1>
-          <p>Occupation du sol, relief, déforestation et orientations pour restaurer</p>
+          <p>Occupation du sol, relief et orientations pour restaurer</p>
         </div>
         <div className="at-chain">
           <select value={ri} onChange={(e) => onRegion(e.target.value)} aria-label="Région">
-            <option value="">{regs.length ? "Région" : loadErr ? "Indisponible" : "Chargement…"}</option>
+            <option value="">{regs.length ? "Région" : "Chargement…"}</option>
             {regs.map((f, i) => ({ f, i })).sort((a, b) => nameOf(a.f).localeCompare(nameOf(b.f))).map(({ f, i }) => <option key={i} value={i}>{nameOf(f)}</option>)}
           </select>
           <ChevronRight size={16} aria-hidden />
@@ -521,24 +394,40 @@ export default function AnalyseTerritoriale() {
             {dists.map((f, i) => <option key={i} value={i}>{nameOf(f)}</option>)}
           </select>
           <ChevronRight size={16} aria-hidden />
-          <select value={ci} onChange={(e) => onCommune(e.target.value)} disabled={!dF} aria-label="Commune">
+          <select value={ci} onChange={(e) => setCi(e.target.value)} disabled={!dF} aria-label="Commune">
             <option value="">{dF && !adm3 ? "Chargement…" : "Commune"}</option>
             {coms.map((f, i) => <option key={i} value={i}>{nameOf(f)}</option>)}
           </select>
-          <button type="button" className="at-reset" onClick={reset} disabled={!selected && !drawing} title="Revenir à Madagascar" aria-label="Réinitialiser">
+          <button type="button" className="at-reset" onClick={reset} disabled={!rF} title="Revenir à Madagascar" aria-label="Réinitialiser">
             <RotateCcw size={16} />
           </button>
         </div>
       </header>
 
-      {loadErr && <div className="at-banner" role="alert">{loadErr}</div>}
-
       <div className="at-body">
+        <section className="at-mapwrap" aria-label="Carte">
+          <div ref={mapEl} className="at-map" />
+          <div className="at-ctl at-tr">
+            <div className="at-seg" role="group" aria-label="Fond de carte">
+              <button type="button" aria-pressed={fond === "sat"} onClick={() => setFond("sat")}>Satellite</button>
+              <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>Topographie</button>
+            </div>
+            <label className="at-chk"><input type="checkbox" checked={wcOn} onChange={(e) => setWcOn(e.target.checked)} /> Occupation du sol</label>
+          </div>
+          <div className="at-ctl at-hint">{hint}</div>
+          {wcOn && (
+            <div className="at-ctl at-legend">
+              {legendClasses.map((k) => <span key={k.n}><i style={{ background: rgb(k.c) }} />{k.n}</span>)}
+            </div>
+          )}
+          {loadErr && <div className="at-ctl at-loaderr" role="alert">{loadErr}</div>}
+        </section>
+
         <aside className="at-panel">
           {!selected && (
             <div className="at-empty">
               <h2>Commencez par une région</h2>
-              <p>Choisissez-la dans la liste ou cliquez sur la carte. L’occupation du sol et le relief se précisent jusqu’à la commune. Vous pouvez aussi tracer votre propre parcelle sur la carte.</p>
+              <p>Choisissez-la dans la liste ou cliquez sur la carte. L’occupation du sol et le relief s’affichent à chaque niveau et se précisent jusqu’à la commune.</p>
             </div>
           )}
 
@@ -546,10 +435,10 @@ export default function AnalyseTerritoriale() {
             <>
               <div className="at-card at-hero">
                 <h2>{nameOf(selected)}</h2>
-                <div className="at-lvl">{lvlText}</div>
+                <div className="at-lvl">{cF ? "Commune" : dF ? "District" : "Région"}{rF && cF ? ` de ${nameOf(dF!)}, ${nameOf(rF)}` : dF ? ` de ${nameOf(rF!)}` : ""}</div>
                 {res ? (
                   <dl className="at-facts">
-                    <div><dd>{fmtArea(res.areaKm2).split(" ")[0]}</dd><dt>{fmtArea(res.areaKm2).split(" ")[1]}</dt></div>
+                    <div><dd>{nf(res.areaKm2)}</dd><dt>km²</dt></div>
                     <div><dd>{nf(res.elevMean)}</dd><dt>m d’altitude moyenne</dt></div>
                     <div><dd>{res.rain ? nf(res.rain) : "n/d"}</dd><dt>mm de pluie en 2023</dt></div>
                   </dl>
@@ -559,11 +448,11 @@ export default function AnalyseTerritoriale() {
               </div>
 
               <div className="at-card">
-                <h3>Occupation du sol en {lcYear}</h3>
+                <h3>Occupation du sol</h3>
                 <p className="at-sub">Chaque ligne est un niveau choisi : on voit la composition se préciser.</p>
                 {levels.map(({ f, s }, i) => f && (
                   <div className="at-core" key={i}>
-                    <div className="at-corelab"><small>{ROWS[i]}</small><span title={nameOf(f)}>{nameOf(f)}</span></div>
+                    <div className="at-corelab"><small>{rows3[i]}</small><span title={nameOf(f)}>{nameOf(f)}</span></div>
                     {s.res ? (
                       <div className="at-stack" key={nameOf(f) + s.res.areaKm2}>
                         {s.res.land.map((p) => <i key={p.n} style={{ width: `${p.pct}%`, background: p.col }} title={`${p.n} : ${nf(p.pct, 1)} %`} />)}
@@ -572,21 +461,18 @@ export default function AnalyseTerritoriale() {
                   </div>
                 ))}
                 {res && (
-                  <>
-                    <table className="at-tbl">
-                      <thead><tr><th scope="col">Type présent dans la zone</th><th scope="col">Part</th><th scope="col">Hectares</th></tr></thead>
-                      <tbody>
-                        {res.land.map((p) => (
-                          <tr key={p.n}>
-                            <td><i style={{ background: p.col }} />{p.n}</td>
-                            <td>{p.pct < 0.1 ? "< 0,1" : nf(p.pct, 1)} %</td>
-                            <td>{nf((p.pct / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % de la zone est sous les nuages sur l’image : ces pixels sont exclus des parts.</p>}
-                  </>
+                  <table className="at-tbl">
+                    <thead><tr><th scope="col">Type</th><th scope="col">Part</th><th scope="col">Hectares</th></tr></thead>
+                    <tbody>
+                      {res.land.map((p) => (
+                        <tr key={p.n}>
+                          <td><i style={{ background: p.col }} />{p.n}</td>
+                          <td>{nf(p.pct, 1)} %</td>
+                          <td>{nf((p.pct / 100) * res.areaKm2 * 100)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 )}
               </div>
 
@@ -635,77 +521,6 @@ export default function AnalyseTerritoriale() {
             </>
           )}
         </aside>
-
-        <div className="at-maps">
-          {/* ---------- Carte A : occupation du sol ---------- */}
-          <section className="at-mcard" aria-label="Carte d'occupation du sol">
-            <div className="at-mhead">
-              <h3>Occupation du sol</h3>
-              <div className="at-mtools">
-                <div className="at-seg" role="group" aria-label="Fond de carte">
-                  <button type="button" aria-pressed={fond === "sat"} onClick={() => setFond("sat")}>Satellite</button>
-                  <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>Topographie</button>
-                </div>
-                <label className="at-chk"><input type="checkbox" checked={wcOn} onChange={(e) => setWcOn(e.target.checked)} />Couche</label>
-                <select value={lcYear} onChange={(e) => setLcYear(+e.target.value)} aria-label="Année de l'occupation du sol" className="at-mini">
-                  {LC_YEARS.map((y) => <option key={y}>{y}</option>)}
-                </select>
-              </div>
-              <div className="at-mtools">
-                {!drawing ? (
-                  <button type="button" className="at-tool" onClick={startDraw}><PenTool size={15} />Tracer une parcelle</button>
-                ) : (
-                  <>
-                    <button type="button" className="at-tool on" onClick={finishDraw} disabled={nPts < 3}><Check size={15} />Terminer</button>
-                    <button type="button" className="at-tool" onClick={cancelDraw}><X size={15} />Annuler</button>
-                  </>
-                )}
-                {parcel && <button type="button" className="at-tool" onClick={() => setParcel(null)}><Trash2 size={15} />Effacer la parcelle</button>}
-              </div>
-            </div>
-            <div className="at-mbox">
-              <div ref={elA} className="at-map" />
-              <div className="at-ctl at-hint">{hint}</div>
-              {wcOn && (
-                <div className="at-ctl at-legend">
-                  {legend.map((k) => <span key={k.n}><i style={{ background: k.col }} />{k.n}</span>)}
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* ---------- Carte B : déforestation ---------- */}
-          <section className="at-mcard" aria-label="Carte de déforestation">
-            <div className="at-mhead">
-              <h3>Déforestation</h3>
-              <div className="at-mtools">
-                <label className="at-chk">De
-                  <select className="at-mini" value={dfFrom} aria-label="Année de début"
-                    onChange={(e) => { const v = +e.target.value; setDfFrom(v); if (v > dfTo) setDfTo(v); }}>
-                    {Array.from({ length: LOSS_LAST - LOSS_FIRST + 1 }, (_, i) => LOSS_FIRST + i).map((y) => <option key={y}>{y}</option>)}
-                  </select>
-                </label>
-                <label className="at-chk">à
-                  <select className="at-mini" value={dfTo} aria-label="Année de fin"
-                    onChange={(e) => { const v = +e.target.value; setDfTo(v); if (v < dfFrom) setDfFrom(v); }}>
-                    {Array.from({ length: LOSS_LAST - LOSS_FIRST + 1 }, (_, i) => LOSS_FIRST + i).map((y) => <option key={y}>{y}</option>)}
-                  </select>
-                </label>
-              </div>
-              <div className="at-mtools">
-                <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />Estomper l’extérieur</label>
-                <label className="at-chk"><input type="checkbox" checked={sync} onChange={(e) => setSync(e.target.checked)} />Cartes liées</label>
-              </div>
-            </div>
-            <div className="at-mbox">
-              <div ref={elB} className="at-map" />
-              <div className="at-ctl at-legend">
-                <span><i style={{ background: "#dc6c9a" }} />Perte de couvert arboré, {dfFrom === dfTo ? dfFrom : `${dfFrom} à ${dfTo}`}</span>
-                <span className="at-src">Source : UMD/Hansen, Global Forest Watch</span>
-              </div>
-            </div>
-          </section>
-        </div>
       </div>
     </div>
   );
@@ -726,38 +541,28 @@ const CSS = `
 .at-head p{margin:2px 0 0;font-size:13px;color:var(--c-ink3)}
 .at-chain{display:flex;align-items:center;gap:6px;color:var(--c-ink3);flex-wrap:wrap}
 .at select{min-width:150px;padding:9px 10px;border:1px solid var(--c-line);border-radius:10px;background:var(--c-card);color:var(--c-ink);font:inherit;font-size:14px}
-.at select.at-mini{min-width:0;padding:5px 6px;font-size:13px;border-radius:8px}
 .at select:disabled{opacity:.5}
 .at select:focus-visible,.at button:focus-visible,.at-chk input:focus-visible{outline:2px solid var(--c-acc);outline-offset:2px}
 .at-reset{margin-left:6px;width:38px;height:38px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink2);cursor:pointer;display:grid;place-items:center}
 .at-reset:disabled{opacity:.4;cursor:default}
-.at-banner{padding:10px 20px;background:rgba(178,58,46,.1);border-bottom:1px solid #b23a2e;color:#8a2a20;font-size:14px}
 
-.at-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(330px,390px) minmax(0,1fr)}
-.at-panel{overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;border-right:1px solid var(--c-line);overscroll-behavior:contain}
-.at-maps{min-height:0;min-width:0;display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px}
-.at-mcard{min-height:0;min-width:0;display:flex;flex-direction:column;background:var(--c-card);border:1px solid var(--c-line);border-radius:14px;overflow:hidden}
-.at-mhead{padding:10px 12px;border-bottom:1px solid var(--c-line);display:flex;flex-direction:column;gap:8px}
-.at-mhead h3{font-size:19px}
-.at-mtools{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:13px}
-.at-mbox{position:relative;flex:1;min-height:240px;background:#1b2a24}
+.at-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(360px,470px) 1fr}
+.at-panel{order:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;border-right:1px solid var(--c-line);overscroll-behavior:contain}
+.at-mapwrap{order:2;position:relative;min-height:0;background:#1b2a24}
 .at-map{position:absolute;inset:0}
 
-.at-seg{display:flex;gap:2px;border:1px solid var(--c-line);border-radius:9px;padding:2px}
-.at-seg button{padding:5px 10px;border:0;border-radius:7px;background:transparent;color:var(--c-ink2);font:inherit;font-size:13px;cursor:pointer}
+.at-ctl{position:absolute;z-index:1000;background:var(--c-card);color:var(--c-ink);border:1px solid var(--c-line);border-radius:10px;font-size:13px;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+.at-tr{top:12px;right:12px;display:flex;flex-direction:column;gap:6px;padding:6px;align-items:stretch}
+.at-seg{display:flex;gap:2px}
+.at-seg button{flex:1;padding:7px 12px;border:0;border-radius:7px;background:transparent;color:var(--c-ink2);font:inherit;cursor:pointer}
 .at-seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}
-.at-chk{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--c-ink2)}
-.at-tool{display:inline-flex;gap:6px;align-items:center;padding:6px 11px;border-radius:9px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
-.at-tool.on{background:var(--c-acc);border-color:var(--c-acc);color:#fff}
-.at-tool:disabled{opacity:.45;cursor:default}
-
-.at-ctl{position:absolute;z-index:1000;background:rgba(255,255,255,.94);color:#14231c;border-radius:9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
-.at-hint{left:10px;top:10px;padding:7px 11px;max-width:calc(100% - 70px)}
-.at-legend{left:10px;bottom:34px;padding:8px 10px;display:flex;flex-direction:column;gap:4px;max-width:70%}
+.at-chk{display:flex;gap:8px;align-items:center;padding:4px 8px;cursor:pointer}
+.at-hint{left:12px;top:12px;margin-left:44px;padding:8px 12px;color:var(--c-ink2)}
+.at-legend{right:12px;bottom:28px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;font-size:12px;max-width:230px}
 .at-legend span{display:flex;gap:8px;align-items:center}
-.at-src{color:#5b6a62;font-size:11px}
-.at-legend i,.at-tbl i{display:inline-block;width:11px;height:11px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
-.at-tip{background:#fff;color:#1c2822;border:0;border-radius:6px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3)}
+.at-legend i,.at-tbl i{display:inline-block;width:11px;height:11px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+.at-loaderr{left:12px;bottom:12px;right:12px;padding:10px 12px;border-color:#b23a2e;color:#8a2a20}
+.at-tip{background:var(--c-card,#fff);color:#1c2822;border:0;border-radius:6px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3)}
 
 .at-card{background:var(--c-card);border:1px solid var(--c-line);border-radius:14px;padding:16px}
 .at-card h3{font-size:20px;margin-bottom:4px}
@@ -768,7 +573,7 @@ const CSS = `
 .at-empty p{color:var(--c-ink2);line-height:1.6;max-width:46ch}
 .at-hero{border-color:transparent;background:
   repeating-radial-gradient(ellipse at 92% -10%,transparent 0 13px,rgba(125,125,105,.17) 13px 14px),var(--c-card)}
-.at-hero h2{font-size:34px;line-height:1.02;letter-spacing:-.015em}
+.at-hero h2{font-size:36px;line-height:1.02;letter-spacing:-.015em}
 .at-lvl{margin:6px 0 14px;color:var(--c-ink2);font-size:14px}
 .at-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0}
 .at-facts div{display:flex;flex-direction:column-reverse}
@@ -808,14 +613,10 @@ const CSS = `
 
 @keyframes atGrow{from{transform:scaleX(0)}}
 @keyframes atPulse{50%{opacity:.45}}
-@media (max-width:1450px){
-  .at-maps{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,1fr)}
-}
 @media (max-width:900px){
   .at{height:auto;min-height:100dvh}
   .at-body{display:flex;flex-direction:column}
-  .at-maps{order:1;display:flex;flex-direction:column}
-  .at-mbox{flex:none;height:54dvh}
+  .at-mapwrap{order:1;height:52dvh;flex:none}
   .at-panel{order:2;overflow:visible;border-right:0}
   .at-hint{display:none}
 }
