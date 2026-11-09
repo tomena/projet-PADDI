@@ -26,6 +26,7 @@ import DecisionCOSAP from "./pages/DecisionCOSAP";
 import MesureRegionale from "./pages/MesureRegionale";
 import ZonesBrulees from "./pages/ZonesBrulees";
 import Bibliotheque from "./pages/Bibliotheque";
+import AnalyseTerritoriale from "./pages/AnalyseTerritoriale";
 
 export default function App() {
   const data = {
@@ -57,6 +58,7 @@ export default function App() {
           path="analyse-environnement"
           element={<AnalyseEnvironnement />}
         />
+        <Route path="analyse-territoriale" element={<AnalyseTerritoriale />} />
 
         {/* Données */}
         <Route
