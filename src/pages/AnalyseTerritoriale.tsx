@@ -3,8 +3,9 @@
  *
  * Dépendances : npm i leaflet && npm i -D @types/leaflet   (+ Tailwind CSS)
  * Données (toutes appelées depuis le navigateur, sans clé API) :
- *  - Limites administratives : geoBoundaries (ADM1 régions, ADM2 districts, ADM3 communes)
- *  - Occupation du sol : ESA WorldCover 2021 (WMS Terrascope), comptage des pixels dans le polygone
+ *  - Limites administratives : geoBoundaries (ADM1 régions, ADM2 districts, ADM3 communes).
+ *    Recommandé : copier les 3 fichiers dans public/geo/ (voir GEO_SOURCES).
+ *  - Occupation du sol : Esri/Impact Observatory Sentinel-2 10 m (ImageServer public), comptage des pixels
  *  - Altitude / pente : Open-Meteo Elevation (Copernicus DEM 90 m), grille échantillonnée
  *  - Pluviométrie : Open-Meteo Archive (cumul annuel au centre du territoire)
  *  - Bassins versants : à brancher via BASSINS_GEOJSON_URL (GeoJSON HydroBASINS/HydroATLAS)
@@ -14,24 +15,42 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const BASSINS_GEOJSON_URL = ""; // ex. votre GeoJSON HydroBASINS niveau 6-8 pour Madagascar (CORS ouvert)
-const GB = "https://www.geoboundaries.org/api/current/gbOpen/MDG/";
-const WMS = "https://services.terrascope.be/wms/v2";
+const LC_YEAR = 2023; // millésime d'occupation du sol (2017-2024 disponibles)
+const ESRI = "https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/exportImage";
+const esriUrl = (b: { minLon: number; minLat: number; maxLon: number; maxLat: number }, W: number, H: number) =>
+  `${ESRI}?f=image&format=png&bbox=${b.minLon},${b.minLat},${b.maxLon},${b.maxLat}&bboxSR=4326&imageSR=4326&size=${W},${H}` +
+  `&interpolation=RSP_NearestNeighbor&time=${Date.UTC(LC_YEAR, 0, 1)},${Date.UTC(LC_YEAR, 11, 31)}`;
+
+// Sources essayées dans l'ordre (la première qui répond avec un GeoJSON valide est utilisée)
+const GH = "wmgeolab/geoBoundaries";
+const REV = "9469f09";
+const GEO_SOURCES = (l: Level) => {
+  const f = `releaseData/gbOpen/MDG/${l}/geoBoundaries-MDG-${l}_simplified.geojson`;
+  return [
+    `/geo/MDG-${l}.geojson`,
+    `https://raw.githubusercontent.com/${GH}/${REV}/${f}`,
+    `https://cdn.jsdelivr.net/gh/${GH}@${REV}/${f}`,
+    `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`,
+  ];
+};
 
 type Ring = number[][];
 type Feat = { properties: { shapeName: string }; geometry: { type: string; coordinates: any } };
 type Level = "ADM1" | "ADM2" | "ADM3";
 
+// Légende Esri Sentinel-2 10 m (les 2 dernières classes sont ignorées dans les totaux)
 const CLASSES = [
-  { n: "Couvert arboré", c: [0, 100, 0] },
-  { n: "Arbustes", c: [255, 187, 34] },
-  { n: "Prairie / savane", c: [255, 255, 76] },
-  { n: "Cultures", c: [240, 150, 255] },
-  { n: "Bâti", c: [250, 0, 0] },
-  { n: "Sol nu", c: [180, 180, 180] },
-  { n: "Eau", c: [0, 100, 200] },
-  { n: "Zone humide", c: [0, 150, 160] },
-  { n: "Mangrove", c: [0, 207, 117] },
+  { n: "Couvert arboré", c: [57, 125, 73] },
+  { n: "Savane / parcours", c: [227, 226, 195] },
+  { n: "Cultures", c: [228, 150, 53] },
+  { n: "Bâti", c: [196, 40, 27] },
+  { n: "Sol nu", c: [165, 155, 143] },
+  { n: "Eau", c: [65, 155, 223] },
+  { n: "Végétation inondée / mangrove", c: [122, 135, 198] },
+  { n: "Neige / glace", c: [168, 235, 255] },
+  { n: "Nuages", c: [97, 97, 97] },
 ];
+const N_VALID = 7;
 const SLOPES = [
   { n: "Plat (< 5 %)", max: 5, col: "#7fb069" },
   { n: "Modérée (5–15 %)", max: 15, col: "#e6c84f" },
@@ -60,9 +79,15 @@ const center = (f: Feat): [number, number] => {
 };
 
 async function loadLevel(l: Level): Promise<Feat[]> {
-  const meta = await (await fetch(GB + l + "/")).json();
-  const url = meta.simplifiedGeometryGeoJSON || meta.gjDownloadURL;
-  return (await (await fetch(url)).json()).features;
+  for (const url of GEO_SOURCES(l)) {
+    try {
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      const j = await r.json(); // échoue si la réponse est du HTML (page 404 renvoyée par l'hébergeur)
+      if (j?.features?.length) return j.features;
+    } catch { /* source suivante */ }
+  }
+  throw new Error(`Limites ${l} introuvables : placez public/geo/MDG-${l}.geojson (voir les commentaires du fichier).`);
 }
 
 type Result = {
@@ -85,7 +110,7 @@ async function analyse(f: Feat, signal: AbortSignal): Promise<Result> {
   // 1) Occupation du sol : image WMS + masque du polygone
   const img = new Image();
   img.crossOrigin = "anonymous";
-  img.src = `${WMS}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=WORLDCOVER_2021_MAP&STYLES=&FORMAT=image/png&TRANSPARENT=true&SRS=EPSG:4326&BBOX=${b.minLon},${b.minLat},${b.maxLon},${b.maxLat}&WIDTH=${W}&HEIGHT=${H}`;
+  img.src = esriUrl(b, W, H);
   await img.decode();
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const cx = cv.getContext("2d", { willReadFrequently: true })!;
@@ -101,7 +126,7 @@ async function analyse(f: Feat, signal: AbortSignal): Promise<Result> {
   const mask = mc.getImageData(0, 0, W, H).data;
   const cls = (i: number) => {
     if (px[i * 4 + 3] < 128) return -1;
-    let best = -1, bd = 60 * 60 * 3;
+    let best = -1, bd = 40 * 40 * 3;
     CLASSES.forEach((k, ci) => {
       const d = (px[i * 4] - k.c[0]) ** 2 + (px[i * 4 + 1] - k.c[1]) ** 2 + (px[i * 4 + 2] - k.c[2]) ** 2;
       if (d < bd) { bd = d; best = ci; }
@@ -109,8 +134,8 @@ async function analyse(f: Feat, signal: AbortSignal): Promise<Result> {
     return best;
   };
   const cnt = new Array(CLASSES.length).fill(0); let tot = 0;
-  for (let i = 0; i < W * H; i++) if (mask[i * 4 + 3] > 128) { const c = cls(i); if (c >= 0) { cnt[c]++; tot++; } }
-  if (!tot) throw new Error("Aucune donnée d'occupation du sol reçue (service indisponible ou bloqué par CORS).");
+  for (let i = 0; i < W * H; i++) if (mask[i * 4 + 3] > 128) { const c = cls(i); if (c >= 0 && c < N_VALID) { cnt[c]++; tot++; } }
+  if (!tot) throw new Error("Aucune donnée d'occupation du sol reçue (service Esri indisponible).");
 
   // 2) Grille d'altitude 10×10 → pente
   const N = 10, dLon = (b.maxLon - b.minLon) / (N - 1), dLat = (b.maxLat - b.minLat) / (N - 1);
@@ -127,7 +152,7 @@ async function analyse(f: Feat, signal: AbortSignal): Promise<Result> {
     const si = SLOPES.findIndex((t) => s < t.max);
     sc[si]++; sn++;
     const c = cls(Math.min(H - 1, Math.max(0, Math.floor(Y(lats[k])))) * W + Math.min(W - 1, Math.max(0, Math.floor(X(lons[k])))));
-    if (c === 3) { cropN++; if (s >= 15) cropSteep++; }
+    if (c === 2) { cropN++; if (s >= 15) cropSteep++; }
   }
   const inside = z.filter((_, k) => inFeat(lons[k], lats[k], f));
   const zs = inside.length ? inside : z;
@@ -153,12 +178,12 @@ async function analyse(f: Feat, signal: AbortSignal): Promise<Result> {
 
   const pct = (c: number) => (tot ? (cnt[c] / tot) * 100 : 0);
   return {
-    land: CLASSES.map((k, i) => ({ n: k.n, pct: pct(i), col: `rgb(${k.c.join(",")})` })).filter((x) => x.pct > 0.05).sort((a, b) => b.pct - a.pct),
+    land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: `rgb(${k.c.join(",")})` })).filter((x) => x.pct > 0.05).sort((a, b) => b.pct - a.pct),
     slope: SLOPES.map((s, i) => ({ n: s.n, pct: sn ? (sc[i] / sn) * 100 : 0, col: s.col })),
     elevMin: Math.min(...zs), elevMax: Math.max(...zs), elevMean: zs.reduce((a, c) => a + c, 0) / zs.length,
     rain, areaKm2: Math.round(wKm * hKm * (tot / (W * H)) || wKm * hKm),
     cropSteep: cropN ? (cropSteep / cropN) * 100 : 0,
-    treePct: pct(0), cropPct: pct(3), barePct: pct(5), steepPct: sn ? ((sc[2] + sc[3]) / sn) * 100 : 0, wetPct: pct(7) + pct(8),
+    treePct: pct(0), cropPct: pct(2), barePct: pct(4), steepPct: sn ? ((sc[2] + sc[3]) / sn) * 100 : 0, wetPct: pct(6),
     bassin, resolution: `${Math.round((wKm * 1000) / W)} m/pixel (occupation) · ${Math.round(Math.max(dx, dy) / 1000 * 10) / 10} km entre points (pente)`,
   };
 }
@@ -195,7 +220,7 @@ export default function AnalyseTerritoriale() {
   const mapEl = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const layer = useRef<L.GeoJSON | null>(null);
-  const wc = useRef<L.TileLayer.WMS | null>(null);
+  const ov = useRef<L.ImageOverlay | null>(null);
   const cache = useRef<Partial<Record<Level, Feat[]>>>({});
   const [regs, setRegs] = useState<Feat[]>([]);
   const [dists, setDists] = useState<Feat[]>([]);
@@ -215,13 +240,19 @@ export default function AnalyseTerritoriale() {
   useEffect(() => {
     const m = L.map(mapEl.current!, { zoomControl: true }).setView([-19.0, 46.7], 6);
     L.tileLayer("https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}", { maxZoom: 20, attribution: "Imagerie © Google" }).addTo(m);
-    wc.current = L.tileLayer.wms(WMS, { layers: "WORLDCOVER_2021_MAP", format: "image/png", transparent: true, opacity: 0.55, attribution: "ESA WorldCover" } as any);
     map.current = m;
     get("ADM1").then(setRegs).catch(() => setErr("Impossible de charger les régions (réseau)."));
     return () => { m.remove(); };
   }, []);
 
-  useEffect(() => { if (wcOn) wc.current?.addTo(map.current!); else wc.current?.remove(); }, [wcOn]);
+  useEffect(() => {
+    ov.current?.remove();
+    if (!wcOn || !map.current) return;
+    const b = current ? bbox(current) : { minLon: 43.2, minLat: -25.7, maxLon: 50.6, maxLat: -11.9 };
+    const w = (b.maxLon - b.minLon) / (b.maxLat - b.minLat);
+    const W = w >= 1 ? 1400 : Math.round(1400 * w), H = w >= 1 ? Math.round(1400 / w) : 1400;
+    ov.current = L.imageOverlay(esriUrl(b, W, H), [[b.minLat, b.minLon], [b.maxLat, b.maxLon]], { opacity: 0.6 }).addTo(map.current);
+  }, [wcOn, current]);
 
   useEffect(() => {
     if (!map.current) return;
