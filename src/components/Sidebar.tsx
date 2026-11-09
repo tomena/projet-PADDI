@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BarChart3, Flame, Trees, Users, Globe2, Landmark, MapPinned,
   Library, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Home,
   FolderKanban, Database, Briefcase, DollarSign, Gavel, Wheat, Activity, Store,
-  Wallet, CalendarCheck, LogOut, Menu, X, ShieldAlert,
+  Wallet, CalendarCheck, LogOut, Menu, X, ShieldAlert, Mountain,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -47,6 +47,7 @@ const sidebarTxt = {
     deforestation: "Déforestation",
     environment: "Environnement",
     burnedZonesMap: "Cartographie des zones brûlées",
+    territorialAnalysis: "Analyse territoriale",
 
     territorialSynthesis: "Synthèse territoriale",
 
@@ -95,6 +96,7 @@ const sidebarTxt = {
     deforestation: "Fandripahana ala",
     environment: "Tontolo iainana",
     burnedZonesMap: "Sarintanin'ny faritra may",
+    territorialAnalysis: "Famakafakana ny faritany",
 
     territorialSynthesis: "Famintinana ny faritany",
 
@@ -143,6 +145,7 @@ const sidebarTxt = {
     deforestation: "Deforestation",
     environment: "Environment",
     burnedZonesMap: "Burned Areas Mapping",
+    territorialAnalysis: "Territorial Analysis",
 
     territorialSynthesis: "Territorial Overview",
 
@@ -191,6 +194,7 @@ const sidebarTxt = {
     deforestation: "Entwaldung",
     environment: "Umwelt",
     burnedZonesMap: "Kartierung verbrannter Flächen",
+    territorialAnalysis: "Territoriale Analyse",
 
     territorialSynthesis: "Territoriale Übersicht",
 
@@ -259,6 +263,7 @@ const MENUS: Record<string, Entree[]> = {
     lien("zones-brulees", MapPinned, "burnedZonesMap", "zones-brulees"),
     lien("deforestation", Trees, "deforestation", "deforestation"),
     lien("pression", ShieldAlert, "pressureZones", "pression"),
+    lien("territoire", Mountain, "territorialAnalysis", "analyse-territoriale"),
     lien("environnement", Globe2, "environment", "analyse-environnement"),
   ],
 
