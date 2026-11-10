@@ -146,12 +146,12 @@ const DATA = {
   regions: "/data/madagascar_24_region.geojson",
   aires: "/data/aire_protegee_paddi.geojson",
   peripheries: "/data/peripherie_5km_paddi.geojson",
-  communesGeo: "/data/madagascar_communes.json",
+  communesGeo: "/data/commune_riverain_ap_paddi_2026.geojson", // 104 communes riveraines (champs COMM_15, nom_ap)
   zonesBrulees: "/data/zones_brulees.geojson", // optionnel : polygones des zones brûlées (AP, Année)
   firms: "/api/firms", // points de feux actifs NASA FIRMS
 };
 // Champ « nom » dans vos fichiers géographiques (identiques à Pression.tsx)
-const PROP = { region: "nom_reg", ap: "nom_ap", periph: "nom_ap", commune: "NAME_4" };
+const PROP = { region: "nom_reg", ap: "nom_ap", periph: "nom_ap", commune: "COMM_15", communeAp: "nom_ap" };
 
 const SUPERFICIE_2018: Record<string, number> = {
   Analamerana: 2809.96, Andohahela: 5584.04, Ankarafantsika: 18496.4, Ankarana: 5812.0,
@@ -226,14 +226,23 @@ const dice = (a: string, b: string) => {
   y.forEach((g) => { const c = m.get(g) || 0; if (c > 0) { hit++; m.set(g, c - 1); } });
   return (2 * hit) / (x.length + y.length);
 };
-// Renvoie la clé de la base qui correspond au nom géographique (exact, inclusion, puis similarité ≥ 0,8)
+// Équivalences usuelles entre noms malgaches et français (Atsimo = Sud, Ambony = Haut…)
+const MOT_EQUIV: Record<string, string> = { atsimo: "sud", atsinanana: "est", ambony: "haut", ambany: "bas", avaratra: "nord", andrefana: "ouest" };
+// Exceptions à compléter à la main : « nom dans la base » -> « nom dans le fichier des limites »
+const ALIAS_COMMUNE: Record<string, string> = {
+  "marovoay banlieue": "Marovoay",
+  // "autre nom de la base": "Nom exact dans commune_riverain_ap_paddi_2026.geojson",
+};
+const canon = (v: unknown) => norm(v).split(" ").map((w) => MOT_EQUIV[w] || w).join("");
+// Renvoie la clé de la base (norm) qui correspond au nom géographique : exact, équivalences, inclusion, puis similarité ≥ 0,8
 const matchKey = (nom: unknown, keys: Iterable<string>): string | null => {
-  const k = norm(nom);
-  if (!k) return null;
+  const c = canon(nom);
+  if (!c) return null;
   let best: string | null = null, score = 0;
   for (const key of keys) {
-    if (key === k) return key;
-    const s = key.length >= 4 && k.length >= 4 && (key.includes(k) || k.includes(key)) ? 0.9 : dice(k, key);
+    const kc = canon(ALIAS_COMMUNE[key] ?? key);
+    if (kc === c) return key;
+    const s = kc.length >= 5 && c.length >= 5 && (kc.includes(c) || c.includes(kc)) ? 0.9 : dice(c, kc);
     if (s > score) { score = s; best = key; }
   }
   return score >= 0.8 ? best : null;
@@ -949,17 +958,24 @@ export default function AnalyseFeux() {
   // `burned` (ha) sert à la couleur et à la légende ; `pct` reste disponible pour l'infobulle.
   const communesRes = useMemo(() => {
     const empty = { list: [] as any[], missing: [] as string[] };
-    if (!communesGeoZ.length || !apZones.length) return empty;
-    const boxes = [...apZones, ...periphSel].map((z) => z.bbox);
-    const box: Bbox = [Math.min(...boxes.map((b) => b[0])) - 0.5, Math.min(...boxes.map((b) => b[1])) - 0.5, Math.max(...boxes.map((b) => b[2])) + 0.5, Math.max(...boxes.map((b) => b[3])) + 0.5];
+    if (!communesGeoZ.length) return empty;
     const nameOf = new Map<string, string>(); // clé normalisée -> nom d'origine (base)
     rowsAP.filter((f) => src(f.properties) === "commune").forEach((f) => nameOf.set(norm(f.properties.Commune), String(f.properties.Commune).trim()));
     const names = Array.from(nameOf.keys());
     const supKeys = Object.keys(supBy);
-    const near = communesGeoZ.filter((z) => touch(z.bbox, box));
-    const keyOf = new Map<Zone, string | null>(near.map((z) => [z, matchKey(z.nom, names)]));
-    let list = near.filter((z) => keyOf.get(z));
-    if (!list.length) list = near.filter((z) => apZones.some((a) => around(z, a)));
+    // 1) le fichier des limites indique déjà l'aire protégée de chaque commune (champ Aires_Prot)
+    const tagged = communesGeoZ.filter((z) => sameArea(z.feature.properties?.[PROP.communeAp], ap));
+    let pool = tagged;
+    if (!tagged.length) {
+      // 2) sinon : communes proches de l'AP, retenues par leur nom
+      if (!apZones.length) return empty;
+      const boxes = [...apZones, ...periphSel].map((z) => z.bbox);
+      const box: Bbox = [Math.min(...boxes.map((b) => b[0])) - 0.5, Math.min(...boxes.map((b) => b[1])) - 0.5, Math.max(...boxes.map((b) => b[2])) + 0.5, Math.max(...boxes.map((b) => b[3])) + 0.5];
+      pool = communesGeoZ.filter((z) => touch(z.bbox, box));
+    }
+    const keyOf = new Map<Zone, string | null>(pool.map((z) => [z, matchKey(z.nom, names)]));
+    let list = tagged.length ? tagged : pool.filter((z) => keyOf.get(z));
+    if (!list.length) list = pool.filter((z) => apZones.some((a) => around(z, a)));
     const used = new Set(list.map((z) => keyOf.get(z)).filter(Boolean) as string[]);
     const missing = names.filter((k) => !used.has(k)).map((k) => nameOf.get(k) as string);
     const out = list.map((z) => {
@@ -968,7 +984,7 @@ export default function AnalyseFeux() {
       return { ...z, burned, burnedYear: by, pct: sup > 0 ? (burned / sup) * 100 : null };
     });
     return { list: out, missing };
-  }, [communesGeoZ, apZones, periphSel, rowsAP, burnedBy, burnedByM, mapMonth, supBy]);
+  }, [communesGeoZ, apZones, periphSel, rowsAP, burnedBy, burnedByM, mapMonth, supBy, ap]);
   const communesMap = communesRes.list;
 
   const zonesBrulees = useMemo(
