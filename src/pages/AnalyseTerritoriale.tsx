@@ -1,4 +1,19 @@
-
+/**
+ * AnalyseTerritoriale.tsx — Madagascar : Région → District → Commune → Parcelle tracée
+ *
+ * Disposition : à gauche 5 cartes d'information (territoire, occupation du sol, déforestation,
+ * relief et pente, points de feux), à droite UNE carte de Madagascar qui superpose
+ * l'occupation du sol, la perte de couvert arboré et les points de feux.
+ *
+ * Dépendances : leaflet, @types/leaflet, lucide-react.
+ *
+ * Données :
+ *  - Limites : geoBoundaries (en ligne, plusieurs miroirs essayés en parallèle)
+ *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m
+ *  - Perte de couvert : tuiles Global Forest Watch (carte) + POST /api/gfw-perte (chiffres, clé côté serveur)
+ *  - Points de feux : GET /api/firms (NASA FIRMS, la même route que votre page « Zones de pression »)
+ *  - Altitude / pluie : Open-Meteo. Bassins versants : BASSINS_GEOJSON_URL (à fournir).
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -293,7 +308,7 @@ const LOSS_CACHE = new WeakMap<Feat, Promise<PerteAn[]>>();
 function lossFor(f: Feat): Promise<PerteAn[]> {
   let p = LOSS_CACHE.get(f);
   if (!p) {
-    p = fetch("/api/gfw-zone", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ geometry: simple(f) }) })
+    p = fetch("/api/gfw-perte", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ geometry: simple(f) }) })
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
       .then((j) => j.annees as PerteAn[]);
     LOSS_CACHE.set(f, p);
@@ -742,7 +757,7 @@ export default function AnalyseTerritoriale() {
                   {lossS.busy && <p className="at-load">Calcul en cours… (peut durer quelques secondes pour une région)</p>}
                   {lossS.err && (
                     <p className="at-alert" role="alert">
-                      Chiffres indisponibles. Vérifiez la route /api/gfw-zone et la clé GFW côté serveur. La carte de perte, elle, s’affiche.
+                      Chiffres indisponibles. Vérifiez la route /api/gfw-perte et la clé GFW côté serveur. La carte de perte, elle, s’affiche.
                     </p>
                   )}
                   {lossStats && (
