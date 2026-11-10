@@ -59,6 +59,7 @@ const fr = {
   legLoss: 'Perte de couvert forestier', legErosion: 'Zone à risque d’érosion',
   legZones: 'Zones de l’aire protégée', legLandscapes: 'Paysages', legMicro: 'Micro-bassins',
   retry: 'Réessayer',
+  theme: 'Couche',
 
   tipFires: 'Feux détectés', tipHa: 'Superficie déboisée', tipErosion: 'Zones à risque d’érosion',
   na: 'n/d', keyFire: 'feux', keyHa: 'hectares déboisés', unitHa: 'ha',
@@ -128,6 +129,7 @@ const mg: Txt = {
   legLoss: 'Fahaverezan’ny rakotra ala', legErosion: 'Faritra atahorana ho voan’ny eroziona',
   legZones: 'Faritry ny faritra arovana', legLandscapes: 'Tontolo', legMicro: 'Mikro-basinina',
   retry: 'Andramo indray',
+   theme: 'Sosona',
 
   tipFires: 'Doro hita', tipHa: 'Velarana nopotehina', tipErosion: 'Faritra atahorana ho voan’ny eroziona',
   na: 'n/a', keyFire: 'doro', keyHa: 'hektara nopotehina', unitHa: 'ha',
@@ -196,6 +198,7 @@ const en: Txt = {
   legLoss: 'Forest cover loss', legErosion: 'Erosion-risk zone',
   legZones: 'Protected-area zones', legLandscapes: 'Landscapes', legMicro: 'Micro-watersheds',
   retry: 'Retry',
+   theme: 'Layer',
 
   tipFires: 'Fires detected', tipHa: 'Deforested area', tipErosion: 'Erosion-risk zones',
   na: 'n/a', keyFire: 'fires', keyHa: 'hectares deforested', unitHa: 'ha',
@@ -264,6 +267,7 @@ const de: Txt = {
   legLoss: 'Waldverlust', legErosion: 'Erosionsgefährdete Zone',
   legZones: 'Zonen des Schutzgebiets', legLandscapes: 'Landschaften', legMicro: 'Mikroeinzugsgebiete',
   retry: 'Erneut versuchen',
+   theme: 'Ebene',
 
   tipFires: 'Erkannte Brände', tipHa: 'Entwaldete Fläche', tipErosion: 'Erosionsgefährdete Zonen',
   na: 'k. A.', keyFire: 'Brände', keyHa: 'Hektar entwaldet', unitHa: 'ha',
