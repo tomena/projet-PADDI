@@ -1,5 +1,5 @@
 /// <reference types="node" />
-import type { NextApiRequest, NextApiResponse } from "next";
+import type { VercelRequest as NextApiRequest, VercelResponse as NextApiResponse } from "@vercel/node";
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "crypto";
 
 /* =====================================================================
