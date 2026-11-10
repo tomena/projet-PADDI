@@ -309,7 +309,13 @@ function lossFor(f: Feat): Promise<PerteAn[]> {
   let p = LOSS_CACHE.get(f);
   if (!p) {
     p = fetch("/api/gfw-perte", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ geometry: simple(f) }) })
-      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
+      .then(async (r) => {
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(`${r.status}${j.erreur || j.error ? " : " + (j.erreur || j.error) : ""}`);
+        }
+        return r.json();
+      })
       .then((j) => j.annees as PerteAn[]);
     LOSS_CACHE.set(f, p);
     p.catch(() => LOSS_CACHE.delete(f)); // on pourra réessayer
@@ -318,12 +324,12 @@ function lossFor(f: Feat): Promise<PerteAn[]> {
 }
 
 function useLoss(f: Feat | null) {
-  const [s, setS] = useState<{ rows: PerteAn[] | null; busy: boolean; err: boolean }>({ rows: null, busy: false, err: false });
+  const [s, setS] = useState<{ rows: PerteAn[] | null; busy: boolean; err: string }>({ rows: null, busy: false, err: "" });
   useEffect(() => {
-    if (!f) { setS({ rows: null, busy: false, err: false }); return; }
+    if (!f) { setS({ rows: null, busy: false, err: "" }); return; }
     let on = true;
-    setS({ rows: null, busy: true, err: false });
-    lossFor(f).then((rows) => on && setS({ rows, busy: false, err: false })).catch(() => on && setS({ rows: null, busy: false, err: true }));
+    setS({ rows: null, busy: true, err: "" });
+    lossFor(f).then((rows) => on && setS({ rows, busy: false, err: "" })).catch((e) => on && setS({ rows: null, busy: false, err: e?.message || "réseau" }));
     return () => { on = false; };
   }, [f]);
   return s;
@@ -757,7 +763,7 @@ export default function AnalyseTerritoriale() {
                   {lossS.busy && <p className="at-load">Calcul en cours… (peut durer quelques secondes pour une région)</p>}
                   {lossS.err && (
                     <p className="at-alert" role="alert">
-                      Chiffres indisponibles. Vérifiez la route /api/gfw-perte et la clé GFW côté serveur. La carte de perte, elle, s’affiche.
+                      Chiffres indisponibles ({lossS.err}). Vérifiez la route /api/gfw-perte et la clé GFW côté serveur. La carte de perte, elle, s’affiche.
                     </p>
                   )}
                   {lossStats && (
