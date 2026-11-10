@@ -41,7 +41,7 @@ const txt: any = {
     fireAge: "Ancienneté des feux", fireDetected: "Détection satellite", fireUnit: "feux", fireErr: "Feux actifs indisponibles",
     lLabels: "Noms des communes", fullYear: "Année entière", ofMonth: "du mois de", ofYear: "de l'année",
     scaleAbs: "Échelle fixe (comparable)", scaleRel: "Échelle adaptée à l'AP", severity: "Gravité", sevLow: "faible", sevHigh: "forte",
-    noCommunes: "Limites des communes introuvables : vérifiez DATA.communesGeo.", missingCommunes: "Communes de la base sans limite sur la carte (nom différent) :", noneForAp: "Aucune commune trouvée pour cette AP dans le fichier des limites (champ nom_ap).", loadedLbl: "chargées",
+    noCommunes: "Limites des communes introuvables : vérifiez DATA.communesGeo.", missingCommunes: "Communes de la base sans limite sur la carte (nom différent) :", noneForAp: "Aucune commune trouvée pour cette AP dans le fichier des limites (champ nom_ap).", loadedLbl: "chargées", opacity: "Opacité des communes",
     refresh: "Actualiser", noFire: "Aucun feu actif détecté dans cette zone.", noBase: "Base de feux introuvable : vérifiez les chemins dans DATA.",
     months: { Jan: "Jan", Feb: "Fév", Mar: "Mar", Apr: "Avr", May: "Mai", Jun: "Juin", Jul: "Juil", Aug: "Août", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Déc" },
   },
@@ -71,7 +71,7 @@ const txt: any = {
     fireAge: "Faha-taonan'ny doro", fireDetected: "Fanamarihana avy amin'ny zanabolana", fireUnit: "doro", fireErr: "Tsy azo ny doro mavitrika",
     lLabels: "Anaran'ny kaominina", fullYear: "Taona manontolo", ofMonth: "tamin'ny volana", ofYear: "tamin'ny taona",
     scaleAbs: "Refy raikitra (azo ampitahaina)", scaleRel: "Refy mifanaraka amin'ny AP", severity: "Hamafin'ny doro", sevLow: "kely", sevHigh: "avo",
-    noCommunes: "Tsy hita ny sisin'ny kaominina: jereo ny DATA.communesGeo.", missingCommunes: "Kaominina ao amin'ny angona tsy hita eo amin'ny sarintany (anarana samy hafa) :", noneForAp: "Tsy misy kaominina hita ho an'ity AP ity ao amin'ny rakitra (nom_ap).", loadedLbl: "voakarakara",
+    noCommunes: "Tsy hita ny sisin'ny kaominina: jereo ny DATA.communesGeo.", missingCommunes: "Kaominina ao amin'ny angona tsy hita eo amin'ny sarintany (anarana samy hafa) :", noneForAp: "Tsy misy kaominina hita ho an'ity AP ity ao amin'ny rakitra (nom_ap).", loadedLbl: "voakarakara", opacity: "Hamafisan'ny loko ny kaominina",
     refresh: "Havaozina", noFire: "Tsy misy doro mavitrika hita amin'ity faritra ity.", noBase: "Tsy hita ny angona doro: jereo ny lalana ao amin'ny DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "Mey", Jun: "Jon", Jul: "Jol", Aug: "Aog", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Des" },
   },
@@ -102,7 +102,7 @@ const txt: any = {
     fireAge: "Fire age", fireDetected: "Satellite detection", fireUnit: "fires", fireErr: "Active fires unavailable",
     lLabels: "Commune names", fullYear: "Full year", ofMonth: "for", ofYear: "for",
     scaleAbs: "Fixed scale (comparable)", scaleRel: "Scale adapted to the PA", severity: "Severity", sevLow: "low", sevHigh: "high",
-    noCommunes: "Commune boundaries not found: check DATA.communesGeo.", missingCommunes: "Communes in the database with no boundary on the map (different name):", noneForAp: "No commune found for this PA in the boundary file (field nom_ap).", loadedLbl: "loaded",
+    noCommunes: "Commune boundaries not found: check DATA.communesGeo.", missingCommunes: "Communes in the database with no boundary on the map (different name):", noneForAp: "No commune found for this PA in the boundary file (field nom_ap).", loadedLbl: "loaded", opacity: "Commune opacity",
     refresh: "Refresh", noFire: "No active fire detected in this area.", noBase: "Fire database not found: check the paths in DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "May", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Dec" },
   },
@@ -133,7 +133,7 @@ const txt: any = {
     fireAge: "Alter der Brände", fireDetected: "Satellitenerkennung", fireUnit: "Brände", fireErr: "Aktive Brände nicht verfügbar",
     lLabels: "Gemeindenamen", fullYear: "Ganzes Jahr", ofMonth: "im Monat", ofYear: "im Jahr",
     scaleAbs: "Feste Skala (vergleichbar)", scaleRel: "An das Schutzgebiet angepasste Skala", severity: "Schweregrad", sevLow: "gering", sevHigh: "hoch",
-    noCommunes: "Gemeindegrenzen nicht gefunden: DATA.communesGeo prüfen.", missingCommunes: "Gemeinden der Datenbank ohne Grenze auf der Karte (anderer Name):", noneForAp: "Keine Gemeinde für dieses Schutzgebiet in der Grenzdatei gefunden (Feld nom_ap).", loadedLbl: "geladen",
+    noCommunes: "Gemeindegrenzen nicht gefunden: DATA.communesGeo prüfen.", missingCommunes: "Gemeinden der Datenbank ohne Grenze auf der Karte (anderer Name):", noneForAp: "Keine Gemeinde für dieses Schutzgebiet in der Grenzdatei gefunden (Feld nom_ap).", loadedLbl: "geladen", opacity: "Deckkraft der Gemeinden",
     refresh: "Aktualisieren", noFire: "Kein aktiver Brand in diesem Gebiet erkannt.", noBase: "Brand-Datenbank nicht gefunden: Pfade in DATA prüfen.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mär", Apr: "Apr", May: "Mai", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Dez" },
   },
@@ -723,7 +723,7 @@ const Fires = ({ fires, t }: any) => {
     const renderer = L.canvas({ padding: 0.5, pane: "fxFires" });
     const g = L.featureGroup();
     fires.forEach((f: any) => {
-      L.circleMarker([f.lat, f.lon], { pane: "fxFires", radius: radius(map.getZoom()), fillColor: ageColor(f.age), color: "#fff", weight: 0.6, opacity: 0.9, fillOpacity: 0.92, renderer })
+      L.circleMarker([f.lat, f.lon], { pane: "fxFires", radius: radius(map.getZoom()), fillColor: ageColor(f.age), color: "#fff", weight: 1.2, opacity: 1, fillOpacity: 1, renderer })
         .bindPopup(`<div style="font:13px/1.5 system-ui"><strong>${t.fireDetected}</strong><br/>${new Date(f.t).toLocaleDateString("fr-FR")} ${f.heure} UTC${f.frp != null ? `<br/>${f.frp} MW` : ""}${f.sat ? `<br/>${f.sat}` : ""}</div>`)
         .addTo(g);
     });
@@ -795,6 +795,7 @@ const classLabel = (scale: [number, string][], idx: number) => {
 
 const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, scaleMode, setScaleMode, diag, periodLabel, periodParts, monthSel, setMonthSel, monthNames }: any) => {
   const [fond, setFond] = useState("topo");
+  const [op, setOp] = useState(0.4); // opacité du remplissage des communes (le curseur permet de l'ajuster)
   const [show, setShow] = useState<any>({ fires: true, communes: true, ap: true, periph: true, zones: true, regions: false, labels: true });
   const focus = apZones.length ? [...apZones, ...periph] : regionZone ? [regionZone] : [];
   const layers: [string, string][] = [["fires", t.lFires], ["communes", t.lCommunes], ["labels", t.lLabels], ["ap", t.lAP], ["periph", t.peripheral5km], ["zones", t.lZones], ["regions", t.lRegions]];
@@ -813,6 +814,10 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
         <select className="fx-sel" aria-label={t.severity} value={scaleMode} onChange={(e) => setScaleMode(e.target.value)}>
           <option value="abs">{t.scaleAbs}</option><option value="rel">{t.scaleRel}</option>
         </select>
+        <label title={t.opacity}>
+          <input type="range" min={0.1} max={0.9} step={0.05} value={op} onChange={(e) => setOp(Number(e.target.value))} aria-label={t.opacity} style={{ width: 70 }} />
+          {Math.round(op * 100)} %
+        </label>
         <div className="fx-seg" role="group" aria-label="Période">
           {[24, 48, 72].map((h) => <button key={h} className={hours === h ? "on" : ""} onClick={() => setHours(h)}>{h} h</button>)}
         </div>
@@ -833,11 +838,11 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           <Resize />
           <Focus zones={focus} />
           {show.regions && <Layer pane="fxRegions" interactive={false} zones={regions} cle={regionZone?.nom || "all"} style={(z: Zone) => ({ color: regionZone && z.nom === regionZone.nom ? "#0f766e" : "#475569", weight: regionZone && z.nom === regionZone.nom ? 2.5 : 1, fillColor: "#0f766e", fillOpacity: regionZone && z.nom === regionZone.nom ? 0.12 : 0.03 })} />}
-          {show.communes && <Layer pane="fxCommunes" zones={communes} cle={`c${ap}${year}${monthSel}${scaleMode}${scale.map((s: any) => s[0]).join("-")}`} tip={tipCommune} style={(z: any) => ({ color: "#1e293b", weight: 1.4, opacity: 0.9, fillColor: colorOf(z.burned, scale), fillOpacity: 0.7 })} />}
+          {show.communes && <Layer pane="fxCommunes" zones={communes} cle={`c${ap}${year}${monthSel}${scaleMode}${op}${scale.map((s: any) => s[0]).join("-")}`} tip={tipCommune} style={(z: any) => ({ color: "#475569", weight: 1, opacity: 0.8, fillColor: colorOf(z.burned, scale), fillOpacity: op })} />}
           {show.labels && show.communes && <Labels zones={communes} />}
           {show.periph && <Layer pane="fxPeriph" interactive={false} zones={periph} cle={`p${ap}`} style={() => ({ color: "#b45309", weight: 1, dashArray: "4 4", fillColor: "#d97706", fillOpacity: 0.07 })} />}
           {show.zones && <Layer pane="fxZones" interactive={false} zones={zones} cle={`z${ap}${year}`} style={() => ({ color: "#b91c1c", weight: 1, fillColor: "#ff0000", fillOpacity: 0.7 })} />}
-          {show.ap && <Layer pane="fxAP" interactive={false} zones={apZones} cle={`a${ap}`} style={() => ({ color: "#052e16", weight: 2.5, fillColor: "#22c55e", fillOpacity: 0.25 })} />}
+          {show.ap && <Layer pane="fxAP" interactive={false} zones={apZones} cle={`a${ap}`} style={() => ({ color: "#052e16", weight: 3, fillColor: "#22c55e", fillOpacity: 0.08 })} />}
           {show.fires && <Fires fires={fires} t={t} />}
         </MapContainer>
         <div className="fx-legend">
