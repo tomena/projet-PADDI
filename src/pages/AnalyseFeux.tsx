@@ -41,6 +41,7 @@ const txt: any = {
     fireAge: "Ancienneté des feux", fireDetected: "Détection satellite", fireUnit: "feux", fireErr: "Feux actifs indisponibles",
     lLabels: "Noms des communes", fullYear: "Année entière", ofMonth: "du mois de", ofYear: "de l'année",
     scaleAbs: "Échelle fixe (comparable)", scaleRel: "Échelle adaptée à l'AP", severity: "Gravité", sevLow: "faible", sevHigh: "forte",
+    noCommunes: "Limites des communes introuvables : vérifiez DATA.communesGeo.", missingCommunes: "Communes de la base sans limite sur la carte (nom différent) :",
     refresh: "Actualiser", noFire: "Aucun feu actif détecté dans cette zone.", noBase: "Base de feux introuvable : vérifiez les chemins dans DATA.",
     months: { Jan: "Jan", Feb: "Fév", Mar: "Mar", Apr: "Avr", May: "Mai", Jun: "Juin", Jul: "Juil", Aug: "Août", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Déc" },
   },
@@ -70,6 +71,7 @@ const txt: any = {
     fireAge: "Faha-taonan'ny doro", fireDetected: "Fanamarihana avy amin'ny zanabolana", fireUnit: "doro", fireErr: "Tsy azo ny doro mavitrika",
     lLabels: "Anaran'ny kaominina", fullYear: "Taona manontolo", ofMonth: "tamin'ny volana", ofYear: "tamin'ny taona",
     scaleAbs: "Refy raikitra (azo ampitahaina)", scaleRel: "Refy mifanaraka amin'ny AP", severity: "Hamafin'ny doro", sevLow: "kely", sevHigh: "avo",
+    noCommunes: "Tsy hita ny sisin'ny kaominina: jereo ny DATA.communesGeo.", missingCommunes: "Kaominina ao amin'ny angona tsy hita eo amin'ny sarintany (anarana samy hafa) :",
     refresh: "Havaozina", noFire: "Tsy misy doro mavitrika hita amin'ity faritra ity.", noBase: "Tsy hita ny angona doro: jereo ny lalana ao amin'ny DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "Mey", Jun: "Jon", Jul: "Jol", Aug: "Aog", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Des" },
   },
@@ -100,6 +102,7 @@ const txt: any = {
     fireAge: "Fire age", fireDetected: "Satellite detection", fireUnit: "fires", fireErr: "Active fires unavailable",
     lLabels: "Commune names", fullYear: "Full year", ofMonth: "for", ofYear: "for",
     scaleAbs: "Fixed scale (comparable)", scaleRel: "Scale adapted to the PA", severity: "Severity", sevLow: "low", sevHigh: "high",
+    noCommunes: "Commune boundaries not found: check DATA.communesGeo.", missingCommunes: "Communes in the database with no boundary on the map (different name):",
     refresh: "Refresh", noFire: "No active fire detected in this area.", noBase: "Fire database not found: check the paths in DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "May", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Dec" },
   },
@@ -130,6 +133,7 @@ const txt: any = {
     fireAge: "Alter der Brände", fireDetected: "Satellitenerkennung", fireUnit: "Brände", fireErr: "Aktive Brände nicht verfügbar",
     lLabels: "Gemeindenamen", fullYear: "Ganzes Jahr", ofMonth: "im Monat", ofYear: "im Jahr",
     scaleAbs: "Feste Skala (vergleichbar)", scaleRel: "An das Schutzgebiet angepasste Skala", severity: "Schweregrad", sevLow: "gering", sevHigh: "hoch",
+    noCommunes: "Gemeindegrenzen nicht gefunden: DATA.communesGeo prüfen.", missingCommunes: "Gemeinden der Datenbank ohne Grenze auf der Karte (anderer Name):",
     refresh: "Aktualisieren", noFire: "Kein aktiver Brand in diesem Gebiet erkannt.", noBase: "Brand-Datenbank nicht gefunden: Pfade in DATA prüfen.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mär", Apr: "Apr", May: "Mai", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Dez" },
   },
@@ -208,6 +212,31 @@ const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\
 const sameArea = (a: unknown, b: unknown) => {
   const x = norm(a), y = norm(b);
   return x.length >= 4 && y.length >= 4 && (x === y || x.includes(y) || y.includes(x));
+};
+
+// Similarité de noms (bigrammes) pour rapprocher « Ambohimahamasina » de « Ambohimahamasina I », etc.
+const bigrams = (s: string) => { const r: string[] = []; for (let i = 0; i < s.length - 1; i++) r.push(s.slice(i, i + 2)); return r; };
+const dice = (a: string, b: string) => {
+  if (!a || !b) return 0;
+  const x = bigrams(a), y = bigrams(b);
+  if (!x.length || !y.length) return a === b ? 1 : 0;
+  const m = new Map<string, number>();
+  x.forEach((g) => m.set(g, (m.get(g) || 0) + 1));
+  let hit = 0;
+  y.forEach((g) => { const c = m.get(g) || 0; if (c > 0) { hit++; m.set(g, c - 1); } });
+  return (2 * hit) / (x.length + y.length);
+};
+// Renvoie la clé de la base qui correspond au nom géographique (exact, inclusion, puis similarité ≥ 0,8)
+const matchKey = (nom: unknown, keys: Iterable<string>): string | null => {
+  const k = norm(nom);
+  if (!k) return null;
+  let best: string | null = null, score = 0;
+  for (const key of keys) {
+    if (key === k) return key;
+    const s = key.length >= 4 && k.length >= 4 && (key.includes(k) || k.includes(key)) ? 0.9 : dice(k, key);
+    if (s > score) { score = s; best = key; }
+  }
+  return score >= 0.8 ? best : null;
 };
 
 function useGeo(url: string) {
@@ -632,17 +661,24 @@ const Gauge = ({ variation, t }: any) => {
 };
 
 /* ============================ CARTE INTERACTIVE ============================ */
-const Layer = ({ zones, style, cle, tip }: any) => {
+// Ordre d'empilement fixe des couches (indépendant de l'ordre de rechargement lors d'un filtre)
+const PANES: Record<string, number> = { fxRegions: 410, fxCommunes: 420, fxPeriph: 430, fxZones: 440, fxAP: 450, fxFires: 460 };
+const ensurePane = (map: L.Map, name: string) => { if (!map.getPane(name)) map.createPane(name).style.zIndex = String(PANES[name] ?? 420); };
+
+const Layer = ({ zones, style, cle, tip, pane, interactive = true }: any) => {
   const map = useMap();
   const st = useRef(style), tp = useRef(tip);
   st.current = style; tp.current = tip;
   useEffect(() => {
     if (!zones.length) return;
+    if (pane) ensurePane(map, pane);
     const g = L.featureGroup();
     zones.forEach((z: any) => {
-      const l = L.geoJSON(z.feature, { style: () => st.current(z) });
-      const html = tp.current ? tp.current(z) : z.nom;
-      if (html) l.bindTooltip(html, { sticky: true });
+      const l = L.geoJSON(z.feature, { pane, interactive, style: () => st.current(z) } as any);
+      if (interactive) {
+        const html = tp.current ? tp.current(z) : z.nom;
+        if (html) l.bindTooltip(html, { sticky: true });
+      }
       l.addTo(g);
     });
     g.addTo(map);
@@ -655,10 +691,11 @@ const Fires = ({ fires, t }: any) => {
   const map = useMap();
   useEffect(() => {
     const radius = (z: number) => Math.max(2.5, Math.min(9, 2 + (z - 5) * 0.75));
-    const renderer = L.canvas({ padding: 0.5 });
+    ensurePane(map, "fxFires");
+    const renderer = L.canvas({ padding: 0.5, pane: "fxFires" });
     const g = L.featureGroup();
     fires.forEach((f: any) => {
-      L.circleMarker([f.lat, f.lon], { radius: radius(map.getZoom()), fillColor: ageColor(f.age), color: "#fff", weight: 0.6, opacity: 0.9, fillOpacity: 0.92, renderer })
+      L.circleMarker([f.lat, f.lon], { pane: "fxFires", radius: radius(map.getZoom()), fillColor: ageColor(f.age), color: "#fff", weight: 0.6, opacity: 0.9, fillOpacity: 0.92, renderer })
         .bindPopup(`<div style="font:13px/1.5 system-ui"><strong>${t.fireDetected}</strong><br/>${new Date(f.t).toLocaleDateString("fr-FR")} ${f.heure} UTC${f.frp != null ? `<br/>${f.frp} MW` : ""}${f.sat ? `<br/>${f.sat}` : ""}</div>`)
         .addTo(g);
     });
@@ -728,7 +765,7 @@ const classLabel = (scale: [number, string][], idx: number) => {
   return `${nHa(m)} – ${nHa(up)} ha`;
 };
 
-const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, scaleMode, setScaleMode, periodLabel, periodParts, monthSel, setMonthSel, monthNames }: any) => {
+const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, scaleMode, setScaleMode, diag, periodLabel, periodParts, monthSel, setMonthSel, monthNames }: any) => {
   const [fond, setFond] = useState("topo");
   const [show, setShow] = useState<any>({ fires: true, communes: true, ap: true, periph: true, zones: true, regions: false, labels: true });
   const focus = apZones.length ? [...apZones, ...periph] : regionZone ? [regionZone] : [];
@@ -763,12 +800,12 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           <ZoomControl position="bottomright" />
           <Resize />
           <Focus zones={focus} />
-          {show.regions && <Layer zones={regions} cle={regionZone?.nom || "all"} style={(z: Zone) => ({ color: regionZone && z.nom === regionZone.nom ? "#0f766e" : "#475569", weight: regionZone && z.nom === regionZone.nom ? 2.5 : 1, fillColor: "#0f766e", fillOpacity: regionZone && z.nom === regionZone.nom ? 0.12 : 0.03 })} />}
-          {show.communes && <Layer zones={communes} cle={`c${ap}${year}${monthSel}${scaleMode}${scale.map((s: any) => s[0]).join("-")}`} tip={tipCommune} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(z.burned, scale), fillOpacity: 0.7 })} />}
+          {show.regions && <Layer pane="fxRegions" interactive={false} zones={regions} cle={regionZone?.nom || "all"} style={(z: Zone) => ({ color: regionZone && z.nom === regionZone.nom ? "#0f766e" : "#475569", weight: regionZone && z.nom === regionZone.nom ? 2.5 : 1, fillColor: "#0f766e", fillOpacity: regionZone && z.nom === regionZone.nom ? 0.12 : 0.03 })} />}
+          {show.communes && <Layer pane="fxCommunes" zones={communes} cle={`c${ap}${year}${monthSel}${scaleMode}${scale.map((s: any) => s[0]).join("-")}`} tip={tipCommune} style={(z: any) => ({ color: "#1e293b", weight: 1.4, opacity: 0.9, fillColor: colorOf(z.burned, scale), fillOpacity: 0.7 })} />}
           {show.labels && show.communes && <Labels zones={communes} />}
-          {show.periph && <Layer zones={periph} cle={`p${ap}`} style={() => ({ color: "#b45309", weight: 1, dashArray: "4 4", fillColor: "#d97706", fillOpacity: 0.07 })} />}
-          {show.zones && <Layer zones={zones} cle={`z${ap}${year}`} style={() => ({ color: "#b91c1c", weight: 1, fillColor: "#ff0000", fillOpacity: 0.7 })} />}
-          {show.ap && <Layer zones={apZones} cle={`a${ap}`} style={() => ({ color: "#052e16", weight: 2.5, fillColor: "#22c55e", fillOpacity: 0.25 })} />}
+          {show.periph && <Layer pane="fxPeriph" interactive={false} zones={periph} cle={`p${ap}`} style={() => ({ color: "#b45309", weight: 1, dashArray: "4 4", fillColor: "#d97706", fillOpacity: 0.07 })} />}
+          {show.zones && <Layer pane="fxZones" interactive={false} zones={zones} cle={`z${ap}${year}`} style={() => ({ color: "#b91c1c", weight: 1, fillColor: "#ff0000", fillOpacity: 0.7 })} />}
+          {show.ap && <Layer pane="fxAP" interactive={false} zones={apZones} cle={`a${ap}`} style={() => ({ color: "#052e16", weight: 2.5, fillColor: "#22c55e", fillOpacity: 0.25 })} />}
           {show.fires && <Fires fires={fires} t={t} />}
         </MapContainer>
         <div className="fx-legend">
@@ -798,6 +835,8 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           )}
         </div>
       </div>
+      {!diag.geoOk && <p className="fx-note" style={{ color: "#ef4444" }}>{t.noCommunes}</p>}
+      {diag.missing.length > 0 && <p className="fx-note" style={{ color: "#b45309" }}>{t.missingCommunes} {diag.missing.slice(0, 6).join(", ")}{diag.missing.length > 6 ? "…" : ""}</p>}
       {err ? <p className="fx-note" style={{ color: "#ef4444" }}>{t.fireErr}</p>
         : !fires.length ? <p className="fx-note">{t.noFire}</p>
         : !zones.length ? <p className="fx-note">{t.noZones}</p> : null}
@@ -823,7 +862,7 @@ export default function AnalyseFeux() {
   const [regionsF] = useGeo(DATA.regions);
   const [airesF] = useGeo(DATA.aires);
   const [periphF] = useGeo(DATA.peripheries);
-  const [communesGeoF] = useGeo(DATA.communesGeo);
+  const [communesGeoF, communesGeoOk] = useGeo(DATA.communesGeo);
   const [zonesF] = useGeo(DATA.zonesBrulees);
 
   const regionsZ = useMemo(() => toZones(regionsF, PROP.region, "Région"), [regionsF]);
@@ -908,19 +947,29 @@ export default function AnalyseFeux() {
 
   // Communes tracées sur la carte (même nom que la base + proches de l'AP).
   // `burned` (ha) sert à la couleur et à la légende ; `pct` reste disponible pour l'infobulle.
-  const communesMap = useMemo(() => {
-    if (!communesGeoZ.length || !apZones.length) return [];
+  const communesRes = useMemo(() => {
+    const empty = { list: [] as any[], missing: [] as string[] };
+    if (!communesGeoZ.length || !apZones.length) return empty;
     const boxes = [...apZones, ...periphSel].map((z) => z.bbox);
     const box: Bbox = [Math.min(...boxes.map((b) => b[0])) - 0.5, Math.min(...boxes.map((b) => b[1])) - 0.5, Math.max(...boxes.map((b) => b[2])) + 0.5, Math.max(...boxes.map((b) => b[3])) + 0.5];
-    const names = new Set(rowsAP.filter((f) => src(f.properties) === "commune").map((f) => norm(f.properties.Commune)));
+    const nameOf = new Map<string, string>(); // clé normalisée -> nom d'origine (base)
+    rowsAP.filter((f) => src(f.properties) === "commune").forEach((f) => nameOf.set(norm(f.properties.Commune), String(f.properties.Commune).trim()));
+    const names = Array.from(nameOf.keys());
+    const supKeys = Object.keys(supBy);
     const near = communesGeoZ.filter((z) => touch(z.bbox, box));
-    let list = near.filter((z) => names.has(norm(z.nom)));
+    const keyOf = new Map<Zone, string | null>(near.map((z) => [z, matchKey(z.nom, names)]));
+    let list = near.filter((z) => keyOf.get(z));
     if (!list.length) list = near.filter((z) => apZones.some((a) => around(z, a)));
-    return list.map((z) => {
-      const k = norm(z.nom), by = burnedBy[k] || 0, burned = mapMonth < 0 ? by : burnedByM[k] || 0, sup = supBy[k] || 0;
+    const used = new Set(list.map((z) => keyOf.get(z)).filter(Boolean) as string[]);
+    const missing = names.filter((k) => !used.has(k)).map((k) => nameOf.get(k) as string);
+    const out = list.map((z) => {
+      const k = keyOf.get(z) || norm(z.nom), by = burnedBy[k] || 0, burned = mapMonth < 0 ? by : burnedByM[k] || 0;
+      const sk = supBy[k] != null ? k : matchKey(z.nom, supKeys), sup = (sk && supBy[sk]) || 0;
       return { ...z, burned, burnedYear: by, pct: sup > 0 ? (burned / sup) * 100 : null };
     });
+    return { list: out, missing };
   }, [communesGeoZ, apZones, periphSel, rowsAP, burnedBy, burnedByM, mapMonth, supBy]);
+  const communesMap = communesRes.list;
 
   const zonesBrulees = useMemo(
     () => toZones(zonesF.filter((z) => (!z.properties?.AP || same(z.properties.AP, ap)) && (!z.properties?.Année || Number(z.properties.Année) === year)), "AP", ""),
@@ -1080,6 +1129,7 @@ export default function AnalyseFeux() {
               regions={regionsZ} regionZone={regionZone} fires={fires} hours={hours} setHours={setHours}
               onRefresh={loadFires} err={firesErr}
               scale={scale} scaleMode={scaleMode} setScaleMode={setScaleMode}
+              diag={{ geoOk: !communesGeoOk || communesGeoF.length > 0, missing: communesRes.missing }}
               periodLabel={periodLabel} periodParts={periodParts} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
             />
           </div>
