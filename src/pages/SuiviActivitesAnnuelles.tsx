@@ -523,8 +523,8 @@ export default function SuiviActivitesAnnuelles() {
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
   const [userName, setUserName] = useState("");
-  const [userIdentifiant, setUserIdentifiant] = useState("");
-  const [userMotDePasse, setUserMotDePasse] = useState("");
+  // jeton de session signé par le serveur (/api/auth) : plus aucun mot de passe en mémoire
+  const [token, setToken] = useState("");
 
   const handleReset = () => { setAnnee(2026); setMois("Tous"); setUc("Tous"); };
 
@@ -861,10 +861,9 @@ export default function SuiviActivitesAnnuelles() {
         <ActivitesAccessModal
           isOpen={showLogin}
           onClose={() => setShowLogin(false)}
-          onSuccess={(name: string, identifiant: string, motDePasse: string) => {
+          onSuccess={(name: string, jeton: string) => {
             setUserName(name);
-            setUserIdentifiant(identifiant);
-            setUserMotDePasse(motDePasse);
+            setToken(jeton);
             setShowLogin(false);
             setShowUpdate(true);
           }}
@@ -874,13 +873,11 @@ export default function SuiviActivitesAnnuelles() {
           isOpen={showUpdate}
           onClose={() => {
             setShowUpdate(false);
-            // les identifiants ne restent pas en mémoire une fois la fenêtre fermée
-            setUserIdentifiant("");
-            setUserMotDePasse("");
+            // le jeton ne reste pas en mémoire une fois la fenêtre fermée
+            setToken("");
           }}
           userName={userName}
-          identifiant={userIdentifiant}
-          motDePasse={userMotDePasse}
+          token={token}
           onUpdateSuccess={async () => {
             await chargerDonnees();
             await chargerDateMiseAJour();
