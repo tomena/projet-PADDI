@@ -146,7 +146,7 @@ const DATA = {
   regions: "/data/madagascar_24_region.geojson",
   aires: "/data/aire_protegee_paddi.geojson",
   peripheries: "/data/peripherie_5km_paddi.geojson",
-  communesGeo: "/data/commune_riverain_ap_paddi_2026.geojson", // 104 communes riveraines (champs COMM_15, nom_ap)
+  communesGeo: ["/data/commune_riverain_ap_paddi_2026.json", "/data/commune_riverain_ap_paddi_2026.geojson"], // 104 communes riveraines (champs COMM_15, nom_ap) : .json puis .geojson
   zonesBrulees: "/data/zones_brulees.geojson", // optionnel : polygones des zones brûlées (AP, Année)
   firms: "/api/firms", // points de feux actifs NASA FIRMS
 };
@@ -248,18 +248,34 @@ const matchKey = (nom: unknown, keys: Iterable<string>): string | null => {
   return score >= 0.8 ? best : null;
 };
 
-function useGeo(url: string) {
+// Accepte un chemin ou une liste de chemins (essayés dans l'ordre : .json puis .geojson)
+function useGeo(url: string | string[]) {
   const [features, setFeatures] = useState<any[]>([]);
   const [done, setDone] = useState(false);
+  const [err, setErr] = useState("");
+  const key = ([] as string[]).concat(url).join("|");
   useEffect(() => {
     let on = true;
-    fetch(url).then((r) => (r.ok ? r.json() : Promise.reject(new Error(url))))
-      .then((j) => on && setFeatures(j.features || []))
-      .catch(() => console.warn("Données introuvables :", url))
-      .finally(() => on && setDone(true));
+    const load = async (u: string) => {
+      const r = await fetch(u);
+      if (!r.ok) throw new Error(`HTTP ${r.status} (fichier introuvable)`);
+      const txt = await r.text();
+      try { return JSON.parse(txt); } catch { throw new Error("réponse non JSON : le chemin est faux ou le site renvoie index.html"); }
+    };
+    (async () => {
+      let last = "";
+      for (const u of key.split("|")) {
+        try {
+          const j = await load(u);
+          if (on) { setFeatures(j.features || []); setErr(""); }
+          return;
+        } catch (e: any) { last = String(e?.message || e); console.warn("Données introuvables :", u, last); }
+      }
+      if (on) setErr(last);
+    })().finally(() => on && setDone(true));
     return () => { on = false; };
-  }, [url]);
-  return [features, done] as const;
+  }, [key]);
+  return [features, done, err] as const;
 }
 
 /* ---- Géométrie (mêmes méthodes que Pression.tsx) ---- */
@@ -802,12 +818,12 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
         </div>
         <button className="fx-ico" onClick={onRefresh} title={t.refresh} aria-label={t.refresh}><RefreshCw size={14} /></button>
         <span className="fx-chip"><Flame size={13} />{fires.length} {t.fireUnit}</span>
-        <span className="fx-chip fx-chip-n" title={DATA.communesGeo}>{t.lCommunes} : {communes.length} / {diag.loaded} {t.loadedLbl}</span>
+        <span className="fx-chip fx-chip-n" title={DATA.communesGeo.join(" | ")}>{t.lCommunes} : {communes.length} / {diag.loaded} {t.loadedLbl}</span>
         {layers.map(([k, label]) => (
           <label key={k}><input type="checkbox" checked={show[k]} onChange={() => setShow((s: any) => ({ ...s, [k]: !s[k] }))} />{label}</label>
         ))}
       </div>
-      {!diag.geoOk && <p className="fx-note" style={{ color: "#ef4444", margin: "0 0 6px" }}>{t.noCommunes} ({DATA.communesGeo})</p>}
+      {!diag.geoOk && <p className="fx-note" style={{ color: "#ef4444", margin: "0 0 6px" }}>{t.noCommunes} ({DATA.communesGeo.join(" | ")}{diag.err ? ` — ${diag.err}` : ""})</p>}
       {diag.geoOk && diag.loaded > 0 && communes.length === 0 && <p className="fx-note" style={{ color: "#ef4444", margin: "0 0 6px" }}>{t.noneForAp}</p>}
       {diag.missing.length > 0 && communes.length > 0 && <p className="fx-note" style={{ color: "#b45309", margin: "0 0 6px" }}>{t.missingCommunes} {diag.missing.slice(0, 6).join(", ")}{diag.missing.length > 6 ? "…" : ""}</p>}
       <div className="fx-map">
@@ -876,7 +892,7 @@ export default function AnalyseFeux() {
   const [regionsF] = useGeo(DATA.regions);
   const [airesF] = useGeo(DATA.aires);
   const [periphF] = useGeo(DATA.peripheries);
-  const [communesGeoF, communesGeoOk] = useGeo(DATA.communesGeo);
+  const [communesGeoF, communesGeoOk, communesGeoErr] = useGeo(DATA.communesGeo);
   const [zonesF] = useGeo(DATA.zonesBrulees);
 
   const regionsZ = useMemo(() => toZones(regionsF, PROP.region, "Région"), [regionsF]);
@@ -1150,7 +1166,7 @@ export default function AnalyseFeux() {
               regions={regionsZ} regionZone={regionZone} fires={fires} hours={hours} setHours={setHours}
               onRefresh={loadFires} err={firesErr}
               scale={scale} scaleMode={scaleMode} setScaleMode={setScaleMode}
-              diag={{ geoOk: !communesGeoOk || communesGeoF.length > 0, loaded: communesGeoZ.length, missing: communesRes.missing }}
+              diag={{ geoOk: !communesGeoOk || communesGeoF.length > 0, loaded: communesGeoZ.length, err: communesGeoErr, missing: communesRes.missing }}
               periodLabel={periodLabel} periodParts={periodParts} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
             />
           </div>
