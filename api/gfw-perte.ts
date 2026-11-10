@@ -178,10 +178,57 @@ function versAnnees(brut: any) {
     .sort((a, b) => a.annee - b.annee);
 }
 
+const URL_QUERY = "https://data-api.globalforestwatch.org/dataset/umd_tree_cover_loss/latest/query/json";
+
+async function interroger(sql: string, geometry: unknown, key: string) {
+  const r = await fetch(URL_QUERY, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-api-key": key },
+    body: JSON.stringify({ sql, geometry }),
+  });
+  if (!r.ok) throw new Error(`GFW ${r.status}`);
+  return r.json();
+}
+
+// Perte annuelle de couvert arboré dans un polygone quelconque (POST)
+async function perteParPolygone(req: VercelRequest, res: VercelResponse) {
+  const key = process.env.GFW_API_KEY; // mettez ici le nom de variable que ce fichier utilise déjà
+  if (!key) return res.status(500).json({ error: "Clé GFW manquante côté serveur" });
+
+  const geometry = req.body?.geometry;
+  if (!geometry || !["Polygon", "MultiPolygon"].includes(geometry.type)) {
+    return res.status(400).json({ error: "geometry (Polygon ou MultiPolygon) requise" });
+  }
+
+  const tcd = Number(process.env.GFW_TCD ?? 30);
+  const base = "SELECT umd_tree_cover_loss__year, SUM(area__ha) AS ha FROM data WHERE umd_tree_cover_loss__year > 0";
+  const groupe = " GROUP BY umd_tree_cover_loss__year";
+  try {
+    let json: any;
+    try {
+      json = await interroger(`${base} AND umd_tree_cover_density_2000__threshold >= ${tcd}${groupe}`, geometry, key);
+    } catch {
+      json = await interroger(`${base}${groupe}`, geometry, key);
+    }
+    const annees = (json?.data ?? [])
+      .map((row: any) => {
+        const annee = Number(row.umd_tree_cover_loss__year);
+        const ha = Number(row.ha ?? row.area__ha);
+        return { annee, ha: Number.isFinite(ha) ? ha : 0 };
+      })
+      .filter((a: { annee: number }) => a.annee >= 2001)
+      .sort((a: { annee: number }, b: { annee: number }) => a.annee - b.annee);
+    return res.status(200).json({ annees });
+  } catch (e: any) {
+    return res.status(502).json({ error: e?.message || "GFW indisponible" });
+  }
+}
+
 export default async function handler(req: any, res: any) {
   try {
     const cle = process.env.GFW_API_KEY;
     if (!cle) return res.status(500).json({ erreur: 'Variable GFW_API_KEY manquante sur Vercel.' });
+    if (req.method === "POST") return perteParPolygone(req, res);
 
     const type = String(req.query.type || 'all');
     const nom = String(req.query.nom || '');
