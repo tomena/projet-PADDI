@@ -40,6 +40,7 @@ const txt: any = {
     topN: "Top", ofTotal: "du cumul brûlé de toutes les communes", lFires: "Feux actifs", lRegions: "Régions",
     fireAge: "Ancienneté des feux", fireDetected: "Détection satellite", fireUnit: "feux", fireErr: "Feux actifs indisponibles",
     lLabels: "Noms des communes", fullYear: "Année entière", ofMonth: "du mois de", ofYear: "de l'année",
+    scaleAbs: "Échelle fixe (comparable)", scaleRel: "Échelle adaptée à l'AP", severity: "Gravité", sevLow: "faible", sevHigh: "forte",
     refresh: "Actualiser", noFire: "Aucun feu actif détecté dans cette zone.", noBase: "Base de feux introuvable : vérifiez les chemins dans DATA.",
     months: { Jan: "Jan", Feb: "Fév", Mar: "Mar", Apr: "Avr", May: "Mai", Jun: "Juin", Jul: "Juil", Aug: "Août", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Déc" },
   },
@@ -68,6 +69,7 @@ const txt: any = {
     topN: "Top", ofTotal: "amin'ny fitambaran'ny velaran-tany may amin'ny kaominina rehetra", lFires: "Doro mavitrika", lRegions: "Faritra",
     fireAge: "Faha-taonan'ny doro", fireDetected: "Fanamarihana avy amin'ny zanabolana", fireUnit: "doro", fireErr: "Tsy azo ny doro mavitrika",
     lLabels: "Anaran'ny kaominina", fullYear: "Taona manontolo", ofMonth: "tamin'ny volana", ofYear: "tamin'ny taona",
+    scaleAbs: "Refy raikitra (azo ampitahaina)", scaleRel: "Refy mifanaraka amin'ny AP", severity: "Hamafin'ny doro", sevLow: "kely", sevHigh: "avo",
     refresh: "Havaozina", noFire: "Tsy misy doro mavitrika hita amin'ity faritra ity.", noBase: "Tsy hita ny angona doro: jereo ny lalana ao amin'ny DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "Mey", Jun: "Jon", Jul: "Jol", Aug: "Aog", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Des" },
   },
@@ -97,6 +99,7 @@ const txt: any = {
     topN: "Top", ofTotal: "of the burned total of all communes", lFires: "Active fires", lRegions: "Regions",
     fireAge: "Fire age", fireDetected: "Satellite detection", fireUnit: "fires", fireErr: "Active fires unavailable",
     lLabels: "Commune names", fullYear: "Full year", ofMonth: "for", ofYear: "for",
+    scaleAbs: "Fixed scale (comparable)", scaleRel: "Scale adapted to the PA", severity: "Severity", sevLow: "low", sevHigh: "high",
     refresh: "Refresh", noFire: "No active fire detected in this area.", noBase: "Fire database not found: check the paths in DATA.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "May", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Dec" },
   },
@@ -126,6 +129,7 @@ const txt: any = {
     topN: "Top", ofTotal: "der verbrannten Gesamtfläche aller Gemeinden", lFires: "Aktive Brände", lRegions: "Regionen",
     fireAge: "Alter der Brände", fireDetected: "Satellitenerkennung", fireUnit: "Brände", fireErr: "Aktive Brände nicht verfügbar",
     lLabels: "Gemeindenamen", fullYear: "Ganzes Jahr", ofMonth: "im Monat", ofYear: "im Jahr",
+    scaleAbs: "Feste Skala (vergleichbar)", scaleRel: "An das Schutzgebiet angepasste Skala", severity: "Schweregrad", sevLow: "gering", sevHigh: "hoch",
     refresh: "Aktualisieren", noFire: "Kein aktiver Brand in diesem Gebiet erkannt.", noBase: "Brand-Datenbank nicht gefunden: Pfade in DATA prüfen.",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mär", Apr: "Apr", May: "Mai", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Dez" },
   },
@@ -158,10 +162,32 @@ const FONDS: Record<string, { url: string; attr: string }> = {
   satellite: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "Tiles © Esri" },
   osm: { url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", attr: "© OpenStreetMap" },
 };
-// Échelles de couleur en HECTARES brûlés par commune : [seuil minimum (ha), couleur]
-// À ajuster selon l'ordre de grandeur réel de vos données.
-const SCALE_Y: [number, string][] = [[2000, "#991b1b"], [1000, "#ef4444"], [500, "#f97316"], [100, "#facc15"], [0, "#dcfce7"]]; // année entière
-const SCALE_M: [number, string][] = [[500, "#991b1b"], [200, "#ef4444"], [100, "#f97316"], [20, "#facc15"], [0, "#dcfce7"]]; // un seul mois
+
+/* ---- Échelles de gravité (hectares brûlés par commune) : [seuil minimum (ha), couleur] ----
+   Calibrées sur Bases_Feux.geojson (723 commune-années, 2020-2026) :
+   - année entière : médiane ≈ 740 ha, P75 ≈ 2 500, P90 ≈ 5 700, P95 ≈ 8 600, max ≈ 42 000
+   - un mois (valeurs > 0) : médiane ≈ 23 ha, P75 ≈ 165, P90 ≈ 550, P95 ≈ 1 100, max ≈ 18 800
+   Les 6 classes répartissent les communes de façon lisible : ~4 % / 8 % / 13 % / 20 % / 31 % / 25 % (année). */
+const SEV_COLORS = ["#7f1d1d", "#b91c1c", "#ef4444", "#f97316", "#facc15", "#bbf7d0"]; // du plus grave au plus faible
+const SCALE_Y: [number, string][] = [[10000, SEV_COLORS[0]], [5000, SEV_COLORS[1]], [2500, SEV_COLORS[2]], [1000, SEV_COLORS[3]], [250, SEV_COLORS[4]], [0, SEV_COLORS[5]]]; // année entière
+const SCALE_M: [number, string][] = [[1500, SEV_COLORS[0]], [600, SEV_COLORS[1]], [250, SEV_COLORS[2]], [60, SEV_COLORS[3]], [15, SEV_COLORS[4]], [0, SEV_COLORS[5]]]; // un seul mois
+
+// Chiffre « rond » le plus proche (1, 2, 5, 10 × puissance de 10) pour des seuils lisibles
+const niceNum = (v: number) => {
+  if (!(v > 0)) return 0;
+  const p = 10 ** Math.floor(Math.log10(v)), f = v / p;
+  return (f < 1.5 ? 1 : f < 3.5 ? 2 : f < 7.5 ? 5 : 10) * p;
+};
+// Échelle adaptée à l'AP et à la période affichées : seuils aux quartiles/décile des communes brûlées
+const relScaleOf = (vals: number[]): [number, string][] | null => {
+  const pos = vals.filter((v) => v > 0).sort((a, b) => a - b);
+  if (pos.length < 5) return null;
+  const th = Array.from(new Set([0.9, 0.75, 0.5, 0.25].map((q) => niceNum(pos[Math.floor(q * (pos.length - 1))])).filter((v) => v > 0))).sort((a, b) => b - a);
+  if (th.length < 2) return null;
+  const cols = ["#991b1b", "#ef4444", "#f97316", "#facc15"];
+  return [...th.map((m, i) => [m, cols[i]] as [number, string]), [0, SEV_COLORS[5]]];
+};
+
 const colorOf = (ha: number | null, scale: [number, string][]) => (ha == null ? "#cbd5e1" : (scale.find(([m]) => ha >= m) || scale[scale.length - 1])[1]);
 const ageColor = (h: number) => (h <= 24 ? "rgb(200,15,15)" : h <= 48 ? "#f97316" : "#facc15");
 
@@ -331,6 +357,7 @@ const CSS = `
 .fx-lg .fx-lg-scale{flex-direction:column;align-items:flex-start;gap:0;margin-top:0}
 .fx-lg .fx-lg-per{flex-direction:column;align-items:flex-start;justify-content:center;gap:0;margin-top:0;padding-left:9px;border-left:1px solid #e2e8f0;line-height:1.3;color:#475569}
 .fx-lg-per b{color:#b91c1c;font-size:12px;text-transform:capitalize}
+.fx-lg .fx-lg-sev{justify-content:space-between;margin-top:4px;font-size:10px;color:#64748b}
 .fx-zone{background:var(--surface-3);border:1px solid var(--border-soft);border-radius:10px;padding:6px 8px 2px;margin-bottom:8px}
 .fx-zh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
 .fx-zt{display:flex;align-items:center;gap:6px;color:color-mix(in srgb,#1565c0 70%,var(--text));font-size:12px;font-weight:700}
@@ -693,7 +720,15 @@ const Resize = () => {
   return null;
 };
 
-const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, periodLabel, periodParts, monthSel, setMonthSel, monthNames }: any) => {
+// Texte d'une classe de la légende (scale est trié du seuil le plus haut au plus bas)
+const classLabel = (scale: [number, string][], idx: number) => {
+  const m = scale[idx][0], up = idx > 0 ? scale[idx - 1][0] : null;
+  if (up == null) return `≥ ${nHa(m)} ha`;
+  if (idx === scale.length - 1) return `< ${nHa(up)} ha`;
+  return `${nHa(m)} – ${nHa(up)} ha`;
+};
+
+const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err, scale, scaleMode, setScaleMode, periodLabel, periodParts, monthSel, setMonthSel, monthNames }: any) => {
   const [fond, setFond] = useState("topo");
   const [show, setShow] = useState<any>({ fires: true, communes: true, ap: true, periph: true, zones: true, regions: false, labels: true });
   const focus = apZones.length ? [...apZones, ...periph] : regionZone ? [regionZone] : [];
@@ -709,6 +744,9 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
         <select className="fx-sel" aria-label={t.legend} value={monthSel} onChange={(e) => setMonthSel(Number(e.target.value))}>
           <option value={-1}>{t.fullYear}</option>
           {monthNames.map((m: string, i: number) => <option key={i} value={i}>{m}</option>)}
+        </select>
+        <select className="fx-sel" aria-label={t.severity} value={scaleMode} onChange={(e) => setScaleMode(e.target.value)}>
+          <option value="abs">{t.scaleAbs}</option><option value="rel">{t.scaleRel}</option>
         </select>
         <div className="fx-seg" role="group" aria-label="Période">
           {[24, 48, 72].map((h) => <button key={h} className={hours === h ? "on" : ""} onClick={() => setHours(h)}>{h} h</button>)}
@@ -726,7 +764,7 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           <Resize />
           <Focus zones={focus} />
           {show.regions && <Layer zones={regions} cle={regionZone?.nom || "all"} style={(z: Zone) => ({ color: regionZone && z.nom === regionZone.nom ? "#0f766e" : "#475569", weight: regionZone && z.nom === regionZone.nom ? 2.5 : 1, fillColor: "#0f766e", fillOpacity: regionZone && z.nom === regionZone.nom ? 0.12 : 0.03 })} />}
-          {show.communes && <Layer zones={communes} cle={`c${ap}${year}${monthSel}`} tip={tipCommune} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(z.burned, scale), fillOpacity: 0.6 })} />}
+          {show.communes && <Layer zones={communes} cle={`c${ap}${year}${monthSel}${scaleMode}${scale.map((s: any) => s[0]).join("-")}`} tip={tipCommune} style={(z: any) => ({ color: "#fff", weight: 1.2, fillColor: colorOf(z.burned, scale), fillOpacity: 0.7 })} />}
           {show.labels && show.communes && <Labels zones={communes} />}
           {show.periph && <Layer zones={periph} cle={`p${ap}`} style={() => ({ color: "#b45309", weight: 1, dashArray: "4 4", fillColor: "#d97706", fillOpacity: 0.07 })} />}
           {show.zones && <Layer zones={zones} cle={`z${ap}${year}`} style={() => ({ color: "#b91c1c", weight: 1, fillColor: "#ff0000", fillOpacity: 0.7 })} />}
@@ -742,13 +780,15 @@ const FireMap = ({ t, ap, year, communes, zones, apZones, periph, regions, regio
           {show.communes && communes.length > 0 && (
             <div className="fx-lg"><strong>{t.legend}</strong>
               <div className="fx-lg-cols">
+                {/* classes affichées de la plus grave (haut) à la plus faible (bas) */}
                 <div className="fx-lg-scale">
-                  {scale.slice().reverse().map(([m, c]: [number, string], i: number, a: [number, string][]) => (
-                    <div key={c}>
+                  {scale.map(([, c]: [number, string], i: number) => (
+                    <div key={c + i}>
                       <i style={{ background: c }} />
-                      {i === a.length - 1 ? `≥ ${nHa(m)} ha` : i === 0 ? `< ${nHa(a[1][0])} ha` : `${nHa(m)} – ${nHa(a[i + 1][0])} ha`}
+                      {classLabel(scale, i)}
                     </div>
                   ))}
+                  <div className="fx-lg-sev" style={{ width: "100%" }}><span>▲ {t.severity} {t.sevHigh}</span><span>▼ {t.sevLow}</span></div>
                 </div>
                 <div className="fx-lg-per">
                   <span>{periodParts[0]}</span><b>{periodParts[1]}</b>{periodParts[2] && <span>{periodParts[2]}</span>}
@@ -775,6 +815,7 @@ export default function AnalyseFeux() {
   const [hours, setHours] = useState(72);
   const [topN, setTopN] = useState(11);
   const [mapMonth, setMapMonth] = useState((new Date().getMonth() + 11) % 12); // -1 = année entière
+  const [scaleMode, setScaleMode] = useState<"abs" | "rel">("abs"); // échelle de gravité : fixe ou adaptée à l'AP
 
   // Données statistiques + géographiques
   const [baseFeux, baseOk] = useGeo(DATA.feux);
@@ -949,7 +990,12 @@ export default function AnalyseFeux() {
   const monthNames = MOIS_KEYS.map((k, i) => (lang === "mg" ? t.months[k] : new Date(2000, i, 1).toLocaleDateString(({ fr: "fr-FR", en: "en-GB", de: "de-DE" } as any)[lang] || "fr-FR", { month: "long" })));
   const periodLabel = mapMonth < 0 ? `${t.ofYear} ${year}` : `${t.ofMonth} ${monthNames[mapMonth]} ${year}`;
   const periodParts = mapMonth < 0 ? [t.ofYear, String(year), ""] : [t.ofMonth, monthNames[mapMonth], String(year)];
-  const scale = mapMonth < 0 ? SCALE_Y : SCALE_M;
+
+  // Échelle de gravité : fixe (comparable entre AP / années) ou adaptée aux communes affichées
+  const fixedScale = mapMonth < 0 ? SCALE_Y : SCALE_M;
+  const relScale = useMemo(() => relScaleOf(communesMap.map((c: any) => c.burned)), [communesMap]);
+  const scale = scaleMode === "rel" && relScale ? relScale : fixedScale;
+
   const evoColor = (evolution ?? 0) >= 0 ? "#d32f2f" : "#2e7d32";
 
   return (
@@ -1033,7 +1079,8 @@ export default function AnalyseFeux() {
               t={t} ap={ap} year={year} communes={communesMap} zones={zonesBrulees} apZones={apZones} periph={periphSel}
               regions={regionsZ} regionZone={regionZone} fires={fires} hours={hours} setHours={setHours}
               onRefresh={loadFires} err={firesErr}
-              scale={scale} periodLabel={periodLabel} periodParts={periodParts} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
+              scale={scale} scaleMode={scaleMode} setScaleMode={setScaleMode}
+              periodLabel={periodLabel} periodParts={periodParts} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
             />
           </div>
         </>
