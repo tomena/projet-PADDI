@@ -455,6 +455,43 @@ function boitesSeCroisent(a: Bbox, b: Bbox) {
   return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
 }
 
+/* Tampon de 5 km : calcul pur, rien n'est dessiné.
+   Un point est « autour » d'une zone s'il est dedans ou à ≤ 5 km de l'un de ses bords. */
+const TAMPON_KM = 5;
+
+function distSegmentKm(lon: number, lat: number, x1: number, y1: number, x2: number, y2: number) {
+  const kx = Math.cos((lat * Math.PI) / 180) * 111.32; // km par degré de longitude
+  const ky = 110.574; // km par degré de latitude
+  const ax = (x1 - lon) * kx, ay = (y1 - lat) * ky;
+  const bx = (x2 - lon) * kx, by = (y2 - lat) * ky;
+  const dx = bx - ax, dy = by - ay;
+  const l2 = dx * dx + dy * dy;
+  const u = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
+  return Math.hypot(ax + u * dx, ay + u * dy);
+}
+
+function dansTampon(lon: number, lat: number, z: Zone, km = TAMPON_KM) {
+  // 1. boîte englobante agrandie de 5 km (rejet rapide)
+  const dLat = km / 110.574;
+  const dLon = km / (111.32 * Math.max(0.2, Math.cos((lat * Math.PI) / 180)));
+  const b = z.bbox;
+  if (lon < b[0] - dLon || lon > b[2] + dLon || lat < b[1] - dLat || lat > b[3] + dLat) return false;
+  // 2. à l'intérieur de l'aire protégée
+  if (dansZone(lon, lat, z)) return true;
+  // 3. distance au contour
+  const g = z.feature.geometry;
+  const polys: number[][][][] =
+    g?.type === 'Polygon' ? [g.coordinates] : g?.type === 'MultiPolygon' ? g.coordinates : [];
+  for (const poly of polys) {
+    for (const anneau of poly) {
+      for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
+        if (distSegmentKm(lon, lat, anneau[j][0], anneau[j][1], anneau[i][0], anneau[i][1]) <= km) return true;
+      }
+    }
+  }
+  return false;
+}
+
 // Une zone (aire protégée, périphérie) appartient à une région si l'un de ses
 // sommets (ou le centre de sa boîte) tombe dans la région.
 function zoneDansRegion(z: Zone, region: Zone) {
@@ -902,14 +939,12 @@ export default function Pression() {
   const regionsData = useGeoJSON('/data/madagascar_24_region.geojson');
   const apData = useGeoJSON('/data/ap_terrestre_madagascar.geojson');
   const communesData = useGeoJSON('/data/madagascar_communes.json');
-  const periphData = useGeoJSON('/data/peripherie_5km_paddi.geojson');
   const paysageData = useGeoJSON('/data/paddi_paysage.geojson');
   const mbvData = useGeoJSON('/data/paddi_mbv.geojson');
   const erosionEtat = useGeoJSONEtat(FICHIER_EROSION, showErosion); // chargé seulement pour ce thème
 
   const regionsZ = useMemo(() => preparerZones(regionsData, 'nom_reg', t.defRegion), [regionsData, t.defRegion]);
   const apZ = useMemo(() => preparerZones(apData, 'SHORT_NAME', t.defAP), [apData, t.defAP]);
-  const periphZ = useMemo(() => preparerZones(periphData, 'SHORT_NAME', ''), [periphData]);
   const communesZ = useMemo(
     () => preparerZones(communesData, 'NAME_4', t.defCommune),
     [communesData, t.defCommune]
@@ -999,34 +1034,17 @@ export default function Pression() {
       return regionAP ? regionAP === regionChoisie : zoneDansRegion(z, regionZone);
     });
   }, [apZ, regionZone]);
-  const periphVisibles = useMemo(
-    () => (regionZone ? periphZ.filter((z) => zoneDansRegion(z, regionZone)) : periphZ),
-    [periphZ, regionZone]
-  );
 
   // 3. aire protégée
   const apZone = useMemo(
     () => (ap === TOUS ? null : apsVisibles.find((z) => z.nom === ap) || null),
     [ap, apsVisibles]
   );
-  const periphSel = useMemo(() => {
-    if (!apZone) return periphVisibles;
-    const parNom = periphVisibles.filter((p) => p.nom && p.nom === apZone.nom);
-    return parNom.length
-      ? parNom
-      : periphVisibles.filter((p) => boitesSeCroisent(p.bbox, apZone.bbox));
-  }, [apZone, periphVisibles]);
 
   const feuxZone = useMemo(
-    () =>
-      apZone
-        ? feuxRegion.filter(
-            (f) =>
-              dansZone(f.lon, f.lat, apZone) || periphSel.some((p) => dansZone(f.lon, f.lat, p))
-          )
-        : feuxRegion,
-    [feuxRegion, apZone, periphSel]
-  );
+  () => (apZone ? feuxRegion.filter((f) => dansTampon(f.lon, f.lat, apZone)) : feuxRegion),
+  [feuxRegion, apZone]
+);
 
   // Micro-bassins et paysages : affichés seulement quand une aire protégée est choisie.
   // Micro-bassins = ceux dont le champ "Aire_Prot" correspond à l'aire protégée
@@ -1077,10 +1095,10 @@ export default function Pression() {
   const stats48 = feuxZone.filter((f) => f.age <= 48).length;
   const stats72 = feuxZone.length;
 
-  const feuxPeriph = useMemo(
-    () => feuxAffiches.filter((f) => periphSel.some((p) => dansZone(f.lon, f.lat, p))),
-    [feuxAffiches, periphSel]
-  );
+  const feuxPeriph = useMemo(() => {
+  const cibles = apZone ? [apZone] : apsVisibles;
+  return feuxAffiches.filter((f) => cibles.some((z) => dansTampon(f.lon, f.lat, z)));
+}, [feuxAffiches, apZone, apsVisibles]);
 
   const topCommunes = useMemo(() => {
     if (!communesZ.length || !feuxAffiches.length) return [];
@@ -1371,13 +1389,6 @@ export default function Pression() {
       fillOpacity: sel ? 0.36 : 0.2,
     };
   };
-  const stylePeriph = (): L.PathOptions => ({
-    color: '#b45309',
-    weight: 1,
-    dashArray: '4 4',
-    fillColor: '#d97706',
-    fillOpacity: 0.07,
-  });
 
   const stylePaysage = (): L.PathOptions => ({
     color: '#6d28d9',
@@ -1463,101 +1474,89 @@ export default function Pression() {
 
         <div className="pr-filtres">
           {/* Colonne de gauche : une ligne par thème (une seule case cochée à la fois) */}
-          <div className="pr-fgroupe pr-fgauche">
-            <label className={`pr-chk ${showFeux ? 'on' : ''}`}>
-              <input type="checkbox" checked={showFeux} onChange={() => choisirTheme('feux')} />
-              {t.firePoints}
-            </label>
-            <div className="pr-fctl">
-              {showFeux && (
-                <div className="pr-inl">
-                  <span>{t.period}</span>
-                  <div className="pr-seg" role="group" aria-label={t.firePeriodAria}>
-                    {([24, 48, 72] as const).map((h) => (
-                      <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
-                        {h} h
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="pr-inl">
-                <span>{t.reliability}</span>
-                <select
-                  value={confiance}
-                  disabled={!showFeux && !showPerte}
-                  onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}
-                >
-                  <option value="l">{t.confAll}</option>
-                  <option value="n">{t.confNominal}</option>
-                  <option value="h">{t.confHigh}</option>
-                </select>
-              </div>
-            </div>
-
-            <label className={`pr-chk perte ${showPerte ? 'on' : ''}`}>
-              <input type="checkbox" checked={showPerte} onChange={() => choisirTheme('perte')} />
-              {t.lossLayer}
-            </label>
-            <div className="pr-fctl">
-              {showPerte && (
-                <>
-                  <div className="pr-inl">
-                    <span>{t.alerts}</span>
-                    <div className="pr-seg" role="group" aria-label={t.alertsAria}>
-                      {([7, 30, 90] as const).map((j) => (
-                        <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
-                          {j} {lang === 'mg' ? 'andro' : lang === 'en' ? 'd' : lang === 'de' ? 'T.' : 'j'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="pr-inl">
-                    <span>{t.years}</span>
-                    <div className="pr-annees">
-                      <select
-                        aria-label={t.yearFrom}
-                        value={anneeDebut}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          setAnneeDebut(v);
-                          if (v > anneeFin) setAnneeFin(v);
-                        }}
-                      >
-                        {ANNEES.map((a) => (
-                          <option key={a} value={a}>
-                            {a}
-                          </option>
-                        ))}
-                      </select>
-                      <span>{t.to}</span>
-                      <select
-                        aria-label={t.yearTo}
-                        value={anneeFin}
-                        onChange={(e) => {
-                          const v = Number(e.target.value);
-                          setAnneeFin(v);
-                          if (v < anneeDebut) setAnneeDebut(v);
-                        }}
-                      >
-                        {ANNEES.map((a) => (
-                          <option key={a} value={a}>
-                            {a}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            <label className={`pr-chk erosion ${showErosion ? 'on' : ''}`}>
-              <input type="checkbox" checked={showErosion} onChange={() => choisirTheme('erosion')} />
-              {t.erosionLayer}
-            </label>
-            <div className="pr-fctl" />
-          </div>
+         <div className="pr-fgroupe pr-fgauche">
+           <label className="pr-champ">
+             <span>{t.theme}</span>
+             <select
+               value={theme ?? ''}
+               onChange={(e) => setTheme((e.target.value || null) as Theme)}
+             >
+               <option value="">{t.noLayerTitle}</option>
+               <option value="feux">{t.firePoints}</option>
+               <option value="perte">{t.lossLayer}</option>
+               <option value="erosion">{t.erosionLayer}</option>
+             </select>
+           </label>
+         
+           <div className="pr-fctl">
+             {showFeux && (
+               <div className="pr-inl">
+                 <span>{t.period}</span>
+                 <div className="pr-seg" role="group" aria-label={t.firePeriodAria}>
+                   {([24, 48, 72] as const).map((h) => (
+                     <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
+                       {h} h
+                     </button>
+                   ))}
+                 </div>
+               </div>
+             )}
+         
+             {(showFeux || showPerte) && (
+               <div className="pr-inl">
+                 <span>{t.reliability}</span>
+                 <select value={confiance} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
+                   <option value="l">{t.confAll}</option>
+                   <option value="n">{t.confNominal}</option>
+                   <option value="h">{t.confHigh}</option>
+                 </select>
+               </div>
+             )}
+         
+             {showPerte && (
+               <>
+                 <div className="pr-inl">
+                   <span>{t.alerts}</span>
+                   <div className="pr-seg" role="group" aria-label={t.alertsAria}>
+                     {([7, 30, 90] as const).map((j) => (
+                       <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
+                         {j} {lang === 'mg' ? 'andro' : lang === 'en' ? 'd' : lang === 'de' ? 'T.' : 'j'}
+                       </button>
+                     ))}
+                   </div>
+                 </div>
+                 <div className="pr-inl">
+                   <span>{t.years}</span>
+                   <div className="pr-annees">
+                     <select
+                       aria-label={t.yearFrom}
+                       value={anneeDebut}
+                       onChange={(e) => {
+                         const v = Number(e.target.value);
+                         setAnneeDebut(v);
+                         if (v > anneeFin) setAnneeFin(v);
+                       }}
+                     >
+                       {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+                     </select>
+                     <span>{t.to}</span>
+                     <select
+                       aria-label={t.yearTo}
+                       value={anneeFin}
+                       onChange={(e) => {
+                         const v = Number(e.target.value);
+                         setAnneeFin(v);
+                         if (v < anneeDebut) setAnneeDebut(v);
+                       }}
+                     >
+                       {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
+                     </select>
+                   </div>
+                 </div>
+               </>
+             )}
+           </div>
+         </div>
 
           {/* Colonne de droite : filtres géographiques */}
           <div className="pr-fdroite">
@@ -1862,7 +1861,7 @@ export default function Pression() {
             )}
             {couches.paysages && <CoucheZones zones={paysagesVisibles} style={stylePaysage} cle="paysages" />}
             {couches.mbv && <CoucheZones zones={mbvVisibles} style={styleMbv} cle="mbv" />}
-            {couches.peripheries && <CoucheZones zones={periphSel} style={stylePeriph} cle="p" />}
+             
             {couches.aires && (
               <CoucheZones
                 zones={apsVisibles}
@@ -2116,7 +2115,9 @@ const CSS = `
 .pr-filtres{display:flex;gap:10px 32px;align-items:flex-start;flex-wrap:wrap;margin-top:12px}
 /* Deux groupes à lignes alignées : [thème + ses réglages] | [filtres] */
 .pr-fgroupe{display:grid;grid-auto-rows:36px;gap:8px 14px;align-items:center}
-.pr-fgauche{grid-template-columns:max-content max-content}
+.pr-fgauche{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px}
+.pr-fgauche .pr-fctl{height:36px}
+.pr-fgauche .pr-champ select{min-width:220px;max-width:280px}
 .pr-fdroite{display:flex;align-items:flex-end;gap:12px;margin-left:auto}
 .pr-fdroite select{height:36px;padding:0 10px}
 .pr-fdroite .pr-reset{height:36px}
