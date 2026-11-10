@@ -8,6 +8,8 @@ interface UpdateActivitesModalProps {
   userName?: string;
   // jeton de session signé par le serveur (même connexion que pour les coûts)
   token: string;
+  // appelée après un enregistrement réussi (la page recharge alors ses données)
+  onUpdateSuccess?: () => void | Promise<void>;
 }
 
 /* =========================================================
@@ -396,6 +398,7 @@ export default function UpdateActivitesModal({
   onClose,
   userName,
   token,
+  onUpdateSuccess,
 }: UpdateActivitesModalProps) {
   const [group, setGroup] = useState<Group>("taux");
   const [tab, setTab] = useState<Record<Group, string>>({
@@ -524,6 +527,7 @@ export default function UpdateActivitesModal({
       }
 
       alert("Toutes les données ont été enregistrées avec succès dans GitHub.");
+      await onUpdateSuccess?.();
       onClose();
     } catch (error) {
       console.error("Erreur d’enregistrement :", error);
