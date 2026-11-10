@@ -116,15 +116,16 @@ const areaKm2 = (f: Feat) => {
   };
   return polys(f).reduce((t, p) => t + ring(p[0]) - p.slice(1).reduce((h, r) => h + ring(r), 0), 0);
 };
+const lisible = (x: unknown): x is string => typeof x === "string" && x.trim() !== "" && !/^[\d\s.\-]*$/.test(x.trim());
 const nameOf = (f: Feat) => {
   const p = f.properties || {};
   const keys = Object.keys(p);
   for (const k of NOM_CLES) {
     const real = keys.find((x) => x.toLowerCase() === k);
-    if (real && typeof p[real] === "string" && p[real].trim()) return p[real].trim() as string;
+    if (real && lisible(p[real])) return p[real].trim();
   }
-  const v = Object.values(p).find((x) => typeof x === "string" && (x as string).trim());
-  return (v as string) || "Sans nom";
+  const v = Object.values(p).find(lisible);
+  return v ? v.trim() : "Sans nom";
 };
 const nf = (n: number, d = 0) => n.toLocaleString("fr-FR", { maximumFractionDigits: d });
 const fmtArea = (km2: number) => (km2 < 10 ? `${nf(km2 * 100, km2 < 0.1 ? 2 : 1)} ha` : `${nf(km2)} km²`);
@@ -170,6 +171,7 @@ function loadLevel(l: Level): Promise<Feat[]> {
     fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((j) => {
       const feats: Feat[] = (j?.features ?? []).filter((f: Feat) => f?.geometry && /Polygon/.test(f.geometry.type));
       if (!feats.length) throw new Error("vide");
+      console.info(`Limites ${l} : ${feats.length} entités, exemple de propriétés`, feats[0].properties);
       return feats;
     }));
   return new Promise((ok, ko) => {
@@ -395,6 +397,7 @@ function orientations(r: Result, x: Extra, periode: string) {
 /* ===================== COMPOSANT ===================== */
 
 const ROWS = ["Région", "District", "Commune", "Parcelle"];
+const VERSION = "5 cartes, limites en ligne";
 
 export default function AnalyseTerritoriale() {
   const elMap = useRef<HTMLDivElement>(null);
@@ -514,7 +517,10 @@ export default function AnalyseTerritoriale() {
   const reset = () => { onRegion(""); cancelDraw(); };
 
   /* ----- chargement des limites ----- */
-  useEffect(() => { loadLevel("ADM1").then(setRegs).catch((e) => setLoadErr(e.message)); }, []);
+  useEffect(() => { loadLevel("ADM1").then((r) => {
+    setRegs(r);
+    if (r.length < 15 || r.length > 30) setLoadErr(`Attention : ${r.length} entités chargées au niveau 1 au lieu d'environ 22 régions. Les limites en ligne ne correspondent peut-être pas aux régions.`);
+  }).catch((e) => setLoadErr(e.message)); }, []);
   useEffect(() => { if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message)); }, [rF, adm2]);
   useEffect(() => { if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message)); }, [dF, adm3]);
   useEffect(() => { setShow(false); }, [selected]);
@@ -651,7 +657,7 @@ export default function AnalyseTerritoriale() {
       <header className="at-head">
         <div>
           <h1>Analyse territoriale</h1>
-          <p>Occupation du sol, déforestation, relief, feux et orientations pour restaurer</p>
+          <p>Occupation du sol, déforestation, relief, feux et orientations pour restaurer · version : {VERSION}</p>
         </div>
         <div className="at-chain">
           <select value={ri} onChange={(e) => onRegion(e.target.value)} aria-label="Région">
