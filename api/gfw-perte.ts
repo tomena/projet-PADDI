@@ -2,13 +2,15 @@
 // api/gfw-perte.ts — Fonction serverless Vercel
 // Superficie de perte de couvert arboré par année (UMD/Hansen via Global Forest Watch).
 // Appels :
-//   /api/gfw-perte?type=all
-//   /api/gfw-perte?type=region&nom=Analamanga
-//   /api/gfw-perte?type=ap&nom=Nom de l'aire protégée
-//   /api/gfw-perte?type=paysage&nom=...
-//   /api/gfw-perte?type=mbv&nom=...
-//   /api/gfw-perte?type=communes&nom=Nom de l'aire protégée   ← NOUVEAU : toutes les communes riveraines
-// Option : &debut=2001 pour changer la première année (défaut 2020 ; 2001 pour « communes »).
+//   GET  /api/gfw-perte?type=all
+//   GET  /api/gfw-perte?type=region&nom=Analamanga
+//   GET  /api/gfw-perte?type=ap&nom=Nom de l'aire protégée
+//   GET  /api/gfw-perte?type=paysage&nom=...
+//   GET  /api/gfw-perte?type=mbv&nom=...
+//   GET  /api/gfw-perte?type=communes&nom=Nom de l'aire protégée   (toutes les communes riveraines)
+//   POST /api/gfw-perte   corps { "geometry": Polygon | MultiPolygon }   ← NOUVEAU : n'importe quel polygone
+//                         (page « Analyse territoriale » : région, district, commune, parcelle tracée)
+// Option : &debut=2001 pour changer la première année (défaut 2020 ; 2001 pour « communes » et POST).
 // Ajouter &debug=1 pour voir la requête SQL et la réponse brute de GFW.
 
 const API = 'https://data-api.globalforestwatch.org';
@@ -26,7 +28,7 @@ const FICHIER_BASE = 'Bases_Deforestation.geojson'; // champs : AP, Source, Comm
 const FICHIER_COMMUNES = 'madagascar_communes.json'; // champ : NAME_4
 const CLE_COMMUNE_GEO = 'NAME_4';
 
-// Vercel : durée maximale (le type « communes » fait une requête GFW par commune)
+// Vercel : durée maximale (le type « communes » et les grandes régions demandent du temps)
 export const config = { maxDuration: 60 };
 
 const MADAGASCAR = {
@@ -178,49 +180,19 @@ function versAnnees(brut: any) {
     .sort((a, b) => a.annee - b.annee);
 }
 
-const URL_QUERY = "https://data-api.globalforestwatch.org/dataset/umd_tree_cover_loss/latest/query/json";
-
-async function interroger(sql: string, geometry: unknown, key: string) {
-  const r = await fetch(URL_QUERY, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": key },
-    body: JSON.stringify({ sql, geometry }),
-  });
-  if (!r.ok) throw new Error(`GFW ${r.status}`);
-  return r.json();
-}
-
-// Perte annuelle de couvert arboré dans un polygone quelconque (POST)
-async function perteParPolygone(req: VercelRequest, res: VercelResponse) {
-  const key = process.env.GFW_API_KEY; // mettez ici le nom de variable que ce fichier utilise déjà
-  if (!key) return res.status(500).json({ error: "Clé GFW manquante côté serveur" });
-
+/* ---------- POST : perte annuelle dans un polygone quelconque ---------- */
+async function perteParPolygone(req: any, res: any, cle: string) {
   const geometry = req.body?.geometry;
-  if (!geometry || !["Polygon", "MultiPolygon"].includes(geometry.type)) {
-    return res.status(400).json({ error: "geometry (Polygon ou MultiPolygon) requise" });
+  if (!geometry || !['Polygon', 'MultiPolygon'].includes(geometry.type)) {
+    return res.status(400).json({ erreur: 'geometry (Polygon ou MultiPolygon) requise' });
   }
-
-  const tcd = Number(process.env.GFW_TCD ?? 30);
-  const base = "SELECT umd_tree_cover_loss__year, SUM(area__ha) AS ha FROM data WHERE umd_tree_cover_loss__year > 0";
-  const groupe = " GROUP BY umd_tree_cover_loss__year";
+  const hote = (req.headers['x-forwarded-host'] || req.headers.host) as string;
   try {
-    let json: any;
-    try {
-      json = await interroger(`${base} AND umd_tree_cover_density_2000__threshold >= ${tcd}${groupe}`, geometry, key);
-    } catch {
-      json = await interroger(`${base}${groupe}`, geometry, key);
-    }
-    const annees = (json?.data ?? [])
-      .map((row: any) => {
-        const annee = Number(row.umd_tree_cover_loss__year);
-        const ha = Number(row.ha ?? row.area__ha);
-        return { annee, ha: Number.isFinite(ha) ? ha : 0 };
-      })
-      .filter((a: { annee: number }) => a.annee >= 2001)
-      .sort((a: { annee: number }, b: { annee: number }) => a.annee - b.annee);
-    return res.status(200).json({ annees });
+    const r = await requeteGfw(simplifier(geometry), ANNEE_DEBUT_COMMUNES, cle, hote);
+    if (!r.ok) return res.status(502).json({ erreur: `GFW ${r.statut}` });
+    return res.status(200).json({ annees: versAnnees(r.brut) });
   } catch (e: any) {
-    return res.status(502).json({ error: e?.message || "GFW indisponible" });
+    return res.status(502).json({ erreur: e?.message || 'GFW indisponible' });
   }
 }
 
@@ -228,14 +200,15 @@ export default async function handler(req: any, res: any) {
   try {
     const cle = process.env.GFW_API_KEY;
     if (!cle) return res.status(500).json({ erreur: 'Variable GFW_API_KEY manquante sur Vercel.' });
-    if (req.method === "POST") return perteParPolygone(req, res);
+
+    if (req.method === 'POST') return perteParPolygone(req, res, cle);
 
     const type = String(req.query.type || 'all');
     const nom = String(req.query.nom || '');
     const hote = (req.headers['x-forwarded-host'] || req.headers.host) as string;
     const debutDemande = Number(req.query.debut);
 
-    /* ======== NOUVEAU : toutes les communes riveraines d'une aire protégée ======== */
+    /* ======== Toutes les communes riveraines d'une aire protégée ======== */
     if (type === 'communes') {
       if (!nom) return res.status(400).json({ erreur: 'Paramètre nom (aire protégée) manquant.' });
       const debut = Number.isFinite(debutDemande) && debutDemande >= 2001 ? debutDemande : ANNEE_DEBUT_COMMUNES;
