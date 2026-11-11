@@ -14,7 +14,7 @@
  *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m
  *  - Perte de couvert : tuiles Global Forest Watch (carte) + POST /api/gfw-perte (chiffres, clé côté serveur)
  *  - Points de feux : GET /api/firms (NASA FIRMS, la même route que votre page « Zones de pression »)
- *  - Altitude / pluie : Open-Meteo. Bassins versants : BASSINS_GEOJSON_URL (à fournir).
+ *  - Altitude / pluie : Open-Meteo (pluie = moyenne annuelle sur RAIN_YEARS ans). Bassins versants : BASSINS_GEOJSON_URL (à fournir).
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
@@ -32,6 +32,9 @@ const BASSINS_GEOJSON_URL = ""; // ex. "/data/bassins_versants.geojson"
 const LC_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 const LOSS_FIRST = 2001, LOSS_LAST = 2025; // période de la perte de couvert arboré (GFW)
 const LOSS_YEARS = Array.from({ length: LOSS_LAST - LOSS_FIRST + 1 }, (_, i) => LOSS_FIRST + i);
+const RAIN_YEARS = 5; // nombre d'années pour la pluie moyenne (modifiable : 10, etc.)
+const RAIN_LAST = 2025; // dernière année complète
+const RAIN_FIRST = RAIN_LAST - RAIN_YEARS + 1; // 2021
 const FONDS = {
   sat: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   topo: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
@@ -182,6 +185,29 @@ function loadLevel(l: Level): Promise<Feat[]> {
   });
 }
 
+/* ===================== PLUIE MOYENNE (Open-Meteo, RAIN_YEARS ans) ===================== */
+
+const RAIN_CACHE = new Map<string, number>();
+
+/** Moyenne annuelle des précipitations (mm/an) sur RAIN_FIRST–RAIN_LAST, au centre de la zone. */
+async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Promise<number | null> {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const hit = RAIN_CACHE.get(key);
+  if (hit != null) return hit;
+  try {
+    const r = await (await fetch(
+      `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${RAIN_FIRST}-01-01&end_date=${RAIN_LAST}-12-31&daily=precipitation_sum&timezone=auto`,
+      { signal })).json();
+    const jours: (number | null)[] = r.daily.precipitation_sum;
+    const total = jours.reduce<number>((s, v) => s + (v || 0), 0);
+    const val = Math.round(total / RAIN_YEARS);
+    RAIN_CACHE.set(key, val);
+    return val;
+  } catch {
+    return null; // facultatif
+  }
+}
+
 /* ===================== ANALYSE : OCCUPATION DU SOL ET RELIEF ===================== */
 
 type Part = { n: string; pct: number; col: string };
@@ -256,18 +282,14 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const inside = z.filter((_, k) => inFeat(lons[k], lats[k], f));
   const zs = small || !inside.length ? z : inside;
 
-  let rain: number | null = null;
-  try {
-    const [cLon, cLat] = center(f);
-    const r = await (await fetch(`https://archive-api.open-meteo.com/v1/archive?latitude=${cLat}&longitude=${cLon}&start_date=2023-01-01&end_date=2023-12-31&daily=precipitation_sum&timezone=auto`, { signal })).json();
-    rain = Math.round(r.daily.precipitation_sum.reduce((s: number, v: number) => s + (v || 0), 0));
-  } catch { /* facultatif */ }
+  // pluie : moyenne annuelle sur RAIN_YEARS ans (une seule requête, mise en cache)
+  const [cLon, cLat] = center(f);
+  const rain = await moyennePluie(cLon, cLat, signal);
 
   let bassin: string | null = null;
   if (BASSINS_GEOJSON_URL) {
     try {
       const g = await (await fetch(BASSINS_GEOJSON_URL, { signal })).json();
-      const [cLon, cLat] = center(f);
       const hit = g.features.find((x: Feat) => inFeat(cLon, cLat, x));
       bassin = hit ? nameOf(hit) : "Hors bassin référencé";
     } catch { bassin = null; }
@@ -431,7 +453,7 @@ function orientations(r: Result, x: Extra, periode: string): Orient[] {
 
   if (r.rain != null && r.rain < 800 && r.treePct < 15)
     add("Restauration", "moyenne", "Restaurer en zone sèche",
-      `Seulement ${nf(r.rain)} mm de pluie par an pour ${nf(r.treePct)} % de couvert arboré : les plantations classiques risquent d'échouer.`,
+      `Seulement ${nf(r.rain)} mm de pluie par an en moyenne pour ${nf(r.treePct)} % de couvert arboré : les plantations classiques risquent d'échouer.`,
       ["Choisir des espèces adaptées à la sécheresse", "Capter l'eau au pied des plants (demi-lunes, paillage)", "Planter au début de la saison des pluies"]);
 
   /* ---------- CONSERVATION ---------- */
@@ -452,7 +474,7 @@ function orientations(r: Result, x: Extra, periode: string): Orient[] {
   /* ---------- AGRICULTURE ---------- */
   if (r.cropSteep > 30 && (rain ?? 0) > 1000)
     add("Agriculture", "haute", "Lutte antiérosive sur les cultures de pente",
-      `${nf(r.cropSteep)} % des cultures échantillonnées sont sur pente de 15 % ou plus, avec ${nf(rain!)} mm de pluie par an : risque élevé de ravinement et de lavaka.`,
+      `${nf(r.cropSteep)} % des cultures échantillonnées sont sur pente de 15 % ou plus, avec ${nf(rain!)} mm de pluie par an en moyenne : risque élevé de ravinement et de lavaka.`,
       ["Agroforesterie, cordons de pierres et bandes enherbées", "Terrasses et cultures suivant les courbes de niveau", "Haies de vétiver pour freiner le ruissellement"]);
   else if (r.cropSteep > 30)
     add("Agriculture", "moyenne", "Cultures sur pente à sécuriser",
@@ -471,7 +493,7 @@ function orientations(r: Result, x: Extra, periode: string): Orient[] {
 
   if (rain != null && rain < 900 && r.cropPct > 10)
     add("Agriculture", "moyenne", "Cultiver avec peu d'eau",
-      `${nf(rain)} mm de pluie en 2023 : l'eau limite les rendements et expose les cultures aux aléas.`,
+      `${nf(rain)} mm de pluie par an en moyenne (${RAIN_FIRST}-${RAIN_LAST}) : l'eau limite les rendements et expose les cultures aux aléas.`,
       ["Choisir des cultures tolérantes à la sécheresse (manioc, sorgho, niébé)", "Récolter l'eau de pluie et pailler le sol", "Caler les semis sur le début réel de la saison des pluies"]);
 
   if (r.savPct > 40)
@@ -502,7 +524,7 @@ function orientations(r: Result, x: Extra, periode: string): Orient[] {
 
   if (r.steepPct > 25 && (rain ?? 0) > 1200)
     add("Eau et sols", "moyenne", "Protéger les têtes de bassin versant",
-      `Pentes fortes et ${nf(rain!)} mm de pluie par an : la végétation des hauts de versant régule l'eau pour tout l'aval${r.bassin ? " (bassin : " + r.bassin + ")" : ""}.`,
+      `Pentes fortes et ${nf(rain!)} mm de pluie par an en moyenne : la végétation des hauts de versant régule l'eau pour tout l'aval${r.bassin ? " (bassin : " + r.bassin + ")" : ""}.`,
       ["Maintenir ou rétablir un couvert permanent sur les hauts de versant", "Boiser une bande protectrice le long des sources et des cours d'eau"]);
 
   /* ---------- FEUX ---------- */
@@ -875,7 +897,7 @@ export default function AnalyseTerritoriale() {
                 <dl className="at-facts">
                   <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
                   <div><dd>{res ? nf(res.elevMean) : "…"}</dd><dt>m d’altitude moyenne</dt></div>
-                  <div><dd>{res ? (res.rain ? nf(res.rain) : "n/d") : "…"}</dd><dt>mm de pluie en 2023</dt></div>
+                  <div><dd>{res ? (res.rain ? nf(res.rain) : "n/d") : "…"}</dd><dt>mm de pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</dt></div>
                 </dl>
                 {res && <p className="at-note">Bassin versant : {res.bassin ?? "source non renseignée"}</p>}
                 {current.err && <p className="at-alert" role="alert">{current.err}</p>}
@@ -1086,7 +1108,7 @@ export default function AnalyseTerritoriale() {
                 <div className="at-kpi"><b>{nf(res.steepPct)} %</b><span>pente de 15 % ou plus</span></div>
                 <div className="at-kpi"><b>{lossStats ? `${nf(Math.round(lossStats.total))} ha` : "n/d"}</b><span>perdus, {periodeTxt}</span></div>
                 <div className="at-kpi"><b>{nf(n72)}</b><span>feux en 72 h</span></div>
-                <div className="at-kpi"><b>{res.rain ? `${nf(res.rain)} mm` : "n/d"}</b><span>pluie en 2023</span></div>
+                <div className="at-kpi"><b>{res.rain ? `${nf(res.rain)} mm` : "n/d"}</b><span>pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</span></div>
               </div>
 
               <div className="at-gauge-wrap">
@@ -1115,7 +1137,7 @@ export default function AnalyseTerritoriale() {
                 </article>
               ))}
 
-              <p className="at-note">Estimation indicative issue d’images satellite, de la perte de couvert GFW, des détections de feux et d’un relief à 90 m échantillonné. À valider avec des données locales et les acteurs du territoire avant toute décision.</p>
+              <p className="at-note">Estimation indicative issue d’images satellite, de la perte de couvert GFW, des détections de feux, d’une pluie moyenne sur {RAIN_YEARS} ans et d’un relief à 90 m échantillonné. À valider avec des données locales et les acteurs du territoire avant toute décision.</p>
             </div>
 
             <footer className="at-mf">
