@@ -7,7 +7,7 @@ import {
   LayoutDashboard, BarChart3, Flame, Trees, Users, Globe2, Landmark, MapPinned,
   Library, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Home,
   FolderKanban, Database, Briefcase, DollarSign, Gavel, Wheat, Activity, Store,
-  Wallet, CalendarCheck, LogOut, Menu, X, ShieldAlert, Mountain,
+  Wallet, CalendarCheck, LogOut, Menu, X, ShieldAlert, Mountain,TrendingUp, Calculator,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -42,6 +42,10 @@ const sidebarTxt = {
     annualActivityMonitoring: "Suivi des activités annuelles",
 
     library: "Bibliothèque",
+    economyDiagnostic: "Diagnostic des secteurs",
+    investmentSimulator: "Simulateur d'investissement",
+    territoryDiagnostic: "Diagnostic des territoires",
+    priorityPlanner: "Planificateur de priorités",
 
     fireAnalysis: "Superficie brûlée",
     deforestation: "Déforestation",
@@ -93,6 +97,10 @@ const sidebarTxt = {
     annualActivityMonitoring: "Fanaraha-maso ny asa isan-taona",
 
     library: "Tranomboky",
+    economyDiagnostic: "Fanombanana ny sehatra",
+    investmentSimulator: "Simulatera fampiasam-bola",
+    territoryDiagnostic: "Fanombanana ny faritany",
+    priorityPlanner: "Mpandrafitra laharam-pahamehana",
 
     fireAnalysis: "Faritra may",
     deforestation: "Fandripahana ala",
@@ -144,6 +152,10 @@ const sidebarTxt = {
     annualActivityMonitoring: "Annual Activity Monitoring",
 
     library: "Library",
+    economyDiagnostic: "Sector diagnosis",
+    investmentSimulator: "Investment simulator",
+    territoryDiagnostic: "Territory diagnosis",
+    priorityPlanner: "Priority planner",
 
     fireAnalysis: "Burned Area",
     deforestation: "Deforestation",
@@ -195,6 +207,10 @@ const sidebarTxt = {
     annualActivityMonitoring: "Jährliche Aktivitätsüberwachung",
 
     library: "Bibliothek",
+    economyDiagnostic: "Sektordiagnose",
+    investmentSimulator: "Investitionssimulator",
+    territoryDiagnostic: "Gebietsdiagnose",
+    priorityPlanner: "Prioritätenplaner",
 
     fireAnalysis: "Verbrannte Flächen",
     deforestation: "Entwaldung",
@@ -275,13 +291,25 @@ const MENUS: Record<string, Entree[]> = {
 
   cadre: [lien("synthese", BarChart3, "territorialSynthesis", "analyse")],
 
-  societe: [
-    lien("social", Users, "socialIndicators", "analyse-social"),
-    lien("socio", MapPinned, "socioeconomic", "analyse-socio-economique"),
+   societe: [
+    lien("territoires", MapPinned, "territoryDiagnostic", "analyse-social"),
+    lien("priorites", Users, "priorityPlanner", "analyse-social/priorites"),
+    lien("socio", Globe2, "socioeconomic", "analyse-socio-economique"),
   ],
 
-  economie: [lien("economie", Landmark, "localEconomy", "analyse-economie")],
+  economie: [
+    lien("eco-diag", TrendingUp, "economyDiagnostic", "analyse-economie"),
+    lien("eco-sim", Calculator, "investmentSimulator", "analyse-economie/simulateur"),
+  ],
 };
+
+function moduleDuChemin(pathname: string): string | null {
+  const nom = pathname.replace(/^\/dashboard\/?/, "").replace(/\/$/, "");
+  const contient = (liste: Entree[]): boolean =>
+    liste.some((e) => (e.type === "lien" ? e.chemin === nom : contient(e.enfants)));
+  for (const [m, liste] of Object.entries(MENUS)) if (contient(liste)) return m;
+  return null;
+}
 
 /* =====================================================================
    OUTILS
@@ -331,7 +359,7 @@ export default function Sidebar() {
   const { theme } = useTheme();
 
   // Module envoyé depuis Home.tsx : navigate("/dashboard", { state: { module: "paddi" } })
-  const module: string = location.state?.module || "paddi";
+  const module: string = location.state?.module || moduleDuChemin(location.pathname) || "paddi";
 
   const largeur = useLargeur();
   const mobile = largeur < 768;
