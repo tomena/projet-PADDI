@@ -64,12 +64,12 @@ export default function EconomieSimulateur() {
                 <tbody>
                   {lignes.map(({ s, montant, emplois }) => (
                     <tr key={s.id}>
-                      <td>{s.nom}</td>
-                      <td><input type="number" min={0} max={100} step={0.5} value={pct(s.id)} onChange={(e) => setAlloc({ ...alloc, [s.id]: Number(e.target.value) })} style={{ width: 80 }} /></td>
-                      <td><input type="number" min={0} step={0.1} value={h(s.id).mult} onChange={(e) => setHyp({ ...hyp, [s.id]: { ...h(s.id), mult: Number(e.target.value) } })} style={{ width: 80 }} /></td>
-                      <td><input type="number" min={1} value={h(s.id).coutEmploi} onChange={(e) => setHyp({ ...hyp, [s.id]: { ...h(s.id), coutEmploi: Number(e.target.value) } })} style={{ width: 80 }} /></td>
-                      <td className="an-num">{fmt(montant)}</td>
-                      <td className="an-num">{fmt(emplois, 0)}</td>
+                      <td data-label="Secteur">{s.nom}</td>
+                      <td data-label="Part (%)"><input type="number" min={0} max={100} step={0.5} value={pct(s.id)} onChange={(e) => setAlloc({ ...alloc, [s.id]: Number(e.target.value) })} style={{ width: 80 }} /></td>
+                      <td data-label="Multiplicateur"><input type="number" min={0} step={0.1} value={h(s.id).mult} onChange={(e) => setHyp({ ...hyp, [s.id]: { ...h(s.id), mult: Number(e.target.value) } })} style={{ width: 80 }} /></td>
+                      <td data-label="Coût/emploi (M Ar)"><input type="number" min={1} value={h(s.id).coutEmploi} onChange={(e) => setHyp({ ...hyp, [s.id]: { ...h(s.id), coutEmploi: Number(e.target.value) } })} style={{ width: 80 }} /></td>
+                      <td className="an-num" data-label="Montant (Md Ar)">{fmt(montant)}</td>
+                      <td className="an-num" data-label="Emplois créés">{fmt(emplois, 0)}</td>
                     </tr>
                   ))}
                 </tbody>
