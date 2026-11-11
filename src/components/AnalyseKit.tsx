@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, NavLink } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { NavLink } from "react-router-dom";
 import { downloadText, fmt, parseCsv } from "../lib/analyse-utils";
 import "./AnalyseKit.css";
 
@@ -20,9 +19,6 @@ export function PageShell({
   return (
     <main className="an-page">
       <div className="an-wrap">
-        <Link to="/" className="an-back">
-          <ArrowLeft size={16} aria-hidden="true" /> Accueil
-        </Link>
         <h1>{title}</h1>
         <p className="an-intro">{intro}</p>
         <nav className="an-tabs" aria-label="Pages du thème">
@@ -185,7 +181,7 @@ export function EditableTable<T extends { id: string }>({
             {rows.map((r) => (
               <tr key={r.id}>
                 {cols.map((c) => (
-                  <td key={c.key}>
+                  <td key={c.key} data-label={c.label}>
                     <input
                       type={c.type === "number" ? "number" : "text"}
                       step={c.step}
