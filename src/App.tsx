@@ -17,9 +17,7 @@ import SuiviActivitesAnnuelles from "./pages/SuiviActivitesAnnuelles";
 import SuperficiesBrulees from "./pages/SuperficiesBrulees";
 import SystemeSuivi from "./pages/SystemeSuivi";
 import MesuresCommunales from "./pages/MesuresCommunales";
-import SurfacesAgropastorales from "./pages/SurfacesAgropastorales";
-import SurfacesForestieres from "./pages/SurfacesForestieres";
-import SuperficiesAD from "./pages/SuperficiesAD";
+import SuiviSuperficie from "./pages/SuiviSuperficie";
 import MicroEntreprise from "./pages/MicroEntreprise";
 import Beneficiaires from "./pages/Beneficiaires";
 import DecisionCOSAP from "./pages/DecisionCOSAP";
@@ -92,17 +90,7 @@ export default function App() {
           path="mesures-communales"
           element={<MesuresCommunales />}
         />
-        <Route
-          path="surface-agro"
-          element={<SurfacesAgropastorales />}
-        />
-        <Route
-          path="surface-forestiere"
-          element={<SurfacesForestieres />}
-        />
-
-        {/* Autres */}
-        <Route path="sad" element={<SuperficiesAD />} />
+        <Route path="suivi-superficie" element={<SuiviSuperficie />} />
         <Route
           path="micro-entreprises"
           element={<MicroEntreprise />}
