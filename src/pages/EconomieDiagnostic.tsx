@@ -1,128 +1,142 @@
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
-import { Advice, Bars, Col, CsvTools, EditableTable, Kpi, PageShell, Section } from "../components/AnalyseKit";
-import { fmt, num, uid, usePersistedState } from "../lib/analyse-utils";
+import { useMemo, useState } from "react";
+import { Advice, DataTools, EmptyState, Facts, Kpi, PageShell, RankList, Section, Segmented, UnitTable } from "../components/AnalyseKit";
+import { SCALES, ZoneMap, type MapVal } from "../components/ZoneMap";
+import { fmt, usePersistedState } from "../lib/analyse-utils";
 import {
-  CONSEILS, EXEMPLE, KEY_POIDS, MODELE_CSV, POIDS_DEFAUT, POIDS_LABELS,
-  Poids, Secteur, noter, useSecteurs,
+  ACTION_ORDER, ACTION_TONE, CONSEILS, ECO_BLANK, KEY_ECO, KEY_POIDS, POIDS_DEFAUT, POIDS_LABELS,
+  ecoDemo, noter, type EcoData, type Poids,
 } from "../lib/economie";
+import { useZone } from "../lib/geo";
+import { useZoneData, type UCol } from "../lib/zonedata";
 
-export const TABS_ECONOMIE = [
-  { to: "/dashboard/analyse-economie", label: "Diagnostic des secteurs" },
-  { to: "/dashboard/analyse-economie/simulateur", label: "Simulateur d'investissement" },
-];
-
-const COLS: Col<Secteur>[] = [
-  { key: "nom", label: "Secteur" },
-  { key: "va", label: "Valeur ajoutée (Md Ar)", type: "number", min: 0 },
-  { key: "emplois", label: "Emplois (milliers)", type: "number", min: 0 },
+const COLS: UCol<EcoData>[] = [
+  { key: "population", label: "Population", type: "number", min: 0 },
+  { key: "emplois", label: "Emplois", type: "number", min: 0 },
+  { key: "filiere", label: "Filière principale", type: "text" },
   { key: "croissance", label: "Croissance (%/an)", type: "number", step: 0.1 },
-  { key: "exportation", label: "Export (% production)", type: "number", min: 0, max: 100 },
+  { key: "acces", label: "Accès au marché (%)", type: "number", min: 0, max: 100 },
   { key: "informel", label: "Emplois informels (%)", type: "number", min: 0, max: 100 },
   { key: "potentiel", label: "Potentiel (1 à 5)", type: "number", min: 1, max: 5 },
 ];
 
 export default function EconomieDiagnostic() {
-  const [rows, setRows] = useSecteurs();
+  const zone = useZone();
+  const store = useZoneData<EcoData>(zone, KEY_ECO, COLS, ECO_BLANK, ecoDemo);
   const [poids, setPoids] = usePersistedState<Poids>(KEY_POIDS, POIDS_DEFAUT);
+  const [vue, setVue] = useState<"priorites" | "donnees">("priorites");
+
+  const rows = useMemo(
+    () => zone.units.flatMap((u) => { const d = store.all[u.key]; return d && d.population > 0 ? [{ unit: u, d }] : []; }),
+    [zone.units, store.all]);
   const notes = useMemo(() => noter(rows, poids), [rows, poids]);
+  const values = useMemo(() => {
+    const v: Record<string, MapVal> = {};
+    notes.forEach((n) => { v[n.unit.key] = { v: n.score, text: `Priorité ${n.score}/100 · ${n.action}` }; });
+    return v;
+  }, [notes]);
 
-  const vaTot = rows.reduce((s, r) => s + r.va, 0);
-  const empTot = rows.reduce((s, r) => s + r.emplois, 0);
-  const croissance = vaTot ? rows.reduce((s, r) => s + r.va * r.croissance, 0) / vaTot : 0;
-  const informel = empTot ? rows.reduce((s, r) => s + r.emplois * r.informel, 0) / empTot : 0;
-
-  const importer = (csv: Record<string, string>[]) =>
-    setRows(
-      csv.map((r) => ({
-        id: uid(),
-        nom: r.nom || "Sans nom",
-        va: num(r.va),
-        emplois: num(r.emplois),
-        croissance: num(r.croissance),
-        exportation: num(r.exportation),
-        informel: num(r.informel),
-        potentiel: Math.min(5, Math.max(1, num(r.potentiel) || 3)),
-      })),
-    );
+  const pop = rows.reduce((s, r) => s + r.d.population, 0);
+  const moy = (f: (d: EcoData) => number) => (pop ? rows.reduce((s, r) => s + f(r.d) * r.d.population, 0) / pop : 0);
+  const acces = moy((d) => d.acces), informel = moy((d) => d.informel), croissance = moy((d) => d.croissance);
+  const fiche = notes.find((n) => n.unit.key === zone.focus?.key) ?? notes[0];
+  const groupes = ACTION_ORDER.filter((a) => notes.some((n) => n.action === a));
 
   return (
     <PageShell
-      title="Économie : où investir pour développer le pays ?"
-      intro="Entrez les chiffres de vos secteurs (ou importez un fichier CSV). L'outil classe les secteurs par priorité d'investissement et propose une action pour chacun."
-      tabs={TABS_ECONOMIE}
+      title="Économie : où agir en premier ?"
+      intro="Choisissez une zone, renseignez quelques indicateurs par territoire, et l'outil classe les territoires et propose une action pour chacun."
+      zone={zone}
+      map={<ZoneMap zone={zone} values={values} scale={SCALES.bleu} legend="Priorité d'action (0 à 100)" low="faible" high="forte" />}
     >
-      <Section
-        title="1. Vos données"
-        hint="Sources possibles : INSTAT, Banque centrale (BFM), ministère de l'Économie et des Finances, Banque mondiale, EDBM. Les chiffres affichés au départ sont des exemples : remplacez-les."
-      >
-        <CsvTools template={MODELE_CSV} filename="modele-secteurs.csv" onRows={importer} onReset={() => setRows(EXEMPLE)} />
-        <EditableTable
-          cols={COLS}
-          rows={rows}
-          onChange={setRows}
-          blank={() => ({ id: uid(), nom: "", va: 0, emplois: 0, croissance: 0, exportation: 0, informel: 0, potentiel: 3 })}
-          addLabel="Ajouter un secteur"
-        />
-      </Section>
+      <Segmented label="Affichage" value={vue} onChange={setVue}
+        items={[{ value: "priorites", label: "Priorités" }, { value: "donnees", label: `Données (${rows.length}/${zone.units.length})` }]} />
 
-      {rows.length > 0 && (
+      {vue === "donnees" ? (
+        <Section title="Données par territoire"
+          hint="Une ligne par territoire. Cliquez sur un nom pour voir le niveau suivant. Sources possibles : INSTAT, Banque centrale (BFM), ministères, EDBM.">
+          <DataTools zone={zone} store={store} cols={COLS} />
+          <UnitTable zone={zone} store={store} cols={COLS} />
+        </Section>
+      ) : rows.length === 0 ? (
+        <EmptyState title="Pas encore de données dans cette zone"
+          actions={<>
+            <button type="button" className="an-btn" onClick={() => setVue("donnees")}>Saisir ou importer</button>
+            <button type="button" className="an-btn ghost" onClick={store.fillDemo} disabled={!zone.units.length}>Voir avec un exemple</button>
+          </>}>
+          Renseignez la population, l'accès au marché, l'informalité et le potentiel de chaque territoire pour obtenir un classement.
+        </EmptyState>
+      ) : (
         <>
-          <div className="an-grid">
-            <Kpi label="Valeur ajoutée totale" value={fmt(vaTot, 0)} unit="Md Ar" />
-            <Kpi label="Emplois" value={fmt(empTot, 0)} unit="milliers" />
-            <Kpi label="Croissance moyenne pondérée" value={fmt(croissance)} unit="%/an" />
+          <div className="an-kpis">
+            <Kpi label="Territoires renseignés" value={`${rows.length}/${zone.units.length}`} />
+            <Kpi label="Population couverte" value={fmt(pop, 0)} />
+            <Kpi label="Accès au marché" value={fmt(acces, 0)} unit="%" />
             <Kpi label="Emplois informels" value={fmt(informel, 0)} unit="%" />
           </div>
 
-          <Section title="2. Alertes pour le décideur">
+          {(acces < 50 || informel >= 70 || croissance < 3) && (
             <div className="an-grid">
+              {acces < 50 && (
+                <Advice tone="warn" title="Zone enclavée" tag={`${fmt(acces, 0)} %`}>
+                  Moins de la moitié de la population est à moins de 2 h d'un marché ou d'une route praticable. Les routes et pistes rurales sont souvent le premier levier.
+                </Advice>
+              )}
               {informel >= 70 && (
                 <Advice tone="warn" title="Économie très informelle" tag={`${fmt(informel, 0)} %`}>
-                  La majorité des emplois échappent à l'impôt et à la protection sociale. Une politique de formalisation progressive augmente les recettes de l'État sans freiner les petits opérateurs.
+                  La majorité des emplois échappent à l'impôt et à la protection sociale. Une formalisation progressive augmente les recettes sans freiner les petits opérateurs.
                 </Advice>
               )}
               {croissance < 3 && (
                 <Advice tone="warn" title="Croissance fragile" tag={`${fmt(croissance)} %/an`}>
-                  Si la population croît à 2,5-3 % par an (à vérifier avec l'INSTAT), un rythme inférieur ne fait pas progresser le revenu par habitant. Il faut concentrer l'effort sur les secteurs qui accélèrent.
-                </Advice>
-              )}
-              {informel < 70 && croissance >= 3 && (
-                <Advice tone="good" title="Situation globalement saine" tag="OK">
-                  Aucune alerte majeure avec ces données. Vérifiez la qualité des chiffres et affinez les secteurs.
+                  Si la population croît de 2,5 à 3 % par an (à vérifier avec l'INSTAT), un rythme inférieur ne fait pas progresser le revenu par habitant.
                 </Advice>
               )}
             </div>
+          )}
+
+          <Section title="Classement des priorités" hint="Cliquez sur une ligne pour la voir sur la carte et ouvrir sa fiche.">
+            <RankList focusKey={zone.focus?.key}
+              items={notes.map((n) => ({ key: n.unit.key, name: n.unit.name, value: n.score, badge: n.action, tone: ACTION_TONE[n.action], onPick: () => zone.select(n.unit) }))} />
+            <details className="an-details">
+              <summary>Ajuster l'importance des critères</summary>
+              <div className="an-sliders">
+                {(Object.keys(POIDS_LABELS) as (keyof Poids)[]).map((k) => (
+                  <label key={k}>
+                    {POIDS_LABELS[k]} : {poids[k]}
+                    <input type="range" min={0} max={50} value={poids[k]} onChange={(e) => setPoids({ ...poids, [k]: Number(e.target.value) })} />
+                  </label>
+                ))}
+              </div>
+              <p className="an-note">Le score mélange l'opportunité (potentiel, croissance) et le besoin (enclavement, informalité, peu d'emplois). Modifiez les poids selon la stratégie nationale.</p>
+            </details>
           </Section>
 
-          <Section
-            title="3. Classement des priorités"
-            hint="Le score (0 à 100) combine cinq critères. Modifiez leur importance selon la stratégie nationale."
-          >
-            <div className="an-sliders">
-              {(Object.keys(POIDS_LABELS) as (keyof Poids)[]).map((k) => (
-                <label key={k}>
-                  {POIDS_LABELS[k]} : {poids[k]}
-                  <input type="range" min={0} max={50} value={poids[k]} onChange={(e) => setPoids({ ...poids, [k]: Number(e.target.value) })} />
-                </label>
-              ))}
-            </div>
-            <br />
-            <Bars items={notes.map((n) => ({ label: n.nom, value: n.score }))} />
-          </Section>
+          {fiche && (
+            <Section title={`Fiche : ${fiche.unit.name}`} hint={fiche.unit.key === zone.focus?.key ? "Territoire sélectionné." : "Territoire le mieux classé."}>
+              <Facts items={[
+                ["Filière principale", fiche.d.filiere || "n/d"],
+                ["Population", fmt(fiche.d.population, 0)],
+                ["Emplois pour 100 habitants", fmt(fiche.emploiTaux, 0)],
+                ["Accès au marché", `${fmt(fiche.d.acces, 0)} %`],
+                ["Emplois informels", `${fmt(fiche.d.informel, 0)} %`],
+                ["Croissance", `${fmt(fiche.d.croissance)} %/an`],
+              ]} />
+              <Advice title={fiche.action} tag={`Priorité ${fiche.score}/100`} tone={ACTION_TONE[fiche.action]}>{CONSEILS[fiche.action]}</Advice>
+            </Section>
+          )}
 
-          <Section title="4. Que faire, secteur par secteur ?">
+          <Section title="Plan d'action pour la zone" hint="Les territoires sont regroupés par type d'action à mener.">
             <div className="an-grid">
-              {notes.map((n) => (
-                <Advice key={n.id} title={n.nom} tag={`${n.action} · ${n.score}`} tone={n.action === "Accélérer" ? "good" : n.action === "Restructurer" ? "warn" : "info"}>
-                  {CONSEILS[n.action]}
-                </Advice>
-              ))}
+              {groupes.map((a) => {
+                const g = notes.filter((n) => n.action === a);
+                return (
+                  <Advice key={a} title={`${a} · ${g.length} territoire${g.length > 1 ? "s" : ""}`} tone={ACTION_TONE[a]}>
+                    <strong>{g.slice(0, 6).map((n) => n.unit.name).join(", ")}{g.length > 6 ? "…" : ""}.</strong> {CONSEILS[a]}
+                  </Advice>
+                );
+              })}
             </div>
-            <p className="an-note">
-              Cet outil aide à structurer la décision mais ne la remplace pas : confrontez le classement aux études de terrain.
-            </p>
-            <Link className="an-btn" to="/dashboard/analyse-economie/simulateur">Simuler un budget d'investissement</Link>
+            <p className="an-note">Aide à structurer la décision, sans la remplacer : confrontez le classement aux études de terrain.</p>
           </Section>
         </>
       )}
