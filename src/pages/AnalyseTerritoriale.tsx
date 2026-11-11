@@ -4,6 +4,8 @@
  * Disposition : à gauche 5 cartes d'information (territoire, occupation du sol, déforestation,
  * relief et pente, points de feux), à droite UNE carte de Madagascar qui superpose
  * l'occupation du sol, la perte de couvert arboré et les points de feux.
+ * Le bouton « Analyser ce territoire » ouvre une fenêtre (pop-up) avec les orientations
+ * classées par thème : restauration, agriculture, eau et sols, feux, conservation, communautés.
  *
  * Dépendances : leaflet, @types/leaflet, lucide-react.
  *
@@ -188,6 +190,7 @@ type Result = {
   elevMin: number; elevMax: number; elevMean: number;
   rain: number | null; areaKm2: number;
   cropSteep: number; treePct: number; cropPct: number; barePct: number; steepPct: number; wetPct: number;
+  savPct: number; builtPct: number; // savane et parcours ; bâti
   bassin: string | null; resolution: string;
 };
 
@@ -279,6 +282,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     rain, areaKm2: areaKm2(f),
     cropSteep: cropN ? (cropSteep / cropN) * 100 : 0,
     treePct: pct(0), cropPct: pct(2), barePct: pct(4), steepPct: sn ? ((sc[2] + sc[3]) / sn) * 100 : 0, wetPct: pct(6),
+    savPct: pct(1), builtPct: pct(3),
     bassin,
     resolution: small
       ? "Occupation du sol à 10 m ; relief à 90 m autour de la parcelle (indicatif)"
@@ -364,40 +368,166 @@ function analyserFeux(features: any[]): Omit<Feu, "age">[] {
 
 /* ===================== DÉCISION ===================== */
 
-type Extra = { lossHa: number | null; lossPct: number | null; fires72: number; fires24: number; areaKm2: number };
+type Trend = "hausse" | "baisse" | "stable" | null;
+type Extra = { lossHa: number | null; lossPct: number | null; lossTrend: Trend; fires72: number; fires24: number; areaKm2: number };
+type Lvl = "haute" | "moyenne" | "info";
+type Thematique = "Restauration" | "Agriculture" | "Eau et sols" | "Feux" | "Conservation" | "Communautés";
+type Orient = { t: string; d: string; lvl: Lvl; th: Thematique; acts?: string[] };
+
+const THEMES: Thematique[] = ["Restauration", "Agriculture", "Eau et sols", "Feux", "Conservation", "Communautés"];
+const LVL_TXT: Record<Lvl, string> = { haute: "Priorité haute", moyenne: "Priorité moyenne", info: "Recommandé" };
+const LVL_RANK: Record<Lvl, number> = { haute: 0, moyenne: 1, info: 2 };
+
 const vuln = (r: Result) => {
   const c = (v: number, m: number) => Math.min(v, m) / m;
   return Math.round(35 * c(r.steepPct, 60) + 25 * c(r.cropSteep, 60) + 15 * c(r.barePct, 25) + 15 * (1 - c(r.treePct, 50)) + 10 * c(r.rain ?? 0, 2500));
 };
 const vulnLabel = (v: number) => (v < 25 ? "faible" : v < 50 ? "modérée" : v < 70 ? "élevée" : "très élevée");
 
-function orientations(r: Result, x: Extra, periode: string) {
-  const o: { t: string; d: string; lvl: "haute" | "moyenne" | "info" }[] = [];
-  if (x.lossPct != null && x.lossPct >= 3)
-    o.push({ lvl: "haute", t: "Restaurer les zones déboisées", d: `${nf(x.lossHa ?? 0)} ha de couvert arboré perdus sur ${periode}, soit ${nf(x.lossPct, 1)} % de la zone. Ces surfaces sont les premiers candidats à la restauration${r.steepPct > 25 ? ", surtout sur les pentes (" + nf(r.steepPct) + " % de la zone en pente forte)" : ""}.` });
-  else if (x.lossPct != null && x.lossPct >= 0.5)
-    o.push({ lvl: "moyenne", t: "Surveiller la perte de couvert", d: `${nf(x.lossHa ?? 0)} ha perdus sur ${periode} (${nf(x.lossPct, 1)} % de la zone). Cibler les foyers de perte visibles sur la carte.` });
+function orientations(r: Result, x: Extra, periode: string): Orient[] {
+  const o: Orient[] = [];
+  const add = (th: Thematique, lvl: Lvl, t: string, d: string, acts?: string[]) => o.push({ th, lvl, t, d, acts });
+  const loss = x.lossPct;
+  const rain = r.rain;
+
+  /* ---------- RESTAURATION ---------- */
+  if (loss != null && loss >= 3)
+    add("Restauration", "haute", "Restaurer les zones déboisées",
+      `${nf(x.lossHa ?? 0)} ha de couvert arboré perdus sur ${periode}, soit ${nf(loss, 1)} % de la zone. Ces surfaces sont les premiers candidats à la restauration${r.steepPct > 25 ? ", surtout sur les pentes (" + nf(r.steepPct) + " % de la zone en pente forte)" : ""}.`,
+      ["Repérer les foyers de perte sur la carte et les classer par urgence", "Reboiser avec des espèces autochtones adaptées au site, en commençant par les pentes et les têtes de bassin", "Monter une pépinière locale et suivre la survie des plants à 1 an et à 3 ans"]);
+  else if (loss != null && loss >= 0.5)
+    add("Restauration", "moyenne", "Cibler les foyers de perte de couvert",
+      `${nf(x.lossHa ?? 0)} ha perdus sur ${periode} (${nf(loss, 1)} % de la zone). Cibler les foyers de perte visibles sur la carte avant qu'ils ne s'étendent.`);
+
+  if (r.steepPct > 35 && r.treePct < 25)
+    add("Restauration", "haute", "Restauration forestière des versants",
+      `Pentes de 15 % ou plus sur ${nf(r.steepPct)} % du territoire pour seulement ${nf(r.treePct)} % de couvert arboré. Reboiser avec des espèces locales, en commençant par les têtes de bassin.`,
+      ["Planter en lignes suivant les courbes de niveau", "Associer arbres, arbustes et graminées pour couvrir le sol rapidement"]);
+
+  if (r.barePct > 10)
+    add("Restauration", "haute", "Réhabilitation des sols nus",
+      `${nf(r.barePct)} % de sol nu : stabiliser par végétalisation (graminées, légumineuses), puis planter.`,
+      ["Végétaliser d'abord avec des plantes pionnières et des légumineuses", "Planter les arbres ensuite, quand le sol est stabilisé"]);
+
+  if (r.treePct >= 8 && r.treePct < 40 && (r.barePct > 2 || r.savPct > 20))
+    add("Restauration", "moyenne", "Régénération naturelle assistée",
+      `Avec ${nf(r.treePct)} % de couvert arboré, une partie de la forêt peut repartir seule si on la protège. C'est souvent moins coûteux que planter.`,
+      ["Protéger les jeunes pousses du feu et du pâturage", "Enrichir par des plantations là où la régénération reste faible", "Mettre en défens les parcelles pendant plusieurs années"]);
+
+  if (r.treePct >= 15 && r.treePct < 45 && loss != null && loss >= 1)
+    add("Restauration", "moyenne", "Reconnecter les fragments forestiers",
+      `Le couvert arboré est morcelé (${nf(r.treePct)} %) et il a reculé de ${nf(loss, 1)} % sur ${periode}. Relier les îlots forestiers aide la faune et la dispersion des graines.`,
+      ["Tracer des corridors entre les blocs forestiers restants", "Planter des haies vives et des bandes boisées le long des cours d'eau"]);
+
+  if (r.wetPct > 3 && loss != null && loss >= 1)
+    add("Restauration", "moyenne", "Restaurer les mangroves dégradées",
+      `${nf(r.wetPct, 1)} % de végétation inondée ou de mangrove, avec une perte de couvert sur la période. Restaurer d'abord l'hydrologie, puis replanter.`,
+      ["Rétablir la circulation de l'eau et des marées avant toute plantation", "Replanter des palétuviers (Avicennia, Rhizophora) adaptés à chaque niveau de marée"]);
+
+  if (r.treePct < 25 && r.cropPct + r.savPct + r.builtPct > 50)
+    add("Restauration", "moyenne", "Sécuriser le bois-énergie",
+      `Peu de forêt (${nf(r.treePct)} %) autour de terres cultivées, de savane ou bâties : la pression du bois de chauffe et du charbon est probable sur les reliques forestières.`,
+      ["Créer des plantations villageoises à croissance rapide (eucalyptus, acacia) pour le bois-énergie", "Diffuser des foyers améliorés pour réduire la consommation de bois"]);
+
+  if (r.rain != null && r.rain < 800 && r.treePct < 15)
+    add("Restauration", "moyenne", "Restaurer en zone sèche",
+      `Seulement ${nf(r.rain)} mm de pluie par an pour ${nf(r.treePct)} % de couvert arboré : les plantations classiques risquent d'échouer.`,
+      ["Choisir des espèces adaptées à la sécheresse", "Capter l'eau au pied des plants (demi-lunes, paillage)", "Planter au début de la saison des pluies"]);
+
+  /* ---------- CONSERVATION ---------- */
+  if (x.lossTrend === "hausse" && loss != null && loss >= 0.5)
+    add("Conservation", "haute", "La perte de couvert s'accélère",
+      `Les pertes des dernières années de la période dépassent nettement celles du début. Il faut agir vite pour ne pas laisser le défrichement gagner du terrain.`,
+      ["Renforcer la surveillance (patrouilles, alertes de déforestation)", "Dialoguer avec les communautés sur les causes locales du défrichement"]);
+
+  if (r.treePct >= 40)
+    add("Conservation", "info", "Conserver le couvert existant",
+      `${nf(r.treePct)} % de couvert arboré : protéger en priorité (gestion communautaire, lutte contre les feux et le défrichement).`,
+      ["Délimiter et matérialiser les limites de la forêt", "Soutenir la surveillance locale et le suivi de la biodiversité"]);
+
+  if (r.wetPct > 3)
+    add("Conservation", "moyenne", "Protection des zones humides et mangroves",
+      `${nf(r.wetPct, 1)} % de végétation inondée ou de mangrove : zones tampons, pas de drainage ni de coupe.`);
+
+  /* ---------- AGRICULTURE ---------- */
+  if (r.cropSteep > 30 && (rain ?? 0) > 1000)
+    add("Agriculture", "haute", "Lutte antiérosive sur les cultures de pente",
+      `${nf(r.cropSteep)} % des cultures échantillonnées sont sur pente de 15 % ou plus, avec ${nf(rain!)} mm de pluie par an : risque élevé de ravinement et de lavaka.`,
+      ["Agroforesterie, cordons de pierres et bandes enherbées", "Terrasses et cultures suivant les courbes de niveau", "Haies de vétiver pour freiner le ruissellement"]);
+  else if (r.cropSteep > 30)
+    add("Agriculture", "moyenne", "Cultures sur pente à sécuriser",
+      `${nf(r.cropSteep)} % des cultures sont sur pente de 15 % ou plus. Prévoir des pratiques de conservation des sols.`,
+      ["Cultiver en courbes de niveau", "Garder le sol couvert (paillage, plantes de couverture)"]);
+
+  if (r.cropPct > 20 && r.treePct < 30)
+    add("Agriculture", "moyenne", "Développer l'agroforesterie",
+      `${nf(r.cropPct)} % de cultures pour ${nf(r.treePct)} % d'arbres : associer des arbres aux cultures protège le sol, apporte de l'ombre et diversifie les revenus.`,
+      ["Associer arbres fixateurs d'azote et arbres fruitiers aux cultures", "Planter des haies vives autour des parcelles", "Garder des arbres d'ombrage dans les parcelles"]);
+
+  if (loss != null && loss >= 1 && r.cropPct > 10 && r.treePct >= 15)
+    add("Agriculture", loss >= 3 ? "haute" : "moyenne", "Réduire le défrichement-brûlis",
+      `La perte de couvert (${nf(loss, 1)} % sur ${periode}) se fait au contact de terres cultivées : le défrichement pour de nouvelles parcelles est une cause probable.`,
+      ["Intensifier les parcelles déjà ouvertes plutôt que d'en défricher de nouvelles", "Semer sous couvert végétal et améliorer les jachères avec des légumineuses", "Sécuriser le foncier des parcelles déjà cultivées"]);
+
+  if (rain != null && rain < 900 && r.cropPct > 10)
+    add("Agriculture", "moyenne", "Cultiver avec peu d'eau",
+      `${nf(rain)} mm de pluie en 2023 : l'eau limite les rendements et expose les cultures aux aléas.`,
+      ["Choisir des cultures tolérantes à la sécheresse (manioc, sorgho, niébé)", "Récolter l'eau de pluie et pailler le sol", "Caler les semis sur le début réel de la saison des pluies"]);
+
+  if (r.savPct > 40)
+    add("Agriculture", "moyenne", "Gérer les pâturages et l'élevage",
+      `${nf(r.savPct)} % de savane et de parcours : un pâturage mieux géré réduit les feux de pâture et la dégradation du sol.`,
+      ["Organiser la rotation des pâturages et des parcs de nuit", "Semer des plantes fourragères (Brachiaria, Stylosanthes) pour compléter l'herbe", "Éviter les feux de renouvellement des pâturages en pleine saison sèche"]);
+
+  if (r.cropPct > 25 && r.steepPct < 15)
+    add("Agriculture", "info", "Intensification durable en terrain plat",
+      `Terrain peu pentu et cultivé sur ${nf(r.cropPct)} % : conditions favorables pour produire davantage sur les mêmes surfaces et alléger la pression sur les forêts.`,
+      ["Pratiquer la riziculture améliorée (SRI, SRA) et aménager les bas-fonds", "Alterner riz et légumineuses, fertiliser avec du compost", "Maîtriser l'eau (canaux, petits barrages) pour sécuriser les récoltes"]);
+
+  if (r.treePct >= 20 && r.cropPct > 8)
+    add("Agriculture", "info", "Valoriser des filières agroforestières",
+      `Forêt et cultures se côtoient : les produits cultivés sous ombrage donnent des revenus sans déboiser.`,
+      ["Développer le café, le cacao, les épices ou la vanille sous ombrage, selon le climat local", "Transformer sur place pour garder la valeur ajoutée", "Viser des labels ou des filières équitables"]);
+
+  /* ---------- EAU ET SOLS ---------- */
+  if (r.steepPct > 25 && r.barePct > 3)
+    add("Eau et sols", "haute", "Stabiliser les lavaka et les ravines",
+      `Pentes fortes sur ${nf(r.steepPct)} % de la zone et ${nf(r.barePct, 1)} % de sol nu : les ravines (lavaka) risquent de s'élargir à chaque saison des pluies.`,
+      ["Détourner l'eau de ruissellement en amont de la ravine", "Poser des fascines ou des digues en gradins dans le lit", "Végétaliser les bords (vétiver, arbustes) pour les fixer"]);
+
+  if (r.steepPct > 25 && r.cropPct > 10)
+    add("Eau et sols", "moyenne", "Protéger les rizières de bas-fond contre l'ensablement",
+      `Des versants raides surplombent des cultures : l'érosion peut déposer du sable dans les bas-fonds et les canaux.`,
+      ["Installer des bandes enherbées et des fascines à la sortie des versants", "Curer régulièrement les canaux et les bassins de décantation"]);
+
+  if (r.steepPct > 25 && (rain ?? 0) > 1200)
+    add("Eau et sols", "moyenne", "Protéger les têtes de bassin versant",
+      `Pentes fortes et ${nf(rain!)} mm de pluie par an : la végétation des hauts de versant régule l'eau pour tout l'aval${r.bassin ? " (bassin : " + r.bassin + ")" : ""}.`,
+      ["Maintenir ou rétablir un couvert permanent sur les hauts de versant", "Boiser une bande protectrice le long des sources et des cours d'eau"]);
+
+  /* ---------- FEUX ---------- */
   if (x.fires72 > 0) {
     const dens = (x.fires72 / Math.max(x.areaKm2, 1)) * 100;
-    o.push({ lvl: dens >= 1 || x.fires24 >= 10 ? "haute" : "moyenne", t: "Prévention et surveillance des feux", d: `${nf(x.fires72)} feux détectés ces 72 h (${nf(x.fires24)} ces 24 h). Renforcer les pare-feux et l'alerte communautaire, surtout sur les savanes et lisières forestières.` });
+    add("Feux", dens >= 1 || x.fires24 >= 10 ? "haute" : "moyenne", "Prévention et surveillance des feux",
+      `${nf(x.fires72)} feux détectés ces 72 h (${nf(x.fires24)} ces 24 h). Renforcer les pare-feux et l'alerte communautaire, surtout sur les savanes et lisières forestières.`,
+      ["Ouvrir et entretenir des pare-feux autour des forêts et des plantations", "Organiser des brigades villageoises avec un système d'alerte", ...(r.savPct > 30 ? ["Pratiquer des brûlis précoces et contrôlés en début de saison sèche"] : [])]);
   }
-  if (r.cropSteep > 30 && (r.rain ?? 0) > 1000)
-    o.push({ lvl: "haute", t: "Lutte antiérosive sur les cultures de pente", d: `${nf(r.cropSteep)} % des cultures échantillonnées sont sur pente de 15 % ou plus, avec ${nf(r.rain!)} mm de pluie par an : risque élevé de ravinement et de lavaka. Agroforesterie, cordons de pierres, bandes enherbées et terrasses en priorité.` });
-  else if (r.cropSteep > 30)
-    o.push({ lvl: "moyenne", t: "Cultures sur pente à sécuriser", d: `${nf(r.cropSteep)} % des cultures sont sur pente de 15 % ou plus. Prévoir des pratiques de conservation des sols.` });
-  if (r.steepPct > 35 && r.treePct < 25)
-    o.push({ lvl: "haute", t: "Restauration forestière des versants", d: `Pentes de 15 % ou plus sur ${nf(r.steepPct)} % du territoire pour seulement ${nf(r.treePct)} % de couvert arboré. Reboiser avec des espèces locales, en commençant par les têtes de bassin.` });
-  if (r.barePct > 10)
-    o.push({ lvl: "haute", t: "Réhabilitation des sols nus", d: `${nf(r.barePct)} % de sol nu : stabiliser par végétalisation (graminées, légumineuses), puis planter.` });
-  if (r.treePct >= 40)
-    o.push({ lvl: "info", t: "Conservation du couvert existant", d: `${nf(r.treePct)} % de couvert arboré : protéger en priorité (gestion communautaire, lutte contre les feux et le défrichement).` });
-  if (r.wetPct > 3)
-    o.push({ lvl: "moyenne", t: "Protection des zones humides et mangroves", d: `${nf(r.wetPct, 1)} % de végétation inondée ou de mangrove : zones tampons, pas de drainage ni de coupe.` });
-  if (r.cropPct > 40 && r.steepPct < 15)
-    o.push({ lvl: "info", t: "Intensification durable en terrain plat", d: "Terrain peu pentu et très cultivé : conditions favorables pour intensifier (rotations, fertilisation organique) et alléger la pression sur les forêts." });
+
+  /* ---------- COMMUNAUTÉS ---------- */
+  if (r.treePct >= 15 && loss != null && loss >= 0.5)
+    add("Communautés", "moyenne", "Renforcer la gestion communautaire",
+      `Les habitants sont les mieux placés pour protéger ce qui reste de forêt si leurs droits de gestion sont reconnus.`,
+      ["Soutenir les transferts de gestion aux communautés (VOI, COBA)", "Faire adopter des règles locales (dina) et un suivi participatif", "Prévoir des financements durables pour les associations locales"]);
+
+  if (r.treePct >= 25)
+    add("Communautés", "info", "Offrir des revenus qui dépendent de la forêt debout",
+      `Quand la forêt rapporte, on la protège. Des activités à faible impact peuvent réduire la pression du défrichement.`,
+      ["Développer l'apiculture et les produits forestiers non ligneux", "Étudier l'écotourisme là où le site s'y prête", "Appuyer la pisciculture ou l'élevage à cycle court"]);
+
   if (!o.length)
-    o.push({ lvl: "info", t: "Aucun signal prioritaire", d: "Les indicateurs calculés ne montrent pas de pression marquée. Affinez par un diagnostic de terrain." });
-  return o;
+    add("Conservation", "info", "Aucun signal prioritaire", "Les indicateurs calculés ne montrent pas de pression marquée. Affinez par un diagnostic de terrain.");
+
+  return o.sort((a, b) => LVL_RANK[a.lvl] - LVL_RANK[b.lvl]);
 }
 
 /* ===================== COMPOSANT ===================== */
@@ -413,6 +543,7 @@ export default function AnalyseTerritoriale() {
   const veilL = useRef<L.Polygon | null>(null), draft = useRef<L.FeatureGroup | null>(null), fireL = useRef<L.FeatureGroup | null>(null);
   const pts = useRef<L.LatLng[]>([]);
   const pickRef = useRef<(l: Level, i: number) => void>(() => {});
+  const modalRef = useRef<HTMLDivElement>(null), closeRef = useRef<HTMLButtonElement>(null);
 
   const [regs, setRegs] = useState<Feat[]>([]);
   const [adm2, setAdm2] = useState<Feat[] | null>(null);
@@ -425,7 +556,8 @@ export default function AnalyseTerritoriale() {
   const [showLoss, setShowLoss] = useState(true), [dfFrom, setDfFrom] = useState(2015), [dfTo, setDfTo] = useState(LOSS_LAST);
   const [showFires, setShowFires] = useState(true), [fPeriod, setFPeriod] = useState<24 | 48 | 72>(72), [conf, setConf] = useState<"l" | "n" | "h">("l");
   const [mask, setMask] = useState(true);
-  const [show, setShow] = useState(false);
+  const [show, setShow] = useState(false); // fenêtre des orientations
+  const [themeF, setThemeF] = useState<"Toutes" | Thematique>("Toutes");
   const [loadErr, setLoadErr] = useState("");
 
   /* ----- sélection administrative ----- */
@@ -457,7 +589,15 @@ export default function AnalyseTerritoriale() {
     const years = LOSS_YEARS.filter((y) => y >= dfFrom && y <= dfTo).map((y) => ({ annee: y, ha: lossS.rows!.find((a) => a.annee === y)?.ha ?? 0 }));
     const total = years.reduce((s, a) => s + a.ha, 0);
     const peak = years.reduce((m, a) => (a.ha > m.ha ? a : m), years[0] ?? { annee: 0, ha: 0 });
-    return { years, total, peak, max: Math.max(1, ...years.map((a) => a.ha)), pct: zoneKm2 > 0 ? (total / (zoneKm2 * 100)) * 100 : 0 };
+    // tendance : moyenne de la 2e moitié de la période comparée à celle de la 1re moitié
+    let trend: Trend = null;
+    if (years.length >= 4) {
+      const half = Math.floor(years.length / 2);
+      const avg = (a: typeof years) => a.reduce((s, y) => s + y.ha, 0) / Math.max(1, a.length);
+      const a = avg(years.slice(0, half)), b = avg(years.slice(years.length - half));
+      trend = b > a * 1.25 && b - a > 5 ? "hausse" : b < a * 0.75 ? "baisse" : "stable";
+    }
+    return { years, total, peak, trend, max: Math.max(1, ...years.map((a) => a.ha)), pct: zoneKm2 > 0 ? (total / (zoneKm2 * 100)) * 100 : 0 };
   }, [lossS.rows, dfFrom, dfTo, zoneKm2]);
 
   /* ----- points de feux ----- */
@@ -530,6 +670,30 @@ export default function AnalyseTerritoriale() {
   useEffect(() => { if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message)); }, [rF, adm2]);
   useEffect(() => { if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message)); }, [dF, adm3]);
   useEffect(() => { setShow(false); }, [selected]);
+
+  /* ----- fenêtre des orientations : Échap, piège du focus, blocage du défilement ----- */
+  useEffect(() => {
+    if (!show) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { setShow(false); return; }
+      if (e.key !== "Tab" || !modalRef.current) return;
+      const f = modalRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), select, input, [tabindex]:not([tabindex="-1"])');
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("keydown", key);
+      document.body.style.overflow = prevOverflow;
+      opener?.focus?.();
+    };
+  }, [show]);
 
   /* ----- la carte unique ----- */
   useEffect(() => {
@@ -643,9 +807,15 @@ export default function AnalyseTerritoriale() {
   const levels = [{ f: rF, s: rRes }, { f: dF, s: dRes }, { f: cF, s: cRes }, { f: parcel, s: pRes }];
   const periodeTxt = dfFrom === dfTo ? String(dfFrom) : `${dfFrom} à ${dfTo}`;
   const advice = useMemo(
-    () => (res ? orientations(res, { lossHa: lossStats?.total ?? null, lossPct: lossStats?.pct ?? null, fires72: n72, fires24: n24, areaKm2: zoneKm2 }, periodeTxt) : []),
+    () => (res ? orientations(res, { lossHa: lossStats?.total ?? null, lossPct: lossStats?.pct ?? null, lossTrend: lossStats?.trend ?? null, fires72: n72, fires24: n24, areaKm2: zoneKm2 }, periodeTxt) : []),
     [res, lossStats, n72, n24, zoneKm2, periodeTxt]);
+  const themesPresents = useMemo(
+    () => THEMES.map((th) => ({ th, n: advice.filter((a) => a.th === th).length })).filter((x) => x.n > 0),
+    [advice]);
+  const adviceShown = themeF === "Toutes" ? advice : advice.filter((a) => a.th === themeF);
+  const nHautes = advice.filter((a) => a.lvl === "haute").length;
   const score = res ? vuln(res) : 0;
+  const openAnalysis = () => { setThemeF("Toutes"); setShow(true); };
   const hint = drawing
     ? `Cliquez pour poser les sommets (${nPts}). Double-clic ou « Terminer » pour fermer, Échap pour annuler.`
     : !rF ? "Cliquez sur une région pour zoomer" : !dF ? "Cliquez sur un district" : !cF ? "Cliquez sur une commune" : "Cliquez sur une autre commune pour comparer";
@@ -781,6 +951,7 @@ export default function AnalyseTerritoriale() {
                       <dl className="at-mini-facts">
                         <div><dt>Année la plus touchée</dt><dd>{lossStats.peak.annee} · {nf(Math.round(lossStats.peak.ha))} ha</dd></div>
                         <div><dt>Moyenne annuelle</dt><dd>{nf(Math.round(lossStats.total / Math.max(1, lossStats.years.length)))} ha/an</dd></div>
+                        {lossStats.trend && <div><dt>Tendance</dt><dd>{lossStats.trend === "hausse" ? "en hausse" : lossStats.trend === "baisse" ? "en baisse" : "stable"}</dd></div>}
                       </dl>
                     </>
                   )}
@@ -849,24 +1020,7 @@ export default function AnalyseTerritoriale() {
                 </section>
               </div>
 
-              <button type="button" className="at-go" disabled={!res} onClick={() => setShow(true)}>Analyser ce territoire</button>
-
-              {show && res && (
-                <div className="at-card" aria-live="polite">
-                  <h3>Orientations pour {nameOf(selected)}</h3>
-                  <div className="at-gauge-wrap">
-                    <div className="at-gauge"><u style={{ left: `${score}%` }} /></div>
-                    <p>Vulnérabilité à l’érosion : <strong>{vulnLabel(score)}</strong> ({score} sur 100)</p>
-                  </div>
-                  {advice.map((a) => (
-                    <article key={a.t} className={`at-reco ${a.lvl}`}>
-                      <h4>{a.t}{a.lvl !== "info" && <span> priorité {a.lvl}</span>}</h4>
-                      <p>{a.d}</p>
-                    </article>
-                  ))}
-                  <p className="at-note">Estimation indicative issue d’images satellite, de la perte de couvert GFW, des détections de feux et d’un relief à 90 m échantillonné. À valider avec des données locales et les acteurs du territoire avant toute décision.</p>
-                </div>
-              )}
+              <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>Analyser ce territoire</button>
             </>
           )}
         </aside>
@@ -912,6 +1066,64 @@ export default function AnalyseTerritoriale() {
           </div>
         </section>
       </div>
+
+      {/* =============== POP-UP : RÉSULTAT DE L'ANALYSE =============== */}
+      {show && res && selected && (
+        <div className="at-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setShow(false); }}>
+          <div className="at-modal" role="dialog" aria-modal="true" aria-labelledby="at-m-titre" ref={modalRef}>
+            <header className="at-mh">
+              <div>
+                <h2 id="at-m-titre">Orientations pour {nameOf(selected)}</h2>
+                <p>{lvlText} · {fmtArea(zoneKm2)} · {advice.length} orientation{advice.length > 1 ? "s" : ""}{nHautes ? `, dont ${nHautes} prioritaire${nHautes > 1 ? "s" : ""}` : ""}</p>
+              </div>
+              <button type="button" className="at-x" ref={closeRef} onClick={() => setShow(false)} aria-label="Fermer la fenêtre"><X size={18} /></button>
+            </header>
+
+            <div className="at-mb">
+              <div className="at-kpis">
+                <div className="at-kpi"><b>{nf(res.treePct)} %</b><span>couvert arboré</span></div>
+                <div className="at-kpi"><b>{nf(res.cropPct)} %</b><span>cultures</span></div>
+                <div className="at-kpi"><b>{nf(res.steepPct)} %</b><span>pente de 15 % ou plus</span></div>
+                <div className="at-kpi"><b>{lossStats ? `${nf(Math.round(lossStats.total))} ha` : "n/d"}</b><span>perdus, {periodeTxt}</span></div>
+                <div className="at-kpi"><b>{nf(n72)}</b><span>feux en 72 h</span></div>
+                <div className="at-kpi"><b>{res.rain ? `${nf(res.rain)} mm` : "n/d"}</b><span>pluie en 2023</span></div>
+              </div>
+
+              <div className="at-gauge-wrap">
+                <div className="at-gauge"><u style={{ left: `${score}%` }} /></div>
+                <p>Vulnérabilité à l’érosion : <strong>{vulnLabel(score)}</strong> ({score} sur 100)</p>
+              </div>
+
+              {themesPresents.length > 1 && (
+                <div className="at-chips" role="group" aria-label="Filtrer par thème">
+                  <button type="button" aria-pressed={themeF === "Toutes"} onClick={() => setThemeF("Toutes")}>Toutes ({advice.length})</button>
+                  {themesPresents.map(({ th, n }) => (
+                    <button key={th} type="button" aria-pressed={themeF === th} onClick={() => setThemeF(th)}>{th} ({n})</button>
+                  ))}
+                </div>
+              )}
+
+              {adviceShown.map((a) => (
+                <article key={a.t} className={`at-reco ${a.lvl}`}>
+                  <div className="at-rtags">
+                    <span className="at-tag">{a.th}</span>
+                    <span className={`at-lv ${a.lvl}`}>{LVL_TXT[a.lvl]}</span>
+                  </div>
+                  <h4>{a.t}</h4>
+                  <p>{a.d}</p>
+                  {a.acts && a.acts.length > 0 && <ul className="at-acts">{a.acts.map((s) => <li key={s}>{s}</li>)}</ul>}
+                </article>
+              ))}
+
+              <p className="at-note">Estimation indicative issue d’images satellite, de la perte de couvert GFW, des détections de feux et d’un relief à 90 m échantillonné. À valider avec des données locales et les acteurs du territoire avant toute décision.</p>
+            </div>
+
+            <footer className="at-mf">
+              <button type="button" className="at-tool" onClick={() => setShow(false)}>Fermer</button>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -995,15 +1207,41 @@ const CSS = `
 
 .at-go{padding:15px;border:0;border-radius:12px;background:var(--c-acc);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
 .at-go:disabled{opacity:.45;cursor:default}
-.at-card>h3{font-size:20px;margin:0 0 4px}
 .at-gauge-wrap p{margin:12px 0 14px;font-size:14px}
 .at-gauge{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,#6fae7a,#e6c84f,#e08a3c,#b23a2e)}
 .at-gauge u{position:absolute;top:-5px;width:4px;height:22px;margin-left:-2px;background:var(--c-ink);border-radius:2px}
+
+/* ---- pop-up des orientations ---- */
+.at-ov{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;padding:16px;background:rgba(10,20,15,.58);
+  backdrop-filter:blur(2px);animation:atFade .18s ease-out}
+.at-modal{width:min(900px,100%);max-height:min(92dvh,900px);display:flex;flex-direction:column;background:var(--c-card);color:var(--c-ink);
+  border:1px solid var(--c-line);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.4);overflow:hidden;animation:atPop .22s cubic-bezier(.2,.8,.2,1)}
+.at-mh{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:18px 20px 14px;border-bottom:1px solid var(--c-line)}
+.at-mh h2{font-size:26px;line-height:1.1;letter-spacing:-.01em}
+.at-mh p{margin:5px 0 0;font-size:13px;color:var(--c-ink3)}
+.at-x{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink2);cursor:pointer;display:grid;place-items:center}
+.at-x:hover{background:var(--c-bg)}
+.at-mb{padding:16px 20px;overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0}
+.at-mf{padding:12px 20px;border-top:1px solid var(--c-line);display:flex;justify-content:flex-end}
+.at-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.at-kpi{background:var(--c-bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.at-kpi b{font-family:'Newsreader',Georgia,serif;font-weight:500;font-size:24px;line-height:1.1}
+.at-kpi span{font-size:12px;color:var(--c-ink3)}
+.at-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+.at-chips button{padding:5px 11px;border-radius:999px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink2);font:inherit;font-size:12.5px;cursor:pointer}
+.at-chips button[aria-pressed=true]{background:var(--c-acc);border-color:var(--c-acc);color:#fff}
 .at-reco{padding:12px 14px;border-radius:0 10px 10px 0;border-left:4px solid var(--c-line);background:var(--c-bg);margin-top:10px}
-.at-reco.haute{border-color:#b23a2e}.at-reco.moyenne{border-color:#e0a23c}
-.at-reco h4{margin:0 0 4px;font-size:14px}
-.at-reco h4 span{font-weight:400;color:var(--c-ink3)}
+.at-reco.haute{border-color:#b23a2e}.at-reco.moyenne{border-color:#e0a23c}.at-reco.info{border-color:#7fb069}
+.at-rtags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.at-tag,.at-lv{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+.at-tag{background:var(--c-card);border:1px solid var(--c-line);color:var(--c-ink2)}
+.at-lv.haute{background:rgba(178,58,46,.14);color:#9a2b20}
+.at-lv.moyenne{background:rgba(224,162,60,.2);color:#8a5a0c}
+.at-lv.info{background:rgba(127,176,105,.22);color:#3f6b2c}
+.at-reco h4{margin:0 0 4px;font-size:15px}
 .at-reco p{margin:0;font-size:13.5px;line-height:1.55;color:var(--c-ink2)}
+.at-acts{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--c-ink2)}
+.at-acts li{margin:2px 0}
 
 /* ---- carte ---- */
 .at-mcard{min-height:0;min-width:0;display:flex;flex-direction:column;margin:10px;background:var(--c-card);border:1px solid var(--c-line);border-radius:14px;overflow:hidden}
@@ -1028,6 +1266,8 @@ const CSS = `
 
 @keyframes atGrow{from{transform:scaleX(0)}}
 @keyframes atPulse{50%{opacity:.45}}
+@keyframes atFade{from{opacity:0}}
+@keyframes atPop{from{opacity:0;transform:translateY(12px) scale(.98)}}
 @media (max-width:1250px){
   .at-body{grid-template-columns:minmax(420px,46%) minmax(0,1fr)}
   .at-duo{grid-template-columns:1fr}
@@ -1041,6 +1281,12 @@ const CSS = `
   .at-duo{grid-template-columns:repeat(2,minmax(0,1fr))}
   .at-hint{display:none}
 }
-@media (max-width:640px){.at-duo{grid-template-columns:1fr}}
-@media (prefers-reduced-motion:reduce){.at-stack,.at-pulse{animation:none}.at-colw i{transition:none}}
+@media (max-width:640px){
+  .at-duo{grid-template-columns:1fr}
+  .at-ov{padding:0}
+  .at-modal{width:100%;max-height:100dvh;height:100dvh;border-radius:0;border:0}
+  .at-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .at-mh h2{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){.at-stack,.at-pulse,.at-ov,.at-modal{animation:none}.at-colw i{transition:none}}
 `;
