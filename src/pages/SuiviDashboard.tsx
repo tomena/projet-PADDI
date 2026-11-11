@@ -76,7 +76,8 @@ const CSS = `
   --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
   --gv:#66bb6a;--gb:#2e7d32;--bad:#f87171;--e1:rgba(102,187,106,.14);--e2:rgba(102,187,106,.04);--map-bg:#1b2740}
 .sv *{box-sizing:border-box}
-.sv-h{background:#0b5d1e;color:#fff;padding:10px clamp(12px,2vw,24px);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.sv-h{background:#0b5d1e;color:#fff;padding:10px clamp(12px,2vw,24px);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.sv-ha{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .sv-h h2{margin:0;font-size:clamp(15px,2.4vw,22px);line-height:1.2}
 .sv-h button{background:rgba(255,255,255,.12);border:0;border-radius:8px;padding:6px 12px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600}.sv-h button:disabled{opacity:.7;cursor:default}
 .sv-spin{animation:svs 1s linear infinite}@keyframes svs{to{transform:rotate(360deg)}}
@@ -186,7 +187,7 @@ function Gauge({ pct }: { pct: number }) {
   );
 }
 
-export default function SuiviDashboard({ config, src = '/data/parcelles.geojson' }: { config: DashboardConfig; src?: string }) {
+export default function SuiviDashboard({ config, src = '/data/parcelles.geojson', headerExtra }: { config: DashboardConfig; src?: string; headerExtra?: React.ReactNode }) {
   const { titleKey, enonceKey, themes, cible, debut, fin, donuts, extras = [] } = config;
   const ctx: any = useLanguage() || {};
   const raw = ctx.language ?? ctx.lang ?? ctx.locale;
@@ -276,9 +277,12 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
       <style>{CSS}</style>
       <header className="sv-h">
         <h2>{t.title[titleKey]}</h2>
-        <button onClick={refresh} disabled={busy} aria-label={t.refresh}>
-          <RefreshCw className={busy ? 'sv-spin' : ''} /><span>{t.refresh}</span>
-        </button>
+        <div className="sv-ha">
+          {headerExtra}
+          <button onClick={refresh} disabled={busy} aria-label={t.refresh}>
+            <RefreshCw className={busy ? 'sv-spin' : ''} /><span>{t.refresh}</span>
+          </button>
+        </div>
       </header>
 
       <main className="sv-w">
