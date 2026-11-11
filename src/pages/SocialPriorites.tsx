@@ -112,8 +112,11 @@ export default function SocialPriorites() {
                     <tbody>
                       {resultat.lignes.map((l) => (
                         <tr key={l.territoire + l.service}>
-                          <td>{l.territoire}</td><td>{l.service}</td>
-                          <td className="an-num">{l.unites}</td><td className="an-num">{fmt(l.personnes, 0)}</td><td className="an-num">{fmt(l.cout, 0)}</td>
+                          <td data-label="Territoire">{l.territoire}</td>
+                          <td data-label="Investissement">{l.service}</td>
+                          <td className="an-num" data-label="Unités">{l.unites}</td>
+                          <td className="an-num" data-label="Personnes">{fmt(l.personnes, 0)}</td>
+                          <td className="an-num" data-label="Coût (M Ar)">{fmt(l.cout, 0)}</td>
                         </tr>
                       ))}
                     </tbody>
