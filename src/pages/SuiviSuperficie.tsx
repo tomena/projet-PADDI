@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronDown, Layers, Wheat, Trees, Check } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import SuiviDashboard from './SuiviDashboard';
 import type { DashboardConfig } from './SuiviDashboard';
 import { useLanguage } from '../context/LanguageContext';
@@ -6,6 +8,12 @@ import { useLanguage } from '../context/LanguageContext';
 type PageKey = 'global' | 'agro' | 'foret';
 
 const ORDER: PageKey[] = ['global', 'agro', 'foret'];
+
+const ICONS: Record<PageKey, LucideIcon> = {
+  global: Layers,
+  agro: Wheat,
+  foret: Trees,
+};
 
 const extras: DashboardConfig['extras'] = [
   { key: 'cep', flag: 'is_cep', icon: 'cep' },
@@ -46,14 +54,12 @@ const CONFIGS: Record<PageKey, DashboardConfig> = {
 };
 
 type Labels = {
-  page: string;
   select: string;
   opts: Record<PageKey, string>;
 };
 
 const LABELS: Record<string, Labels> = {
   fr: {
-    page: 'Suivi de superficie',
     select: 'Type de superficie',
     opts: {
       global: 'Superficie aménagée durablement',
@@ -62,7 +68,6 @@ const LABELS: Record<string, Labels> = {
     },
   },
   mg: {
-    page: 'Fanaraha-maso ny velarana',
     select: 'Karazana velarana',
     opts: {
       global: 'Velarana voalamina maharitra',
@@ -71,7 +76,6 @@ const LABELS: Record<string, Labels> = {
     },
   },
   en: {
-    page: 'Area monitoring',
     select: 'Area type',
     opts: {
       global: 'Sustainably managed area',
@@ -80,7 +84,6 @@ const LABELS: Record<string, Labels> = {
     },
   },
   de: {
-    page: 'Flächenmonitoring',
     select: 'Flächentyp',
     opts: {
       global: 'Nachhaltig bewirtschaftete Fläche',
@@ -90,6 +93,89 @@ const LABELS: Record<string, Labels> = {
   },
 };
 
+const MENU_CSS = `
+.sv-dd{position:relative}
+.sv-h .sv-dd-btn{max-width:100%}
+.sv-h .sv-dd-btn .sv-dd-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-dd-btn svg{flex:0 0 auto}
+.sv-dd-chev{transition:transform .15s}
+.sv-dd-chev.open{transform:rotate(180deg)}
+.sv-dd-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:1000;min-width:100%;width:max-content;max-width:min(340px,88vw);
+  background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:4px;
+  box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:2px}
+.sv-h .sv-opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;color:var(--txt);
+  border:0;border-radius:8px;padding:9px 10px;font-weight:500;font-size:13px;cursor:pointer}
+.sv-h .sv-opt:hover,.sv-h .sv-opt:focus-visible{background:var(--e1);outline:none}
+.sv-h .sv-opt.on{color:var(--gv);font-weight:700}
+.sv-h .sv-opt .sv-opt-l{flex:1}
+@media(max-width:520px){.sv-dd-menu{left:0;right:auto}}
+`;
+
+function AreaMenu({
+  value, onChange, labels,
+}: { value: PageKey; onChange: (v: PageKey) => void; labels: Labels }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const down = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('mousedown', down);
+    document.addEventListener('keydown', key);
+    return () => {
+      document.removeEventListener('mousedown', down);
+      document.removeEventListener('keydown', key);
+    };
+  }, [open]);
+
+  const Current = ICONS[value];
+
+  return (
+    <div className="sv-dd" ref={ref}>
+      <style>{MENU_CSS}</style>
+      <button
+        type="button"
+        className="sv-dd-btn"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={labels.select}
+        title={labels.select}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Current size={16} />
+        <span className="sv-dd-txt">{labels.opts[value]}</span>
+        <ChevronDown size={16} className={`sv-dd-chev ${open ? 'open' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="sv-dd-menu" role="listbox" aria-label={labels.select}>
+          {ORDER.map((k) => {
+            const Icon = ICONS[k];
+            const on = k === value;
+            return (
+              <button
+                key={k}
+                type="button"
+                role="option"
+                aria-selected={on}
+                className={`sv-opt ${on ? 'on' : ''}`}
+                onClick={() => { onChange(k); setOpen(false); }}
+              >
+                <Icon size={16} />
+                <span className="sv-opt-l">{labels.opts[k]}</span>
+                {on && <Check size={14} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SuiviSuperficie() {
   const ctx: any = useLanguage() || {};
   const raw = ctx.language ?? ctx.lang ?? ctx.locale;
@@ -98,51 +184,11 @@ export default function SuiviSuperficie() {
   const [view, setView] = useState<PageKey>('global');
 
   return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          flexWrap: 'wrap',
-          padding: '10px clamp(12px,2vw,24px)',
-          background: 'var(--card, #fff)',
-          borderBottom: '1px solid var(--line, #e5e7eb)',
-          color: 'var(--txt, #374151)',
-        }}
-      >
-        <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--gv, #1b5e20)' }}>
-          {L.page}
-        </h3>
-        <span style={{ flex: 1 }} />
-        <label htmlFor="suivi-view" style={{ fontSize: 13, fontWeight: 600 }}>
-          {L.select}
-        </label>
-        <select
-          id="suivi-view"
-          value={view}
-          onChange={(e) => setView(e.target.value as PageKey)}
-          style={{
-            height: 38,
-            minWidth: 260,
-            maxWidth: '100%',
-            padding: '0 10px',
-            borderRadius: 8,
-            border: '1px solid var(--bd, #d1d5db)',
-            background: 'var(--card, #fff)',
-            color: 'var(--txt, #374151)',
-          }}
-        >
-          {ORDER.map((k) => (
-            <option key={k} value={k}>
-              {L.opts[k]}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* key : remet à zéro filtres, recherche et pagination à chaque changement de vue */}
-      <SuiviDashboard key={view} config={CONFIGS[view]} />
-    </div>
+    // key : remet à zéro filtres, recherche et pagination à chaque changement de vue
+    <SuiviDashboard
+      key={view}
+      config={CONFIGS[view]}
+      headerExtra={<AreaMenu value={view} onChange={setView} labels={L} />}
+    />
   );
 }
