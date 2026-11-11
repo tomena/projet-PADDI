@@ -55,6 +55,8 @@ const sidebarTxt = {
     socioeconomic: "Sociaux-économique",
 
     localEconomy: "Économie locale",
+    developedArea: "Superficie aménagée",
+    areaMonitoring: "Suivi de superficie",
 
     pressureZones: "Points de feux",
 
@@ -99,6 +101,8 @@ const sidebarTxt = {
     territorialAnalysis: "Famakafakana ny faritany",
 
     territorialSynthesis: "Famintinana ny faritany",
+    developedArea: "Velaran-tany voalamina",
+    areaMonitoring: "Fanaraha-maso ny velarana",
 
     socialIndicators: "Tondro ara-tsosialy",
     socioeconomic: "Ara-tsosialy sy ara-toekarena",
@@ -148,6 +152,8 @@ const sidebarTxt = {
     territorialAnalysis: "Territorial Analysis",
 
     territorialSynthesis: "Territorial Overview",
+    developedArea: "Developed Area",
+    areaMonitoring: "Area Monitoring",
 
     socialIndicators: "Social Indicators",
     socioeconomic: "Socio-economic",
@@ -197,6 +203,8 @@ const sidebarTxt = {
     territorialAnalysis: "Territoriale Analyse",
 
     territorialSynthesis: "Territoriale Übersicht",
+    developedArea: "Erschlossene Fläche",
+    areaMonitoring: "Flächenmonitoring",
 
     socialIndicators: "Soziale Indikatoren",
     socioeconomic: "Sozioökonomisch",
@@ -244,10 +252,8 @@ const MENUS: Record<string, Entree[]> = {
         lien("regionales", Globe2, "regionalMeasures", "mesures-regionales"),
       ]),
       groupe("amenagement", Briefcase, "landUsePlanning", [
-        lien("sad", MapPinned, "developedArea", "sad"),
+        lien("superficie", MapPinned, "areaMonitoring", "suivi-superficie"),
         lien("beneficiaire", Users, "beneficiary", "beneficiaire"),
-        lien("agro", Wheat, "agroPastoralAreas", "surface-agro"),
-        lien("forestier", Trees, "forestAreas", "surface-forestiere"),
         lien("revenus", DollarSign, "producersWithIncome", "revenus-producteurs"),
         lien("micro", Store, "microEnterprises", "micro-entreprises"),
       ]),
