@@ -26,6 +26,11 @@ import ZonesBrulees from "./pages/ZonesBrulees";
 import Bibliotheque from "./pages/Bibliotheque";
 import AnalyseTerritoriale from "./pages/AnalyseTerritoriale";
 
+import EconomieDiagnostic from "./pages/EconomieDiagnostic";
+import EconomieSimulateur from "./pages/EconomieSimulateur";
+import SocialDiagnostic from "./pages/SocialDiagnostic";
+import SocialPriorites from "./pages/SocialPriorites";
+
 export default function App() {
   const data = {
     hommes: 4000,
@@ -79,6 +84,17 @@ export default function App() {
           path="suivi-activites-annuelles"
           element={<SuiviActivitesAnnuelles />}
         />
+
+        {/* Économie */}
+        <Route path="analyse-economie" element={<EconomieDiagnostic />} />
+        <Route path="analyse-economie/simulateur" element={<EconomieSimulateur />} />
+
+        {/* Société */}
+        <Route path="analyse-social" element={<SocialDiagnostic />} />
+        <Route path="analyse-social/priorites" element={<SocialPriorites />} />
+
+        <Route path="budget-communal" element={<BudgetCommunaux />} />
+        {/* ... le reste de vos routes Économie existantes ... */}
 
         {/* Environnement */}
         <Route
