@@ -19,6 +19,7 @@ const fr = {
   exportHistoSub: (n: number) => `${n} jour${n > 1 ? 's' : ''} enregistré${n > 1 ? 's' : ''} · CSV`,
   exportHistoNone: 'Aucun jour enregistré pour l’instant',
 
+  theme: 'Couche',
   firePoints: 'Points de feux actifs', period: 'Période', firePeriodAria: 'Période des feux',
   reliability: 'Fiabilité', confAll: 'Toutes les détections', confNominal: 'Nominale et plus', confHigh: 'Élevée seulement',
   lossLayer: 'Perte de couvert forestier', alerts: 'Alertes', alertsAria: 'Période des alertes',
@@ -28,7 +29,7 @@ const fr = {
   allAPs: 'Toutes les aires protégées', allAPsOfRegion: 'Toutes celles de la région', reset: 'Réinitialiser',
 
   noLayerTitle: 'Aucune couche sélectionnée',
-  noLayerText: 'Cochez « Points de feux actifs », « Perte de couvert forestier » ou « Zone à risque d’érosion » pour afficher les statistiques et la carte.',
+  noLayerText: 'Choisissez « Points de feux actifs », « Perte de couvert forestier » ou « Zone à risque d’érosion » dans la liste « Couche » pour afficher les statistiques et la carte.',
   firesDetected: 'feux détectés', lastHours: (h: number) => `${h} dernières heures`,
   chronoAria: 'Détections par tranche de 6 heures',
   chronoTip: (n: number, a: number, b: number) => `${n} feux · il y a ${a} à ${b} h`,
@@ -59,7 +60,6 @@ const fr = {
   legLoss: 'Perte de couvert forestier', legErosion: 'Zone à risque d’érosion',
   legZones: 'Zones de l’aire protégée', legLandscapes: 'Paysages', legMicro: 'Micro-bassins',
   retry: 'Réessayer',
-  theme: 'Couche',
 
   tipFires: 'Feux détectés', tipHa: 'Superficie déboisée', tipErosion: 'Zones à risque d’érosion',
   na: 'n/d', keyFire: 'feux', keyHa: 'hectares déboisés', unitHa: 'ha',
@@ -89,6 +89,7 @@ const mg: Txt = {
   exportHistoSub: (n) => `andro ${n} voarakitra · CSV`,
   exportHistoNone: 'Mbola tsy misy andro voarakitra',
 
+  theme: 'Sosona',
   firePoints: 'Teboka doro mavitrika', period: 'Vanim-potoana', firePeriodAria: 'Vanim-potoanan’ny doro',
   reliability: 'Fahatokisana', confAll: 'Ny fanamarihana rehetra', confNominal: 'Antonony sy mihoatra', confHigh: 'Avo ihany',
   lossLayer: 'Fahaverezan’ny rakotra ala', alerts: 'Fampitandremana', alertsAria: 'Vanim-potoanan’ny fampitandremana',
@@ -98,7 +99,7 @@ const mg: Txt = {
   allAPs: 'Faritra arovana rehetra', allAPsOfRegion: 'Izay rehetra ao amin’ny faritra', reset: 'Averina',
 
   noLayerTitle: 'Tsy misy sosona voafidy',
-  noLayerText: 'Asio tick ny « Teboka doro mavitrika », ny « Fahaverezan’ny rakotra ala » na ny « Faritra atahorana ho voan’ny eroziona » mba hiseho ny antontan-kisary sy ny sarintany.',
+  noLayerText: 'Fidio ao amin’ny lisitra « Sosona » ny « Teboka doro mavitrika », ny « Fahaverezan’ny rakotra ala » na ny « Faritra atahorana ho voan’ny eroziona » mba hiseho ny antontan-kisary sy ny sarintany.',
   firesDetected: 'doro hita', lastHours: (h) => `ora ${h} farany`,
   chronoAria: 'Fanamarihana isaky ny ora 6',
   chronoTip: (n, a, b) => `doro ${n} · ${a} ka hatramin’ny ${b} ora lasa`,
@@ -129,7 +130,6 @@ const mg: Txt = {
   legLoss: 'Fahaverezan’ny rakotra ala', legErosion: 'Faritra atahorana ho voan’ny eroziona',
   legZones: 'Faritry ny faritra arovana', legLandscapes: 'Tontolo', legMicro: 'Mikro-basinina',
   retry: 'Andramo indray',
-   theme: 'Sosona',
 
   tipFires: 'Doro hita', tipHa: 'Velarana nopotehina', tipErosion: 'Faritra atahorana ho voan’ny eroziona',
   na: 'n/a', keyFire: 'doro', keyHa: 'hektara nopotehina', unitHa: 'ha',
@@ -158,6 +158,7 @@ const en: Txt = {
   exportHistoSub: (n) => `${n} day${n > 1 ? 's' : ''} recorded · CSV`,
   exportHistoNone: 'No day recorded yet',
 
+  theme: 'Layer',
   firePoints: 'Active fire points', period: 'Period', firePeriodAria: 'Fire period',
   reliability: 'Reliability', confAll: 'All detections', confNominal: 'Nominal and above', confHigh: 'High only',
   lossLayer: 'Forest cover loss', alerts: 'Alerts', alertsAria: 'Alert period',
@@ -167,7 +168,7 @@ const en: Txt = {
   allAPs: 'All protected areas', allAPsOfRegion: 'All in the region', reset: 'Reset',
 
   noLayerTitle: 'No layer selected',
-  noLayerText: 'Tick “Active fire points”, “Forest cover loss” or “Erosion-risk zone” to display the statistics and the map.',
+  noLayerText: 'Choose “Active fire points”, “Forest cover loss” or “Erosion-risk zone” in the “Layer” list to display the statistics and the map.',
   firesDetected: 'fires detected', lastHours: (h) => `last ${h} hours`,
   chronoAria: 'Detections per 6-hour block',
   chronoTip: (n, a, b) => `${n} fires · ${a} to ${b} h ago`,
@@ -198,7 +199,6 @@ const en: Txt = {
   legLoss: 'Forest cover loss', legErosion: 'Erosion-risk zone',
   legZones: 'Protected-area zones', legLandscapes: 'Landscapes', legMicro: 'Micro-watersheds',
   retry: 'Retry',
-   theme: 'Layer',
 
   tipFires: 'Fires detected', tipHa: 'Deforested area', tipErosion: 'Erosion-risk zones',
   na: 'n/a', keyFire: 'fires', keyHa: 'hectares deforested', unitHa: 'ha',
@@ -227,6 +227,7 @@ const de: Txt = {
   exportHistoSub: (n) => `${n} Tag${n > 1 ? 'e' : ''} gespeichert · CSV`,
   exportHistoNone: 'Noch kein Tag gespeichert',
 
+  theme: 'Ebene',
   firePoints: 'Aktive Brandpunkte', period: 'Zeitraum', firePeriodAria: 'Zeitraum der Brände',
   reliability: 'Zuverlässigkeit', confAll: 'Alle Erkennungen', confNominal: 'Nominal und höher', confHigh: 'Nur hoch',
   lossLayer: 'Waldverlust', alerts: 'Warnungen', alertsAria: 'Zeitraum der Warnungen',
@@ -236,7 +237,7 @@ const de: Txt = {
   allAPs: 'Alle Schutzgebiete', allAPsOfRegion: 'Alle der Region', reset: 'Zurücksetzen',
 
   noLayerTitle: 'Keine Ebene ausgewählt',
-  noLayerText: 'Aktivieren Sie „Aktive Brandpunkte“, „Waldverlust“ oder „Erosionsgefährdete Zone“, um die Statistiken und die Karte anzuzeigen.',
+  noLayerText: 'Wählen Sie in der Liste „Ebene“ „Aktive Brandpunkte“, „Waldverlust“ oder „Erosionsgefährdete Zone“, um die Statistiken und die Karte anzuzeigen.',
   firesDetected: 'Brände erkannt', lastHours: (h) => `letzte ${h} Stunden`,
   chronoAria: 'Erkennungen pro 6-Stunden-Block',
   chronoTip: (n, a, b) => `${n} Brände · vor ${a} bis ${b} h`,
@@ -267,7 +268,6 @@ const de: Txt = {
   legLoss: 'Waldverlust', legErosion: 'Erosionsgefährdete Zone',
   legZones: 'Zonen des Schutzgebiets', legLandscapes: 'Landschaften', legMicro: 'Mikroeinzugsgebiete',
   retry: 'Erneut versuchen',
-   theme: 'Ebene',
 
   tipFires: 'Erkannte Brände', tipHa: 'Entwaldete Fläche', tipErosion: 'Erosionsgefährdete Zonen',
   na: 'k. A.', keyFire: 'Brände', keyHa: 'Hektar entwaldet', unitHa: 'ha',
@@ -326,7 +326,7 @@ type LigneMixte = {
   onClick?: () => void;
 };
 
-// Thème affiché : une seule case cochée à la fois (null = aucune)
+// Thème affiché : une seule valeur à la fois (null = aucune)
 type Theme = 'feux' | 'perte' | 'erosion' | null;
 type ModeTri = 'feux' | 'perte' | 'erosion';
 
@@ -455,20 +455,22 @@ function dansZone(lon: number, lat: number, z: Zone) {
   return pointDansPolygone(lon, lat, z.feature.geometry);
 }
 
-function boitesSeCroisent(a: Bbox, b: Bbox) {
-  return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
-}
-
-/* Tampon de 5 km : calcul pur, rien n'est dessiné.
-   Un point est « autour » d'une zone s'il est dedans ou à ≤ 5 km de l'un de ses bords. */
+/* ---------------------------------------------------------------------
+   Tampon de 5 km : calcul pur, rien n'est dessiné sur la carte.
+   Un point est « autour » d'une zone s'il est dedans ou à ≤ 5 km de l'un de ses bords.
+   --------------------------------------------------------------------- */
 const TAMPON_KM = 5;
 
+// Distance (km) entre un point et un segment, en projection locale
 function distSegmentKm(lon: number, lat: number, x1: number, y1: number, x2: number, y2: number) {
   const kx = Math.cos((lat * Math.PI) / 180) * 111.32; // km par degré de longitude
   const ky = 110.574; // km par degré de latitude
-  const ax = (x1 - lon) * kx, ay = (y1 - lat) * ky;
-  const bx = (x2 - lon) * kx, by = (y2 - lat) * ky;
-  const dx = bx - ax, dy = by - ay;
+  const ax = (x1 - lon) * kx,
+    ay = (y1 - lat) * ky;
+  const bx = (x2 - lon) * kx,
+    by = (y2 - lat) * ky;
+  const dx = bx - ax,
+    dy = by - ay;
   const l2 = dx * dx + dy * dy;
   const u = l2 ? Math.max(0, Math.min(1, -(ax * dx + ay * dy) / l2)) : 0;
   return Math.hypot(ax + u * dx, ay + u * dy);
@@ -489,14 +491,20 @@ function dansTampon(lon: number, lat: number, z: Zone, km = TAMPON_KM) {
   for (const poly of polys) {
     for (const anneau of poly) {
       for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
-        if (distSegmentKm(lon, lat, anneau[j][0], anneau[j][1], anneau[i][0], anneau[i][1]) <= km) return true;
+        if (distSegmentKm(lon, lat, anneau[j][0], anneau[j][1], anneau[i][0], anneau[i][1]) <= km) {
+          return true;
+        }
       }
     }
   }
   return false;
 }
 
-// Une zone (aire protégée, périphérie) appartient à une région si l'un de ses
+function boitesSeCroisent(a: Bbox, b: Bbox) {
+  return !(a[2] < b[0] || a[0] > b[2] || a[3] < b[1] || a[1] > b[3]);
+}
+
+// Une zone (aire protégée) appartient à une région si l'un de ses
 // sommets (ou le centre de sa boîte) tombe dans la région.
 function zoneDansRegion(z: Zone, region: Zone) {
   if (!boitesSeCroisent(z.bbox, region.bbox)) return false;
@@ -918,12 +926,11 @@ export default function Pression() {
   const [anneeDebut, setAnneeDebut] = useState(ANNEE_MIN);
   const [anneeFin, setAnneeFin] = useState(ANNEE_MAX);
 
-  // ---- Thème affiché (cases à cocher exclusives : une seule à la fois)
+  // ---- Thème affiché (liste déroulante : une seule valeur à la fois)
   const [theme, setTheme] = useState<Theme>('feux');
   const showFeux = theme === 'feux';
   const showPerte = theme === 'perte';
   const showErosion = theme === 'erosion';
-  const choisirTheme = (th: Exclude<Theme, null>) => setTheme((cur) => (cur === th ? null : th));
 
   // ---- Interface
   const [fond, setFond] = useState('topo');
@@ -931,7 +938,6 @@ export default function Pression() {
   const [couches, setCouches] = useState({
     regions: true,
     aires: true,
-    peripheries: false,
     feux: true,
     perte: true,
     erosion: true,
@@ -1028,7 +1034,7 @@ export default function Pression() {
     [feuxConf, regionZone]
   );
 
-  // aires protégées et périphéries de la région choisie uniquement
+  // aires protégées de la région choisie uniquement
   const apsVisibles = useMemo(() => {
     if (!regionZone) return apZ;
     const regionChoisie = normaliser(regionZone.nom);
@@ -1045,10 +1051,11 @@ export default function Pression() {
     [ap, apsVisibles]
   );
 
+  // Feux dans l'aire protégée choisie OU dans son tampon de 5 km (calcul caché, rien n'est dessiné)
   const feuxZone = useMemo(
-  () => (apZone ? feuxRegion.filter((f) => dansTampon(f.lon, f.lat, apZone)) : feuxRegion),
-  [feuxRegion, apZone]
-);
+    () => (apZone ? feuxRegion.filter((f) => dansTampon(f.lon, f.lat, apZone)) : feuxRegion),
+    [feuxRegion, apZone]
+  );
 
   // Micro-bassins et paysages : affichés seulement quand une aire protégée est choisie.
   // Micro-bassins = ceux dont le champ "Aire_Prot" correspond à l'aire protégée
@@ -1099,10 +1106,12 @@ export default function Pression() {
   const stats48 = feuxZone.filter((f) => f.age <= 48).length;
   const stats72 = feuxZone.length;
 
+  // Carte « Autour des aires protégées » : feux situés à ≤ 5 km (tampon caché) de l'aire choisie,
+  // ou de n'importe quelle aire visible si aucune n'est choisie
   const feuxPeriph = useMemo(() => {
-  const cibles = apZone ? [apZone] : apsVisibles;
-  return feuxAffiches.filter((f) => cibles.some((z) => dansTampon(f.lon, f.lat, z)));
-}, [feuxAffiches, apZone, apsVisibles]);
+    const cibles = apZone ? [apZone] : apsVisibles;
+    return feuxAffiches.filter((f) => cibles.some((z) => dansTampon(f.lon, f.lat, z)));
+  }, [feuxAffiches, apZone, apsVisibles]);
 
   const topCommunes = useMemo(() => {
     if (!communesZ.length || !feuxAffiches.length) return [];
@@ -1416,7 +1425,7 @@ export default function Pression() {
 
   // Les libellés viennent des traductions (t.layers)
   const optionsCouches: (keyof typeof couches)[] = [
-    'feux', 'perte', 'erosion', 'paysages', 'mbv', 'regions', 'aires', 'peripheries',
+    'feux', 'perte', 'erosion', 'paysages', 'mbv', 'regions', 'aires',
   ];
 
   const lignesAPCliquables = lignesAP.map((a) => ({
@@ -1477,90 +1486,95 @@ export default function Pression() {
         </div>
 
         <div className="pr-filtres">
-          {/* Colonne de gauche : une ligne par thème (une seule case cochée à la fois) */}
-         <div className="pr-fgroupe pr-fgauche">
-           <label className="pr-champ">
-             <span>{t.theme}</span>
-             <select
-               value={theme ?? ''}
-               onChange={(e) => setTheme((e.target.value || null) as Theme)}
-             >
-               <option value="">{t.noLayerTitle}</option>
-               <option value="feux">{t.firePoints}</option>
-               <option value="perte">{t.lossLayer}</option>
-               <option value="erosion">{t.erosionLayer}</option>
-             </select>
-           </label>
-         
-           <div className="pr-fctl">
-             {showFeux && (
-               <div className="pr-inl">
-                 <span>{t.period}</span>
-                 <div className="pr-seg" role="group" aria-label={t.firePeriodAria}>
-                   {([24, 48, 72] as const).map((h) => (
-                     <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
-                       {h} h
-                     </button>
-                   ))}
-                 </div>
-               </div>
-             )}
-         
-             {(showFeux || showPerte) && (
-               <div className="pr-inl">
-                 <span>{t.reliability}</span>
-                 <select value={confiance} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
-                   <option value="l">{t.confAll}</option>
-                   <option value="n">{t.confNominal}</option>
-                   <option value="h">{t.confHigh}</option>
-                 </select>
-               </div>
-             )}
-         
-             {showPerte && (
-               <>
-                 <div className="pr-inl">
-                   <span>{t.alerts}</span>
-                   <div className="pr-seg" role="group" aria-label={t.alertsAria}>
-                     {([7, 30, 90] as const).map((j) => (
-                       <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
-                         {j} {lang === 'mg' ? 'andro' : lang === 'en' ? 'd' : lang === 'de' ? 'T.' : 'j'}
-                       </button>
-                     ))}
-                   </div>
-                 </div>
-                 <div className="pr-inl">
-                   <span>{t.years}</span>
-                   <div className="pr-annees">
-                     <select
-                       aria-label={t.yearFrom}
-                       value={anneeDebut}
-                       onChange={(e) => {
-                         const v = Number(e.target.value);
-                         setAnneeDebut(v);
-                         if (v > anneeFin) setAnneeFin(v);
-                       }}
-                     >
-                       {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
-                     </select>
-                     <span>{t.to}</span>
-                     <select
-                       aria-label={t.yearTo}
-                       value={anneeFin}
-                       onChange={(e) => {
-                         const v = Number(e.target.value);
-                         setAnneeFin(v);
-                         if (v < anneeDebut) setAnneeDebut(v);
-                       }}
-                     >
-                       {ANNEES.map((a) => <option key={a} value={a}>{a}</option>)}
-                     </select>
-                   </div>
-                 </div>
-               </>
-             )}
-           </div>
-         </div>
+          {/* Colonne de gauche : liste déroulante du thème + ses réglages */}
+          <div className="pr-fgroupe pr-fgauche">
+            <label className="pr-champ">
+              <span>{t.theme}</span>
+              <select value={theme ?? ''} onChange={(e) => setTheme((e.target.value || null) as Theme)}>
+                <option value="">{t.noLayerTitle}</option>
+                <option value="feux">{t.firePoints}</option>
+                <option value="perte">{t.lossLayer}</option>
+                <option value="erosion">{t.erosionLayer}</option>
+              </select>
+            </label>
+
+            <div className="pr-fctl">
+              {showFeux && (
+                <div className="pr-inl">
+                  <span>{t.period}</span>
+                  <div className="pr-seg" role="group" aria-label={t.firePeriodAria}>
+                    {([24, 48, 72] as const).map((h) => (
+                      <button key={h} className={periode === h ? 'on' : ''} onClick={() => setPeriode(h)}>
+                        {h} h
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {(showFeux || showPerte) && (
+                <div className="pr-inl">
+                  <span>{t.reliability}</span>
+                  <select value={confiance} onChange={(e) => setConfiance(e.target.value as 'l' | 'n' | 'h')}>
+                    <option value="l">{t.confAll}</option>
+                    <option value="n">{t.confNominal}</option>
+                    <option value="h">{t.confHigh}</option>
+                  </select>
+                </div>
+              )}
+
+              {showPerte && (
+                <>
+                  <div className="pr-inl">
+                    <span>{t.alerts}</span>
+                    <div className="pr-seg" role="group" aria-label={t.alertsAria}>
+                      {([7, 30, 90] as const).map((j) => (
+                        <button key={j} className={joursDef === j ? 'on' : ''} onClick={() => setJoursDef(j)}>
+                          {j} {lang === 'mg' ? 'andro' : lang === 'en' ? 'd' : lang === 'de' ? 'T.' : 'j'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pr-inl">
+                    <span>{t.years}</span>
+                    <div className="pr-annees">
+                      <select
+                        aria-label={t.yearFrom}
+                        value={anneeDebut}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setAnneeDebut(v);
+                          if (v > anneeFin) setAnneeFin(v);
+                        }}
+                      >
+                        {ANNEES.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                      <span>{t.to}</span>
+                      <select
+                        aria-label={t.yearTo}
+                        value={anneeFin}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setAnneeFin(v);
+                          if (v < anneeDebut) setAnneeDebut(v);
+                        }}
+                      >
+                        {ANNEES.map((a) => (
+                          <option key={a} value={a}>
+                            {a}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Colonne de droite : filtres géographiques */}
           <div className="pr-fdroite">
@@ -1798,7 +1812,7 @@ export default function Pression() {
                   </article>
                 )}
 
-                {/* CARTE 6 : périphéries de 5 km + communes */}
+                {/* CARTE 6 : autour des aires protégées (tampon 5 km caché) + communes */}
                 {showFeux && (
                   <article className="pr-carte c6">
                     <h2>{t.aroundTitle}</h2>
@@ -1865,7 +1879,6 @@ export default function Pression() {
             )}
             {couches.paysages && <CoucheZones zones={paysagesVisibles} style={stylePaysage} cle="paysages" />}
             {couches.mbv && <CoucheZones zones={mbvVisibles} style={styleMbv} cle="mbv" />}
-             
             {couches.aires && (
               <CoucheZones
                 zones={apsVisibles}
@@ -2117,7 +2130,7 @@ const CSS = `
 .pr-btn-plein:hover:not(:disabled){background:var(--btn-plein-hover)}
 
 .pr-filtres{display:flex;gap:10px 32px;align-items:flex-start;flex-wrap:wrap;margin-top:12px}
-/* Deux groupes à lignes alignées : [thème + ses réglages] | [filtres] */
+/* Deux groupes : [liste du thème + ses réglages] | [filtres géographiques] */
 .pr-fgroupe{display:grid;grid-auto-rows:36px;gap:8px 14px;align-items:center}
 .pr-fgauche{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 18px}
 .pr-fgauche .pr-fctl{height:36px}
@@ -2133,7 +2146,7 @@ const CSS = `
 .pr-fgroupe select:disabled{background:var(--dis-bg);color:var(--dis-txt);cursor:not-allowed}
 .pr-fgroupe .pr-annees select{min-width:84px}
 .pr-fgroupe .pr-seg button{height:34px;padding:0 14px}
-.pr-fgroupe .pr-chk,.pr-fgroupe .pr-reset{height:36px}
+.pr-fgroupe .pr-reset{height:36px}
 .pr-champ{display:flex;flex-direction:column;gap:4px;min-width:0}
 .pr-champ>span{font-size:12px;color:var(--mut);font-weight:500}
 .pr-champ select{padding:8px 10px;border-radius:9px;border:1px solid var(--champ-bord);background:var(--champ-bg);
@@ -2147,18 +2160,6 @@ const CSS = `
 .pr-reset{padding:8px 12px;border-radius:9px;border:1px dashed var(--mut);background:transparent;color:var(--txt);
   font-size:13px;font-weight:600;cursor:pointer}
 .pr-reset:hover{border-color:var(--rouge);color:var(--rouge)}
-
-/* ---- Cases à cocher des thèmes (exclusives) ---- */
-.pr-checks{display:flex;gap:6px;flex-wrap:wrap}
-.pr-chk{display:inline-flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid var(--champ-bord);border-radius:9px;
-  background:var(--champ-bg);font-size:13px;font-weight:600;color:var(--txt);cursor:pointer;white-space:nowrap}
-.pr-chk input{accent-color:var(--rouge);width:15px;height:15px;margin:0;cursor:inherit}
-.pr-chk.on{border-color:var(--rouge);background:var(--sel-feu)}
-.pr-chk.perte input{accent-color:var(--perte)}
-.pr-chk.perte.on{border-color:var(--perte);background:var(--sel-perte)}
-.pr-chk.erosion input{accent-color:var(--erosion)}
-.pr-chk.erosion.on{border-color:var(--erosion);background:var(--sel-ero)}
-.pr-chk.off{opacity:.55;cursor:not-allowed;background:var(--dis-bg)}
 
 /* ---- Corps ---- */
 .pr-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(440px,56%) 1fr}
@@ -2197,7 +2198,7 @@ const CSS = `
 .pr-carte.c3{--accent:#8b5cf6}          /* paysages : violet (comme sur la carte) */
 .pr-carte.c4{--accent:#0e7490}          /* micro-bassins : cyan (comme sur la carte) */
 .pr-carte.c5{--accent:var(--perte)}     /* évolution de la perte : rose */
-.pr-carte.c6{--accent:var(--c-periph)}  /* périphéries & communes : ocre */
+.pr-carte.c6{--accent:var(--c-periph)}  /* autour des aires protégées & communes : ocre */
 .pr-carte h2{margin:0;font-family:var(--titre);font-size:15px;font-weight:700;color:var(--txt);line-height:1.25}
 .pr-sstitre{margin:10px 0 6px;font-size:12px;font-weight:700;color:var(--txt2)}
 .pr-note{margin:3px 0 10px;font-size:11.5px;color:var(--mut)}
