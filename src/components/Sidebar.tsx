@@ -59,7 +59,6 @@ const sidebarTxt = {
     socioeconomic: "Sociaux-économique",
 
     localEconomy: "Économie locale",
-    developedArea: "Superficie aménagée",
     areaMonitoring: "Suivi de superficie",
 
     pressureZones: "Points de feux",
@@ -110,7 +109,6 @@ const sidebarTxt = {
 
     territorialSynthesis: "Famintinana ny faritany",
     developedArea: "Velaran-tany voalamina",
-    areaMonitoring: "Fanaraha-maso ny velarana",
 
     socialIndicators: "Tondro ara-tsosialy",
     socioeconomic: "Ara-tsosialy sy ara-toekarena",
@@ -165,7 +163,6 @@ const sidebarTxt = {
 
     territorialSynthesis: "Territorial Overview",
     developedArea: "Developed Area",
-    areaMonitoring: "Area Monitoring",
 
     socialIndicators: "Social Indicators",
     socioeconomic: "Socio-economic",
@@ -220,7 +217,6 @@ const sidebarTxt = {
 
     territorialSynthesis: "Territoriale Übersicht",
     developedArea: "Erschlossene Fläche",
-    areaMonitoring: "Flächenmonitoring",
 
     socialIndicators: "Soziale Indikatoren",
     socioeconomic: "Sozioökonomisch",
