@@ -106,6 +106,8 @@ const sidebarTxt = {
     environment: "Tontolo iainana",
     burnedZonesMap: "Sarintanin'ny faritra may",
     territorialAnalysis: "Famakafakana ny faritany",
+    territorialSynthesis: "Famintinana ara-paritra",
+    areaMonitoring: "Fanaraha-maso ny velaran-tany",
 
     socialIndicators: "Tondro ara-tsosialy",
     socioeconomic: "Ara-tsosialy sy ara-toekarena",
@@ -157,6 +159,8 @@ const sidebarTxt = {
     environment: "Environment",
     burnedZonesMap: "Burned Areas Mapping",
     territorialAnalysis: "Territorial Analysis",
+    territorialSynthesis: "Territorial Synthesis",
+    areaMonitoring: "Area Monitoring",
 
     socialIndicators: "Social Indicators",
     socioeconomic: "Socio-economic",
@@ -208,6 +212,8 @@ const sidebarTxt = {
     environment: "Umwelt",
     burnedZonesMap: "Kartierung verbrannter Flächen",
     territorialAnalysis: "Territoriale Analyse",
+    territorialSynthesis: "Territoriale Synthese",
+    areaMonitoring: "Flächenüberwachung",
 
     socialIndicators: "Soziale Indikatoren",
     socioeconomic: "Sozioökonomisch",
