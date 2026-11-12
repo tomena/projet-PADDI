@@ -107,9 +107,6 @@ const sidebarTxt = {
     burnedZonesMap: "Sarintanin'ny faritra may",
     territorialAnalysis: "Famakafakana ny faritany",
 
-    territorialSynthesis: "Famintinana ny faritany",
-    developedArea: "Velaran-tany voalamina",
-
     socialIndicators: "Tondro ara-tsosialy",
     socioeconomic: "Ara-tsosialy sy ara-toekarena",
 
@@ -161,9 +158,6 @@ const sidebarTxt = {
     burnedZonesMap: "Burned Areas Mapping",
     territorialAnalysis: "Territorial Analysis",
 
-    territorialSynthesis: "Territorial Overview",
-    developedArea: "Developed Area",
-
     socialIndicators: "Social Indicators",
     socioeconomic: "Socio-economic",
 
@@ -214,9 +208,6 @@ const sidebarTxt = {
     environment: "Umwelt",
     burnedZonesMap: "Kartierung verbrannter Flächen",
     territorialAnalysis: "Territoriale Analyse",
-
-    territorialSynthesis: "Territoriale Übersicht",
-    developedArea: "Erschlossene Fläche",
 
     socialIndicators: "Soziale Indikatoren",
     socioeconomic: "Sozioökonomisch",
