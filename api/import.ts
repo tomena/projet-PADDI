@@ -1,8 +1,8 @@
-import updateFeux from "../server/update-feux";
-import updateGeojson from "../server/update-geojson";
-import importCouts from "../server/import-couts";
-import importDecaissement from "../server/import-decaissement";
-import importIndicateurs from "../server/import-indicateurs";
+import updateFeux from "../server/update-feux.js";
+import updateGeojson from "../server/update-geojson.js";
+import importCouts from "../server/import-couts.js";
+import importDecaissement from "../server/import-decaissement.js";
+import importIndicateurs from "../server/import-indicateurs.js";
 
 type Handler = (req: any, res: any) => unknown;
 
