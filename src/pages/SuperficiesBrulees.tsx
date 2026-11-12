@@ -8,6 +8,7 @@ import {
   ReferenceLine, PieChart, Pie, Cell, Label, Legend,
 } from 'recharts';
 import { Flame, Calendar, MapPin, Landmark, FileSpreadsheet, RotateCcw, Download, ChevronDown } from 'lucide-react';
+import ImportFeux from '../components/ImportFeux'; // ← AJOUT : import Excel → mise à jour de la base
 
 /* =====================================================================
    TEXTES
@@ -101,7 +102,7 @@ const TEXT: any = {
 const ANNEES = [2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027, 2028, 2029, 2030];
 const BASELINE_YEARS = [2020, 2021, 2022, 2023, 2024];
 const VALID_ANTENNES = ['Tanà', "Amoron'i Mania", 'Boeny', 'Diana', 'Atsimo-Atsinanana', 'Anosy'];
-const DEFAULT_YEAR = 2026;
+const DEFAULT_YEAR = 2026; // utilisée seulement tant que la base n'est pas chargée
 const MADAGASCAR: L.LatLngBoundsExpression = [[-26, 42.3], [-11.5, 50.9]];
 
 const FONDS: any = {
@@ -240,13 +241,22 @@ export default function SuperficiesBrulees({ data }: any) {
   const [peripherieData, setPeripherieData] = useState<any>(null);
   const [feuxData, setFeuxData] = useState<any[]>([]);
 
+  // AJOUT : l'année affichée suit la dernière année présente dans la base (plus de « 2026 » en dur).
+  // Après un import avec une nouvelle année, le tableau de bord s'ouvre dessus automatiquement.
+  const derniereAnnee = useMemo(() => {
+    const ys = feuxData.map((d: any) => Number(d['Année'])).filter((y) => ANNEES.includes(y));
+    return ys.length ? Math.max(...ys) : DEFAULT_YEAR;
+  }, [feuxData]);
+  useEffect(() => { setSelectedYear(derniereAnnee); }, [derniereAnnee]);
+
   useEffect(() => {
     fetch('/data/madagascar_24_region.geojson')
       .then((r) => { if (!r.ok) throw new Error('GeoJSON introuvable'); return r.json(); })
       .then(setRegionsData).catch(console.error);
     fetch('/data/aire_protegee_paddi.geojson').then((r) => r.json()).then(setAireProtegeeData).catch(console.error);
     fetch('/data/peripherie_5km_paddi.geojson').then((r) => r.json()).then(setPeripherieData).catch(console.error);
-    fetch('/data/Bases_Feux.geojson').then((r) => r.json())
+    // 'no-cache' : après une mise à jour de la base, le navigateur revérifie le fichier au lieu de garder l'ancien
+    fetch('/data/Bases_Feux.geojson', { cache: 'no-cache' }).then((r) => r.json())
       .then((d) => setFeuxData(d.features.map((f: any) => f.properties))).catch(console.error);
   }, []);
 
@@ -417,8 +427,8 @@ export default function SuperficiesBrulees({ data }: any) {
   );
 
   const changeAntenne = (v: string) => { setSelectedAntenne(v); setSelectedAP(''); };
-  const filtresModifies = selectedYear !== DEFAULT_YEAR || !!selectedAntenne || !!selectedAP;
-  const resetFilters = () => { setSelectedYear(DEFAULT_YEAR); setSelectedAntenne(''); setSelectedAP(''); };
+  const filtresModifies = selectedYear !== derniereAnnee || !!selectedAntenne || !!selectedAP;
+  const resetFilters = () => { setSelectedYear(derniereAnnee); setSelectedAntenne(''); setSelectedAP(''); };
 
   /* ---------- Valeurs d'affichage ---------- */
   const kpiValue = donutKPI.TauxAtteinte2030 ?? 0;
@@ -499,6 +509,9 @@ export default function SuperficiesBrulees({ data }: any) {
             </button>
           )}
         </div>
+
+        {/* AJOUT : import de l'Excel → mise à jour de Bases_Feux.geojson (réservé à Toky) */}
+        <ImportFeux current={feuxData} onApply={(lignes) => setFeuxData(lignes as any[])} />
 
         <div className="sbr-export" ref={exportRef}>
           <button className="sbr-btn" aria-haspopup="menu" aria-expanded={menuExport}
