@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Upload, FileSpreadsheet, X, AlertTriangle, CheckCircle2, Download, Loader2, CloudUpload } from 'lucide-react';
 import { convertir, versGeoJSON, serialiser, type Ligne, type Rapport } from './feuxConvert';
@@ -7,13 +7,58 @@ import LoginModal from './LoginModal';
 /* =====================================================================
    ACCÈS : connexion par votre LoginModal (même session que l'import des coûts).
    Seul l'utilisateur « Toky » (anjarampifohazana.toky@giz.de) est autorisé.
-   ⚠️ Ce test côté navigateur n'est qu'une aide : c'est api/update-feux.ts qui
-   vérifie le jeton signé et refuse tout autre compte.
+   ⚠️ Ce test côté navigateur n'est qu'une aide : c'est le serveur (update-feux)
+   qui vérifie le jeton signé et refuse tout autre compte.
+
+   MODE FUSION : l'utilisateur choisit UNE année et UN ou PLUSIEURS mois.
+   - ligne déjà présente (District + AP + Année + Commune + Source) : seuls les mois
+     choisis sont modifiés, Total est recalculé ;
+   - ligne absente (nouvelle année, nouvelle commune…) : elle est ajoutée ;
+   - aucune ligne n'est supprimée.
+   La même logique tourne sur le serveur (pour l'enregistrement) et ici (pour l'affichage).
    ===================================================================== */
 const UTILISATEUR_AUTORISE = 'Toky';
 
+const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+const cle = (p: any) => [p.District, p.AP, p['Année'], p.Commune, p.Source].join('|');
+const somme = (p: any) => MOIS.reduce((s, m) => s + (typeof p[m] === 'number' ? p[m] : 0), 0);
+
+/** Mois pour lesquels l'Excel contient au moins une valeur pour l'année donnée */
+const moisAvecDonnees = (lignes: any[], annee: number) =>
+  MOIS.filter((m) => lignes.some((l) => Number(l['Année']) === annee && typeof l[m] === 'number'));
+
+/** Même fusion que le serveur. Ne modifie pas les tableaux reçus. */
+function fusionner(actuelles: any[], nouvelles: any[], mois: string[]) {
+  const res = actuelles.map((p) => ({ ...p }));
+  const index = new Map<string, number>();
+  res.forEach((p, i) => index.set(cle(p), i));
+  let ajoutees = 0, modifiees = 0, identiques = 0;
+
+  for (const nouv of nouvelles) {
+    const i = index.get(cle(nouv));
+    if (i === undefined) {
+      const p: any = { ...nouv };
+      for (const m of MOIS) if (!mois.includes(m)) p[m] = null;
+      p.Total = somme(p);
+      index.set(cle(p), res.push(p) - 1);
+      ajoutees++;
+    } else {
+      const p = res[i];
+      let change = false;
+      for (const m of mois) {
+        const v = nouv[m] ?? null;
+        if ((p[m] ?? null) !== v) change = true;
+        p[m] = v;
+      }
+      p.Total = somme(p);
+      if (change) modifiees++; else identiques++;
+    }
+  }
+  return { lignes: res, ajoutees, modifiees, identiques };
+}
+
 interface Props {
-  /** Lignes actuellement affichées (feuxData) : sert à comparer avant/après */
+  /** Lignes actuellement affichées (feuxData) : sert à calculer l'aperçu de la fusion */
   current: Ligne[];
   /** Appelé après l'import : met à jour le tableau de bord affiché */
   onApply: (lignes: Ligne[], meta: { fichier: string; derniereAnnee: number | null }) => void;
@@ -52,15 +97,16 @@ export default function ImportFeux({ current, onApply, publishUrl = '/api/update
   const [rapport, setRapport] = useState<Rapport | null>(null);
   const [chargement, setChargement] = useState(false);
   const [erreurLecture, setErreurLecture] = useState('');
-  const [confirme, setConfirme] = useState(false);
   const [message, setMessage] = useState('');
   const [publication, setPublication] = useState(false);
   const [survol, setSurvol] = useState(false);
+  const [annee, setAnnee] = useState<number | null>(null);
+  const [mois, setMois] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const reinit = useCallback(() => {
     setFichier(''); setFeuille(''); setRapport(null); setErreurLecture('');
-    setConfirme(false); setMessage(''); setChargement(false);
+    setMessage(''); setChargement(false); setAnnee(null); setMois([]);
   }, []);
   const fermer = useCallback(() => { setOuvert(false); reinit(); }, [reinit]);
 
@@ -73,6 +119,42 @@ export default function ImportFeux({ current, onApply, publishUrl = '/api/update
     return () => { document.removeEventListener('keydown', esc); document.body.style.overflow = prev; };
   }, [ouvert, fermer]);
 
+  const autorise = session?.userName === UTILISATEUR_AUTORISE;
+
+  // Lignes de l'Excel (déjà validées par convertir)
+  const lignesExcel = useMemo(() => (rapport?.lignes ?? []) as any[], [rapport]);
+  const anneesExcel = useMemo(
+    () => [...new Set(lignesExcel.map((l) => Number(l['Année'])).filter(Number.isInteger))].sort((a, b) => a - b),
+    [lignesExcel]
+  );
+  const anneesBase = useMemo(
+    () => new Set((current as any[]).map((l) => Number(l['Année']))),
+    [current]
+  );
+  const lignesAnnee = useMemo(
+    () => (annee == null ? [] : lignesExcel.filter((l) => Number(l['Année']) === annee)),
+    [lignesExcel, annee]
+  );
+  const moisDisponibles = useMemo(
+    () => (annee == null ? [] : moisAvecDonnees(lignesExcel, annee)),
+    [lignesExcel, annee]
+  );
+  const moisSansDonnees = mois.filter((m) => !moisDisponibles.includes(m));
+
+  // Aperçu exact de ce que donnera la fusion
+  const fusion = useMemo(
+    () => (annee == null || mois.length === 0 ? null : fusionner(current as any[], lignesAnnee, mois)),
+    [current, lignesAnnee, annee, mois]
+  );
+
+  const choisirAnnee = (a: number | null, lignes: any[] = lignesExcel) => {
+    setAnnee(a);
+    setMois(a == null ? [] : moisAvecDonnees(lignes, a));
+    setMessage('');
+  };
+  const basculerMois = (m: string) =>
+    setMois((prev) => MOIS.filter((x) => (x === m ? !prev.includes(m) : prev.includes(x))));
+
   const traiter = async (f?: File | null) => {
     if (!f || !autorise) return;
     reinit();
@@ -81,34 +163,51 @@ export default function ImportFeux({ current, onApply, publishUrl = '/api/update
     try {
       const { lignes, feuille: nom } = await lireExcel(f);
       setFeuille(nom);
-      setRapport(convertir(lignes, current));
+      const r = convertir(lignes, current);
+      setRapport(r);
+      // Année proposée par défaut : la plus récente du fichier ; mois : ceux qui ont des valeurs
+      const lg = (r.lignes ?? []) as any[];
+      const ans = [...new Set(lg.map((l) => Number(l['Année'])).filter(Number.isInteger))].sort((a, b) => a - b);
+      if (ans.length) {
+        const defaut = ans[ans.length - 1];
+        setAnnee(defaut);
+        setMois(moisAvecDonnees(lg, defaut));
+      }
     } catch (e) {
       console.error(e);
       setErreurLecture("Impossible de lire ce fichier Excel. Vérifiez qu'il n'est pas protégé par mot de passe ni corrompu.");
     } finally { setChargement(false); }
   };
 
-  const autorise = session?.userName === UTILISATEUR_AUTORISE;
-  const bloque = !autorise || !rapport || rapport.erreurs.length > 0 || (rapport.risque && !confirme);
+  const bloque =
+    !autorise || !rapport || rapport.erreurs.length > 0 ||
+    annee == null || mois.length === 0 || lignesAnnee.length === 0;
+
+  const derniereAnneeDe = (lignes: any[]) => {
+    const ys = lignes.map((l) => Number(l['Année'])).filter(Number.isInteger);
+    return ys.length ? Math.max(...ys) : null;
+  };
 
   const appliquerLocal = () => {
-    if (!rapport || bloque) return;
-    onApply(rapport.lignes, { fichier, derniereAnnee: rapport.derniereAnnee });
+    if (!fusion || bloque) return;
+    onApply(fusion.lignes as Ligne[], { fichier, derniereAnnee: derniereAnneeDe(fusion.lignes) });
     setMessage("Aperçu appliqué à votre écran uniquement : le fichier du serveur n'a pas été modifié.");
   };
   const exporter = () => {
-    if (!rapport || bloque) return;
-    telecharger('Bases_Feux.geojson', serialiser(versGeoJSON(rapport.lignes)));
+    if (!fusion || bloque) return;
+    telecharger('Bases_Feux.geojson', serialiser(versGeoJSON(fusion.lignes as Ligne[])));
   };
-  // Action principale : remplace public/data/Bases_Feux.geojson sur le serveur
+
+  // Action principale : fusionne dans public/data/Bases_Feux.geojson sur le serveur
   const publier = async () => {
-    if (!rapport || bloque) return;
+    if (!fusion || bloque) return;
     setPublication(true); setErreurLecture(''); setMessage('');
     try {
       const res = await fetch(publishUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: session?.token, lignes: rapport.lignes, confirmeSuppression: confirme }),
+        // Seules les lignes de l'année choisie sont envoyées
+        body: JSON.stringify({ token: session?.token, lignes: lignesAnnee, annee, mois }),
       });
       if (!res.ok) {
         let m = '';
@@ -116,14 +215,15 @@ export default function ImportFeux({ current, onApply, publishUrl = '/api/update
         if (res.status === 401) { setSession(null); setOuvert(false); setLogin(true); }
         throw new Error(m || `HTTP ${res.status}`);
       }
-      onApply(rapport.lignes, { fichier, derniereAnnee: rapport.derniereAnnee });
-      setMessage('Base enregistrée (commit GitHub). Le tableau de bord affiche déjà les nouvelles données ; pour les autres utilisateurs, c\'est visible après le redéploiement du site (1 à 3 minutes).');
+      onApply(fusion.lignes as Ligne[], { fichier, derniereAnnee: derniereAnneeDe(fusion.lignes) });
+      setMessage(
+        `Base enregistrée (commit GitHub) : ${nf(fusion.modifiees)} ligne(s) modifiée(s), ${nf(fusion.ajoutees)} ajoutée(s). ` +
+        "Le tableau de bord affiche déjà les nouvelles données ; pour les autres utilisateurs, c'est visible après le redéploiement du site (1 à 3 minutes)."
+      );
     } catch (e: any) {
       setErreurLecture(`Échec de la mise à jour : ${e?.message || 'erreur serveur'}. Le fichier n'a pas été modifié.`);
     } finally { setPublication(false); }
   };
-
-  const d = rapport?.diff;
 
   return (
     <div className="sbi-slot">
@@ -146,7 +246,7 @@ export default function ImportFeux({ current, onApply, publishUrl = '/api/update
             <header className="sbi-tete">
               <div>
                 <h2 id="sbi-titre">Mettre à jour la base des feux</h2>
-                <p>Importez l'Excel <b>Bases_Feux.xlsx</b> : il est converti en GeoJSON et remplace la base actuelle.</p>
+                <p>Importez l'Excel, puis choisissez l'<b>année</b> et les <b>mois</b> à mettre à jour. Les autres données de la base ne sont pas touchées.</p>
               </div>
               <button className="sbi-x" onClick={fermer} aria-label="Fermer"><X size={18} /></button>
             </header>
@@ -189,37 +289,78 @@ export default function ImportFeux({ current, onApply, publishUrl = '/api/update
                     </div>
                   )}
 
-                  {rapport.lignes.length > 0 && (
+                  {rapport.lignes.length > 0 && rapport.erreurs.length === 0 && (
                     <>
-                      <div className="sbi-kpis">
-                        <div><span>Lignes importées</span><strong>{nf(rapport.lignes.length)}</strong></div>
-                        <div><span>Années</span><strong>{rapport.annees[0]?.annee}–{rapport.derniereAnnee}</strong></div>
-                        <div><span>Dernier mois ({rapport.derniereAnnee})</span><strong>{rapport.dernierMois ?? '—'}</strong></div>
-                        <div><span>Aires protégées</span><strong>{rapport.aires.length}</strong></div>
+                      {/* ---------- Choix de l'année ---------- */}
+                      <div className="sbi-bloc">
+                        <label className="sbi-champ">
+                          <span>1. Année à mettre à jour</span>
+                          <select value={annee ?? ''} onChange={(e) => choisirAnnee(e.target.value ? Number(e.target.value) : null)}>
+                            <option value="">Choisir l'année…</option>
+                            {anneesExcel.map((a) => (
+                              <option key={a} value={a}>{a}{anneesBase.has(a) ? '' : ' (nouvelle année)'}</option>
+                            ))}
+                          </select>
+                        </label>
+                        {annee != null && !anneesBase.has(annee) && (
+                          <p className="sbi-info"><CheckCircle2 size={14} /> {annee} n'existe pas encore dans la base : elle sera ajoutée et le tableau de bord s'ouvrira dessus.</p>
+                        )}
                       </div>
 
-                      {d && (
-                        <div className="sbi-diff">
-                          <h3>Changements par rapport à la base actuelle</h3>
-                          <div className="sbi-puces">
-                            <span className="p ok">+ {nf(d.ajoutees)} ajoutée(s)</span>
-                            <span className="p mod">~ {nf(d.modifiees)} modifiée(s)</span>
-                            <span className={`p ${d.supprimees ? 'sup' : ''}`}>− {nf(d.supprimees)} supprimée(s)</span>
-                            <span className="p">= {nf(d.identiques)} inchangée(s)</span>
+                      {/* ---------- Choix des mois ---------- */}
+                      {annee != null && (
+                        <div className="sbi-bloc">
+                          <div className="sbi-ligne">
+                            <span className="sbi-etiq">2. Mois à mettre à jour</span>
+                            <span className="sbi-liens">
+                              <button type="button" onClick={() => setMois(moisDisponibles)}>Mois avec données</button>
+                              <button type="button" onClick={() => setMois([...MOIS])}>Tous</button>
+                              <button type="button" onClick={() => setMois([])}>Aucun</button>
+                            </span>
                           </div>
-                          {d.anneesNouvelles.length > 0 && (
-                            <p className="sbi-info"><CheckCircle2 size={14} /> Nouvelle année détectée : <b>{d.anneesNouvelles.join(', ')}</b>. Le tableau de bord s'ouvrira dessus.</p>
+                          <div className="sbi-mois">
+                            {MOIS.map((m) => {
+                              const dispo = moisDisponibles.includes(m);
+                              return (
+                                <label key={m} className={`sbi-mois-item ${mois.includes(m) ? 'on' : ''} ${dispo ? '' : 'vide'}`}
+                                       title={dispo ? undefined : "Aucune valeur dans l'Excel pour ce mois"}>
+                                  <input type="checkbox" checked={mois.includes(m)} onChange={() => basculerMois(m)} />
+                                  {m}
+                                </label>
+                              );
+                            })}
+                          </div>
+                          <p className="sbi-aide">Ajouter un nouveau mois : cochez-le simplement. Les mois en pointillés n'ont aucune valeur dans l'Excel.</p>
+                          {moisSansDonnees.length > 0 && (
+                            <div className="sbi-boite warn">
+                              <AlertTriangle size={16} />
+                              <div>
+                                L'Excel ne contient aucune valeur pour : <b>{moisSansDonnees.join(', ')}</b>. Si vous les gardez cochés,
+                                ces mois seront <b>vidés</b> dans la base pour {annee}.
+                              </div>
+                            </div>
                           )}
                         </div>
                       )}
 
-                      <details className="sbi-det">
-                        <summary>Lignes par année et par source</summary>
-                        <div className="sbi-puces">
-                          {rapport.annees.map((a) => <span key={a.annee} className="p">{a.annee} : {nf(a.n)}</span>)}
-                          {Object.entries(rapport.sources).map(([s, n]) => <span key={s} className="p">{s} : {nf(Number(n))}</span>)}
+                      {/* ---------- Aperçu ---------- */}
+                      <div className="sbi-kpis">
+                        <div><span>Lignes de {annee ?? '…'} dans l'Excel</span><strong>{nf(lignesAnnee.length)}</strong></div>
+                        <div><span>Mois choisis</span><strong>{mois.length}</strong></div>
+                        <div><span>Aires protégées</span><strong>{rapport.aires.length}</strong></div>
+                      </div>
+
+                      {fusion && (
+                        <div className="sbi-diff">
+                          <h3>Ce qui sera changé dans la base</h3>
+                          <div className="sbi-puces">
+                            <span className="p ok">+ {nf(fusion.ajoutees)} ajoutée(s)</span>
+                            <span className="p mod">~ {nf(fusion.modifiees)} modifiée(s)</span>
+                            <span className="p">= {nf(fusion.identiques)} inchangée(s)</span>
+                          </div>
+                          <p className="sbi-aide">Aucune ligne n'est supprimée. Le Total de chaque ligne est recalculé (somme des 12 mois).</p>
                         </div>
-                      </details>
+                      )}
                     </>
                   )}
 
@@ -230,13 +371,6 @@ export default function ImportFeux({ current, onApply, publishUrl = '/api/update
                         <ul>{rapport.avertissements.map((e, i) => <li key={i}>{e}</li>)}</ul>
                       </div>
                     </div>
-                  )}
-
-                  {rapport.risque && rapport.erreurs.length === 0 && (
-                    <label className="sbi-confirm">
-                      <input type="checkbox" checked={confirme} onChange={(e) => setConfirme(e.target.checked)} />
-                      Je confirme remplacer la base actuelle malgré les suppressions signalées.
-                    </label>
                   )}
                 </>
               )}
@@ -290,18 +424,36 @@ const CSS = `
 .sbi-tourne{animation:sbi-spin 1s linear infinite}
 @keyframes sbi-spin{to{transform:rotate(360deg)}}
 
+/* choix année / mois */
+.sbi-bloc{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:12px;border:1px solid var(--border,#e2e8f0);
+  background:var(--surface-2,#f8fafc)}
+.sbi-champ{display:flex;flex-direction:column;gap:6px}
+.sbi-champ>span,.sbi-etiq{font-size:13px;font-weight:700}
+.sbi-champ select{padding:9px 10px;border-radius:9px;border:1px solid var(--border,#cbd5e1);background:var(--surface,#fff);
+  color:inherit;font-size:13px;font-family:inherit;max-width:260px;cursor:pointer}
+.sbi-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.sbi-liens{display:flex;gap:10px}
+.sbi-liens button{border:0;background:transparent;padding:0;font-size:12px;font-weight:600;color:#15803d;cursor:pointer;
+  text-decoration:underline;font-family:inherit}
+.sbi-mois{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px}
+.sbi-mois-item{display:flex;align-items:center;gap:7px;padding:7px 10px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;
+  border:1px solid var(--border,#cbd5e1);background:var(--surface,#fff)}
+.sbi-mois-item.on{border-color:#16a34a;background:rgba(22,163,74,.14)}
+.sbi-mois-item.vide{border-style:dashed}
+.sbi-mois-item input{accent-color:#16a34a}
+.sbi-aide{margin:0;font-size:11.5px;color:var(--text-3,#64748b)}
+
 .sbi-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
 .sbi-kpis div{background:var(--surface-3,#f1f5f9);border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
 .sbi-kpis span{font-size:11px;color:var(--text-3,#64748b)}
 .sbi-kpis strong{font-size:16px;font-variant-numeric:tabular-nums}
 .sbi-diff h3{margin:0 0 6px;font-size:13px}
+.sbi-diff .sbi-aide{margin-top:6px}
 .sbi-puces{display:flex;flex-wrap:wrap;gap:6px}
 .sbi-puces .p{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--surface-3,#f1f5f9);border:1px solid var(--border,#e2e8f0)}
 .sbi-puces .ok{background:rgba(22,163,74,.15);border-color:#16a34a}
 .sbi-puces .mod{background:rgba(245,158,11,.18);border-color:#f59e0b}
-.sbi-puces .sup{background:rgba(220,38,38,.15);border-color:#dc2626}
-.sbi-info{display:flex;align-items:center;gap:6px;margin:8px 0 0;font-size:12.5px;color:#15803d}
-.sbi-det summary{cursor:pointer;font-size:12.5px;color:var(--text-2,#334155);margin-bottom:6px}
+.sbi-info{display:flex;align-items:center;gap:6px;margin:0;font-size:12.5px;color:#15803d}
 
 .sbi-boite{display:flex;gap:10px;padding:10px 12px;border-radius:10px;font-size:12.5px;line-height:1.45;border:1px solid}
 .sbi-boite svg{flex:none;margin-top:2px}
@@ -309,7 +461,6 @@ const CSS = `
 .sbi-boite.err{background:rgba(220,38,38,.1);border-color:#dc2626}
 .sbi-boite.warn{background:rgba(245,158,11,.12);border-color:#f59e0b}
 .sbi-boite.ok{background:rgba(22,163,74,.12);border-color:#16a34a}
-.sbi-confirm{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;font-weight:600}
 
 .sbi-pied{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 20px;border-top:1px solid var(--border,#e2e8f0)}
 .sbi-actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -320,7 +471,7 @@ const CSS = `
 .sbi-prim{border:1px solid #14532d;background:#14532d;color:#fff}
 .sbi-prim:hover:not(:disabled){background:#166534}
 .sbi-modal button:disabled{opacity:.45;cursor:not-allowed}
-.sbi-modal button:focus-visible{outline:2px solid rgb(200,15,15);outline-offset:2px}
+.sbi-modal button:focus-visible,.sbi-modal select:focus-visible{outline:2px solid rgb(200,15,15);outline-offset:2px}
 @media (max-width:520px){.sbi-pied{flex-direction:column-reverse;align-items:stretch}.sbi-actions{flex-direction:column}.sbi-sec,.sbi-prim{justify-content:center}}
 @media (prefers-reduced-motion:reduce){.sbi-tourne{animation:none}}
 `;
