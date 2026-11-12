@@ -2,21 +2,29 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 /* =====================================================================
- * api/update-feux.ts : remplace public/data/Bases_Feux.geojson dans GitHub
- * avec les lignes converties depuis l'Excel « Bases_Feux ».
+ * server/update-feux.ts : met à jour public/data/Bases_Feux.geojson dans GitHub
+ * à partir des lignes converties depuis l'Excel « Bases_Feux ».
  *
- * Même principe que l'import des décaissements :
+ * Mode FUSION (et non plus remplacement complet) :
+ *  - l'utilisateur choisit UNE année et UN ou PLUSIEURS mois ;
+ *  - pour chaque ligne (District + AP + Année + Commune + Source) déjà présente,
+ *    seuls les mois choisis sont modifiés, Total est recalculé ;
+ *  - si la ligne n'existe pas (nouvelle année, nouvelle commune...), elle est ajoutée ;
+ *  - aucune ligne n'est jamais supprimée.
+ *
+ * Sécurité (inchangée) :
  *  - l'identité vient du jeton de session signé (AUTH_SECRET), jamais du navigateur ;
  *  - seul l'utilisateur de UTILISATEURS_AUTORISES peut écrire ;
  *  - le serveur REVALIDE chaque ligne et reconstruit lui-même le GeoJSON ;
  *  - l'enregistrement est un commit GitHub (l'historique Git sert de sauvegarde),
  *    protégé par le SHA contre les écritures simultanées.
  *
- * Variables d'environnement déjà utilisées par vos autres routes :
+ * Corps de requête attendu :
+ *   { token, lignes, annee, mois }   // mois = ["Janvier", "Février", ...]
+ *
+ * Variables d'environnement :
  *   GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, AUTH_SECRET
- * Nouvelle variable (optionnelle) :
- *   FEUX_GEOJSON_PATH   défaut : public/data/Bases_Feux.geojson
- *   (ne réutilisez pas GEOJSON_PATH : c'est le fichier des coûts)
+ *   FEUX_GEOJSON_PATH   (optionnelle) défaut : public/data/Bases_Feux.geojson
  * ===================================================================== */
 
 const UTILISATEURS_AUTORISES = new Set(["Toky"]); // anjarampifohazana.toky@giz.de
@@ -54,6 +62,7 @@ function texteNonVide(v: unknown, champ: string, n: number): string {
 }
 
 // Reconstruit chaque ligne avec exactement les champs attendus, dans l'ordre du fichier actuel.
+// Le Total de l'Excel est ignoré : il est recalculé à la fusion (somme des 12 mois).
 function nettoyer(lignes: any[]): Props[] {
   return lignes.map((l, i) => {
     const n = i + 1;
@@ -70,13 +79,18 @@ function nettoyer(lignes: any[]): Props[] {
       Commune: texteNonVide(l.Commune, "Commune", n),
     };
     for (const m of MOIS) p[m] = nombreOuNull(l[m], m, n);
-    const total = nombreOuNull(l.Total, "Total", n);
-    if (total === null) throw new Error(`Ligne ${n} : « Total » manquant.`);
-    p.Total = total;
+    p.Total = 0; // recalculé plus tard
     p.Source = source;
     return p;
   });
 }
+
+// Clé d'identification d'une ligne
+const cle = (p: Props) => [p.District, p.AP, p["Année"], p.Commune, p.Source].join("|");
+
+// Total = somme des 12 mois
+const somme = (p: Props) =>
+  MOIS.reduce((s, m) => s + (typeof p[m] === "number" ? (p[m] as number) : 0), 0);
 
 // Même mise en forme que le fichier actuel : une feature par ligne.
 function serialiser(lignes: Props[]): string {
@@ -98,7 +112,7 @@ export default async function handler(req: any, res: any) {
     return res.status(500).json({ error: "Configuration serveur incomplète." });
   }
 
-  const { token: jeton, lignes, confirmeSuppression } = req.body ?? {};
+  const { token: jeton, lignes, annee, mois } = req.body ?? {};
 
   // 1. Session : le nom vient du jeton signé.
   const nom = lireJeton(jeton, authSecret);
@@ -115,15 +129,26 @@ export default async function handler(req: any, res: any) {
   }
   if (lignes.length > 50000) return res.status(400).json({ error: "Fichier trop volumineux." });
 
+  // 4. Choix de l'année et des mois
+  if (!Number.isInteger(annee) || annee < 2000 || annee > 2100) {
+    return res.status(400).json({ error: "Choisissez l'année à mettre à jour." });
+  }
+  if (!Array.isArray(mois) || mois.length === 0 || !mois.every((m: unknown) => typeof m === "string" && MOIS.includes(m))) {
+    return res.status(400).json({ error: "Choisissez au moins un mois valide." });
+  }
+  const moisChoisis: string[] = MOIS.filter((m) => mois.includes(m)); // dédoublonné, dans l'ordre
+
   const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/` + path.split("/").map(encodeURIComponent).join("/");
   const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
 
   try {
-    const propres = nettoyer(lignes);
+    // Uniquement les lignes de l'année choisie
+    const propres = nettoyer(lignes).filter((p) => p["Année"] === annee);
+    if (propres.length === 0) throw new Error(`Aucune ligne de l'année ${annee} dans le fichier Excel.`);
 
-    // Fichier actuel : SHA (pour écrire) + nombre de lignes (garde-fou contre un fichier amputé).
+    // Fichier actuel : SHA (pour écrire) + contenu (pour fusionner)
     let sha: string | undefined;
-    let nbActuel = 0;
+    let existantes: Props[] = [];
     const meta = await fetch(`${apiUrl}?ref=${encodeURIComponent(branch)}`, { headers, cache: "no-store" });
     if (meta.ok) {
       sha = (await meta.json()).sha;
@@ -133,23 +158,41 @@ export default async function handler(req: any, res: any) {
       });
       if (!brut.ok) throw new Error(`Lecture du GeoJSON actuel impossible (${brut.status}).`);
       const actuel = JSON.parse(await brut.text());
-      nbActuel = Array.isArray(actuel.features) ? actuel.features.length : 0;
+      existantes = (Array.isArray(actuel.features) ? actuel.features : []).map((f: any) => f.properties as Props);
     } else if (meta.status !== 404) {
       throw new Error(`Lecture des métadonnées GitHub impossible (${meta.status}).`);
     }
 
-    if (nbActuel > 0 && propres.length < nbActuel * 0.9 && confirmeSuppression !== true) {
-      return res.status(400).json({
-        error: `Le fichier contient ${propres.length} lignes contre ${nbActuel} actuellement. Confirmez le remplacement dans la fenêtre d'import.`,
-      });
+    // Fusion
+    const index = new Map<string, number>();
+    existantes.forEach((p, i) => index.set(cle(p), i));
+
+    let modifiees = 0;
+    let ajoutees = 0;
+    for (const nouv of propres) {
+      const i = index.get(cle(nouv));
+      if (i === undefined) {
+        // Nouvelle ligne : on ne remplit que les mois choisis
+        const p: Props = { ...nouv };
+        for (const m of MOIS) if (!moisChoisis.includes(m)) p[m] = null;
+        p.Total = somme(p);
+        index.set(cle(p), existantes.push(p) - 1);
+        ajoutees++;
+      } else {
+        // Ligne existante : seuls les mois choisis sont modifiés
+        const p = existantes[i];
+        for (const m of moisChoisis) p[m] = nouv[m];
+        p.Total = somme(p);
+        modifiees++;
+      }
     }
 
     const save = await fetch(apiUrl, {
       method: "PUT",
       headers: { ...headers, "Content-Type": "application/json" },
       body: JSON.stringify({
-        message: `Mise à jour Bases_Feux (${propres.length} lignes) par ${nom}`,
-        content: Buffer.from(serialiser(propres), "utf8").toString("base64"),
+        message: `Mise à jour Bases_Feux ${annee} (${moisChoisis.join(", ")}) par ${nom}`,
+        content: Buffer.from(serialiser(existantes), "utf8").toString("base64"),
         ...(sha ? { sha } : {}),
         branch,
       }),
@@ -159,7 +202,12 @@ export default async function handler(req: any, res: any) {
     }
     if (!save.ok) throw new Error(`GitHub a refusé l'enregistrement (${save.status}).`);
 
-    return res.status(200).json({ success: true, lignes: propres.length, message: "Base des feux mise à jour." });
+    return res.status(200).json({
+      success: true,
+      modifiees,
+      ajoutees,
+      message: `Base des feux mise à jour (${annee} : ${moisChoisis.join(", ")}) : ${modifiees} ligne(s) modifiée(s), ${ajoutees} ajoutée(s).`,
+    });
   } catch (error: any) {
     console.error("Erreur import feux :", error);
     return res.status(400).json({ error: error?.message || "Échec de l'importation." });
