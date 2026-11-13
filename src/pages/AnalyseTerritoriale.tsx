@@ -23,7 +23,7 @@ type Level = "ADM1" | "ADM2" | "ADM3";
 const NOM_CLES = ["shapename", "nom_region", "region", "nom_district", "district", "nom_commune", "commune",
   "adm3_fr", "adm2_fr", "adm1_fr", "name_3", "name_2", "name_1", "nom", "name", "libelle"];
 
-const WORLDCOVER_ACTIVE = false; // passer à true quand la source répond
+const WORLDCOVER_ACTIVE = true; // passer à true quand la source répond
 const BASSINS_GEOJSON_URL = ""; // ex. "/data/bassins_versants.geojson"
 const LC_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 const LOSS_FIRST = 2001, LOSS_LAST = 2025;
@@ -205,83 +205,21 @@ async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Prom
 
 /* ===================== CULTURES : SECOND AVIS (ESA WorldCover 2021) ===================== */
 
-const WC_PALETTE: { code: number; n: string; c: [number, number, number] }[] = [
-  { code: 10, n: "Couvert arboré", c: [0, 100, 0] },
-  { code: 20, n: "Arbustes", c: [255, 187, 34] },
-  { code: 30, n: "Prairies", c: [255, 255, 76] },
-  { code: 40, n: "Cultures", c: [240, 150, 255] },
-  { code: 50, n: "Bâti", c: [250, 0, 0] },
-  { code: 60, n: "Sol nu", c: [180, 180, 180] },
-  { code: 70, n: "Neige", c: [240, 240, 240] },
-  { code: 80, n: "Eau", c: [0, 100, 200] },
-  { code: 90, n: "Zones humides herbacées", c: [0, 150, 160] },
-  { code: 95, n: "Mangrove", c: [0, 207, 117] },
-  { code: 100, n: "Mousse et lichen", c: [250, 230, 160] },
-];
-
 type WcRes = { pct: number | null; err: string | null };
 
 /** Part (%) de cultures selon ESA WorldCover 2021, dans le polygone. Renvoie aussi l'erreur éventuelle. */
-async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<WcRes> {
+async function pctCulturesWC(f: Feat, _b: Box, _W: number, _H: number): Promise<WcRes> {
   if (!WORLDCOVER_ACTIVE) return { pct: null, err: "source désactivée" };
   try {
-    const url = `/api/worldcover?minLon=${b.minLon}&minLat=${b.minLat}&maxLon=${b.maxLon}&maxLat=${b.maxLat}&w=${W}&h=${H}`;
-    const r = await fetch(url);
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({} as any));
-      return { pct: null, err: j.erreur || `HTTP ${r.status}` };
-    }
-    const objUrl = URL.createObjectURL(await r.blob());
-    const img = new Image();
-    img.src = objUrl;
-    await img.decode();
-
-    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
-    const cx = cv.getContext("2d", { willReadFrequently: true })!;
-    cx.drawImage(img, 0, 0);
-    URL.revokeObjectURL(objUrl);
-    const px = cx.getImageData(0, 0, W, H).data;
-
-    const mk = document.createElement("canvas"); mk.width = W; mk.height = H;
-    const mc = mk.getContext("2d", { willReadFrequently: true })!;
-    const X = (lon: number) => ((lon - b.minLon) / (b.maxLon - b.minLon)) * W;
-    const Y = (lat: number) => ((b.maxLat - lat) / (b.maxLat - b.minLat)) * H;
-    mc.beginPath();
-    polys(f).forEach((p) => p.forEach((r) => r.forEach(([x, y], i) => (i ? mc.lineTo(X(x), Y(y)) : mc.moveTo(X(x), Y(y))))));
-    mc.fill("evenodd");
-    const mask = mc.getImageData(0, 0, W, H).data;
-
-    const cnt = new Array(WC_PALETTE.length).fill(0);
-    const brutes = new Map<string, number>();
-    let tot = 0, opaques = 0;
-
-    for (let i = 0; i < W * H; i++) {
-      if (mask[i * 4 + 3] < 128) continue;
-      if (px[i * 4 + 3] < 128) continue;
-      opaques++;
-      const pr = px[i * 4], pg = px[i * 4 + 1], pb = px[i * 4 + 2];
-      const key = `${pr},${pg},${pb}`;
-      brutes.set(key, (brutes.get(key) ?? 0) + 1);
-
-      let best = -1, bd = Infinity;
-      WC_PALETTE.forEach((k, ci) => {
-        const d = (pr - k.c[0]) ** 2 + (pg - k.c[1]) ** 2 + (pb - k.c[2]) ** 2;
-        if (d < bd) { bd = d; best = ci; }
-      });
-      if (bd < 90 * 90) { cnt[best]++; tot++; }
-    }
-
-    console.groupCollapsed(`WorldCover : ${W}×${H} px, ${opaques} opaques, ${tot} classés`);
-    console.table(WC_PALETTE.map((k, i) => ({ classe: k.n, pixels: cnt[i] })));
-    console.log("Couleurs les plus fréquentes :", [...brutes.entries()].sort((a, c) => c[1] - a[1]).slice(0, 8));
-    console.groupEnd();
-
-    if (!opaques) return { pct: null, err: "image entièrement transparente (zone hors couverture)" };
-    if (!tot) return { pct: null, err: "couleurs non reconnues (voir la console)" };
-    const idx = WC_PALETTE.findIndex((k) => k.code === 40);
-    return { pct: (cnt[idx] / tot) * 100, err: null };
+    const r = await fetch("/api/worldcover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geometry: simple(f) }),
+    });
+    const j = await r.json().catch(() => ({} as any));
+    if (!r.ok) return { pct: null, err: j.erreur || `HTTP ${r.status}` };
+    return { pct: j.pct, err: null };
   } catch (e: any) {
-    console.warn("WorldCover indisponible :", e);
     return { pct: null, err: e?.message || "erreur inconnue" };
   }
 }
