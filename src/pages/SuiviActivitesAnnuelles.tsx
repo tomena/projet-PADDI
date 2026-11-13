@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLanguage } from "../context/LanguageContext";
 import ActivitesAccessModal from "../components/ActivitesAccessModal";
 import UpdateActivitesModal from "../components/UpdateActivitesModal";
+import VueTousAvancements from "./VueTousAvancements"; // adaptez le chemin si besoin
 import {
   CalendarDays, RotateCcw, RefreshCw, CheckCircle, ListChecks, Clock, XCircle,
-  TreePine, Landmark, Wheat, HardHat, Building2, Users, Trees, ClipboardCheck, FileText, FileSpreadsheet,
+  TreePine, Landmark, Wheat, HardHat, Building2, Users, Trees, ClipboardCheck, FileText, FileSpreadsheet, LayoutGrid,
 } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
 
@@ -27,6 +28,7 @@ const fr = {
   reset: "Réinitialiser les filtres",
   export: "Exporter",
   exportTitle: "Exporter en Excel",
+  viewAll: "Regarder tous les avancements",
   noDataYear: "Aucune donnée disponible pour l'année",
 
   globalProgress: "TAUX D’AVANCEMENT GLOBAL DES ACTIVITÉS",
@@ -103,6 +105,7 @@ const mg: Txt = {
   reset: "Avereno ny sivana",
   export: "Alefa",
   exportTitle: "Alefa amin'ny Excel",
+  viewAll: "Jereo ny taha-pandrosoana rehetra",
   noDataYear: "Tsy misy angon-drakitra ho an'ny taona",
 
   globalProgress: "TAHA-PANDROSOANA ANKAPOBENY NY ASA",
@@ -177,6 +180,7 @@ const en: Txt = {
   reset: "Reset filters",
   export: "Export",
   exportTitle: "Export to Excel",
+  viewAll: "View all progress rates",
   noDataYear: "No data available for the year",
 
   globalProgress: "OVERALL ACTIVITY PROGRESS RATE",
@@ -251,6 +255,7 @@ const de: Txt = {
   reset: "Filter zurücksetzen",
   export: "Exportieren",
   exportTitle: "Nach Excel exportieren",
+  viewAll: "Alle Fortschritte ansehen",
   noDataYear: "Keine Daten verfügbar für das Jahr",
 
   globalProgress: "GESAMTFORTSCHRITTSRATE DER AKTIVITÄTEN",
@@ -373,6 +378,7 @@ const CSS = `
   box-shadow:0 6px 16px -6px rgba(22,163,74,.6);transition:transform .15s ease,background .2s ease}
 .sa-export:hover{background:#15803d}.sa-export:active{transform:scale(.97)}
 .sa-export-year{background:rgba(255,255,255,.22);border-radius:999px;padding:5px 11px;font-size:11px;font-weight:800}
+.sa-viewall{height:42px;border-radius:999px;padding:0 16px}
 
 /* barre de filtres : une seule pilule, champs en ligne */
 .sa-filters{display:flex;flex-wrap:wrap;align-items:stretch;gap:6px;background:var(--surface);border:1px solid var(--border);
@@ -496,6 +502,7 @@ export default function SuiviActivitesAnnuelles() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [userName, setUserName] = useState("");
   const [token, setToken] = useState("");
+  const [vueGlobale, setVueGlobale] = useState(false);
 
   const handleReset = () => { setAnnee(2026); setMois("Tous"); setUc("Tous"); };
 
@@ -595,6 +602,20 @@ export default function SuiviActivitesAnnuelles() {
   const sub: React.CSSProperties = { fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
   const lab: React.CSSProperties = { display: "block", fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: "#16a34a" };
 
+  /* ============ VUE « TOUS LES AVANCEMENTS » ============
+     Placé après tous les hooks : l'ordre des hooks reste donc identique à chaque rendu. */
+  if (vueGlobale) {
+    return (
+      <VueTousAvancements
+        data={data}
+        annee={annee}
+        mois={mois}
+        moisLabel={t.months[mois] ?? mois}
+        onBack={() => setVueGlobale(false)}
+      />
+    );
+  }
+
   return (
     <div className="sa-page">
       <style>{CSS}</style>
@@ -618,6 +639,9 @@ export default function SuiviActivitesAnnuelles() {
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{dateAffichee}</div>
               </div>
             </div>
+            <button type="button" className="sa-btn sa-btn-primary sa-viewall" onClick={() => setVueGlobale(true)}>
+              <LayoutGrid size={16} strokeWidth={1.8} /><span>{t.viewAll}</span>
+            </button>
             <button type="button" className="sa-export" onClick={handleExportExcel} title={`${t.exportTitle} ${annee}`} aria-label={`${t.exportTitle} ${annee}`}>
               <FileSpreadsheet size={20} strokeWidth={1.8} /><span>{t.exportTitle}</span><span className="sa-export-year">{annee}</span>
             </button>
