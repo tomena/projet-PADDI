@@ -73,7 +73,9 @@ const fr = {
   between50_75: ">50% à 75%",
   over75: ">75%",
 
-  globalProjectProgress: "Avancement global du projet par rapport aux jalons dans le plan quinquenal",
+  milestonesTitle: "Avancement global du projet par rapport aux jalons",
+  milestonesPlan: "Dans le plan quinquennal",
+  milestonesIndicators: "Des indicateurs",
   globalProgress: "Progression globale",
 
   legend: "Légende",
@@ -140,7 +142,9 @@ const mg: Txt = {
   between50_75: ">50% à 75%",
   over75: ">75%",
 
-  globalProjectProgress: "Fandrosoan'ny tetikasa amin'ny ankapobeny",
+  milestonesTitle: "Fandrosoan'ny tetikasa amin'ny ankapobeny arakaraka ny tanjona fara-tampony",
+  milestonesPlan: "Ao anatin'ny drafitra dimy taona",
+  milestonesIndicators: "Ny tondro",
   globalProgress: "Fandrosoana ankapobeny",
 
   legend: "Fanazavana",
@@ -205,7 +209,9 @@ const en: Txt = {
   between50_75: ">50% to 75%",
   over75: ">75%",
 
-  globalProjectProgress: "Overall project progress against the five-year plan milestones",
+  milestonesTitle: "Overall project progress against milestones",
+  milestonesPlan: "In the five-year plan",
+  milestonesIndicators: "Of the indicators",
   globalProgress: "Overall progress",
 
   legend: "Legend",
@@ -270,7 +276,9 @@ const de: Txt = {
   between50_75: ">50% bis 75%",
   over75: ">75%",
 
-  globalProjectProgress: "Gesamtfortschritt des Projekts gegenüber den Meilensteinen des Fünfjahresplans",
+  milestonesTitle: "Gesamtfortschritt des Projekts gegenüber den Meilensteinen",
+  milestonesPlan: "Im Fünfjahresplan",
+  milestonesIndicators: "Der Indikatoren",
   globalProgress: "Gesamtfortschritt",
 
   legend: "Legende",
@@ -841,10 +849,13 @@ export default function Dashboard(_props: { data?: unknown }) {
                 </div>
 
                 <div style={styles.chartCard}>
-                  <GaugeKpi
-                    value={tab.avancementGlobal}
-                    title={t.globalProjectProgress}
-                    label={t.globalProgress}
+                  <MilestonesGauges
+                    title={t.milestonesTitle}
+                    plan={tab.avancementGlobal}
+                    indicateurs={null} // à remplacer quand la valeur sera disponible (0 à 100)
+                    planLabel={t.milestonesPlan}
+                    indicateursLabel={t.milestonesIndicators}
+                    centerLabel={t.globalProgress}
                   />
                 </div>
               </div>
@@ -1027,31 +1038,60 @@ function RealKpi({ title, value, unit, target, percent, color, icon }: any) {
   );
 }
 
-function GaugeKpi({ value, title, label }: any) {
-  const clamp = clampPct(value);
-  // Même échelle de couleurs que les barres et le donut « statut » (avant : seuils 30/55 différents).
-  const color = couleurPct(clamp);
+/** Demi-jauge. `value` = null : pas encore de valeur → jauge grise et « — ». */
+function HalfGauge({ value, label, centerLabel }: { value: number | null; label: string; centerLabel: string }) {
+  const hasValue = value !== null && value !== undefined && Number.isFinite(value);
+  const clamp = hasValue ? clampPct(value as number) : 0;
+  // Même échelle de couleurs que les barres et le donut « statut ».
+  const color = hasValue ? couleurPct(clamp) : 'var(--text-3)';
   const data = [{ value: clamp }, { value: 100 - clamp }];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', minHeight: 220 }}>
-      <div style={styles.chartTitle}>{title}</div>
+    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>{label}</div>
 
-      <div style={{ width: '100%', height: 170, position: 'relative', marginTop: 10 }}>
+      <div style={{ width: '100%', height: 150, position: 'relative', marginTop: 4 }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            <Pie data={data} startAngle={180} endAngle={0} innerRadius={50} outerRadius={80} dataKey="value" stroke="none">
+            <Pie
+              data={data}
+              startAngle={180}
+              endAngle={0}
+              cy="70%"
+              innerRadius={50}
+              outerRadius={80}
+              dataKey="value"
+              stroke="none"
+            >
               <Cell fill={color} />
               <Cell fill="var(--track)" />
             </Pie>
           </PieChart>
         </ResponsiveContainer>
 
-        <div style={{ position: 'absolute', top: '55%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{clamp}%</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{label}</div>
+        <div style={{ position: 'absolute', top: '62%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{hasValue ? `${clamp}%` : '—'}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{centerLabel}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Carte unique : un titre et deux demi-jauges (plan quinquennal, puis indicateurs). */
+function MilestonesGauges({ title, plan, indicateurs, planLabel, indicateursLabel, centerLabel }: {
+  title: string;
+  plan: number | null;
+  indicateurs: number | null;
+  planLabel: string;
+  indicateursLabel: string;
+  centerLabel: string;
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 8 }}>
+      <div style={styles.chartTitle}>{title}</div>
+      <HalfGauge value={plan} label={planLabel} centerLabel={centerLabel} />
+      <HalfGauge value={indicateurs} label={indicateursLabel} centerLabel={centerLabel} />
     </div>
   );
 }
