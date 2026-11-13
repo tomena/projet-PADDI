@@ -90,7 +90,8 @@
         "Age 18-35": 1468,
         "Age 36-59": 2621,
         "Age >60": 1048,
-        "Avancement global (%)": 22
+        "Avancement global (%)": 22,
+        "Avancement global indicateurs (%)": null
       },
       "geometry": null
     }
