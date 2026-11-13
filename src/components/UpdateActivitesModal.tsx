@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, Save, History, RotateCcw } from "lucide-react";
+import { X, Save, History, RotateCcw, RefreshCw } from "lucide-react";
 import { ModalPortal, useModalLock } from "./ModalKit";
 
 interface UpdateActivitesModalProps {
@@ -591,9 +591,9 @@ export default function UpdateActivitesModal({
         return;
       }
 
-      alert("Toutes les données ont été enregistrées avec succès dans GitHub.");
+      // La fenêtre reste ouverte : l'utilisateur la ferme lui-même (session conservée)
       await onUpdateSuccess?.();
-      onClose();
+      alert("Toutes les données ont été enregistrées avec succès dans GitHub.");
     } catch (error) {
       console.error("Erreur d’enregistrement :", error);
       alert("Impossible de contacter le serveur. Vérifiez votre connexion.");
@@ -616,6 +616,7 @@ export default function UpdateActivitesModal({
         <div className="uam-modal" role="dialog" aria-modal="true" aria-labelledby="uam-title">
           {/* ================= HEADER ================= */}
           <div className="uam-header">
+            <div className="uam-logo" aria-hidden="true"><RefreshCw size={22} /></div>
             <div className="uam-header-text">
               <h2 className="uam-title" id="uam-title">Mise à jour</h2>
               <p className="uam-subtitle">Suivi des activités annuelles</p>
@@ -993,6 +994,52 @@ const css = `
 .uam-select:focus-visible,
 .uam-input:focus-visible { outline: 3px solid rgba(21, 128, 61, 0.45); outline-offset: 2px; }
 .uam-pct:focus-within { border-color: var(--u-g); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.25); }
+
+/* ===== Nouveau design : en-tête clair, onglets en segments, cartes douces ===== */
+.uam-overlay { background: rgba(15, 23, 42, 0.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.uam-modal { border-radius: 24px; box-shadow: 0 30px 80px -20px rgba(15, 23, 42, 0.35); }
+
+.uam-header { background: transparent; color: var(--u-ink); border-bottom: 1px solid var(--u-line); padding: 22px 28px; gap: 16px; }
+.uam-logo { width: 46px; height: 46px; flex-shrink: 0; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: var(--u-gsoft); color: var(--u-gt); }
+.uam-logo + .uam-header-text { flex: 1; }
+.uam-title { color: var(--u-ink); font-weight: 800; letter-spacing: -0.2px; }
+.uam-subtitle { color: var(--u-mut); opacity: 1; }
+.uam-welcome { margin-top: 8px; padding: 4px 10px; border-radius: 999px; font-size: 11px; }
+.uam-hist { border: 1px solid var(--u-bd); background: var(--u-card); color: var(--u-txt2); border-radius: 999px; padding: 8px 16px; }
+.uam-close { background: var(--u-soft); color: var(--u-txt2); border-radius: 50%; }
+.uam-hist:hover, .uam-close:hover { background: var(--u-gsoft); color: var(--u-gt); }
+
+.uam-content { padding: 26px 28px; }
+.uam-section-title { font-size: 17px; font-weight: 800; margin-bottom: 14px; }
+.uam-slabel { font-size: 12px; font-weight: 700; color: var(--u-txt3); margin-bottom: 7px; }
+.uam-select { height: 44px; padding: 0 12px; border-radius: 12px; background: var(--u-soft); border: 1px solid var(--u-line); color: var(--u-ink); font-weight: 600; }
+.uam-select:hover { border-color: var(--u-bd); }
+
+.uam-choices { gap: 14px; }
+.uam-choice { position: relative; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--u-line); background: var(--u-card); }
+.uam-choice:hover { border-color: var(--u-g); }
+.uam-choice.is-active { background: var(--u-gsoft); border: 1px solid var(--u-g); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15); }
+.uam-choice-title { font-size: 15px; font-weight: 800; }
+
+.uam-subtitle-block { margin: 26px 0 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.5px; text-transform: uppercase; color: var(--u-mut); }
+.uam-tabs { gap: 4px; padding: 4px; width: fit-content; max-width: 100%; background: var(--u-soft); border: 1px solid var(--u-line); border-radius: 14px; }
+.uam-tab { padding: 9px 16px; border: none; border-radius: 10px; background: transparent; color: var(--u-txt3); }
+.uam-tab:hover { color: var(--u-ink); }
+.uam-tab.is-active { background: var(--u-card); color: var(--u-gt); box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14); }
+
+.uam-form-section { margin-top: 16px; padding: 18px; border-radius: 20px; background: var(--u-soft); border: 1px solid var(--u-line); }
+.uam-card { padding: 14px; border-radius: 14px; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+.uam-card:focus-within { border-color: var(--u-g); box-shadow: 0 0 0 3px rgba(21, 128, 61, 0.15); }
+.uam-input, .uam-pct { height: 42px; border-radius: 10px; background: var(--u-soft); }
+.uam-pct-symbol { align-self: stretch; display: flex; align-items: center; background: var(--u-gsoft); }
+
+.uam-footer { padding: 16px 28px; }
+.uam-btn { min-height: 42px; padding: 10px 18px; border-radius: 12px; font-size: 13px; }
+.uam-btn-reset:hover, .uam-btn-cancel:hover { background: var(--u-soft); }
+.uam-btn-save { box-shadow: 0 8px 18px -8px rgba(21, 128, 61, 0.7); }
+.uam-btn-save:hover { background: #166534; }
+.uam-hfilters { padding: 14px 28px; }
+@media (max-width: 560px) { .uam-logo { display: none; } .uam-tabs { width: 100%; } }
 
 /* ---------- Tablettes / petits écrans (≤ 720px) ---------- */
 @media (max-width: 720px) {
