@@ -8,9 +8,308 @@ import {
 } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
 /* ================= TRADUCTIONS =================
-   ⬇⬇⬇ COLLEZ ICI, SANS RIEN CHANGER, LE BLOC DE VOTRE ANCIEN FICHIER ⬇⬇⬇
-   depuis « const fr = { » jusqu'à la ligne « const LOCALES: Record<string, string> = {...}; » incluse
-   (donc : fr, type Txt, mg, en, de, TEXT, LOCALES). Supprimez ces 4 lignes de commentaire après collage. */
+   `fr` sert de modèle : TypeScript impose les mêmes clés dans mg / en / de. */
+
+const fr = {
+  title: "SUIVI DES ACTIVITÉS ANNUELLES",
+  subtitle: "Plan Stratégique 2024 – 2030",
+  updated: "Données mises à jour",
+  update: "Mettre à jour",
+  loading: "Chargement...",
+  noUpdate: "Aucune mise à jour enregistrée",
+  dateUnavailable: "Date indisponible",
+
+  year: "ANNÉE",
+  month: "MOIS",
+  unit: "UNITÉ DE COORDINATION",
+  all: "Tous",
+  reset: "Réinitialiser les filtres",
+  export: "Exporter",
+  exportTitle: "Exporter en Excel",
+  noDataYear: "Aucune donnée disponible pour l'année",
+
+  globalProgress: "TAUX D’AVANCEMENT GLOBAL DES ACTIVITÉS",
+  totalPlanned: "Total activités planifiées",
+  completed: "Activités achevées",
+  ongoing: "Activités en cours",
+  notStarted: "Activités non démarrées",
+
+  byAchievement: "TAUX D’AVANCEMENT PAR RÉALISATION",
+  byComponent: "TAUX D’AVANCEMENT PAR COMPOSANTE",
+
+  result1: "R1. SYSTÈME DE GESTION",
+  result2: "R2. AMÉNAGEMENT DU TERRITOIRE",
+
+  componentC1: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
+  componentC2: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
+  componentC3: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
+  componentC4: "C4. CRÉATION D’EMPLOIS VERTS",
+
+  axisPriority: "AXE PRIORITAIRE",
+  progressRate: "TAUX D'AVANCEMENT",
+  axis1Title: "AXES PRIORITAIRES DE LA RÉALISATION 1 : SYSTÈME DE GESTION",
+  axis2Title: "AXES PRIORITAIRES DE LA RÉALISATION 2 : AMÉNAGEMENT DU TERRITOIRE",
+
+  diagnostic: "Analyses diagnostiques",
+  territorialPlanning: "Planification territoriale",
+  ecosystemMonitoring: "Suivi écosystémique",
+  sustainableFinancing: "Financement durable",
+  populationParticipation: "Participation des populations",
+  mnpCooperation: "Coopération avec MNP",
+  intersectoralCoordination: "Coordination intersectorielle",
+  antiCorruption: "Lutte contre la corruption",
+
+  landscapeRestoration: "Restauration paysages",
+  sustainableProduction: "Production durable",
+  landSecurity: "Sécurisation foncière",
+  fireManagement: "Gestion des feux",
+  marketSystem: "Système de marché",
+  productionValorization: "Valorisation des productions",
+  activityDiversification: "Diversification des activités",
+  communityMobilization: "Mobilisation communautaire",
+
+  legend: "LÉGENDE (TAUX D'AVANCEMENT)",
+  range0_25: "0 à 25%",
+  range25_50: "25% à 50%",
+  range50_75: "50% à 75%",
+  range75_100: "75% à 100%",
+
+  accessTitle: "ACCÉDER AU SUIVI DES ACTIVITÉS ANNUELLES DE L’ANNÉE CHOISIE",
+  accessDesc: "Consultez le détail des activités",
+  accessBtn: "Accéder au suivi des activités",
+
+  months: {
+    Janvier: "Janvier", Février: "Février", Mars: "Mars", Avril: "Avril", Mai: "Mai", Juin: "Juin",
+    Juillet: "Juillet", Août: "Août", Septembre: "Septembre", Octobre: "Octobre", Novembre: "Novembre", Décembre: "Décembre",
+  } as Record<string, string>,
+};
+
+type Txt = typeof fr;
+
+const mg: Txt = {
+  title: "FANARAHANA NY ASA ISAN-TAONA",
+  subtitle: "Drafitra stratejika 2024 – 2030",
+  updated: "Angon-drakitra nohavaozina",
+  update: "Havaozina",
+  loading: "Eo am-pakàna...",
+  noUpdate: "Tsy mbola misy fanavaozana voarakitra",
+  dateUnavailable: "Tsy azo jerena ny daty",
+
+  year: "TAONA",
+  month: "VOLANA",
+  unit: "SAMPANA MPANDRINDRA",
+  all: "Rehetra",
+  reset: "Avereno ny sivana",
+  export: "Alefa",
+  exportTitle: "Alefa amin'ny Excel",
+  noDataYear: "Tsy misy angon-drakitra ho an'ny taona",
+
+  globalProgress: "TAHA-PANDROSOANA ANKAPOBENY NY ASA",
+  totalPlanned: "Fitambaran'ny asa voalamina",
+  completed: "Asa vita",
+  ongoing: "Asa mbola mandeha",
+  notStarted: "Asa mbola tsy natomboka",
+
+  byAchievement: "TAHA-PANDROSOANA ISAKY NY ZAVA-BITA",
+  byComponent: "TAHA-PANDROSOANA ISAKY NY SINGA",
+
+  result1: "R1. RAFITRA FITANTANANA",
+  result2: "R2. FANDAMINANA NY TONTOLON-TANY",
+
+  componentC1: "C1. FITANTANANA NY SERIVISY ARA-TONTOLO IAINANA",
+  componentC2: "C2. FITANTANANA NY TONTOLON'AINA IFOTONY",
+  componentC3: "C3. FAMPANDROSOANA NY TONTOLON-TANY MPAMOKATRA",
+  componentC4: "C4. FAMORONANA ASA MAITSO",
+
+  axisPriority: "LAHARANA LAHARANA",
+  progressRate: "TAHA-PANDROSOANA",
+  axis1Title: "LAHARAM-PAHAMEHANA AMIN'NY ZAVA-BITA 1 : RAFITRA FITANTANANA",
+  axis2Title: "LAHARAM-PAHAMEHANA AMIN'NY ZAVA-BITA 2 : FANDAMINANA NY TONTOLON-TANY",
+
+  diagnostic: "Fanadihadiana diagnostika",
+  territorialPlanning: "Fandaminana ny faritra",
+  ecosystemMonitoring: "Fanaraha-maso ny tontolo iainana",
+  sustainableFinancing: "Famatsiam-bola maharitra",
+  populationParticipation: "Fandraisan'anjaran'ny mponina",
+  mnpCooperation: "Fiaraha-miasa amin'ny MNP",
+  intersectoralCoordination: "Fandrindrana eo amin'ny sehatra",
+  antiCorruption: "Ady amin'ny kolikoly",
+
+  landscapeRestoration: "Famerenana amin'ny laoniny ny tontolo-tany",
+  sustainableProduction: "Famokarana maharitra",
+  landSecurity: "Fiarovana ny fananan-tany",
+  fireManagement: "Fitantanana ny doro-tanety",
+  marketSystem: "Rafitra ara-barotra",
+  productionValorization: "Fanomezana lanja ny vokatra",
+  activityDiversification: "Fanamaroana ny asa",
+  communityMobilization: "Fanentanana ny vondrom-piarahamonina",
+
+  legend: "FANAZAVANA (TAHA-PANDROSOANA)",
+  range0_25: "0 hatramin'ny 25%",
+  range25_50: "25% hatramin'ny 50%",
+  range50_75: "50% hatramin'ny 75%",
+  range75_100: "75% hatramin'ny 100%",
+
+  accessTitle: "HIDITRA AMIN'NY FANARAHANA NY ASA ISAN-TAONA VOAFIDY",
+  accessDesc: "Jereo amin'ny antsipiriany ny asa",
+  accessBtn: "Hiditra amin'ny fanaraha-maso ny asa",
+
+  months: {
+    Janvier: "Janoary", Février: "Febroary", Mars: "Martsa", Avril: "Aprily", Mai: "Mey", Juin: "Jona",
+    Juillet: "Jolay", Août: "Aogositra", Septembre: "Septambra", Octobre: "Oktobra", Novembre: "Novambra", Décembre: "Desambra",
+  },
+};
+
+const en: Txt = {
+  title: "ANNUAL ACTIVITY MONITORING",
+  subtitle: "Strategic Plan 2024 – 2030",
+  updated: "Data updated",
+  update: "Update",
+  loading: "Loading...",
+  noUpdate: "No update recorded",
+  dateUnavailable: "Date unavailable",
+
+  year: "YEAR",
+  month: "MONTH",
+  unit: "COORDINATION UNIT",
+  all: "All",
+  reset: "Reset filters",
+  export: "Export",
+  exportTitle: "Export to Excel",
+  noDataYear: "No data available for the year",
+
+  globalProgress: "OVERALL ACTIVITY PROGRESS RATE",
+  totalPlanned: "Total planned activities",
+  completed: "Completed activities",
+  ongoing: "Ongoing activities",
+  notStarted: "Activities not started",
+
+  byAchievement: "PROGRESS RATE BY RESULT",
+  byComponent: "PROGRESS RATE BY COMPONENT",
+
+  result1: "R1. MANAGEMENT SYSTEM",
+  result2: "R2. LAND-USE PLANNING",
+
+  componentC1: "C1. ECOSYSTEM SERVICES MANAGEMENT",
+  componentC2: "C2. DECENTRALIZED ENVIRONMENTAL GOVERNANCE",
+  componentC3: "C3. DEVELOPMENT OF PRODUCTIVE LANDSCAPES",
+  componentC4: "C4. CREATION OF GREEN JOBS",
+
+  axisPriority: "PRIORITY AXIS",
+  progressRate: "PROGRESS RATE",
+  axis1Title: "PRIORITY AXES OF RESULT 1: MANAGEMENT SYSTEM",
+  axis2Title: "PRIORITY AXES OF RESULT 2: LAND-USE PLANNING",
+
+  diagnostic: "Diagnostic analyses",
+  territorialPlanning: "Territorial planning",
+  ecosystemMonitoring: "Ecosystem monitoring",
+  sustainableFinancing: "Sustainable financing",
+  populationParticipation: "Population participation",
+  mnpCooperation: "Cooperation with MNP",
+  intersectoralCoordination: "Intersectoral coordination",
+  antiCorruption: "Fight against corruption",
+
+  landscapeRestoration: "Landscape restoration",
+  sustainableProduction: "Sustainable production",
+  landSecurity: "Land tenure security",
+  fireManagement: "Fire management",
+  marketSystem: "Market system",
+  productionValorization: "Production valorization",
+  activityDiversification: "Activity diversification",
+  communityMobilization: "Community mobilization",
+
+  legend: "LEGEND (PROGRESS RATE)",
+  range0_25: "0 to 25%",
+  range25_50: "25% to 50%",
+  range50_75: "50% to 75%",
+  range75_100: "75% to 100%",
+
+  accessTitle: "ACCESS ANNUAL ACTIVITY MONITORING FOR THE SELECTED YEAR",
+  accessDesc: "View activity details",
+  accessBtn: "Access activity monitoring",
+
+  months: {
+    Janvier: "January", Février: "February", Mars: "March", Avril: "April", Mai: "May", Juin: "June",
+    Juillet: "July", Août: "August", Septembre: "September", Octobre: "October", Novembre: "November", Décembre: "December",
+  },
+};
+
+const de: Txt = {
+  title: "JÄHRLICHE AKTIVITÄTSÜBERWACHUNG",
+  subtitle: "Strategischer Plan 2024 – 2030",
+  updated: "Daten aktualisiert",
+  update: "Aktualisieren",
+  loading: "Wird geladen...",
+  noUpdate: "Keine Aktualisierung erfasst",
+  dateUnavailable: "Datum nicht verfügbar",
+
+  year: "JAHR",
+  month: "MONAT",
+  unit: "KOORDINATIONSEINHEIT",
+  all: "Alle",
+  reset: "Filter zurücksetzen",
+  export: "Exportieren",
+  exportTitle: "Nach Excel exportieren",
+  noDataYear: "Keine Daten verfügbar für das Jahr",
+
+  globalProgress: "GESAMTFORTSCHRITTSRATE DER AKTIVITÄTEN",
+  totalPlanned: "Insgesamt geplante Aktivitäten",
+  completed: "Abgeschlossene Aktivitäten",
+  ongoing: "Laufende Aktivitäten",
+  notStarted: "Noch nicht gestartete Aktivitäten",
+
+  byAchievement: "FORTSCHRITTSRATE NACH ERGEBNIS",
+  byComponent: "FORTSCHRITTSRATE NACH KOMPONENTE",
+
+  result1: "R1. MANAGEMENTSYSTEM",
+  result2: "R2. RAUMORDNUNG",
+
+  componentC1: "C1. MANAGEMENT VON ÖKOSYSTEMDIENSTLEISTUNGEN",
+  componentC2: "C2. DEZENTRALISIERTE UMWELTGOVERNANCE",
+  componentC3: "C3. ENTWICKLUNG PRODUKTIVER LANDSCHAFTEN",
+  componentC4: "C4. SCHAFFUNG GRÜNER ARBEITSPLÄTZE",
+
+  axisPriority: "PRIORITÄTSACHSE",
+  progressRate: "FORTSCHRITTSRATE",
+  axis1Title: "PRIORITÄTSACHSEN DES ERGEBNISSES 1: MANAGEMENTSYSTEM",
+  axis2Title: "PRIORITÄTSACHSEN DES ERGEBNISSES 2: RAUMORDNUNG",
+
+  diagnostic: "Diagnostische Analysen",
+  territorialPlanning: "Raumplanung",
+  ecosystemMonitoring: "Ökosystemüberwachung",
+  sustainableFinancing: "Nachhaltige Finanzierung",
+  populationParticipation: "Beteiligung der Bevölkerung",
+  mnpCooperation: "Zusammenarbeit mit MNP",
+  intersectoralCoordination: "Sektorübergreifende Koordination",
+  antiCorruption: "Korruptionsbekämpfung",
+
+  landscapeRestoration: "Landschaftswiederherstellung",
+  sustainableProduction: "Nachhaltige Produktion",
+  landSecurity: "Sicherung von Landrechten",
+  fireManagement: "Feuermanagement",
+  marketSystem: "Marktsystem",
+  productionValorization: "Aufwertung der Produktion",
+  activityDiversification: "Diversifizierung der Aktivitäten",
+  communityMobilization: "Mobilisierung der Gemeinschaft",
+
+  legend: "LEGENDE (FORTSCHRITTSRATE)",
+  range0_25: "0 bis 25%",
+  range25_50: "25% bis 50%",
+  range50_75: "50% bis 75%",
+  range75_100: "75% bis 100%",
+
+  accessTitle: "ZUGRIFF AUF DIE JÄHRLICHE AKTIVITÄTSÜBERWACHUNG DES AUSGEWÄHLTEN JAHRES",
+  accessDesc: "Details zu den Aktivitäten anzeigen",
+  accessBtn: "Zur Aktivitätsüberwachung",
+
+  months: {
+    Janvier: "Januar", Février: "Februar", Mars: "März", Avril: "April", Mai: "Mai", Juin: "Juni",
+    Juillet: "Juli", Août: "August", Septembre: "September", Octobre: "Oktober", Novembre: "November", Décembre: "Dezember",
+  },
+};
+
+const TEXT: Record<string, Txt> = { fr, mg, en, de };
+const LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
 
 /* ================= CONFIGURATION ================= */
 
