@@ -1,92 +1,104 @@
-const WMS = "https://services.terrascope.be/wms/v2";
-const LAYER_PAR_DEFAUT = "WORLDCOVER_2021_MAP"; // utilisée si GetCapabilities échoue
+import { fromUrl } from "geotiff";
 
-const EN_TETES = {
-  "User-Agent": "Mozilla/5.0 (compatible; PADDI-plus/1.0)",
-  Accept: "*/*",
+// Données ESA WorldCover 2021 v200, tuiles de 3°x3° publiques sur AWS (sans clé).
+const BASE = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map";
+const MAX_COTE = 1000; // nombre max d'échantillons par côté et par tuile
+const CULTURES = 40;   // code de la classe « Cropland » dans WorldCover
+
+const pad = (n, k) => String(n).padStart(k, "0");
+
+/** Liste les tuiles 3°x3° qui recouvrent la boîte englobante. */
+function tuiles(minLon, minLat, maxLon, maxLat) {
+  const out = [];
+  const lat0 = Math.floor(minLat / 3) * 3, lat1 = Math.floor(maxLat / 3) * 3;
+  const lon0 = Math.floor(minLon / 3) * 3, lon1 = Math.floor(maxLon / 3) * 3;
+  for (let la = lat0; la <= lat1; la += 3)
+    for (let lo = lon0; lo <= lon1; lo += 3) {
+      const ns = la >= 0 ? "N" : "S", ew = lo >= 0 ? "E" : "W";
+      out.push({ nom: `${ns}${pad(Math.abs(la), 2)}${ew}${pad(Math.abs(lo), 3)}` });
+    }
+  return out;
+}
+
+/** Point dans un anneau (ray casting). Coordonnées [lon, lat]. */
+const dansAnneau = (x, y, anneau) => {
+  let o = false;
+  for (let i = 0, j = anneau.length - 1; i < anneau.length; j = i++) {
+    const [xi, yi] = anneau[i], [xj, yj] = anneau[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) o = !o;
+  }
+  return o;
 };
-
-let cacheCouche = { nom: null, at: 0 };
-
-/** Requête avec nouvelles tentatives (ECONNRESET, timeouts, erreurs 5xx). */
-async function fetchAvecRetry(url, essais = 3) {
-  let derniere;
-  for (let i = 1; i <= essais; i++) {
-    try {
-      const r = await fetch(url, { headers: EN_TETES, signal: AbortSignal.timeout(20000) });
-      if (r.status >= 500 && i < essais) throw new Error(`HTTP ${r.status}`);
-      return r;
-    } catch (e) {
-      derniere = e;
-      if (i < essais) await new Promise((ok) => setTimeout(ok, 800 * i));
-    }
-  }
-  throw derniere;
-}
-
-function detailErreur(e) {
-  const c = e?.cause || {};
-  return [e?.message, c.code, c.message].filter(Boolean).join(" | ");
-}
-
-async function trouverCouche() {
-  if (cacheCouche.nom && Date.now() - cacheCouche.at < 24 * 3600 * 1000) return cacheCouche.nom;
-  try {
-    const r = await fetchAvecRetry(`${WMS}?service=WMS&version=1.3.0&request=GetCapabilities`);
-    if (!r.ok) throw new Error(`GetCapabilities HTTP ${r.status}`);
-    const xml = await r.text();
-    const noms = [...xml.matchAll(/<Name>([^<]+)<\/Name>/g)].map((m) => m[1].trim());
-    const candidats = noms.filter((n) => /worldcover/i.test(n) && /2021/.test(n));
-    const choisi = candidats.find((n) => /map/i.test(n)) ?? candidats[0];
-    if (choisi) {
-      cacheCouche = { nom: choisi, at: Date.now() };
-      return choisi;
-    }
-    console.warn("Couches trouvées :", noms.slice(0, 40).join(", "));
-  } catch (e) {
-    console.warn("GetCapabilities échoué, couche par défaut :", detailErreur(e));
-  }
-  return LAYER_PAR_DEFAUT;
-}
+const dansPoly = (x, y, polys) =>
+  polys.some((p) => dansAnneau(x, y, p[0]) && !p.slice(1).some((h) => dansAnneau(x, y, h)));
 
 export default async function handler(req, res) {
-  const minLon = Number(req.query.minLon), minLat = Number(req.query.minLat);
-  const maxLon = Number(req.query.maxLon), maxLat = Number(req.query.maxLat);
-  const w = Math.min(2000, Math.max(16, Math.round(Number(req.query.w))));
-  const h = Math.min(2000, Math.max(16, Math.round(Number(req.query.h))));
+  if (req.method !== "POST") return res.status(405).json({ erreur: "POST attendu" });
 
-  if ([minLon, minLat, maxLon, maxLat, w, h].some((v) => !Number.isFinite(v))) {
-    return res.status(400).json({ erreur: "Paramètres invalides (minLon, minLat, maxLon, maxLat, w, h)" });
-  }
+  const g = req.body?.geometry;
+  if (!g || !g.coordinates) return res.status(400).json({ erreur: "geometry manquante" });
+  const polys = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
 
-  try {
-    const couche = await trouverCouche();
-    const params = new URLSearchParams({
-      SERVICE: "WMS",
-      VERSION: "1.3.0",
-      REQUEST: "GetMap",
-      LAYERS: couche,
-      STYLES: "",
-      CRS: "EPSG:4326",
-      BBOX: `${minLat},${minLon},${maxLat},${maxLon}`, // WMS 1.3.0 + EPSG:4326 : lat,lon
-      WIDTH: String(w),
-      HEIGHT: String(h),
-      FORMAT: "image/png",
-      TRANSPARENT: "TRUE",
-    });
-
-    const r = await fetchAvecRetry(`${WMS}?${params}`);
-    const type = r.headers.get("content-type") || "";
-    if (!r.ok || !type.startsWith("image/")) {
-      const txt = await r.text();
-      return res.status(502).json({ erreur: `GetMap (couche ${couche}) HTTP ${r.status} : ${txt.slice(0, 300)}` });
+  let minLon = 180, minLat = 90, maxLon = -180, maxLat = -90;
+  for (const p of polys)
+    for (const [x, y] of p[0]) {
+      minLon = Math.min(minLon, x); maxLon = Math.max(maxLon, x);
+      minLat = Math.min(minLat, y); maxLat = Math.max(maxLat, y);
     }
 
-    res.setHeader("Content-Type", "image/png");
-    res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=604800");
-    res.send(Buffer.from(await r.arrayBuffer()));
-  } catch (e) {
-    console.error("WorldCover :", e, e?.cause);
-    res.status(502).json({ erreur: `WorldCover : ${detailErreur(e) || "injoignable"}` });
+  let total = 0, cult = 0;
+  const classes = {};
+  const erreurs = [];
+
+  for (const t of tuiles(minLon, minLat, maxLon, maxLat)) {
+    try {
+      const tif = await fromUrl(`${BASE}/ESA_WorldCover_10m_2021_v200_${t.nom}_Map.tif`);
+      const img = await tif.getImage();
+      const [x0, y0, x1, y1] = img.getBoundingBox();
+      const [rx, ry] = img.getResolution();
+      const ay = Math.abs(ry);
+      const W = img.getWidth(), H = img.getHeight();
+
+      // partie de la zone qui tombe dans cette tuile
+      const cx0 = Math.max(minLon, x0), cx1 = Math.min(maxLon, x1);
+      const cy0 = Math.max(minLat, y0), cy1 = Math.min(maxLat, y1);
+      if (cx0 >= cx1 || cy0 >= cy1) continue;
+
+      const c0 = Math.max(0, Math.floor((cx0 - x0) / rx));
+      const c1 = Math.min(W, Math.ceil((cx1 - x0) / rx));
+      const r0 = Math.max(0, Math.floor((y1 - cy1) / ay));
+      const r1 = Math.min(H, Math.ceil((y1 - cy0) / ay));
+      const ww = c1 - c0, hh = r1 - r0;
+      if (ww <= 0 || hh <= 0) continue;
+
+      // sur-échantillonnage pour les grandes zones (limite le temps de calcul)
+      const pas = Math.max(1, Math.ceil(Math.max(ww, hh) / MAX_COTE));
+      const outW = Math.ceil(ww / pas), outH = Math.ceil(hh / pas);
+      const [data] = await img.readRasters({
+        window: [c0, r0, c1, r1], width: outW, height: outH, samples: [0], resampleMethod: "nearest",
+      });
+
+      for (let j = 0; j < outH; j++) {
+        const lat = y1 - (r0 + (j + 0.5) * pas) * ay;
+        for (let i = 0; i < outW; i++) {
+          const v = data[j * outW + i];
+          if (!v) continue; // 0 = hors donnée
+          const lon = x0 + (c0 + (i + 0.5) * pas) * rx;
+          if (!dansPoly(lon, lat, polys)) continue;
+          total++;
+          classes[v] = (classes[v] || 0) + 1;
+          if (v === CULTURES) cult++;
+        }
+      }
+    } catch (e) {
+      erreurs.push(`${t.nom}: ${e?.message || e}`);
+      console.error("WorldCover tuile", t.nom, e);
+    }
   }
+
+  if (!total) {
+    return res.status(502).json({ erreur: "Aucun pixel WorldCover dans la zone. " + erreurs.join(" ; ") });
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ pct: (cult / total) * 100, echantillons: total, classes, erreurs });
 }
