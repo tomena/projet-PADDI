@@ -76,7 +76,6 @@ const fr = {
   milestonesTitle: "Avancement global du projet par rapport aux jalons",
   milestonesPlan: "Dans le plan quinquennal",
   milestonesIndicators: "Des indicateurs",
-  globalProgress: "Progression globale",
 
   legend: "Légende",
   office: "Bureau",
@@ -145,7 +144,6 @@ const mg: Txt = {
   milestonesTitle: "Fandrosoan'ny tetikasa amin'ny ankapobeny arakaraka ny tanjona fara-tampony",
   milestonesPlan: "Ao anatin'ny drafitra dimy taona",
   milestonesIndicators: "Ny tondro",
-  globalProgress: "Fandrosoana ankapobeny",
 
   legend: "Fanazavana",
   office: "Birao",
@@ -212,7 +210,6 @@ const en: Txt = {
   milestonesTitle: "Overall project progress against milestones",
   milestonesPlan: "In the five-year plan",
   milestonesIndicators: "Of the indicators",
-  globalProgress: "Overall progress",
 
   legend: "Legend",
   office: "Office",
@@ -279,7 +276,6 @@ const de: Txt = {
   milestonesTitle: "Gesamtfortschritt des Projekts gegenüber den Meilensteinen",
   milestonesPlan: "Im Fünfjahresplan",
   milestonesIndicators: "Der Indikatoren",
-  globalProgress: "Gesamtfortschritt",
 
   legend: "Legende",
   office: "Büro",
@@ -855,7 +851,6 @@ export default function Dashboard(_props: { data?: unknown }) {
                     indicateurs={null} // à remplacer quand la valeur sera disponible (0 à 100)
                     planLabel={t.milestonesPlan}
                     indicateursLabel={t.milestonesIndicators}
-                    centerLabel={t.globalProgress}
                   />
                 </div>
               </div>
@@ -1038,60 +1033,74 @@ function RealKpi({ title, value, unit, target, percent, color, icon }: any) {
   );
 }
 
-/** Demi-jauge. `value` = null : pas encore de valeur → jauge grise et « — ». */
-function HalfGauge({ value, label, centerLabel }: { value: number | null; label: string; centerLabel: string }) {
-  const hasValue = value !== null && value !== undefined && Number.isFinite(value);
-  const clamp = hasValue ? clampPct(value as number) : 0;
-  // Même échelle de couleurs que les barres et le donut « statut ».
-  const color = hasValue ? couleurPct(clamp) : 'var(--text-3)';
-  const data = [{ value: clamp }, { value: 100 - clamp }];
-
+/** Mini pictogramme : deux arcs, celui de l'anneau concerné est coloré. */
+function RingIcon({ outer, color }: { outer: boolean; color: string }) {
   return (
-    <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', textAlign: 'center' }}>{label}</div>
+    <svg width="34" height="18" viewBox="0 0 34 18" style={{ flexShrink: 0 }}>
+      <path d="M2 17 A15 15 0 0 1 32 17" fill="none" strokeWidth="3.5" strokeLinecap="round"
+        stroke={outer ? color : 'var(--track)'} />
+      <path d="M9 17 A8 8 0 0 1 25 17" fill="none" strokeWidth="3.5" strokeLinecap="round"
+        stroke={outer ? 'var(--track)' : color} />
+    </svg>
+  );
+}
 
-      <div style={{ width: '100%', height: 150, position: 'relative', marginTop: 4 }}>
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={data}
-              startAngle={180}
-              endAngle={0}
-              cy="70%"
-              innerRadius={50}
-              outerRadius={80}
-              dataKey="value"
-              stroke="none"
-            >
-              <Cell fill={color} />
-              <Cell fill="var(--track)" />
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-
-        <div style={{ position: 'absolute', top: '62%', left: '50%', transform: 'translate(-50%, -50%)', textAlign: 'center' }}>
-          <div style={{ fontSize: 20, fontWeight: 800, color, lineHeight: 1 }}>{hasValue ? `${clamp}%` : '—'}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>{centerLabel}</div>
-        </div>
-      </div>
+function LegendRow({ label, value, color, outer }: { label: string; value: number | null; color: string; outer: boolean }) {
+  const hasValue = value !== null && value !== undefined && Number.isFinite(value);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
+      <RingIcon outer={outer} color={color} />
+      <span style={{ flex: 1, minWidth: 0, fontSize: 11, fontWeight: 600, color: 'var(--text-2)', textAlign: 'left', overflowWrap: 'anywhere' }}>
+        {label}
+      </span>
+      <span style={{ fontSize: 14, fontWeight: 800, color }}>{hasValue ? `${clampPct(value as number)}%` : '—'}</span>
     </div>
   );
 }
 
-/** Carte unique : un titre et deux demi-jauges (plan quinquennal, puis indicateurs). */
-function MilestonesGauges({ title, plan, indicateurs, planLabel, indicateursLabel, centerLabel }: {
+/** Une seule demi-jauge à deux anneaux : extérieur = plan quinquennal, intérieur = indicateurs.
+ *  `indicateurs = null` : pas encore de valeur → anneau gris et « — ». */
+function MilestonesGauges({ title, plan, indicateurs, planLabel, indicateursLabel }: {
   title: string;
   plan: number | null;
   indicateurs: number | null;
   planLabel: string;
   indicateursLabel: string;
-  centerLabel: string;
 }) {
+  const ok = (v: number | null) => v !== null && v !== undefined && Number.isFinite(v);
+  const p = ok(plan) ? clampPct(plan as number) : 0;
+  const i = ok(indicateurs) ? clampPct(indicateurs as number) : 0;
+  // Même échelle de couleurs que les barres et le donut « statut ».
+  const colPlan = ok(plan) ? couleurPct(p) : 'var(--text-3)';
+  const colInd = ok(indicateurs) ? couleurPct(i) : 'var(--text-3)';
+
+  const common = { startAngle: 180, endAngle: 0, cy: '92%', dataKey: 'value', stroke: 'none', cornerRadius: 6 } as const;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 8 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', gap: 6 }}>
       <div style={styles.chartTitle}>{title}</div>
-      <HalfGauge value={plan} label={planLabel} centerLabel={centerLabel} />
-      <HalfGauge value={indicateurs} label={indicateursLabel} centerLabel={centerLabel} />
+
+      <div style={{ width: '100%', height: 120 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            {/* anneau extérieur : plan quinquennal */}
+            <Pie {...common} data={[{ value: p }, { value: 100 - p }]} innerRadius={74} outerRadius={90}>
+              <Cell fill={colPlan} />
+              <Cell fill="var(--track)" />
+            </Pie>
+            {/* anneau intérieur : indicateurs */}
+            <Pie {...common} data={[{ value: i }, { value: 100 - i }]} innerRadius={52} outerRadius={68}>
+              <Cell fill={colInd} />
+              <Cell fill="var(--track)" />
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%', padding: '0 6px' }}>
+        <LegendRow label={planLabel} value={plan} color={colPlan} outer />
+        <LegendRow label={indicateursLabel} value={indicateurs} color={colInd} outer={false} />
+      </div>
     </div>
   );
 }
