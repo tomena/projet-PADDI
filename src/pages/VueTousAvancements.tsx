@@ -32,8 +32,8 @@ const CSS = `
   border:1px solid var(--border);color:#16a34a;font-size:12px;font-weight:700}
 
 /* 1 grande carte (Tous) à gauche + 3 colonnes × 2 lignes (UC) à droite */
-.vt-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:18px;align-items:stretch}
-.vt-right{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,1fr);grid-auto-rows:1fr;gap:18px}
+.vt-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:12px;align-items:stretch}
+.vt-right{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,1fr);grid-auto-rows:1fr;gap:12px}
 
 .vt-card{background:var(--surface);border-radius:22px;border:1px solid var(--border);padding:18px;box-sizing:border-box;
   display:flex;flex-direction:column;gap:12px;min-width:0;box-shadow:0 10px 30px -18px rgba(15,23,42,.25)}
@@ -41,20 +41,32 @@ const CSS = `
 .vt-ch::before{content:"";width:4px;height:16px;border-radius:4px;background:#16a34a;flex-shrink:0}
 .vt-uc{align-self:flex-start;font-size:12px;font-weight:900;color:#16a34a;background:rgba(22,163,74,.12);border-radius:999px;padding:4px 12px}
 .vt-global{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+
+/* carte « Tous » : icône + nom + valeur */
 .vt-kpis{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;width:100%}
 .vt-kpi{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:12px;background:var(--surface-2);min-width:0}
 .vt-kpi-ico{width:28px;height:28px;border-radius:9px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .vt-kpi-val{order:3;font-size:16px;font-weight:900;line-height:1;color:var(--text)}
 .vt-kpi-lab{order:2;flex:1;min-width:0;font-size:11px;color:var(--text-2);line-height:1.2}
 
+/* cartes UC : icône + valeur seulement, 2 lignes × 2 colonnes */
+.vt-compact{padding:12px;gap:8px}
+.vt-compact .vt-ch{font-size:11px}
+.vt-compact .vt-global{gap:10px}
+.vt-kpis2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,auto);gap:6px;width:100%}
+.vt-kpi2{display:flex;align-items:center;justify-content:center;gap:8px;padding:5px 8px;border-radius:12px;background:var(--surface-2);min-width:0}
+.vt-kpi2-ico{width:24px;height:24px;border-radius:8px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.vt-kpi2-val{font-size:14px;font-weight:900;line-height:1;color:var(--text)}
+
 @container vt (max-width:1100px){.vt-right{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none}}
 @container vt (max-width:800px){.vt-grid{grid-template-columns:minmax(0,1fr)}}
 @container vt (max-width:520px){.vt-right{grid-template-columns:minmax(0,1fr)}}
 `;
 
-function Ring({ percent, color, size, font, label }: any) {
+function Ring({ percent, color, size, font, label, thick }: any) {
   const p = clampPct(percent);
-  const outer = size / 2 - 2, inner = outer - Math.max(8, size * 0.09);
+  const outer = size / 2 - 2;
+  const inner = outer - (thick ?? Math.max(8, size * 0.09));
   return (
     <div style={{ position: "relative", width: size, height: size, margin: "0 auto", flexShrink: 0 }}>
       <PieChart width={size} height={size}>
@@ -70,8 +82,9 @@ function Ring({ percent, color, size, font, label }: any) {
   );
 }
 
-/* La carte « TAUX D'AVANCEMENT GLOBAL DES ACTIVITÉS » pour une UC */
-function CarteGlobale({ uc, row, t, fmtPct, ringSize, ringFont }: any) {
+/* « TAUX D'AVANCEMENT GLOBAL DES ACTIVITÉS » pour une UC.
+   compact = true : nom de l'UC seul, puis icônes + valeurs en 2×2 (sans libellés). */
+function CarteGlobale({ uc, row, t, fmtPct, ringSize, ringFont, ringThick, compact }: any) {
   const taux = n(row["TAG"]) * 100;
   const kpis = [
     { icon: ListChecks, label: t.totalPlanned, value: n(row["NAP"]), color: "#64748b" },
@@ -79,21 +92,41 @@ function CarteGlobale({ uc, row, t, fmtPct, ringSize, ringFont }: any) {
     { icon: Clock, label: t.ongoing, value: n(row["NAC"]), color: "#f59e0b" },
     { icon: XCircle, label: t.notStarted, value: n(row["NAD"]), color: "#ef4444" },
   ];
+
   return (
-    <div className="vt-card">
-      <div className="vt-ch">{t.globalProgress}</div>
-      <span className="vt-uc">{uc === "Tous" ? t.all : uc}</span>
+    <div className={`vt-card${compact ? " vt-compact" : ""}`}>
+      {compact ? (
+        <div className="vt-ch">{uc}</div>
+      ) : (
+        <>
+          <div className="vt-ch">{t.globalProgress}</div>
+          <span className="vt-uc">{t.all}</span>
+        </>
+      )}
+
       <div className="vt-global">
-        <Ring percent={taux} color={getProgressColor(taux)} size={ringSize} font={ringFont} label={fmtPct(taux)} />
-        <div className="vt-kpis">
-          {kpis.map(({ icon: Icon, label, value, color }) => (
-            <div key={label} className="vt-kpi">
-              <div className="vt-kpi-ico" style={{ background: `${color}22` }}><Icon size={18} color={color} /></div>
-              <div className="vt-kpi-val">{value}</div>
-              <div className="vt-kpi-lab">{label}</div>
-            </div>
-          ))}
-        </div>
+        <Ring percent={taux} color={getProgressColor(taux)} size={ringSize} font={ringFont} thick={ringThick} label={fmtPct(taux)} />
+
+        {compact ? (
+          <div className="vt-kpis2">
+            {kpis.map(({ icon: Icon, label, value, color }) => (
+              <div key={label} className="vt-kpi2" title={label} aria-label={`${label} : ${value}`}>
+                <div className="vt-kpi2-ico" style={{ background: `${color}22` }}><Icon size={15} color={color} /></div>
+                <div className="vt-kpi2-val">{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="vt-kpis">
+            {kpis.map(({ icon: Icon, label, value, color }) => (
+              <div key={label} className="vt-kpi">
+                <div className="vt-kpi-ico" style={{ background: `${color}22` }}><Icon size={18} color={color} /></div>
+                <div className="vt-kpi-val">{value}</div>
+                <div className="vt-kpi-lab">{label}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -131,13 +164,15 @@ export default function VueTousAvancements({ data, annee, mois, moisLabel, onBac
         </div>
 
         <div className="vt-grid">
-          {/* Carte 1 : global pour « Tous », hauteur des 2 lignes */}
-          <CarteGlobale uc="Tous" row={choisirLigne(data, annee, mois, "Tous")} t={t} fmtPct={fmtPct} ringSize={170} ringFont={24} />
+          {/* Carte 1 : « Tous », inchangée (icône + nom + valeur) */}
+          <CarteGlobale uc="Tous" row={choisirLigne(data, annee, mois, "Tous")} t={t} fmtPct={fmtPct}
+            ringSize={170} ringFont={24} ringThick={22} />
 
-          {/* Cartes 2 à 7 : global de chaque UC, 3 colonnes × 2 lignes */}
+          {/* Cartes 2 à 7 : une par UC, nom + donut + icônes/valeurs en 2×2 */}
           <div className="vt-right">
             {ucs.map((uc) => (
-              <CarteGlobale key={uc} uc={uc} row={choisirLigne(data, annee, mois, uc)} t={t} fmtPct={fmtPct} ringSize={110} ringFont={17} />
+              <CarteGlobale key={uc} uc={uc} row={choisirLigne(data, annee, mois, uc)} t={t} fmtPct={fmtPct}
+                ringSize={84} ringFont={14} ringThick={13} compact />
             ))}
           </div>
         </div>
