@@ -23,6 +23,7 @@ type Level = "ADM1" | "ADM2" | "ADM3";
 const NOM_CLES = ["shapename", "nom_region", "region", "nom_district", "district", "nom_commune", "commune",
   "adm3_fr", "adm2_fr", "adm1_fr", "name_3", "name_2", "name_1", "nom", "name", "libelle"];
 
+const WORLDCOVER_ACTIVE = false; // passer à true quand la source répond
 const BASSINS_GEOJSON_URL = ""; // ex. "/data/bassins_versants.geojson"
 const LC_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 const LOSS_FIRST = 2001, LOSS_LAST = 2025;
@@ -222,6 +223,7 @@ type WcRes = { pct: number | null; err: string | null };
 
 /** Part (%) de cultures selon ESA WorldCover 2021, dans le polygone. Renvoie aussi l'erreur éventuelle. */
 async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<WcRes> {
+  if (!WORLDCOVER_ACTIVE) return { pct: null, err: "source désactivée" };
   try {
     const url = `/api/worldcover?minLon=${b.minLon}&minLat=${b.minLat}&maxLon=${b.maxLon}&maxLat=${b.maxLat}&w=${W}&h=${H}`;
     const r = await fetch(url);
