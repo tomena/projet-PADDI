@@ -7,9 +7,10 @@ import {
   TreePine, Landmark, Wheat, HardHat, Building2, Users, Trees, ClipboardCheck, FileText, FileSpreadsheet,
 } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
-// Traductions : bloc inchangé, déplacé dans ce fichier (voir les instructions)
-import { TEXT, LOCALES } from "./suiviActivitesTranslations";
-import type { Txt } from "./suiviActivitesTranslations";
+/* ================= TRADUCTIONS =================
+   ⬇⬇⬇ COLLEZ ICI, SANS RIEN CHANGER, LE BLOC DE VOTRE ANCIEN FICHIER ⬇⬇⬇
+   depuis « const fr = { » jusqu'à la ligne « const LOCALES: Record<string, string> = {...}; » incluse
+   (donc : fr, type Txt, mg, en, de, TEXT, LOCALES). Supprimez ces 4 lignes de commentaire après collage. */
 
 /* ================= CONFIGURATION ================= */
 
