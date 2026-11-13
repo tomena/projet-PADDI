@@ -315,7 +315,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const pct = (c: number) => (cnt[c] / tot) * 100;
   return {
     land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) }))
-      .filter((x) => x.pct > 0 || x.n === "Cultures").sort((a, c) => c.pct - a.pct),
+      .filter((x) => x.pct > 0).sort((a, c) => c.pct - a.pct),
     cloudPct: (cnt[8] / (tot + cnt[8])) * 100,
     slope: SLOPES.map((s, i) => ({ n: s.n, pct: sn ? (sc[i] / sn) * 100 : 0, col: s.col })),
     elevMin: Math.min(...zs), elevMax: Math.max(...zs), elevMean: zs.reduce((a, c) => a + c, 0) / zs.length,
@@ -957,7 +957,7 @@ export default function AnalyseTerritoriale() {
                           ))}
                           {res.cultWC != null && (
                             <tr>
-                              <td><i style={{ background: "rgb(240,150,255)" }} />Cultures (WorldCover 2021)</td>
+                              <td><i style={{ background: "#7a3db8" }} />Cultures (WorldCover 2021)</td>
                               <td>{res.cultWC < 0.1 ? "< 0,1" : nf(res.cultWC, 1)} %</td>
                               <td>{nf((res.cultWC / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
                             </tr>
