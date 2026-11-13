@@ -17,6 +17,10 @@ export const LIBELLE_SEMESTRE: Record<Semestre, string> = {
 export const CODES = ["R1.1", "R1.2", "R2.1", "R2.2", "R1.1.1", "R1.1.2", "R1.2.1", "R1.2.2", "R2.1.1", "R2.1.2", "R2.2.1", "R2.2.2"] as const;
 export type Code = (typeof CODES)[number];
 
+/* Noms des deux colonnes d'avancement global dans la base (lignes « Toutes » seulement). */
+export const COL_AVANCEMENT_PLAN = "Avancement global (%)";
+export const COL_AVANCEMENT_INDICATEURS = "Avancement global indicateurs (%)";
+
 export interface Cible { libelle: string; unite: string; cible: number; sur?: number }
 export interface Base { features: { properties: Record<string, any> }[]; cibles?: Record<string, Cible> }
 
@@ -30,12 +34,20 @@ export interface Tableau {
   genre: { hommes: number; femmes: number };  // en %
   ages: [number, number, number, number];     // en % : <18, 18-35, 36-59, >60
   beneficiaires: number;                      // total affiché au centre des donuts
-  avancementGlobal: number;
+  avancementGlobal: number;                   // vs jalons du plan quinquennal
+  avancementIndicateurs: number | null;       // vs jalons des indicateurs ; null = pas encore de valeur (jauge « — »)
 }
 
 const n = (v: any): number => {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
+};
+
+/* Comme n(), mais garde null quand la valeur est absente : Number(null) donnerait 0 et une jauge à 0 %. */
+const pctOuNull = (v: any): number | null => {
+  if (v === null || v === undefined || v === "") return null;
+  const x = Number(v);
+  return Number.isFinite(x) ? Math.min(100, Math.max(0, x)) : null;
 };
 
 /* Même seuils que les cartes « Résultats clés » : <26 rouge, <51 orange, <76 vert, sinon bleu. */
@@ -55,7 +67,8 @@ const statut = (p: number): 0 | 1 | 2 | 3 => (p <= 25 ? 0 : p <= 50 ? 1 : p <= 7
 
 const aDesDonnees = (p: Record<string, any>): boolean =>
   CODES.some((c) => p[c] !== null && p[c] !== undefined) ||
-  p["Hommes"] != null || p["Femmes"] != null || p["Avancement global (%)"] != null;
+  p["Hommes"] != null || p["Femmes"] != null ||
+  p[COL_AVANCEMENT_PLAN] != null || p[COL_AVANCEMENT_INDICATEURS] != null;
 
 /* Ligne affichée : le semestre choisi ; avec « Tous », le dernier semestre de l'année qui contient des données. */
 export function ligneReference(base: Base | null, annee: number, semestre: FiltreSemestre, antenne: string): Record<string, any> | null {
@@ -102,7 +115,8 @@ export function calculerTableau(base: Base | null, annee: number, semestre: Filt
     genre: { hommes: part(h, h + f), femmes: part(f, h + f) },
     ages: [part(ages[0], totalAges), part(ages[1], totalAges), part(ages[2], totalAges), part(ages[3], totalAges)],
     beneficiaires: indicateurs["R2.2"].valeur,
-    avancementGlobal: Math.min(100, Math.max(0, n(ligne?.["Avancement global (%)"]))),
+    avancementGlobal: Math.min(100, Math.max(0, n(ligne?.[COL_AVANCEMENT_PLAN]))),
+    avancementIndicateurs: pctOuNull(ligne?.[COL_AVANCEMENT_INDICATEURS]),
   };
 }
 
@@ -144,7 +158,8 @@ export const CHAMPS: Champ[] = [
   { cle: "Age 18-35", libelle: "18 à 35 ans", groupe: "age", unite: "personnes" },
   { cle: "Age 36-59", libelle: "36 à 59 ans", groupe: "age", unite: "personnes" },
   { cle: "Age >60", libelle: "Plus de 60 ans", groupe: "age", unite: "personnes" },
-  { cle: "Avancement global (%)", libelle: "Avancement global du projet vs jalons du plan quinquennal", groupe: "global", unite: "%", toutesSeulement: true },
+  { cle: COL_AVANCEMENT_PLAN, libelle: "Avancement global du projet vs jalons du plan quinquennal", groupe: "global", unite: "%", toutesSeulement: true },
+  { cle: COL_AVANCEMENT_INDICATEURS, libelle: "Avancement global du projet vs jalons des indicateurs", groupe: "global", unite: "%", toutesSeulement: true },
 ];
 
 /* Valeurs de départ du formulaire : la ligne du semestre choisi si elle existe, sinon la plus récente
@@ -165,11 +180,11 @@ export function construireValeurs(saisies: Record<string, string>, antenne: stri
   for (const c of CHAMPS) {
     if (c.toutesSeulement && antenne !== "Toutes") continue;
     const brut = (saisies[c.cle] ?? "").replace(/\s/g, "").replace(",", ".");
-    if (brut === "") continue; // champ vide = non renseigné
+    if (brut === "") continue; // champ vide = non renseigné (reste null dans la base)
     const x = Number(brut);
     if (!Number.isFinite(x)) throw new Error(`« ${c.libelle} » : « ${saisies[c.cle]} » n'est pas un nombre.`);
-    if (c.cle === "Avancement global (%)") {
-      if (x < 0 || x > 100) throw new Error("« Avancement global » doit être entre 0 et 100.");
+    if (c.cle === COL_AVANCEMENT_PLAN || c.cle === COL_AVANCEMENT_INDICATEURS) {
+      if (x < 0 || x > 100) throw new Error(`« ${c.libelle} » doit être entre 0 et 100.`);
     } else if (c.cle === "R1.2") {
       if (x < -100 || x > 100) throw new Error("« R1.2 » doit être un pourcentage entre -100 et 100.");
     } else if (x < 0) {
