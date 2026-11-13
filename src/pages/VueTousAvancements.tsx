@@ -24,6 +24,7 @@ const AXES_CODES: [string, string][] = [
 /* ===== Textes propres à cette vue (autonomes) ===== */
 const L: Record<string, any> = {
   fr: {
+    pageTitle: "Vue d'ensemble d'avancement",
     year: "ANNÉE", month: "MOIS", analysis: "ANALYSE DES RÉSULTATS", noData: "Aucune donnée pour cette période.",
     ref: "Moyenne (Tous)", components: "Composantes", axesWeak: "Axes les plus faibles",
     late: "En retard", critical: "Retard important", avg: "Dans la moyenne", ahead: "En avance", global: "Global",
@@ -36,6 +37,7 @@ const L: Record<string, any> = {
     s_ahead: "{uc} est en avance ({taux}, moyenne {ref}). Son point le plus faible reste {comp} ({cp}).",
   },
   en: {
+    pageTitle: "Progress overview",
     year: "YEAR", month: "MONTH", analysis: "RESULTS ANALYSIS", noData: "No data for this period.",
     ref: "Average (All)", components: "Components", axesWeak: "Weakest axes",
     late: "Behind", critical: "Seriously behind", avg: "On average", ahead: "Ahead", global: "Overall",
@@ -48,6 +50,7 @@ const L: Record<string, any> = {
     s_ahead: "{uc} is ahead ({taux}, average {ref}). Its weakest point remains {comp} ({cp}).",
   },
   de: {
+    pageTitle: "Fortschrittsübersicht",
     year: "JAHR", month: "MONAT", analysis: "ERGEBNISANALYSE", noData: "Keine Daten für diesen Zeitraum.",
     ref: "Durchschnitt (Alle)", components: "Komponenten", axesWeak: "Schwächste Achsen",
     late: "Im Rückstand", critical: "Stark im Rückstand", avg: "Im Durchschnitt", ahead: "Voraus", global: "Gesamt",
@@ -60,6 +63,7 @@ const L: Record<string, any> = {
     s_ahead: "{uc} liegt vorn ({taux}, Durchschnitt {ref}). Schwächster Punkt bleibt {comp} ({cp}).",
   },
   mg: {
+    pageTitle: "Topimaso ankapobeny momba ny fandrosoana",
     year: "TAONA", month: "VOLANA", analysis: "FAMPIASANA NY ZAVATRA VITA", noData: "Tsy misy angon-drakitra amin'ity vanim-potoana ity.",
     ref: "Salan'isa (Rehetra)", components: "Singa", axesWeak: "Laharana malemy indrindra",
     late: "Tara", critical: "Tara be", avg: "Salan'isa", ahead: "Mialoha", global: "Ankapobeny",
@@ -155,6 +159,9 @@ const CSS = `
 .vt-chipc.weak{border-color:#ef4444}
 .vt-axl{display:flex;flex-direction:column;gap:4px}
 .vt-axi{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text,#0f172a)}
+.vt-axinline{font-size:12px;line-height:1.6;color:var(--text,#0f172a)}
+.vt-axinline .sep{color:var(--text-3,#64748b);margin:0 6px}
+.vt-axinline .it{white-space:nowrap}
 .vt-an-txt{font-size:12px;line-height:1.5;color:var(--text,#0f172a)}
 
 /* pop-up (rendu dans <body> : valeurs de repli pour les variables) */
@@ -243,8 +250,8 @@ function CarteGlobale({ uc, row, t, fmtPct, ringSize, ringFont, ringThick, compa
   );
 }
 
-/* Bloc d'analyse (utilisé en bas de page ET dans le pop-up) */
-function AnalyseBloc({ a, refTaux, tx, fmtPct, t }: any) {
+/* Bloc d'analyse (en bas de page avec inline, et dans le pop-up sans inline) */
+function AnalyseBloc({ a, refTaux, tx, fmtPct, t, inline }: any) {
   const isTous = a.kind === "tous";
   const b =
     a.kind === "critical" ? { color: "#ef4444", Icon: AlertTriangle, label: tx.critical }
@@ -286,14 +293,25 @@ function AnalyseBloc({ a, refTaux, tx, fmtPct, t }: any) {
 
       <div>
         <div className="vt-sub" style={{ marginBottom: 6 }}>{tx.axesWeak}</div>
-        <div className="vt-axl">
-          {a.pires.map((x: any) => (
-            <div key={x.code} className="vt-axi">
-              <span>{x.code} · {x.name}</span>
-              <b style={{ color: getProgressColor(x.value) }}>{fmtPct(x.value)}</b>
-            </div>
-          ))}
-        </div>
+        {inline ? (
+          <div className="vt-axinline">
+            {a.pires.map((x: any, i: number) => (
+              <React.Fragment key={x.code}>
+                {i > 0 && <span className="sep">·</span>}
+                <span className="it">{x.code} {x.name} <b style={{ color: getProgressColor(x.value) }}>{fmtPct(x.value)}</b></span>
+              </React.Fragment>
+            ))}
+          </div>
+        ) : (
+          <div className="vt-axl">
+            {a.pires.map((x: any) => (
+              <div key={x.code} className="vt-axi">
+                <span>{x.code} · {x.name}</span>
+                <b style={{ color: getProgressColor(x.value) }}>{fmtPct(x.value)}</b>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="vt-an-txt">{a.texte}</div>
@@ -382,7 +400,7 @@ export default function VueTousAvancements({ data, annee: anneeInit, mois: moisI
             <button type="button" className="vt-back" onClick={onBack}>
               <ArrowLeft size={16} strokeWidth={1.8} /><span>{t.back}</span>
             </button>
-            <div className="vt-title">{t.viewAll}</div>
+            <div className="vt-title">{tx.pageTitle}</div>
           </div>
           <div className="vt-head-right">
             <div className="vt-filter">
@@ -428,12 +446,12 @@ export default function VueTousAvancements({ data, annee: anneeInit, mois: moisI
             <div className="vt-an-list">
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <span className="vt-an-tag" style={{ color: "#ef4444" }}>{tx.weakUc}</span>
-                <AnalyseBloc a={plusFaible} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} />
+                <AnalyseBloc a={plusFaible} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} inline />
               </div>
               {plusAvancee && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <span className="vt-an-tag" style={{ color: "#2563eb" }}>{tx.bestUc}</span>
-                  <AnalyseBloc a={plusAvancee} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} />
+                  <AnalyseBloc a={plusAvancee} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} inline />
                 </div>
               )}
             </div>
