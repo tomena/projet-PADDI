@@ -36,7 +36,7 @@ const ADDITIFS = [
   "R1.1", "R2.1", "R2.2", "R1.1.1", "R1.1.2", "R1.2.1", "R1.2.2", "R2.1.1", "R2.1.2", "R2.2.1", "R2.2.2",
   "Hommes", "Femmes", "Age <18", "Age 18-35", "Age 36-59", "Age >60",
 ];
-const TOUTES_SEULEMENT = ["R1.2", "Avancement global (%)"];
+const TOUTES_SEULEMENT = ["R1.2", "Avancement global (%)", "Avancement global indicateurs (%)"];
 const COLONNES = [...ADDITIFS, ...TOUTES_SEULEMENT];
 
 type Props = Record<string, any>;
@@ -175,7 +175,9 @@ export default async function handler(req: any, res: any) {
       if (TOUTES_SEULEMENT.includes(cle) && l.antenne !== "Toutes") {
         return res.status(400).json({ error: `« ${cle} » se saisit uniquement sur la ligne « Toutes » (reçu pour ${l.antenne}).` });
       }
-      if (cle === "Avancement global (%)" && (x < 0 || x > 100)) return res.status(400).json({ error: "« Avancement global (%) » doit être entre 0 et 100." });
+      if (cle.startsWith("Avancement global") && (x < 0 || x > 100)) {
+        return res.status(400).json({ error: `« ${cle} » doit être entre 0 et 100.` });
+      }
       if (cle === "R1.2" && (x < -100 || x > 100)) return res.status(400).json({ error: "« R1.2 » doit être un pourcentage entre -100 et 100." });
       if (!TOUTES_SEULEMENT.includes(cle) && x < 0) return res.status(400).json({ error: `« ${cle} » ne peut pas être négatif (${l.semestre} ${annee} – ${l.antenne}).` });
     }
