@@ -393,20 +393,19 @@ const CSS = `
 .sa-ch{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--text-2)}
 .sa-ch::before{content:"";width:4px;height:16px;border-radius:4px;background:#16a34a;flex-shrink:0}
 
-.sa-top{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:18px;align-items:stretch}
-.sa-global{display:flex;flex-direction:column;align-items:center;gap:20px;flex:1;justify-content:center}
-.sa-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
-.sa-kpi{display:flex;flex-direction:column;gap:10px;padding:14px;border-radius:16px;background:var(--surface-2);min-width:0}
-.sa-kpi-ico{width:36px;height:36px;border-radius:12px;display:flex;align-items:center;justify-content:center}
-.sa-kpi-val{font-size:28px;font-weight:900;line-height:1;color:var(--text)}
-.sa-kpi-lab{font-size:12px;color:var(--text-3);line-height:1.25}
-@container (min-width:560px){.sa-global{flex-direction:row}.sa-global>.sa-ringbox{flex:0 0 auto}.sa-kpis{flex:1}}
+.sa-top{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1.6fr);gap:18px;align-items:stretch}
+.sa-global{display:flex;flex-direction:column;align-items:center;gap:14px;flex:1;justify-content:center}
+.sa-kpis{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;width:100%}
+.sa-kpi{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:12px;background:var(--surface-2);min-width:0}
+.sa-kpi-ico{width:30px;height:30px;border-radius:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.sa-kpi-val{order:3;font-size:17px;font-weight:900;line-height:1;color:var(--text)}
+.sa-kpi-lab{order:2;flex:1;min-width:0;font-size:12px;color:var(--text-2);line-height:1.2}
 
-.sa-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;flex:1;align-items:center}
+.sa-results{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;flex:1;align-items:center}
 .sa-result{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:16px 8px;border-radius:18px;background:var(--surface-2)}
 
-.sa-comp{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.sa-compcard{display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center;padding:18px 10px;border-radius:18px;background:var(--surface-2)}
+.sa-comp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:12px;flex:1}
+.sa-compcard{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding:14px 8px;border-radius:18px;background:var(--surface-2);justify-content:center}
 
 .sa-axes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
 .sa-axhead{display:flex;align-items:center;gap:12px;font-size:13px;font-weight:800;color:var(--text);line-height:1.25}
@@ -431,7 +430,8 @@ const CSS = `
 .sa-cta{display:flex;align-items:center;flex-wrap:wrap;gap:12px;background:var(--green-soft);border-radius:16px;padding:10px 12px}
 .sa-cta-btn{background:#16a34a;color:#fff;border:none;border-radius:999px;padding:9px 16px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
 
-@container sa (max-width:1099px){.sa-comp{grid-template-columns:repeat(2,minmax(0,1fr))}.sa-top{grid-template-columns:minmax(0,1fr)}}
+@container sa (max-width:1099px){.sa-top{grid-template-columns:repeat(2,minmax(0,1fr))}.sa-top>:last-child{grid-column:1/-1}}
+@container sa (max-width:699px){.sa-top{grid-template-columns:minmax(0,1fr)}.sa-top>:last-child{grid-column:auto}}
 @container sa (max-width:899px){.sa-axes{grid-template-columns:minmax(0,1fr)}}
 @container sa (max-width:520px){.sa-actions{flex:1 1 100%}.sa-actions .sa-btn{flex:1}}
 @media (max-width:640px){.sa-select{font-size:16px}}
@@ -668,7 +668,7 @@ export default function SuiviActivitesAnnuelles() {
           <div className="sa-card">
             <div className="sa-ch">{t.globalProgress}</div>
             <div className="sa-global">
-              <div className="sa-ringbox"><Ring percent={tauxGlobal} color={getProgressColor(tauxGlobal)} size={190} font={26} label={fmtPct(tauxGlobal)} /></div>
+              <div className="sa-ringbox"><Ring percent={tauxGlobal} color={getProgressColor(tauxGlobal)} size={160} font={22} label={fmtPct(tauxGlobal)} /></div>
               <div className="sa-kpis">
                 {kpis.map(({ icon: Icon, label, value, color }) => (
                   <div key={label} className="sa-kpi">
@@ -692,9 +692,8 @@ export default function SuiviActivitesAnnuelles() {
               ))}
             </div>
           </div>
-        </div>
 
-        {/* ============ COMPOSANTES (pleine largeur) ============ */}
+        {/* ============ COMPOSANTES ============ */}
         <div className="sa-card">
           <div className="sa-ch">{t.byComponent}</div>
           <div className="sa-comp">
@@ -705,12 +704,13 @@ export default function SuiviActivitesAnnuelles() {
                   <div style={{ width: 40, height: 40, borderRadius: 14, background: "rgba(22,163,74,.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <Icon size={20} color="#16a34a" />
                   </div>
-                  <Ring percent={c.percent} color={getProgressColor(c.percent)} size={96} font={14} label={fmtPct(c.percent)} />
+                  <Ring percent={c.percent} color={getProgressColor(c.percent)} size={88} font={13} label={fmtPct(c.percent)} />
                   <div style={{ fontSize: 11, fontWeight: 800, color: "var(--text)", lineHeight: 1.25, overflowWrap: "anywhere" }}>{c.label}</div>
                 </div>
               );
             })}
           </div>
+        </div>
         </div>
 
         {/* ============ AXES PRIORITAIRES ============ */}
