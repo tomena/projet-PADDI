@@ -955,6 +955,13 @@ export default function AnalyseTerritoriale() {
                               <td>{nf((p.pct / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
                             </tr>
                           ))}
+                          {res.cultWC != null && (
+                            <tr>
+                              <td><i style={{ background: "rgb(240,150,255)" }} />Cultures (WorldCover 2021)</td>
+                              <td>{res.cultWC < 0.1 ? "< 0,1" : nf(res.cultWC, 1)} %</td>
+                              <td>{nf((res.cultWC / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
+                            </tr>
+                          )}
                         </tbody>
                       </table>
                       {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
