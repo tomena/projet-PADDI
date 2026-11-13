@@ -848,7 +848,7 @@ export default function Dashboard(_props: { data?: unknown }) {
                   <MilestonesGauges
                     title={t.milestonesTitle}
                     plan={tab.avancementGlobal}
-                    indicateurs={null} // à remplacer quand la valeur sera disponible (0 à 100)
+                    indicateurs={tab.avancementIndicateurs}
                     planLabel={t.milestonesPlan}
                     indicateursLabel={t.milestonesIndicators}
                   />
