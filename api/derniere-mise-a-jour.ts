@@ -54,11 +54,6 @@ export default async function handler(req: any, res: any) {
       const entries = Array.isArray(history.entries)
         ? history.entries
         : [];
-  
-            const history = JSON.parse(content);
-      const entries = Array.isArray(history.entries)
-        ? history.entries
-        : [];
 
       // Colonnes propres à la page « Suivi des activités » (pas celles du suivi des coûts)
       const COLONNE_ACTIVITE = /^(TAG|NAP|NAA|NAC|NAD|TAR \d|TAC C\d|TAA \d\.\d\.\d)$/;
