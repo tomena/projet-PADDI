@@ -1,0 +1,32 @@
+{
+  "entries": [
+    {
+      "id": "1794561791649-73q6zj",
+      "date": "2026-11-13T09:23:11.649Z",
+      "utilisateur": "Toky",
+      "identifiant": "Toky",
+      "annee": 2026,
+      "semestre": "S1",
+      "antenne": "Toutes",
+      "nombreColonnesModifiees": 2,
+      "changements": [
+        {
+          "colonne": "S1 — Toutes — Avancement global (%)",
+          "ancienneValeur": 22,
+          "nouvelleValeur": 19.3,
+          "antenne": "Toutes",
+          "annee": 2026,
+          "semestre": "S1"
+        },
+        {
+          "colonne": "S1 — Toutes — Avancement global indicateurs (%)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 27,
+          "antenne": "Toutes",
+          "annee": 2026,
+          "semestre": "S1"
+        }
+      ]
+    }
+  ]
+}
