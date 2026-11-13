@@ -55,7 +55,22 @@ export default async function handler(req: any, res: any) {
         ? history.entries
         : [];
   
+            const history = JSON.parse(content);
+      const entries = Array.isArray(history.entries)
+        ? history.entries
+        : [];
+
+      // Colonnes propres à la page « Suivi des activités » (pas celles du suivi des coûts)
+      const COLONNE_ACTIVITE = /^(TAG|NAP|NAA|NAC|NAD|TAR \d|TAC C\d|TAA \d\.\d\.\d)$/;
+      const nom = (c: any) =>
+        String(c?.colonne ?? c?.champ ?? c?.field ?? c?.nomColonne ?? "");
+
       const dates = entries
+        .filter(
+          (entry: any) =>
+            Array.isArray(entry.changements) &&
+            entry.changements.some((c: any) => COLONNE_ACTIVITE.test(nom(c)))
+        )
         .map((entry: any) => entry.date)
         .filter(
           (date: any) =>
@@ -66,7 +81,7 @@ export default async function handler(req: any, res: any) {
           (a: string, b: string) =>
             Date.parse(b) - Date.parse(a)
         );
-  
+
       return res.status(200).json({
         date: dates[0] || null,
       });
