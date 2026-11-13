@@ -71,6 +71,8 @@ const fr = {
   activityDiversification: "Diversification des activités",
   communityMobilization: "Mobilisation communautaire",
 
+  back: "Retour",
+
   legend: "LÉGENDE (TAUX D'AVANCEMENT)",
   range0_25: "0 à 25%",
   range25_50: "25% à 50%",
@@ -113,6 +115,8 @@ const mg: Txt = {
   completed: "Asa vita",
   ongoing: "Asa mbola mandeha",
   notStarted: "Asa mbola tsy natomboka",
+
+  back: "Hiverina",
 
   byAchievement: "TAHA-PANDROSOANA ISAKY NY ZAVA-BITA",
   byComponent: "TAHA-PANDROSOANA ISAKY NY SINGA",
@@ -189,6 +193,8 @@ const en: Txt = {
   ongoing: "Ongoing activities",
   notStarted: "Activities not started",
 
+  back: "Back",
+
   byAchievement: "PROGRESS RATE BY RESULT",
   byComponent: "PROGRESS RATE BY COMPONENT",
 
@@ -263,6 +269,8 @@ const de: Txt = {
   completed: "Abgeschlossene Aktivitäten",
   ongoing: "Laufende Aktivitäten",
   notStarted: "Noch nicht gestartete Aktivitäten",
+
+  back: "Zurück",
 
   byAchievement: "FORTSCHRITTSRATE NACH ERGEBNIS",
   byComponent: "FORTSCHRITTSRATE NACH KOMPONENTE",
@@ -612,6 +620,8 @@ export default function SuiviActivitesAnnuelles() {
         mois={mois}
         moisLabel={t.months[mois] ?? mois}
         onBack={() => setVueGlobale(false)}
+        t={t}
+        fmtPct={fmtPct}
       />
     );
   }
