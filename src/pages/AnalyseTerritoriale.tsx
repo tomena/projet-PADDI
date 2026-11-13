@@ -1,21 +1,15 @@
 /**
  * AnalyseTerritoriale.tsx — Madagascar : Région → District → Commune → Parcelle tracée
  *
- * Disposition : à gauche 5 cartes d'information (territoire, occupation du sol, déforestation,
- * relief et pente, points de feux), à droite UNE carte de Madagascar qui superpose
- * l'occupation du sol, la perte de couvert arboré et les points de feux.
- * Le bouton « Analyser ce territoire » ouvre une fenêtre (pop-up) avec les orientations
- * classées par thème : restauration, agriculture, eau et sols, feux, conservation, communautés.
- *
- * Dépendances : leaflet, @types/leaflet, lucide-react.
- *
  * Données :
  *  - Limites : geoBoundaries (en ligne, plusieurs miroirs essayés en parallèle)
  *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m
  *  - Cultures (second avis) : ESA WorldCover 2021 via /api/worldcover (Terrascope)
- *  - Perte de couvert : tuiles Global Forest Watch (carte) + POST /api/gfw-perte (chiffres, clé côté serveur)
- *  - Points de feux : GET /api/firms (NASA FIRMS, la même route que votre page « Zones de pression »)
- *  - Altitude / pluie : Open-Meteo (pluie = moyenne annuelle sur RAIN_YEARS ans). Bassins versants : BASSINS_GEOJSON_URL (à fournir).
+ *  - Perte de couvert : tuiles Global Forest Watch (carte) + POST /api/gfw-perte (chiffres)
+ *  - Points de feux : GET /api/firms (NASA FIRMS)
+ *  - Altitude / pluie : Open-Meteo (pluie = moyenne annuelle sur RAIN_YEARS ans)
+ *
+ * Dépendances : leaflet, @types/leaflet, lucide-react.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
@@ -31,11 +25,11 @@ const NOM_CLES = ["shapename", "nom_region", "region", "nom_district", "district
 
 const BASSINS_GEOJSON_URL = ""; // ex. "/data/bassins_versants.geojson"
 const LC_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
-const LOSS_FIRST = 2001, LOSS_LAST = 2025; // période de la perte de couvert arboré (GFW)
+const LOSS_FIRST = 2001, LOSS_LAST = 2025;
 const LOSS_YEARS = Array.from({ length: LOSS_LAST - LOSS_FIRST + 1 }, (_, i) => LOSS_FIRST + i);
-const RAIN_YEARS = 5; // nombre d'années pour la pluie moyenne (modifiable : 10, etc.)
-const RAIN_LAST = 2025; // dernière année complète
-const RAIN_FIRST = RAIN_LAST - RAIN_YEARS + 1; // 2021
+const RAIN_YEARS = 5;
+const RAIN_LAST = 2025;
+const RAIN_FIRST = RAIN_LAST - RAIN_YEARS + 1;
 const FONDS = {
   sat: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   topo: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
@@ -143,7 +137,7 @@ const veil = (f: Feat) => {
   return L.polygon([monde, ...trous], { pane: "veil", stroke: false, fillColor: "#f1f4f7", fillOpacity: 0.78, interactive: false });
 };
 
-/** Allège un polygone (Douglas-Peucker) avant de l'envoyer à l'API : anneaux extérieurs seulement. */
+/** Allège un polygone (Douglas-Peucker) avant l'envoi à l'API : anneaux extérieurs seulement. */
 function rdp(p: Ring, eps: number): Ring {
   const keep = new Uint8Array(p.length); keep[0] = keep[p.length - 1] = 1;
   const st: [number, number][] = [[0, p.length - 1]];
@@ -177,7 +171,7 @@ function loadLevel(l: Level): Promise<Feat[]> {
     fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((j) => {
       const feats: Feat[] = (j?.features ?? []).filter((f: Feat) => f?.geometry && /Polygon/.test(f.geometry.type));
       if (!feats.length) throw new Error("vide");
-      console.info(`Limites ${l} : ${feats.length} entités, exemple de propriétés`, feats[0].properties);
+      console.info(`Limites ${l} : ${feats.length} entités`, feats[0].properties);
       return feats;
     }));
   return new Promise((ok, ko) => {
@@ -186,11 +180,10 @@ function loadLevel(l: Level): Promise<Feat[]> {
   });
 }
 
-/* ===================== PLUIE MOYENNE (Open-Meteo, RAIN_YEARS ans) ===================== */
+/* ===================== PLUIE MOYENNE (Open-Meteo) ===================== */
 
 const RAIN_CACHE = new Map<string, number>();
 
-/** Moyenne annuelle des précipitations (mm/an) sur RAIN_FIRST–RAIN_LAST, au centre de la zone. */
 async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Promise<number | null> {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   const hit = RAIN_CACHE.get(key);
@@ -205,13 +198,12 @@ async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Prom
     RAIN_CACHE.set(key, val);
     return val;
   } catch {
-    return null; // facultatif
+    return null;
   }
 }
 
 /* ===================== CULTURES : SECOND AVIS (ESA WorldCover 2021) ===================== */
 
-/* Palette officielle ESA WorldCover (classe : couleur RGB) */
 const WC_PALETTE: { code: number; n: string; c: [number, number, number] }[] = [
   { code: 10, n: "Couvert arboré", c: [0, 100, 0] },
   { code: 20, n: "Arbustes", c: [255, 187, 34] },
@@ -228,10 +220,7 @@ const WC_PALETTE: { code: number; n: string; c: [number, number, number] }[] = [
 
 type WcRes = { pct: number | null; err: string | null };
 
-/**
- * Part (%) de cultures selon ESA WorldCover 2021, dans le polygone.
- * Renvoie aussi le message d'erreur (affiché dans l'interface) au lieu de le masquer.
- */
+/** Part (%) de cultures selon ESA WorldCover 2021, dans le polygone. Renvoie aussi l'erreur éventuelle. */
 async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<WcRes> {
   try {
     const url = `/api/worldcover?minLon=${b.minLon}&minLat=${b.minLat}&maxLon=${b.maxLon}&maxLat=${b.maxLat}&w=${W}&h=${H}`;
@@ -240,8 +229,7 @@ async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<WcR
       const j = await r.json().catch(() => ({} as any));
       return { pct: null, err: j.erreur || `HTTP ${r.status}` };
     }
-    const blob = await r.blob();
-    const objUrl = URL.createObjectURL(blob);
+    const objUrl = URL.createObjectURL(await r.blob());
     const img = new Image();
     img.src = objUrl;
     await img.decode();
@@ -262,12 +250,12 @@ async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<WcR
     const mask = mc.getImageData(0, 0, W, H).data;
 
     const cnt = new Array(WC_PALETTE.length).fill(0);
-    const brutes = new Map<string, number>(); // diagnostic : couleurs réelles reçues
+    const brutes = new Map<string, number>();
     let tot = 0, opaques = 0;
 
     for (let i = 0; i < W * H; i++) {
-      if (mask[i * 4 + 3] < 128) continue;       // hors polygone
-      if (px[i * 4 + 3] < 128) continue;         // transparent (hors couverture)
+      if (mask[i * 4 + 3] < 128) continue;
+      if (px[i * 4 + 3] < 128) continue;
       opaques++;
       const pr = px[i * 4], pg = px[i * 4 + 1], pb = px[i * 4 + 2];
       const key = `${pr},${pg},${pb}`;
@@ -281,13 +269,13 @@ async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<WcR
       if (bd < 90 * 90) { cnt[best]++; tot++; }
     }
 
-    console.groupCollapsed(`WorldCover : ${W}×${H} px, ${opaques} pixels opaques, ${tot} classés`);
+    console.groupCollapsed(`WorldCover : ${W}×${H} px, ${opaques} opaques, ${tot} classés`);
     console.table(WC_PALETTE.map((k, i) => ({ classe: k.n, pixels: cnt[i] })));
-    console.log("Couleurs les plus fréquentes reçues :", [...brutes.entries()].sort((a, c) => c[1] - a[1]).slice(0, 8));
+    console.log("Couleurs les plus fréquentes :", [...brutes.entries()].sort((a, c) => c[1] - a[1]).slice(0, 8));
     console.groupEnd();
 
-    if (!opaques) return { pct: null, err: "image entièrement transparente (zone hors couverture WMS)" };
-    if (!tot) return { pct: null, err: "couleurs reçues non reconnues (voir la console)" };
+    if (!opaques) return { pct: null, err: "image entièrement transparente (zone hors couverture)" };
+    if (!tot) return { pct: null, err: "couleurs non reconnues (voir la console)" };
     const idx = WC_PALETTE.findIndex((k) => k.code === 40);
     return { pct: (cnt[idx] / tot) * 100, err: null };
   } catch (e: any) {
@@ -304,9 +292,8 @@ type Result = {
   elevMin: number; elevMax: number; elevMean: number;
   rain: number | null; areaKm2: number;
   cropSteep: number; treePct: number; cropPct: number; barePct: number; steepPct: number; wetPct: number;
-  savPct: number; builtPct: number; // savane et parcours ; bâti
-  cultWC: number | null; // cultures selon ESA WorldCover 2021
-  cultErr: string | null; // raison d'un échec WorldCover
+  savPct: number; builtPct: number;
+  cultWC: number | null; cultErr: string | null;
   bassin: string | null; resolution: string;
 };
 
@@ -346,7 +333,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   };
   const cnt = new Array(CLASSES.length).fill(0); let tot = 0;
   for (let i = 0; i < W * H; i++) if (mask[i * 4 + 3] > 128) { const c = cls(i); if (c >= 0) { cnt[c]++; if (c < N_VALID) tot++; } }
-  if (!tot) throw new Error("Aucune donnée d'occupation du sol reçue pour cette zone (service Esri indisponible ou zone entièrement nuageuse).");
+  if (!tot) throw new Error("Aucune donnée d'occupation du sol pour cette zone (service Esri indisponible ou zone entièrement nuageuse).");
 
   const N = 10, minSpan = 0.012;
   const small = b.maxLon - b.minLon < minSpan || b.maxLat - b.minLat < minSpan;
@@ -372,11 +359,8 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const inside = z.filter((_, k) => inFeat(lons[k], lats[k], f));
   const zs = small || !inside.length ? z : inside;
 
-  // pluie : moyenne annuelle sur RAIN_YEARS ans (une seule requête, mise en cache)
   const [cLon, cLat] = center(f);
   const rain = await moyennePluie(cLon, cLat, signal);
-
-  // second avis cultures (WorldCover 2021)
   const wc = await pctCulturesWC(f, b, W, H);
 
   let bassin: string | null = null;
@@ -390,7 +374,6 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
 
   const pct = (c: number) => (cnt[c] / tot) * 100;
   return {
-    // la ligne « Cultures » reste visible même à 0 %
     land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) }))
       .filter((x) => x.pct > 0 || x.n === "Cultures").sort((a, c) => c.pct - a.pct),
     cloudPct: (cnt[8] / (tot + cnt[8])) * 100,
@@ -400,8 +383,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     cropSteep: cropN ? (cropSteep / cropN) * 100 : 0,
     treePct: pct(0), cropPct: pct(2), barePct: pct(4), steepPct: sn ? ((sc[2] + sc[3]) / sn) * 100 : 0, wetPct: pct(6),
     savPct: pct(1), builtPct: pct(3),
-    cultWC: wc.pct,
-    cultErr: wc.err,
+    cultWC: wc.pct, cultErr: wc.err,
     bassin,
     resolution: small
       ? "Occupation du sol à 10 m ; relief à 90 m autour de la parcelle (indicatif)"
@@ -423,7 +405,7 @@ function useAnalysis(f: Feat | null, year: number) {
   return s;
 }
 
-/* ===================== DÉFORESTATION (chiffres par polygone) ===================== */
+/* ===================== DÉFORESTATION ===================== */
 
 type PerteAn = { annee: number; ha: number };
 const LOSS_CACHE = new WeakMap<Feat, Promise<PerteAn[]>>();
@@ -441,7 +423,7 @@ function lossFor(f: Feat): Promise<PerteAn[]> {
       })
       .then((j) => j.annees as PerteAn[]);
     LOSS_CACHE.set(f, p);
-    p.catch(() => LOSS_CACHE.delete(f)); // on pourra réessayer
+    p.catch(() => LOSS_CACHE.delete(f));
   }
   return p;
 }
@@ -458,7 +440,7 @@ function useLoss(f: Feat | null) {
   return s;
 }
 
-/* ===================== POINTS DE FEUX (NASA FIRMS, via /api/firms) ===================== */
+/* ===================== POINTS DE FEUX (NASA FIRMS) ===================== */
 
 type Feu = { lon: number; lat: number; t: number; date: string; heure: string; conf: "l" | "n" | "h" | null; frp: number | null; sat: string; age: number };
 
@@ -471,6 +453,7 @@ const niveauConfiance = (c: any): "l" | "n" | "h" | null => {
   const n = Number(c);
   return n >= 80 ? "h" : n >= 30 ? "n" : "l";
 };
+
 function analyserFeux(features: any[]): Omit<Feu, "age">[] {
   const out: Omit<Feu, "age">[] = [];
   for (const f of features) {
@@ -485,7 +468,7 @@ function analyserFeux(features: any[]): Omit<Feu, "age">[] {
   return out;
 }
 
-/* ===================== DÉCISION ===================== */
+/* ===================== DÉCISION : ORIENTATIONS ===================== */
 
 type Trend = "hausse" | "baisse" | "stable" | null;
 type Extra = { lossHa: number | null; lossPct: number | null; lossTrend: Trend; fires72: number; fires24: number; areaKm2: number };
@@ -677,7 +660,7 @@ export default function AnalyseTerritoriale() {
   const [showLoss, setShowLoss] = useState(true), [dfFrom, setDfFrom] = useState(2015), [dfTo, setDfTo] = useState(LOSS_LAST);
   const [showFires, setShowFires] = useState(true), [fPeriod, setFPeriod] = useState<24 | 48 | 72>(72), [conf, setConf] = useState<"l" | "n" | "h">("l");
   const [mask, setMask] = useState(true);
-  const [show, setShow] = useState(false); // fenêtre des orientations
+  const [show, setShow] = useState(false);
   const [themeF, setThemeF] = useState<"Toutes" | Thematique>("Toutes");
   const [loadErr, setLoadErr] = useState("");
 
@@ -710,7 +693,6 @@ export default function AnalyseTerritoriale() {
     const years = LOSS_YEARS.filter((y) => y >= dfFrom && y <= dfTo).map((y) => ({ annee: y, ha: lossS.rows!.find((a) => a.annee === y)?.ha ?? 0 }));
     const total = years.reduce((s, a) => s + a.ha, 0);
     const peak = years.reduce((m, a) => (a.ha > m.ha ? a : m), years[0] ?? { annee: 0, ha: 0 });
-    // tendance : moyenne de la 2e moitié de la période comparée à celle de la 1re moitié
     let trend: Trend = null;
     if (years.length >= 4) {
       const half = Math.floor(years.length / 2);
@@ -784,10 +766,12 @@ export default function AnalyseTerritoriale() {
   const reset = () => { onRegion(""); cancelDraw(); };
 
   /* ----- chargement des limites ----- */
-  useEffect(() => { loadLevel("ADM1").then((r) => {
-    setRegs(r);
-    if (r.length < 15 || r.length > 30) setLoadErr(`Attention : ${r.length} entités chargées au niveau 1 au lieu d'environ 22 régions. Les limites en ligne ne correspondent peut-être pas aux régions.`);
-  }).catch((e) => setLoadErr(e.message)); }, []);
+  useEffect(() => {
+    loadLevel("ADM1").then((r) => {
+      setRegs(r);
+      if (r.length < 15 || r.length > 30) setLoadErr(`Attention : ${r.length} entités au niveau 1 au lieu d'environ 22 régions.`);
+    }).catch((e) => setLoadErr(e.message));
+  }, []);
   useEffect(() => { if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message)); }, [rF, adm2]);
   useEffect(() => { if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message)); }, [dF, adm3]);
   useEffect(() => { setShow(false); }, [selected]);
@@ -806,4 +790,596 @@ export default function AnalyseTerritoriale() {
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventD
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("keydown", key);
+      document.body.style.overflow = prevOverflow;
+      opener?.focus?.();
+    };
+  }, [show]);
+
+  /* ----- la carte unique ----- */
+  useEffect(() => {
+    const m = L.map(elMap.current!, { zoomControl: false, zoomSnap: 0.25 }).fitBounds(MADA);
+    L.control.zoom({ position: "bottomright" }).addTo(m);
+    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
+    ([["perte", 450], ["veil", 460], ["vec", 480], ["feux", 490]] as [string, number][]).forEach(([n, z]) => {
+      const p = m.createPane(n); p.style.zIndex = String(z);
+      if (n === "perte" || n === "veil") p.style.pointerEvents = "none";
+    });
+    draft.current = L.featureGroup().addTo(m);
+    map.current = m;
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(elMap.current!);
+    return () => { ro.disconnect(); m.remove(); };
+  }, []);
+
+  useEffect(() => {
+    base.current?.remove();
+    base.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map.current!);
+    base.current.bringToBack();
+  }, [fond]);
+
+  /* entités cliquables du niveau suivant */
+  useEffect(() => {
+    kids.current?.remove();
+    if (!list.length) return;
+    const idx = new Map<Feat, number>(list.map((f, i) => [f, i]));
+    kids.current = L.geoJSON(list as any, {
+      pane: "vec", interactive: !drawing,
+      style: () => ({ color: "#ffffff", weight: 1.2, fillColor: "#ffffff", fillOpacity: 0.04 }),
+      onEachFeature: (f, layer) => {
+        const p = layer as L.Path;
+        p.bindTooltip(nameOf(f as any), { sticky: true, className: "at-tip" });
+        p.on("mouseover", () => p.setStyle({ fillOpacity: 0.25, weight: 2.2 }));
+        p.on("mouseout", () => p.setStyle({ fillOpacity: 0.04, weight: 1.2 }));
+        p.on("click", () => pickRef.current(kidLevel, idx.get(f as any)!));
+      },
+    }).addTo(map.current!);
+  }, [list, kidLevel, drawing]);
+
+  /* contour, voile et zoom */
+  useEffect(() => {
+    outline.current?.remove(); veilL.current?.remove();
+    if (!selected) { map.current?.flyToBounds(MADA, { duration: 1 }); return; }
+    if (mask) veilL.current = veil(selected).addTo(map.current!);
+    outline.current = L.geoJSON(selected as any, { pane: "vec", interactive: false, style: { color: hi, weight: 3.5, fill: false } }).addTo(map.current!);
+  }, [selected, mask]);
+  useEffect(() => {
+    if (!selected) return;
+    map.current!.flyToBounds(L.geoJSON(selected as any).getBounds(), { padding: [40, 40], maxZoom: parcel ? 17 : undefined, duration: 1.2 });
+  }, [selected]);
+
+  /* occupation du sol (image) */
+  useEffect(() => {
+    ov.current?.remove();
+    if (!showLC || !map.current) return;
+    const b = selected ? bbox(selected) : { minLon: 43.2, minLat: -25.7, maxLon: 50.6, maxLat: -11.9 };
+    const midLat = (b.minLat + b.maxLat) / 2;
+    const wKm = (b.maxLon - b.minLon) * 111.32 * Math.cos((midLat * Math.PI) / 180), hKm = (b.maxLat - b.minLat) * 110.54;
+    const Lpx = Math.max(64, Math.min(1400, Math.ceil(Math.max(wKm, hKm) * 100)));
+    const W = wKm >= hKm ? Lpx : Math.max(32, Math.round((Lpx * wKm) / hKm)), H = wKm >= hKm ? Math.max(32, Math.round((Lpx * hKm) / wKm)) : Lpx;
+    ov.current = L.imageOverlay(esriUrl(b, W, H, lcYear), [[b.minLat, b.minLon], [b.maxLat, b.maxLon]], { opacity: 0.6, interactive: false }).addTo(map.current);
+  }, [showLC, selected, lcYear]);
+
+  /* perte de couvert arboré (tuiles GFW) */
+  useEffect(() => {
+    loss.current?.remove();
+    if (!showLoss) return;
+    loss.current = L.tileLayer(lossUrl(dfFrom, dfTo), { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }).addTo(map.current!);
+  }, [showLoss, dfFrom, dfTo]);
+
+  /* points de feux */
+  useEffect(() => {
+    fireL.current?.remove();
+    if (!showFires || !feuxAff.length) return;
+    const m = map.current!, g = L.featureGroup(), renderer = L.canvas({ pane: "feux", padding: 0.5 });
+    const rayon = (z: number) => Math.max(2.5, Math.min(9, 2 + (z - 5) * 0.75));
+    feuxAff.forEach((f) => {
+      L.circleMarker([f.lat, f.lon], { pane: "feux", renderer, radius: rayon(m.getZoom()), fillColor: couleurAge(f.age), color: "#fff", weight: 0.6, opacity: 0.9, fillOpacity: 0.92 })
+        .bindPopup(`<div style="font:13px/1.5 system-ui"><strong>Détection satellite</strong><br/>${new Date(f.t).toLocaleDateString("fr-FR")} à ${f.heure} UTC<br/>Confiance : ${f.conf === "h" ? "élevée" : f.conf === "n" ? "nominale" : f.conf === "l" ? "faible" : "n/d"}${f.frp != null ? `<br/>Puissance : ${f.frp} MW` : ""}${f.sat ? `<br/>Satellite : ${f.sat}` : ""}</div>`)
+        .addTo(g);
+    });
+    g.addTo(m);
+    const maj = () => g.eachLayer((l) => l instanceof L.CircleMarker && l.setRadius(rayon(m.getZoom())));
+    m.on("zoomend", maj);
+    fireL.current = g;
+    return () => { m.off("zoomend", maj); g.remove(); };
+  }, [showFires, feuxAff]);
+
+  /* tracé de parcelle : clics */
+  useEffect(() => {
+    const m = map.current!;
+    if (!drawing) return;
+    m.getContainer().style.cursor = "crosshair";
+    m.doubleClickZoom.disable();
+    const click = (e: L.LeafletMouseEvent) => { pts.current.push(e.latlng); redraw(); };
+    const dbl = () => { pts.current.pop(); redraw(); finishDraw(); };
+    const key = (e: KeyboardEvent) => e.key === "Escape" && cancelDraw();
+    m.on("click", click); m.on("dblclick", dbl);
+    window.addEventListener("keydown", key);
+    return () => {
+      m.off("click", click); m.off("dblclick", dbl);
+      window.removeEventListener("keydown", key);
+      m.getContainer().style.cursor = ""; m.doubleClickZoom.enable();
+    };
+  }, [drawing]);
+
+  /* ----- affichage ----- */
+  const levels = [{ f: rF, s: rRes }, { f: dF, s: dRes }, { f: cF, s: cRes }, { f: parcel, s: pRes }];
+  const periodeTxt = dfFrom === dfTo ? String(dfFrom) : `${dfFrom} à ${dfTo}`;
+  const advice = useMemo(
+    () => (res ? orientations(res, { lossHa: lossStats?.total ?? null, lossPct: lossStats?.pct ?? null, lossTrend: lossStats?.trend ?? null, fires72: n72, fires24: n24, areaKm2: zoneKm2 }, periodeTxt) : []),
+    [res, lossStats, n72, n24, zoneKm2, periodeTxt]);
+  const themesPresents = useMemo(
+    () => THEMES.map((th) => ({ th, n: advice.filter((a) => a.th === th).length })).filter((x) => x.n > 0),
+    [advice]);
+  const adviceShown = themeF === "Toutes" ? advice : advice.filter((a) => a.th === themeF);
+  const nHautes = advice.filter((a) => a.lvl === "haute").length;
+  const score = res ? vuln(res) : 0;
+  const openAnalysis = () => { setThemeF("Toutes"); setShow(true); };
+  const hint = drawing
+    ? `Cliquez pour poser les sommets (${nPts}). Double-clic ou « Terminer » pour fermer, Échap pour annuler.`
+    : !rF ? "Cliquez sur une région pour zoomer" : !dF ? "Cliquez sur un district" : !cF ? "Cliquez sur une commune" : "Cliquez sur une autre commune pour comparer";
+  const legendLC = res ? res.land : CLASSES.slice(0, N_VALID).map((k) => ({ n: k.n, pct: 0, col: rgb(k.c) }));
+  const lvlText = parcel
+    ? `Parcelle tracée${admin ? ` dans ${nameOf(admin)}` : ""}`
+    : cF ? `Commune de ${nameOf(dF!)}, ${nameOf(rF!)}` : dF ? `District de ${nameOf(rF!)}` : "Région";
+  const area = fmtArea(zoneKm2).split(" ");
+  const yearOptions = LOSS_YEARS.map((y) => <option key={y}>{y}</option>);
+  const cultAff = res ? (res.cultWC == null ? null : Math.max(res.cropPct, res.cultWC)) : null;
+
+  return (
+    <div className="at">
+      <style>{CSS}</style>
+
+      <header className="at-head">
+        <div>
+          <h1>Analyse territoriale</h1>
+          <p>Occupation du sol, déforestation, relief, feux et orientations pour restaurer · version : {VERSION}</p>
+        </div>
+        <div className="at-chain">
+          <select value={ri} onChange={(e) => onRegion(e.target.value)} aria-label="Région">
+            <option value="">{regs.length ? "Région" : loadErr ? "Indisponible" : "Chargement…"}</option>
+            {regs.map((f, i) => ({ f, i })).sort((a, b) => nameOf(a.f).localeCompare(nameOf(b.f))).map(({ f, i }) => <option key={i} value={i}>{nameOf(f)}</option>)}
+          </select>
+          <ChevronRight size={16} aria-hidden />
+          <select value={di} onChange={(e) => onDistrict(e.target.value)} disabled={!rF} aria-label="District">
+            <option value="">{rF && !adm2 ? "Chargement…" : "District"}</option>
+            {dists.map((f, i) => <option key={i} value={i}>{nameOf(f)}</option>)}
+          </select>
+          <ChevronRight size={16} aria-hidden />
+          <select value={ci} onChange={(e) => onCommune(e.target.value)} disabled={!dF} aria-label="Commune">
+            <option value="">{dF && !adm3 ? "Chargement…" : "Commune"}</option>
+            {coms.map((f, i) => <option key={i} value={i}>{nameOf(f)}</option>)}
+          </select>
+          <button type="button" className="at-reset" onClick={reset} disabled={!selected && !drawing} title="Revenir à Madagascar" aria-label="Réinitialiser">
+            <RotateCcw size={16} />
+          </button>
+        </div>
+      </header>
+
+      {loadErr && <div className="at-banner" role="alert">{loadErr}</div>}
+
+      <div className="at-body">
+        <aside className="at-panel">
+          {!selected ? (
+            <div className="at-empty">
+              <h2>Commencez par une région</h2>
+              <p>Choisissez-la dans la liste ou cliquez sur la carte. Les informations se précisent jusqu’à la commune. Vous pouvez aussi tracer votre propre parcelle.</p>
+            </div>
+          ) : (
+            <>
+              <div className="at-card at-hero">
+                <h2>{nameOf(selected)}</h2>
+                <div className="at-lvl">{lvlText}</div>
+                <dl className="at-facts">
+                  <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
+                  <div><dd>{res ? nf(res.elevMean) : "…"}</dd><dt>m d’altitude moyenne</dt></div>
+                  <div><dd>{res ? (res.rain ? nf(res.rain) : "n/d") : "…"}</dd><dt>mm de pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</dt></div>
+                </dl>
+                {res && <p className="at-note">Bassin versant : {res.bassin ?? "source non renseignée"}</p>}
+                {current.err && <p className="at-alert" role="alert">{current.err}</p>}
+              </div>
+
+              <div className="at-duo">
+                <section className="at-card at-c">
+                  <div className="at-ch">
+                    <h3>Occupation du sol</h3>
+                    <select value={lcYear} onChange={(e) => setLcYear(+e.target.value)} aria-label="Année de l'occupation du sol" className="at-mini">
+                      {LC_YEARS.map((y) => <option key={y}>{y}</option>)}
+                    </select>
+                  </div>
+                  <p className="at-sub">Une ligne par niveau choisi.</p>
+                  {levels.map(({ f, s }, i) => f && (
+                    <div className="at-core" key={i}>
+                      <div className="at-corelab"><small>{ROWS[i]}</small><span title={nameOf(f)}>{nameOf(f)}</span></div>
+                      {s.res ? (
+                        <div className="at-stack" key={nameOf(f) + s.res.areaKm2}>
+                          {s.res.land.map((p) => <i key={p.n} style={{ width: `${p.pct}%`, background: p.col }} title={`${p.n} : ${nf(p.pct, 1)} %`} />)}
+                        </div>
+                      ) : <div className="at-stack at-pulse" />}
+                    </div>
+                  ))}
+                  {res ? (
+                    <>
+                      <table className="at-tbl">
+                        <thead><tr><th scope="col">Types présents</th><th scope="col">Part</th><th scope="col">ha</th></tr></thead>
+                        <tbody>
+                          {res.land.map((p) => (
+                            <tr key={p.n}>
+                              <td><i style={{ background: p.col }} />{p.n}</td>
+                              <td>{p.pct < 0.1 ? "< 0,1" : nf(p.pct, 1)} %</td>
+                              <td>{nf((p.pct / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
+                      <p className="at-note">
+                        Cultures : Impact Observatory {nf(res.cropPct, 1)} % · {res.cultWC != null
+                          ? <>WorldCover 2021 {nf(res.cultWC, 1)} %</>
+                          : <>WorldCover indisponible{res.cultErr ? ` (${res.cultErr})` : ""}</>}
+                      </p>
+                    </>
+                  ) : <p className="at-load">{current.busy ? "Calcul en cours…" : ""}</p>}
+                </section>
+
+                <section className="at-card at-c at-def">
+                  <div className="at-ch">
+                    <h3>Déforestation</h3>
+                    <div className="at-yrs">
+                      <select className="at-mini" value={dfFrom} aria-label="Année de début" onChange={(e) => { const v = +e.target.value; setDfFrom(v); if (v > dfTo) setDfTo(v); }}>{yearOptions}</select>
+                      <span>à</span>
+                      <select className="at-mini" value={dfTo} aria-label="Année de fin" onChange={(e) => { const v = +e.target.value; setDfTo(v); if (v < dfFrom) setDfFrom(v); }}>{yearOptions}</select>
+                    </div>
+                  </div>
+                  {lossS.busy && <p className="at-load">Calcul en cours… (peut durer quelques secondes pour une région)</p>}
+                  {lossS.err && (
+                    <p className="at-alert" role="alert">
+                      Chiffres indisponibles ({lossS.err}). Vérifiez la route /api/gfw-perte et la clé GFW côté serveur. La carte de perte, elle, s’affiche.
+                    </p>
+                  )}
+                  {lossStats && (
+                    <>
+                      <div className="at-big at-big-def">{nf(Math.round(lossStats.total))}<small>ha</small></div>
+                      <p className="at-sub">de couvert arboré perdus sur {periodeTxt}, soit {nf(lossStats.pct, lossStats.pct < 1 ? 2 : 1)} % de la zone.</p>
+                      <div className="at-cols" role="img" aria-label="Perte de couvert par année">
+                        {lossStats.years.map((a) => (
+                          <div key={a.annee} className="at-colw" title={`${a.annee} : ${nf(Math.round(a.ha))} ha`}>
+                            <i style={{ height: `${Math.max(3, (a.ha / lossStats.max) * 100)}%`, background: a.annee === lossStats.peak.annee ? "#b0285f" : COULEUR_PERTE }} />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="at-colsl"><span>{dfFrom}</span><span>{dfTo}</span></div>
+                      <dl className="at-mini-facts">
+                        <div><dt>Année la plus touchée</dt><dd>{lossStats.peak.annee} · {nf(Math.round(lossStats.peak.ha))} ha</dd></div>
+                        <div><dt>Moyenne annuelle</dt><dd>{nf(Math.round(lossStats.total / Math.max(1, lossStats.years.length)))} ha/an</dd></div>
+                        {lossStats.trend && <div><dt>Tendance</dt><dd>{lossStats.trend === "hausse" ? "en hausse" : lossStats.trend === "baisse" ? "en baisse" : "stable"}</dd></div>}
+                      </dl>
+                    </>
+                  )}
+                </section>
+
+                <section className="at-card at-c">
+                  <h3>Relief et pente</h3>
+                  {res ? (
+                    <>
+                      <div className="at-stack at-slope" key={nameOf(selected)}>
+                        {res.slope.map((p) => <i key={p.n} style={{ width: `${p.pct}%`, background: p.col }} title={`${p.n} : ${nf(p.pct, 1)} %`} />)}
+                      </div>
+                      <table className="at-tbl">
+                        <tbody>
+                          {res.slope.map((p) => <tr key={p.n}><td><i style={{ background: p.col }} />{p.n}</td><td>{nf(p.pct, 1)} %</td></tr>)}
+                        </tbody>
+                      </table>
+                      <div className="at-strip" aria-hidden>
+                        <b className="at-range" style={{ left: `${(Math.max(0, res.elevMin) / 2900) * 100}%`, width: `${Math.max(1.5, ((res.elevMax - Math.max(0, res.elevMin)) / 2900) * 100)}%` }} />
+                        <u className="at-dot" style={{ left: `${(res.elevMean / 2900) * 100}%` }} />
+                      </div>
+                      <div className="at-stripl"><span>0 m</span><span>{nf(res.elevMin)} à {nf(res.elevMax)} m</span><span>2 900 m</span></div>
+                      <p className="at-note">{res.resolution}.</p>
+                    </>
+                  ) : <p className="at-load">{current.busy ? "Calcul en cours…" : ""}</p>}
+                </section>
+
+                <section className="at-card at-c at-feu">
+                  <div className="at-ch">
+                    <h3>Points de feux</h3>
+                    <select className="at-mini" value={conf} onChange={(e) => setConf(e.target.value as "l" | "n" | "h")} aria-label="Fiabilité des détections">
+                      <option value="l">Toutes</option><option value="n">Nominale+</option><option value="h">Élevée</option>
+                    </select>
+                  </div>
+                  {fErr ? (
+                    <p className="at-alert" role="alert">Données de feux indisponibles (route /api/firms). <button type="button" className="at-link" onClick={chargerFeux}>Réessayer</button></p>
+                  ) : (
+                    <>
+                      <div className="at-feu-top">
+                        <div className="at-big at-big-feu">{fLoad && !feuxBruts.length ? "…" : nf(feuxAff.length)}</div>
+                        <div className="at-seg" role="group" aria-label="Période des feux">
+                          {([24, 48, 72] as const).map((h) => <button key={h} type="button" aria-pressed={fPeriod === h} onClick={() => setFPeriod(h)}>{h} h</button>)}
+                        </div>
+                      </div>
+                      <p className="at-sub">feux détectés ces {fPeriod} dernières heures dans la zone.</p>
+                      <div className="at-cols" role="img" aria-label="Détections par tranche de 6 heures">
+                        {[...chrono].map((n, i) => ({ n, i })).reverse().map(({ n, i }) => (
+                          <div key={i} className="at-colw" title={`${n} feux · il y a ${i * 6} à ${i * 6 + 6} h`}>
+                            <i style={{ height: `${Math.max(4, (n / maxChrono) * 100)}%`, background: couleurAge(i * 6 + 3), opacity: i * 6 < fPeriod ? 1 : 0.22 }} />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="at-colsl"><span>il y a 72 h</span><span>maintenant</span></div>
+                      <table className="at-tbl">
+                        <tbody>
+                          <tr><td><i style={{ background: "rgb(200,15,15)" }} />24 dernières heures</td><td>{nf(n24)}</td></tr>
+                          <tr><td><i style={{ background: "#f97316" }} />24 à 48 h</td><td>{nf(n48 - n24)}</td></tr>
+                          <tr><td><i style={{ background: "#facc15" }} />48 à 72 h</td><td>{nf(n72 - n48)}</td></tr>
+                        </tbody>
+                      </table>
+                      <p className="at-note">NASA FIRMS, données de {heureMaj}.</p>
+                    </>
+                  )}
+                </section>
+              </div>
+
+              <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>Analyser ce territoire</button>
+            </>
+          )}
+        </aside>
+
+        <section className="at-mcard" aria-label="Carte de Madagascar">
+          <div className="at-mhead">
+            <div className="at-mtools">
+              <div className="at-seg" role="group" aria-label="Fond de carte">
+                <button type="button" aria-pressed={fond === "sat"} onClick={() => setFond("sat")}>Satellite</button>
+                <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>Topographie</button>
+              </div>
+              <label className="at-chk"><input type="checkbox" checked={showLC} onChange={(e) => setShowLC(e.target.checked)} />Occupation du sol</label>
+              <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />Déforestation</label>
+              <label className="at-chk"><input type="checkbox" checked={showFires} onChange={(e) => setShowFires(e.target.checked)} />Points de feux</label>
+              <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />Estomper l’extérieur</label>
+            </div>
+            <div className="at-mtools">
+              {!drawing ? (
+                <button type="button" className="at-tool" onClick={startDraw}><PenTool size={15} />Tracer une parcelle</button>
+              ) : (
+                <>
+                  <button type="button" className="at-tool on" onClick={finishDraw} disabled={nPts < 3}><Check size={15} />Terminer</button>
+                  <button type="button" className="at-tool" onClick={cancelDraw}><X size={15} />Annuler</button>
+                </>
+              )}
+              {parcel && <button type="button" className="at-tool" onClick={() => setParcel(null)}><Trash2 size={15} />Effacer la parcelle</button>}
+            </div>
+          </div>
+          <div className="at-mbox">
+            <div ref={elMap} className="at-map" />
+            <div className="at-ctl at-hint">{hint}</div>
+            {(showLC || showLoss || showFires) && (
+              <div className="at-ctl at-legend">
+                {showLC && <><strong>Occupation du sol {lcYear}</strong>{legendLC.map((k) => <span key={k.n}><i style={{ background: k.col }} />{k.n}</span>)}</>}
+                {showLoss && <><strong>Déforestation</strong><span><i style={{ background: COULEUR_PERTE }} />Perte de couvert, {periodeTxt}</span></>}
+                {showFires && <><strong>Feux</strong>
+                  <span><i className="r" style={{ background: "rgb(200,15,15)" }} />Moins de 24 h</span>
+                  <span><i className="r" style={{ background: "#f97316" }} />24 à 48 h</span>
+                  <span><i className="r" style={{ background: "#facc15" }} />48 à 72 h</span></>}
+              </div>
+            )}
+          </div>
+        </section>
+      </div>
+
+      {show && res && selected && (
+        <div className="at-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setShow(false); }}>
+          <div className="at-modal" role="dialog" aria-modal="true" aria-labelledby="at-m-titre" ref={modalRef}>
+            <header className="at-mh">
+              <div>
+                <h2 id="at-m-titre">Orientations pour {nameOf(selected)}</h2>
+                <p>{lvlText} · {fmtArea(zoneKm2)} · {advice.length} orientation{advice.length > 1 ? "s" : ""}{nHautes ? `, dont ${nHautes} prioritaire${nHautes > 1 ? "s" : ""}` : ""}</p>
+              </div>
+              <button type="button" className="at-x" ref={closeRef} onClick={() => setShow(false)} aria-label="Fermer la fenêtre"><X size={18} /></button>
+            </header>
+
+            <div className="at-mb">
+              <div className="at-kpis">
+                <div className="at-kpi"><b>{nf(res.treePct)} %</b><span>couvert arboré</span></div>
+                <div className="at-kpi">
+                  <b>{cultAff == null ? `${nf(res.cropPct, 1)} %` : `${nf(cultAff, 1)} %`}</b>
+                  <span>{cultAff == null ? "cultures (WorldCover indisponible)" : "cultures (max des 2 sources)"}</span>
+                </div>
+                <div className="at-kpi"><b>{nf(res.steepPct)} %</b><span>pente de 15 % ou plus</span></div>
+                <div className="at-kpi"><b>{lossStats ? `${nf(Math.round(lossStats.total))} ha` : "n/d"}</b><span>perdus, {periodeTxt}</span></div>
+                <div className="at-kpi"><b>{nf(n72)}</b><span>feux en 72 h</span></div>
+                <div className="at-kpi"><b>{res.rain ? `${nf(res.rain)} mm` : "n/d"}</b><span>pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</span></div>
+              </div>
+
+              <div className="at-gauge-wrap">
+                <div className="at-gauge"><u style={{ left: `${score}%` }} /></div>
+                <p>Vulnérabilité à l’érosion : <strong>{vulnLabel(score)}</strong> ({score} sur 100)</p>
+              </div>
+
+              {themesPresents.length > 1 && (
+                <div className="at-chips" role="group" aria-label="Filtrer par thème">
+                  <button type="button" aria-pressed={themeF === "Toutes"} onClick={() => setThemeF("Toutes")}>Toutes ({advice.length})</button>
+                  {themesPresents.map(({ th, n }) => (
+                    <button key={th} type="button" aria-pressed={themeF === th} onClick={() => setThemeF(th)}>{th} ({n})</button>
+                  ))}
+                </div>
+              )}
+
+              {adviceShown.map((a) => (
+                <article key={a.t} className={`at-reco ${a.lvl}`}>
+                  <div className="at-rtags">
+                    <span className="at-tag">{a.th}</span>
+                    <span className={`at-lv ${a.lvl}`}>{LVL_TXT[a.lvl]}</span>
+                  </div>
+                  <h4>{a.t}</h4>
+                  <p>{a.d}</p>
+                  {a.acts && a.acts.length > 0 && <ul className="at-acts">{a.acts.map((s) => <li key={s}>{s}</li>)}</ul>}
+                </article>
+              ))}
+
+              <p className="at-note">Estimation indicative issue d’images satellite, de la perte de couvert GFW, des détections de feux, d’une pluie moyenne sur {RAIN_YEARS} ans et d’un relief à 90 m échantillonné. À valider avec des données locales et les acteurs du territoire avant toute décision.</p>
+            </div>
+
+            <footer className="at-mf">
+              <button type="button" className="at-tool" onClick={() => setShow(false)}>Fermer</button>
+            </footer>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ===================== STYLES ===================== */
+
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap');
+.at{--c-bg:var(--surface-2,#f1efe8);--c-card:var(--surface,#fff);--c-line:var(--border,#d8d4c8);--c-ink:var(--text,#1c2822);
+  --c-ink2:var(--text-2,#4a5850);--c-ink3:var(--text-3,#7a867f);--c-acc:var(--accent,#1f6f50);
+  flex:1;min-width:0;height:100vh;height:100dvh;display:flex;flex-direction:column;background:var(--c-bg);color:var(--c-ink);font-family:inherit}
+.at *{box-sizing:border-box}
+.at h1,.at h2,.at h3,.at-facts dd,.at-big{font-family:'Newsreader',Georgia,serif;font-weight:500;margin:0}
+.at-head{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--c-line);background:var(--c-card)}
+.at-head h1{font-size:25px;letter-spacing:-.01em;line-height:1.1}
+.at-head p{margin:2px 0 0;font-size:13px;color:var(--c-ink3)}
+.at-chain{display:flex;align-items:center;gap:6px;color:var(--c-ink3);flex-wrap:wrap}
+.at select{min-width:150px;padding:9px 10px;border:1px solid var(--c-line);border-radius:10px;background:var(--c-card);color:var(--c-ink);font:inherit;font-size:14px}
+.at select.at-mini{min-width:0;padding:4px 6px;font-size:12.5px;border-radius:8px}
+.at select:disabled{opacity:.5}
+.at select:focus-visible,.at button:focus-visible,.at-chk input:focus-visible{outline:2px solid var(--c-acc);outline-offset:2px}
+.at-reset{margin-left:6px;width:38px;height:38px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink2);cursor:pointer;display:grid;place-items:center}
+.at-reset:disabled{opacity:.4;cursor:default}
+.at-banner{padding:10px 20px;background:rgba(178,58,46,.1);border-bottom:1px solid #b23a2e;color:#8a2a20;font-size:14px}
+.at-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(560px,52%) minmax(0,1fr)}
+.at-panel{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--c-line);overscroll-behavior:contain}
+.at-duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.at-card{background:var(--c-card);border:1px solid var(--c-line);border-radius:14px;padding:14px;min-width:0}
+.at-c h3{font-size:18px;margin:0 0 2px}
+.at-ch{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px;flex-wrap:wrap}
+.at-yrs{display:flex;align-items:center;gap:5px;font-size:12.5px;color:var(--c-ink3)}
+.at-sub,.at-note{font-size:12px;color:var(--c-ink3);line-height:1.45;margin:3px 0 10px}
+.at-note{margin:10px 0 0}
+.at-load{color:var(--c-ink3);font-size:13px;margin:8px 0}
+.at-empty{padding:22px 8px}
+.at-empty h2{font-size:28px;line-height:1.1;margin-bottom:10px}
+.at-empty p{color:var(--c-ink2);line-height:1.6;max-width:46ch}
+.at-hero{border-color:transparent;background:repeating-radial-gradient(ellipse at 92% -10%,transparent 0 13px,rgba(125,125,105,.17) 13px 14px),var(--c-card)}
+.at-hero h2{font-size:32px;line-height:1.02;letter-spacing:-.015em}
+.at-lvl{margin:6px 0 12px;color:var(--c-ink2);font-size:14px}
+.at-facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:0}
+.at-facts div{display:flex;flex-direction:column-reverse}
+.at-facts dd{margin:0;font-size:25px}
+.at-facts dt{font-size:12px;color:var(--c-ink3);line-height:1.3}
+.at-alert{font-size:12.5px;border-left:4px solid #b23a2e;background:rgba(178,58,46,.08);padding:8px 10px;margin:10px 0 0;border-radius:0 8px 8px 0}
+.at-link{border:0;background:none;color:var(--c-acc);font:inherit;font-weight:700;cursor:pointer;text-decoration:underline;padding:0}
+.at-core{display:grid;grid-template-columns:72px 1fr;gap:8px;align-items:center;margin-bottom:7px}
+.at-corelab{display:flex;flex-direction:column;min-width:0;line-height:1.2}
+.at-corelab small{font-size:11px;color:var(--c-ink3)}
+.at-corelab span{font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at-stack{display:flex;height:24px;border-radius:7px;overflow:hidden;transform-origin:left;animation:atGrow .7s cubic-bezier(.2,.7,.2,1)}
+.at-stack i{display:block;height:100%;box-shadow:inset -1px 0 rgba(255,255,255,.55)}
+.at-slope{margin:8px 0 6px;height:16px}
+.at-pulse{background:var(--c-line);animation:atPulse 1.2s ease-in-out infinite}
+.at-tbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px}
+.at-tbl th{font-weight:500;font-size:11.5px;color:var(--c-ink3);text-align:right;padding:0 0 5px}
+.at-tbl th:first-child,.at-tbl td:first-child{text-align:left}
+.at-tbl td{padding:4px 0;border-top:1px solid var(--c-line);text-align:right;font-variant-numeric:tabular-nums}
+.at-tbl td:first-child{display:flex;gap:7px;align-items:center}
+.at-tbl i,.at-legend i{display:inline-block;width:11px;height:11px;border-radius:3px;flex:none;box-shadow:inset 0 0 0 1px rgba(0,0,0,.25)}
+.at-strip{position:relative;height:9px;margin:14px 4px 0;border-radius:5px;background:linear-gradient(90deg,#8fbf8f,#e8d98a 35%,#c98b4a 65%,#8a5a3c)}
+.at-range{position:absolute;top:-4px;bottom:-4px;border:2px solid var(--c-ink);border-radius:6px}
+.at-dot{position:absolute;top:-3px;width:4px;height:15px;margin-left:-2px;background:var(--c-ink);border-radius:2px}
+.at-stripl{display:flex;justify-content:space-between;font-size:11px;color:var(--c-ink3);margin-top:7px}
+.at-big{font-size:38px;line-height:1;letter-spacing:-.02em;margin:6px 0 2px}
+.at-big small{font-size:.4em;margin-left:5px;font-weight:600}
+.at-big-def{color:#b0285f}
+.at-big-feu{color:#c80f0f}
+.at-cols{display:flex;align-items:flex-end;gap:3px;height:56px;margin-top:8px}
+.at-colw{flex:1;height:100%;display:flex;align-items:flex-end}
+.at-colw i{display:block;width:100%;border-radius:3px 3px 1px 1px;transition:height .3s}
+.at-colsl{display:flex;justify-content:space-between;font-size:11px;color:var(--c-ink3);margin-top:5px}
+.at-mini-facts{margin:10px 0 0;font-size:12.5px}
+.at-mini-facts div{display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-top:1px solid var(--c-line)}
+.at-mini-facts dt{color:var(--c-ink3)}.at-mini-facts dd{margin:0;font-weight:600;text-align:right}
+.at-feu-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.at-go{padding:15px;border:0;border-radius:12px;background:var(--c-acc);color:#fff;font:inherit;font-weight:700;font-size:15px;cursor:pointer}
+.at-go:disabled{opacity:.45;cursor:default}
+.at-gauge-wrap p{margin:12px 0 14px;font-size:14px}
+.at-gauge{position:relative;height:12px;border-radius:6px;background:linear-gradient(90deg,#6fae7a,#e6c84f,#e08a3c,#b23a2e)}
+.at-gauge u{position:absolute;top:-5px;width:4px;height:22px;margin-left:-2px;background:var(--c-ink);border-radius:2px}
+.at-ov{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;padding:16px;background:rgba(10,20,15,.58);backdrop-filter:blur(2px);animation:atFade .18s ease-out}
+.at-modal{width:min(900px,100%);max-height:min(92dvh,900px);display:flex;flex-direction:column;background:var(--c-card);color:var(--c-ink);border:1px solid var(--c-line);border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.4);overflow:hidden;animation:atPop .22s cubic-bezier(.2,.8,.2,1)}
+.at-mh{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:18px 20px 14px;border-bottom:1px solid var(--c-line)}
+.at-mh h2{font-size:26px;line-height:1.1;letter-spacing:-.01em}
+.at-mh p{margin:5px 0 0;font-size:13px;color:var(--c-ink3)}
+.at-x{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink2);cursor:pointer;display:grid;place-items:center}
+.at-x:hover{background:var(--c-bg)}
+.at-mb{padding:16px 20px;overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0}
+.at-mf{padding:12px 20px;border-top:1px solid var(--c-line);display:flex;justify-content:flex-end}
+.at-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.at-kpi{background:var(--c-bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.at-kpi b{font-family:'Newsreader',Georgia,serif;font-weight:500;font-size:24px;line-height:1.1}
+.at-kpi span{font-size:12px;color:var(--c-ink3)}
+.at-chips{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 6px}
+.at-chips button{padding:5px 11px;border-radius:999px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink2);font:inherit;font-size:12.5px;cursor:pointer}
+.at-chips button[aria-pressed=true]{background:var(--c-acc);border-color:var(--c-acc);color:#fff}
+.at-reco{padding:12px 14px;border-radius:0 10px 10px 0;border-left:4px solid var(--c-line);background:var(--c-bg);margin-top:10px}
+.at-reco.haute{border-color:#b23a2e}.at-reco.moyenne{border-color:#e0a23c}.at-reco.info{border-color:#7fb069}
+.at-rtags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.at-tag,.at-lv{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px}
+.at-tag{background:var(--c-card);border:1px solid var(--c-line);color:var(--c-ink2)}
+.at-lv.haute{background:rgba(178,58,46,.14);color:#9a2b20}
+.at-lv.moyenne{background:rgba(224,162,60,.2);color:#8a5a0c}
+.at-lv.info{background:rgba(127,176,105,.22);color:#3f6b2c}
+.at-reco h4{margin:0 0 4px;font-size:15px}
+.at-reco p{margin:0;font-size:13.5px;line-height:1.55;color:var(--c-ink2)}
+.at-acts{margin:8px 0 0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--c-ink2)}
+.at-acts li{margin:2px 0}
+.at-mcard{min-height:0;min-width:0;display:flex;flex-direction:column;margin:10px;background:var(--c-card);border:1px solid var(--c-line);border-radius:14px;overflow:hidden}
+.at-mhead{padding:10px 12px;border-bottom:1px solid var(--c-line);display:flex;flex-direction:column;gap:8px}
+.at-mtools{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px}
+.at-mbox{position:relative;flex:1;min-height:260px;background:#1b2a24}
+.at-map{position:absolute;inset:0}
+.at-seg{display:flex;gap:2px;border:1px solid var(--c-line);border-radius:9px;padding:2px}
+.at-seg button{padding:4px 9px;border:0;border-radius:7px;background:transparent;color:var(--c-ink2);font:inherit;font-size:12.5px;cursor:pointer}
+.at-seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}
+.at-chk{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--c-ink2)}
+.at-tool{display:inline-flex;gap:6px;align-items:center;padding:6px 11px;border-radius:9px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+.at-tool.on{background:var(--c-acc);border-color:var(--c-acc);color:#fff}
+.at-tool:disabled{opacity:.45;cursor:default}
+.at-ctl{position:absolute;z-index:1000;background:rgba(255,255,255,.94);color:#14231c;border-radius:9px;font-size:12px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.at-hint{left:10px;top:10px;padding:7px 11px;max-width:calc(100% - 70px)}
+.at-legend{left:10px;bottom:34px;padding:8px 10px;display:flex;flex-direction:column;gap:3px;max-width:62%;max-height:70%;overflow-y:auto}
+.at-legend strong{margin-top:4px;font-size:11.5px}.at-legend strong:first-child{margin-top:0}
+.at-legend span{display:flex;gap:8px;align-items:center}
+.at-legend i.r{border-radius:50%}
+.at-tip{background:#fff;color:#1c2822;border:0;border-radius:6px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3)}
+@keyframes atGrow{from{transform:scaleX(0)}}
+@keyframes atPulse{50%{opacity:.45}}
+@keyframes atFade{from{opacity:0}}
+@keyframes atPop{from{opacity:0;transform:translateY(12px) scale(.98)}}
+@media (max-width:1250px){
+  .at-body{grid-template-columns:minmax(420px,46%) minmax(0,1fr)}
+  .at-duo{grid-template-columns:1fr}
+}
+@media (max-width:1000px){
+  .at{height:auto;min-height:100dvh}
+  .at-body{display:flex;flex-direction:column}
+  .at-mcard{order:1;flex:none}
+  .at-mbox{flex:none;height:56dvh}
+  .at-panel{order:2;overflow:visible;border-right:0}
+  .at-duo{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .at-hint{display:none}
+}
+@media (max-width:640px){
+  .at-duo{grid-template-columns:1fr}
+  .at-ov{padding:0}
+  .at-modal{width:100%;max-height:100dvh;height:100dvh;border-radius:0;border:0}
+  .at-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .at-mh h2{font-size:22px}
+}
+@media (prefers-reduced-motion:reduce){.at-stack,.at-pulse,.at-ov,.at-modal{animation:none}.at-colw i{transition:none}}
+`;
