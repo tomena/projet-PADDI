@@ -28,7 +28,7 @@ const fr = {
   reset: "Réinitialiser les filtres",
   export: "Exporter",
   exportTitle: "Exporter en Excel",
-  viewAll: "Regarder tous les avancements",
+  viewAll: "Vue d'ensemble",
   noDataYear: "Aucune donnée disponible pour l'année",
 
   globalProgress: "TAUX D’AVANCEMENT GLOBAL DES ACTIVITÉS",
@@ -107,7 +107,7 @@ const mg: Txt = {
   reset: "Avereno ny sivana",
   export: "Alefa",
   exportTitle: "Alefa amin'ny Excel",
-  viewAll: "Jereo ny taha-pandrosoana rehetra",
+  viewAll: "Topimaso ankapobeny",
   noDataYear: "Tsy misy angon-drakitra ho an'ny taona",
 
   globalProgress: "TAHA-PANDROSOANA ANKAPOBENY NY ASA",
@@ -184,7 +184,7 @@ const en: Txt = {
   reset: "Reset filters",
   export: "Export",
   exportTitle: "Export to Excel",
-  viewAll: "View all progress rates",
+  viewAll: "Overview",
   noDataYear: "No data available for the year",
 
   globalProgress: "OVERALL ACTIVITY PROGRESS RATE",
@@ -261,7 +261,7 @@ const de: Txt = {
   reset: "Filter zurücksetzen",
   export: "Exportieren",
   exportTitle: "Nach Excel exportieren",
-  viewAll: "Alle Fortschritte ansehen",
+  viewAll: "Gesamtübersicht",
   noDataYear: "Keine Daten verfügbar für das Jahr",
 
   globalProgress: "GESAMTFORTSCHRITTSRATE DER AKTIVITÄTEN",
