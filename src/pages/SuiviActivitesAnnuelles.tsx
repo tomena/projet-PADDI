@@ -7,310 +7,9 @@ import {
   TreePine, Landmark, Wheat, HardHat, Building2, Users, Trees, ClipboardCheck, FileText, FileSpreadsheet,
 } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
-
-/* ================= TRADUCTIONS =================
-   `fr` sert de modèle : TypeScript impose les mêmes clés dans mg / en / de. */
-
-const fr = {
-  title: "SUIVI DES ACTIVITÉS ANNUELLES",
-  subtitle: "Plan Stratégique 2024 – 2030",
-  updated: "Données mises à jour",
-  update: "Mettre à jour",
-  loading: "Chargement...",
-  noUpdate: "Aucune mise à jour enregistrée",
-  dateUnavailable: "Date indisponible",
-
-  year: "ANNÉE",
-  month: "MOIS",
-  unit: "UNITÉ DE COORDINATION",
-  all: "Tous",
-  reset: "Réinitialiser les filtres",
-  export: "Exporter",
-  exportTitle: "Exporter en Excel",
-  noDataYear: "Aucune donnée disponible pour l'année",
-
-  globalProgress: "TAUX D’AVANCEMENT GLOBAL DES ACTIVITÉS",
-  totalPlanned: "Total activités planifiées",
-  completed: "Activités achevées",
-  ongoing: "Activités en cours",
-  notStarted: "Activités non démarrées",
-
-  byAchievement: "TAUX D’AVANCEMENT PAR RÉALISATION",
-  byComponent: "TAUX D’AVANCEMENT PAR COMPOSANTE",
-
-  result1: "R1. SYSTÈME DE GESTION",
-  result2: "R2. AMÉNAGEMENT DU TERRITOIRE",
-
-  componentC1: "C1. GESTION DES SERVICES ÉCOSYSTÉMIQUES",
-  componentC2: "C2. GOUVERNANCE ENVIRONNEMENTALE DÉCENTRALISÉE",
-  componentC3: "C3. DÉVELOPPEMENT DES PAYSAGES PRODUCTIFS",
-  componentC4: "C4. CRÉATION D’EMPLOIS VERTS",
-
-  axisPriority: "AXE PRIORITAIRE",
-  progressRate: "TAUX D'AVANCEMENT",
-  axis1Title: "AXES PRIORITAIRES DE LA RÉALISATION 1 : SYSTÈME DE GESTION",
-  axis2Title: "AXES PRIORITAIRES DE LA RÉALISATION 2 : AMÉNAGEMENT DU TERRITOIRE",
-
-  diagnostic: "Analyses diagnostiques",
-  territorialPlanning: "Planification territoriale",
-  ecosystemMonitoring: "Suivi écosystémique",
-  sustainableFinancing: "Financement durable",
-  populationParticipation: "Participation des populations",
-  mnpCooperation: "Coopération avec MNP",
-  intersectoralCoordination: "Coordination intersectorielle",
-  antiCorruption: "Lutte contre la corruption",
-
-  landscapeRestoration: "Restauration paysages",
-  sustainableProduction: "Production durable",
-  landSecurity: "Sécurisation foncière",
-  fireManagement: "Gestion des feux",
-  marketSystem: "Système de marché",
-  productionValorization: "Valorisation des productions",
-  activityDiversification: "Diversification des activités",
-  communityMobilization: "Mobilisation communautaire",
-
-  legend: "LÉGENDE (TAUX D'AVANCEMENT)",
-  range0_25: "0 à 25%",
-  range25_50: "25% à 50%",
-  range50_75: "50% à 75%",
-  range75_100: "75% à 100%",
-
-  accessTitle: "ACCÉDER AU SUIVI DES ACTIVITÉS ANNUELLES DE L’ANNÉE CHOISIE",
-  accessDesc: "Consultez le détail des activités",
-  accessBtn: "Accéder au suivi des activités",
-
-  months: {
-    Janvier: "Janvier", Février: "Février", Mars: "Mars", Avril: "Avril", Mai: "Mai", Juin: "Juin",
-    Juillet: "Juillet", Août: "Août", Septembre: "Septembre", Octobre: "Octobre", Novembre: "Novembre", Décembre: "Décembre",
-  } as Record<string, string>,
-};
-
-type Txt = typeof fr;
-
-const mg: Txt = {
-  title: "FANARAHANA NY ASA ISAN-TAONA",
-  subtitle: "Drafitra stratejika 2024 – 2030",
-  updated: "Angon-drakitra nohavaozina",
-  update: "Havaozina",
-  loading: "Eo am-pakàna...",
-  noUpdate: "Tsy mbola misy fanavaozana voarakitra",
-  dateUnavailable: "Tsy azo jerena ny daty",
-
-  year: "TAONA",
-  month: "VOLANA",
-  unit: "SAMPANA MPANDRINDRA",
-  all: "Rehetra",
-  reset: "Avereno ny sivana",
-  export: "Alefa",
-  exportTitle: "Alefa amin'ny Excel",
-  noDataYear: "Tsy misy angon-drakitra ho an'ny taona",
-
-  globalProgress: "TAHA-PANDROSOANA ANKAPOBENY NY ASA",
-  totalPlanned: "Fitambaran'ny asa voalamina",
-  completed: "Asa vita",
-  ongoing: "Asa mbola mandeha",
-  notStarted: "Asa mbola tsy natomboka",
-
-  byAchievement: "TAHA-PANDROSOANA ISAKY NY ZAVA-BITA",
-  byComponent: "TAHA-PANDROSOANA ISAKY NY SINGA",
-
-  result1: "R1. RAFITRA FITANTANANA",
-  result2: "R2. FANDAMINANA NY TONTOLON-TANY",
-
-  componentC1: "C1. FITANTANANA NY SERIVISY ARA-TONTOLO IAINANA",
-  componentC2: "C2. FITANTANANA NY TONTOLON'AINA IFOTONY",
-  componentC3: "C3. FAMPANDROSOANA NY TONTOLON-TANY MPAMOKATRA",
-  componentC4: "C4. FAMORONANA ASA MAITSO",
-
-  axisPriority: "LAHARANA LAHARANA",
-  progressRate: "TAHA-PANDROSOANA",
-  axis1Title: "LAHARAM-PAHAMEHANA AMIN'NY ZAVA-BITA 1 : RAFITRA FITANTANANA",
-  axis2Title: "LAHARAM-PAHAMEHANA AMIN'NY ZAVA-BITA 2 : FANDAMINANA NY TONTOLON-TANY",
-
-  diagnostic: "Fanadihadiana diagnostika",
-  territorialPlanning: "Fandaminana ny faritra",
-  ecosystemMonitoring: "Fanaraha-maso ny tontolo iainana",
-  sustainableFinancing: "Famatsiam-bola maharitra",
-  populationParticipation: "Fandraisan'anjaran'ny mponina",
-  mnpCooperation: "Fiaraha-miasa amin'ny MNP",
-  intersectoralCoordination: "Fandrindrana eo amin'ny sehatra",
-  antiCorruption: "Ady amin'ny kolikoly",
-
-  landscapeRestoration: "Famerenana amin'ny laoniny ny tontolo-tany",
-  sustainableProduction: "Famokarana maharitra",
-  landSecurity: "Fiarovana ny fananan-tany",
-  fireManagement: "Fitantanana ny doro-tanety",
-  marketSystem: "Rafitra ara-barotra",
-  productionValorization: "Fanomezana lanja ny vokatra",
-  activityDiversification: "Fanamaroana ny asa",
-  communityMobilization: "Fanentanana ny vondrom-piarahamonina",
-
-  legend: "FANAZAVANA (TAHA-PANDROSOANA)",
-  range0_25: "0 hatramin'ny 25%",
-  range25_50: "25% hatramin'ny 50%",
-  range50_75: "50% hatramin'ny 75%",
-  range75_100: "75% hatramin'ny 100%",
-
-  accessTitle: "HIDITRA AMIN'NY FANARAHANA NY ASA ISAN-TAONA VOAFIDY",
-  accessDesc: "Jereo amin'ny antsipiriany ny asa",
-  accessBtn: "Hiditra amin'ny fanaraha-maso ny asa",
-
-  months: {
-    Janvier: "Janoary", Février: "Febroary", Mars: "Martsa", Avril: "Aprily", Mai: "Mey", Juin: "Jona",
-    Juillet: "Jolay", Août: "Aogositra", Septembre: "Septambra", Octobre: "Oktobra", Novembre: "Novambra", Décembre: "Desambra",
-  },
-};
-
-const en: Txt = {
-  title: "ANNUAL ACTIVITY MONITORING",
-  subtitle: "Strategic Plan 2024 – 2030",
-  updated: "Data updated",
-  update: "Update",
-  loading: "Loading...",
-  noUpdate: "No update recorded",
-  dateUnavailable: "Date unavailable",
-
-  year: "YEAR",
-  month: "MONTH",
-  unit: "COORDINATION UNIT",
-  all: "All",
-  reset: "Reset filters",
-  export: "Export",
-  exportTitle: "Export to Excel",
-  noDataYear: "No data available for the year",
-
-  globalProgress: "OVERALL ACTIVITY PROGRESS RATE",
-  totalPlanned: "Total planned activities",
-  completed: "Completed activities",
-  ongoing: "Ongoing activities",
-  notStarted: "Activities not started",
-
-  byAchievement: "PROGRESS RATE BY RESULT",
-  byComponent: "PROGRESS RATE BY COMPONENT",
-
-  result1: "R1. MANAGEMENT SYSTEM",
-  result2: "R2. LAND-USE PLANNING",
-
-  componentC1: "C1. ECOSYSTEM SERVICES MANAGEMENT",
-  componentC2: "C2. DECENTRALIZED ENVIRONMENTAL GOVERNANCE",
-  componentC3: "C3. DEVELOPMENT OF PRODUCTIVE LANDSCAPES",
-  componentC4: "C4. CREATION OF GREEN JOBS",
-
-  axisPriority: "PRIORITY AXIS",
-  progressRate: "PROGRESS RATE",
-  axis1Title: "PRIORITY AXES OF RESULT 1: MANAGEMENT SYSTEM",
-  axis2Title: "PRIORITY AXES OF RESULT 2: LAND-USE PLANNING",
-
-  diagnostic: "Diagnostic analyses",
-  territorialPlanning: "Territorial planning",
-  ecosystemMonitoring: "Ecosystem monitoring",
-  sustainableFinancing: "Sustainable financing",
-  populationParticipation: "Population participation",
-  mnpCooperation: "Cooperation with MNP",
-  intersectoralCoordination: "Intersectoral coordination",
-  antiCorruption: "Fight against corruption",
-
-  landscapeRestoration: "Landscape restoration",
-  sustainableProduction: "Sustainable production",
-  landSecurity: "Land tenure security",
-  fireManagement: "Fire management",
-  marketSystem: "Market system",
-  productionValorization: "Production valorization",
-  activityDiversification: "Activity diversification",
-  communityMobilization: "Community mobilization",
-
-  legend: "LEGEND (PROGRESS RATE)",
-  range0_25: "0 to 25%",
-  range25_50: "25% to 50%",
-  range50_75: "50% to 75%",
-  range75_100: "75% to 100%",
-
-  accessTitle: "ACCESS ANNUAL ACTIVITY MONITORING FOR THE SELECTED YEAR",
-  accessDesc: "View activity details",
-  accessBtn: "Access activity monitoring",
-
-  months: {
-    Janvier: "January", Février: "February", Mars: "March", Avril: "April", Mai: "May", Juin: "June",
-    Juillet: "July", Août: "August", Septembre: "September", Octobre: "October", Novembre: "November", Décembre: "December",
-  },
-};
-
-const de: Txt = {
-  title: "JÄHRLICHE AKTIVITÄTSÜBERWACHUNG",
-  subtitle: "Strategischer Plan 2024 – 2030",
-  updated: "Daten aktualisiert",
-  update: "Aktualisieren",
-  loading: "Wird geladen...",
-  noUpdate: "Keine Aktualisierung erfasst",
-  dateUnavailable: "Datum nicht verfügbar",
-
-  year: "JAHR",
-  month: "MONAT",
-  unit: "KOORDINATIONSEINHEIT",
-  all: "Alle",
-  reset: "Filter zurücksetzen",
-  export: "Exportieren",
-  exportTitle: "Nach Excel exportieren",
-  noDataYear: "Keine Daten verfügbar für das Jahr",
-
-  globalProgress: "GESAMTFORTSCHRITTSRATE DER AKTIVITÄTEN",
-  totalPlanned: "Insgesamt geplante Aktivitäten",
-  completed: "Abgeschlossene Aktivitäten",
-  ongoing: "Laufende Aktivitäten",
-  notStarted: "Noch nicht gestartete Aktivitäten",
-
-  byAchievement: "FORTSCHRITTSRATE NACH ERGEBNIS",
-  byComponent: "FORTSCHRITTSRATE NACH KOMPONENTE",
-
-  result1: "R1. MANAGEMENTSYSTEM",
-  result2: "R2. RAUMORDNUNG",
-
-  componentC1: "C1. MANAGEMENT VON ÖKOSYSTEMDIENSTLEISTUNGEN",
-  componentC2: "C2. DEZENTRALISIERTE UMWELTGOVERNANCE",
-  componentC3: "C3. ENTWICKLUNG PRODUKTIVER LANDSCHAFTEN",
-  componentC4: "C4. SCHAFFUNG GRÜNER ARBEITSPLÄTZE",
-
-  axisPriority: "PRIORITÄTSACHSE",
-  progressRate: "FORTSCHRITTSRATE",
-  axis1Title: "PRIORITÄTSACHSEN DES ERGEBNISSES 1: MANAGEMENTSYSTEM",
-  axis2Title: "PRIORITÄTSACHSEN DES ERGEBNISSES 2: RAUMORDNUNG",
-
-  diagnostic: "Diagnostische Analysen",
-  territorialPlanning: "Raumplanung",
-  ecosystemMonitoring: "Ökosystemüberwachung",
-  sustainableFinancing: "Nachhaltige Finanzierung",
-  populationParticipation: "Beteiligung der Bevölkerung",
-  mnpCooperation: "Zusammenarbeit mit MNP",
-  intersectoralCoordination: "Sektorübergreifende Koordination",
-  antiCorruption: "Korruptionsbekämpfung",
-
-  landscapeRestoration: "Landschaftswiederherstellung",
-  sustainableProduction: "Nachhaltige Produktion",
-  landSecurity: "Sicherung von Landrechten",
-  fireManagement: "Feuermanagement",
-  marketSystem: "Marktsystem",
-  productionValorization: "Aufwertung der Produktion",
-  activityDiversification: "Diversifizierung der Aktivitäten",
-  communityMobilization: "Mobilisierung der Gemeinschaft",
-
-  legend: "LEGENDE (FORTSCHRITTSRATE)",
-  range0_25: "0 bis 25%",
-  range25_50: "25% bis 50%",
-  range50_75: "50% bis 75%",
-  range75_100: "75% bis 100%",
-
-  accessTitle: "ZUGRIFF AUF DIE JÄHRLICHE AKTIVITÄTSÜBERWACHUNG DES AUSGEWÄHLTEN JAHRES",
-  accessDesc: "Details zu den Aktivitäten anzeigen",
-  accessBtn: "Zur Aktivitätsüberwachung",
-
-  months: {
-    Janvier: "Januar", Février: "Februar", Mars: "März", Avril: "April", Mai: "Mai", Juin: "Juni",
-    Juillet: "Juli", Août: "August", Septembre: "September", Octobre: "Oktober", Novembre: "November", Décembre: "Dezember",
-  },
-};
-
-const TEXT: Record<string, Txt> = { fr, mg, en, de };
-const LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
+// Traductions : bloc inchangé, déplacé dans ce fichier (voir les instructions)
+import { TEXT, LOCALES } from "./suiviActivitesTranslations";
+import type { Txt } from "./suiviActivitesTranslations";
 
 /* ================= CONFIGURATION ================= */
 
@@ -324,7 +23,6 @@ interface LigneActivite {
 const ordreMois = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
 const COMPOSANTES: { code: string; key: keyof Txt; icon: any }[] = [
-  // C1 écosystèmes → arbre · C2 gouvernance décentralisée → institution · C3 paysages productifs → culture · C4 emplois verts → ouvrier
   { code: "C1", key: "componentC1", icon: TreePine },
   { code: "C2", key: "componentC2", icon: Landmark },
   { code: "C3", key: "componentC3", icon: Wheat },
@@ -365,61 +63,60 @@ const clampPct = (p: number) => Math.min(100, Math.max(0, Number.isFinite(p) ? p
 const parMois = (a: any, b: any) => ordreMois.indexOf(a.Mois) - ordreMois.indexOf(b.Mois);
 
 // Même échelle que la légende : rouge ≤ 25 · orange ≤ 50 · vert ≤ 75 · bleu au-delà
-// (avant : jaune #facc15 dans les barres mais orange #f59e0b dans la légende)
 const getProgressColor = (value: number) =>
   value <= 25 ? "#ef4444" : value <= 50 ? "#f59e0b" : value <= 75 ? "#22c55e" : "#2563eb";
 
 /* ================= CSS RESPONSIVE =================
-   - grilles de page : container query « sa » (largeur réelle de la page)
-   - grilles internes : container query sur la carte elle-même
-   - grands écrans (≥1920 px) : toute la page est agrandie pour rester lisible.
-   Les couleurs utilisent les variables du thème (clair / sombre). */
+   Design : pas de bandeau vert, fond de page teinté, cartes blanches arrondies.
+   Le fond utilise --bg du thème s'il existe (sinon un gris-vert très clair). */
 
 const RESPONSIVE_CSS = `
-.sa-page{container-type:inline-size;container-name:sa;width:100%;font-family:Inter,system-ui,sans-serif}
-.sa-zoom{display:flex;flex-direction:column;gap:10px;padding:clamp(8px,2vw,16px);box-sizing:border-box;min-width:0}
+.sa-page{container-type:inline-size;container-name:sa;width:100%;font-family:Inter,system-ui,sans-serif;
+  background:var(--bg,#f1f5f2);border-radius:16px}
+.sa-zoom{display:flex;flex-direction:column;gap:14px;padding:clamp(10px,2vw,20px);box-sizing:border-box;min-width:0}
 @media (min-width:1920px){.sa-zoom{zoom:1.2}}
 @media (min-width:2560px){.sa-zoom{zoom:1.5}}
 @media (min-width:3200px){.sa-zoom{zoom:1.9}}
 @media (min-width:3840px){.sa-zoom{zoom:2.3}}
 
 .sa-filters{display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) minmax(200px,.7fr);gap:6px;align-items:stretch;
-  background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:6px 8px;box-sizing:border-box}
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:8px;box-sizing:border-box;
+  box-shadow:0 1px 2px rgba(15,23,42,.04)}
 .sa-filter{display:flex;align-items:center;gap:8px;padding:6px 10px;border-right:1px solid var(--border);min-width:0}
 .sa-select{font-size:13px}
 .sa-actions{display:flex;flex-direction:column;justify-content:center;gap:5px;padding-left:4px}
-.sa-btn{width:100%;min-height:40px;box-sizing:border-box;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:700;
+.sa-btn{width:100%;min-height:40px;box-sizing:border-box;padding:6px 10px;border-radius:10px;font-size:12px;font-weight:700;
   cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;line-height:1.1;transition:background .2s ease}
 .sa-btn-ghost{border:1px solid var(--border);background:var(--surface);color:var(--text-2)}
 .sa-btn-ghost:hover{background:var(--surface-2)}
 .sa-btn-primary{border:1px solid #2563eb;background:#2563eb;color:#fff}
 .sa-btn-primary:hover{background:#1d4ed8}
 
-/* bouton d'export : pastille « verre » dans l'en-tête, avec l'année exportée */
+/* export : bouton vert plein avec l'année exportée */
 .sa-header-right{display:flex;align-items:center;flex-wrap:wrap;gap:12px}
 .sa-export{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 6px 0 14px;border-radius:999px;
-  border:1px solid rgba(255,255,255,.4);background:rgba(255,255,255,.16);color:#fff;font-size:12px;font-weight:700;
-  cursor:pointer;white-space:nowrap;backdrop-filter:blur(4px);transition:background .2s ease,color .2s ease,transform .15s ease}
-.sa-export:hover{background:#fff;color:#15803d}
+  border:1px solid #16a34a;background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+  box-shadow:0 2px 6px rgba(22,163,74,.25);transition:background .2s ease,transform .15s ease}
+.sa-export:hover{background:#15803d}
 .sa-export:active{transform:scale(.97)}
-.sa-export-year{background:#fff;color:#15803d;border-radius:999px;padding:5px 11px;font-size:11px;font-weight:800;transition:background .2s ease,color .2s ease}
-.sa-export:hover .sa-export-year{background:#15803d;color:#fff}
+.sa-export-year{background:rgba(255,255,255,.22);color:#fff;border-radius:999px;padding:5px 11px;font-size:11px;font-weight:800}
 
-.sa-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.7fr);gap:8px;align-items:stretch}
-.sa-axes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start}
+.sa-top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.7fr);gap:12px;align-items:stretch}
+.sa-axes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
 .sa-footer{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 12px;align-items:center;
-  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px 12px 12px}
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px 16px 14px;
+  box-shadow:0 1px 2px rgba(15,23,42,.04)}
 .sa-footer-head{grid-column:1/-1}
 
-.sa-card{container-type:inline-size;background:var(--surface);border-radius:12px;border:1px solid var(--border);padding:10px;
-  box-sizing:border-box;display:flex;flex-direction:column;min-width:0}
-.sa-comp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:6px;margin-top:10px;flex:1}
+.sa-card{container-type:inline-size;background:var(--surface);border-radius:16px;border:1px solid var(--border);padding:14px;
+  box-sizing:border-box;display:flex;flex-direction:column;min-width:0;box-shadow:0 1px 2px rgba(15,23,42,.04)}
+.sa-comp{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:1fr;gap:8px;margin-top:10px;flex:1}
 .sa-compcard{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center;padding:8px 6px}
 .sa-comptext{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
 .sa-axrow{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:clamp(4px,1vw,10px);align-items:center;
-  padding:4px 0;border-bottom:1px solid var(--border)}
+  padding:5px 0;border-bottom:1px solid var(--border)}
+.sa-axrow:last-child{border-bottom:none}
 
-/* la grille reste TOUJOURS en 2 colonnes × 2 lignes ; si la carte est large, chaque case passe en « texte à gauche, anneau à droite » */
 @container (min-width:560px){
   .sa-compcard{flex-direction:row;justify-content:space-between;text-align:left;gap:12px;padding:10px 18px}
   .sa-comptext{flex-direction:row;gap:12px;flex:1}
@@ -428,7 +125,7 @@ const RESPONSIVE_CSS = `
 
 @container sa (max-width:1099px){
   .sa-filters{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .sa-filter{border:1px solid var(--border);border-radius:8px}
+  .sa-filter{border:1px solid var(--border);border-radius:10px}
   .sa-actions{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;padding-left:0}
   .sa-actions .sa-btn{flex:1 1 180px;width:auto}
   .sa-top{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -473,7 +170,7 @@ function AxisCard({ title, icon: Icon, rows, t, fmtPct }: any) {
   return (
     <div className="sa-card">
       <div style={styles.axisHeader}>
-        <Icon size={18} color="#fff" style={{ flexShrink: 0 }} />
+        <Icon size={18} color="#16a34a" style={{ flexShrink: 0 }} />
         <span>{title}</span>
       </div>
 
@@ -523,7 +220,6 @@ export default function SuiviActivitesAnnuelles() {
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
   const [userName, setUserName] = useState("");
-  // jeton de session signé par le serveur (/api/auth) : plus aucun mot de passe en mémoire
   const [token, setToken] = useState("");
 
   const handleReset = () => { setAnnee(2026); setMois("Tous"); setUc("Tous"); };
@@ -566,15 +262,12 @@ export default function SuiviActivitesAnnuelles() {
   /* ----- listes des filtres ----- */
   const annees = useMemo(() => Array.from(new Set(data.map((d) => d.Année))).sort((a, b) => a - b), [data]);
   const moisListe = useMemo(() => ordreMois.filter((m) => data.some((d) => d.Mois === m)), [data]);
-  // « Tous » est toujours proposé en premier
   const ucOptions = useMemo(
     () => ["Tous", ...Array.from(new Set(data.map((d) => d.UC))).filter((u) => u !== "Tous")],
     [data]
   );
 
-  /* ----- ligne affichée -----
-     • UC « Tous » : on prend la ligne « Tous » (total du programme) ; si la base n'en a pas, on garde toutes les lignes
-     • Mois « Tous » : on prend le dernier mois qui a de l'avancement (avant : simplement la 1re ligne trouvée) */
+  /* ----- ligne affichée ----- */
   const coutActuel: Record<string, any> = useMemo(() => {
     const parAnnee = data.filter((d) => d.Année === annee);
     let lignes = parAnnee.filter((d) => d.UC === uc);
@@ -616,14 +309,14 @@ export default function SuiviActivitesAnnuelles() {
     rows: items.map(([code, key]) => ({ code, name: t[key] as string, value: n(coutActuel[`TAA ${code}`]) * 100 })),
   }));
 
-  /* ----- sous-titres des filtres (dynamiques) ----- */
+  /* ----- sous-titres des filtres ----- */
   const subAnnee = annees.length ? `${annees[0]} - ${annees[annees.length - 1]}` : "";
   const subMois = moisListe.length
     ? `${t.months[moisListe[0]] ?? moisListe[0]} - ${t.months[moisListe[moisListe.length - 1]] ?? moisListe[moisListe.length - 1]}`
     : "";
   const subUC = ucOptions.filter((u) => u !== "Tous").join(", ");
 
-  /* ----- export Excel (la librairie n'est chargée qu'au clic) ----- */
+  /* ----- export Excel ----- */
   const handleExportExcel = async () => {
     const lignes = data.filter((l) => Number(l["Année"]) === Number(annee));
     if (lignes.length === 0) {
@@ -654,15 +347,11 @@ export default function SuiviActivitesAnnuelles() {
     const worksheet = XLSX.utils.aoa_to_sheet([entete1, entete2, entete3, ...lignesExcel]);
 
     worksheet["!merges"] = [
-      // colonnes fixes sur les trois niveaux
       { s: { r: 0, c: 0 }, e: { r: 2, c: 0 } },
       { s: { r: 0, c: 1 }, e: { r: 2, c: 1 } },
       { s: { r: 0, c: 2 }, e: { r: 2, c: 2 } },
-      // niveau 1 : les deux blocs ne se chevauchent plus
-      // (avant, « Taux d'Avancement » couvrait aussi les colonnes 13-28 => Excel signalait un fichier corrompu)
       { s: { r: 0, c: 3 }, e: { r: 0, c: 12 } },
       { s: { r: 0, c: 13 }, e: { r: 0, c: 28 } },
-      // niveau 2
       { s: { r: 1, c: 3 }, e: { r: 1, c: 6 } },
       { s: { r: 1, c: 7 }, e: { r: 1, c: 8 } },
       { s: { r: 1, c: 9 }, e: { r: 1, c: 12 } },
@@ -688,11 +377,10 @@ export default function SuiviActivitesAnnuelles() {
     <div className="sa-page">
       <style>{RESPONSIVE_CSS}</style>
       <div className="sa-zoom">
-        {/* ============ HEADER ============ */}
+        {/* ============ HEADER (sans bande verte) ============ */}
         <div style={styles.header}>
           <div style={styles.headerLeft}>
-            {/* icône du titre : presse-papier coché = suivi / contrôle d'activités */}
-            <div style={styles.logoWrap}><ClipboardCheck size={30} color="#16a34a" strokeWidth={2} /></div>
+            <div style={styles.logoWrap}><ClipboardCheck size={28} color="#16a34a" strokeWidth={2} /></div>
             <div style={{ minWidth: 0 }}>
               <div style={styles.title}>{t.title}</div>
               <div style={styles.subtitle}>{t.subtitle}</div>
@@ -708,7 +396,6 @@ export default function SuiviActivitesAnnuelles() {
               </div>
             </div>
 
-            {/* export Excel de l'année choisie dans les filtres */}
             <button type="button" className="sa-export" onClick={handleExportExcel}
               title={`${t.exportTitle} ${annee}`} aria-label={`${t.exportTitle} ${annee}`}>
               <FileSpreadsheet size={20} strokeWidth={1.8} />
@@ -721,7 +408,7 @@ export default function SuiviActivitesAnnuelles() {
         {/* ============ FILTRES ============ */}
         <div className="sa-filters">
           <div className="sa-filter">
-            <div style={styles.filterIcon}><CalendarDays size={28} color="#16a34a" /></div>
+            <div style={styles.filterIcon}><CalendarDays size={26} color="#16a34a" /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <label htmlFor="sa-annee" style={styles.filterLabel}>{t.year}</label>
               <select id="sa-annee" className="sa-select" style={styles.bigSelect} value={annee}
@@ -733,7 +420,7 @@ export default function SuiviActivitesAnnuelles() {
           </div>
 
           <div className="sa-filter">
-            <div style={styles.filterIcon}><CalendarDays size={28} color="#16a34a" /></div>
+            <div style={styles.filterIcon}><CalendarDays size={26} color="#16a34a" /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <label htmlFor="sa-mois" style={styles.filterLabel}>{t.month}</label>
               <select id="sa-mois" className="sa-select" style={styles.bigSelect} value={mois}
@@ -746,7 +433,7 @@ export default function SuiviActivitesAnnuelles() {
           </div>
 
           <div className="sa-filter">
-            <div style={styles.filterIcon}><Building2 size={28} color="#16a34a" /></div>
+            <div style={styles.filterIcon}><Building2 size={26} color="#16a34a" /></div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <label htmlFor="sa-uc" style={styles.filterLabel}>{t.unit}</label>
               <select id="sa-uc" className="sa-select" style={styles.bigSelect} value={uc}
@@ -769,12 +456,11 @@ export default function SuiviActivitesAnnuelles() {
 
         {/* ============ CARTES DU HAUT ============ */}
         <div className="sa-top">
-          {/* Avancement global */}
           <div className="sa-card">
             <div style={styles.cardHeader}>{t.globalProgress}</div>
 
             <div style={styles.globalWrap}>
-              <Ring percent={tauxGlobal} color={couleurGlobal} size={170} inner={45} outer={75} font={20} label={fmtPct(tauxGlobal)} />
+              <Ring percent={tauxGlobal} color={couleurGlobal} size={170} inner={50} outer={76} font={20} label={fmtPct(tauxGlobal)} />
 
               <div style={styles.kpiList}>
                 {kpis.map(({ icon: Icon, label, value }) => (
@@ -788,7 +474,6 @@ export default function SuiviActivitesAnnuelles() {
             </div>
           </div>
 
-          {/* Par réalisation */}
           <div className="sa-card">
             <div style={styles.cardHeader}>{t.byAchievement}</div>
 
@@ -798,14 +483,13 @@ export default function SuiviActivitesAnnuelles() {
                 return (
                   <div key={r.label} style={styles.resultBlock}>
                     <div style={styles.resultTitle}>{r.label}</div>
-                    <Ring percent={r.percent} color={color} size={120} inner={30} outer={55} font={18} label={fmtPct(r.percent)} />
+                    <Ring percent={r.percent} color={color} size={120} inner={36} outer={56} font={18} label={fmtPct(r.percent)} />
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Par composante : grille fixe 2 colonnes × 2 lignes (C1 C2 / C3 C4) */}
           <div className="sa-card">
             <div style={styles.cardHeader}>{t.byComponent}</div>
 
@@ -819,7 +503,7 @@ export default function SuiviActivitesAnnuelles() {
                       <div style={styles.compIcon}><Icon size={20} color="#16a34a" /></div>
                       <div style={styles.compLabel}>{c.label}</div>
                     </div>
-                    <Ring percent={c.percent} color={color} size={88} inner={27} outer={42} font={13} label={fmtPct(c.percent)} />
+                    <Ring percent={c.percent} color={color} size={88} inner={30} outer={43} font={13} label={fmtPct(c.percent)} />
                   </div>
                 );
               })}
@@ -873,7 +557,6 @@ export default function SuiviActivitesAnnuelles() {
           isOpen={showUpdate}
           onClose={() => {
             setShowUpdate(false);
-            // le jeton ne reste pas en mémoire une fois la fenêtre fermée
             setToken("");
           }}
           userName={userName}
@@ -888,30 +571,23 @@ export default function SuiviActivitesAnnuelles() {
   );
 }
 
-/* ================= STYLES (la mise en page est dans RESPONSIVE_CSS) ================= */
+/* ================= STYLES ================= */
 
 const styles: Record<string, React.CSSProperties> = {
   header: {
-    background: "linear-gradient(135deg,#0f6b3a,#16a34a)",
-    color: "#fff",
-    padding: 14,
-    borderRadius: 12,
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: 10,
+    color: "var(--text)", padding: "4px 2px 6px", display: "flex", justifyContent: "space-between",
+    alignItems: "center", flexWrap: "wrap", gap: 12,
   },
-  headerLeft: { display: "flex", alignItems: "center", gap: 12, minWidth: 0 },
-  logoWrap: { width: 52, height: 52, borderRadius: 14, background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  title: { fontSize: "clamp(15px, 1.2vw + 9px, 22px)", fontWeight: 800, letterSpacing: 0.3, overflowWrap: "anywhere" },
-  subtitle: { fontSize: 12, fontWeight: 400, opacity: 0.9, marginTop: 3 },
-  dateBox: { display: "flex", alignItems: "center", gap: 8 },
-  dateLabel: { fontSize: 10, opacity: 0.8 },
-  dateValue: { fontSize: 12, fontWeight: 700 },
+  headerLeft: { display: "flex", alignItems: "center", gap: 14, minWidth: 0 },
+  logoWrap: { width: 50, height: 50, borderRadius: 16, background: "rgba(22,163,74,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  title: { fontSize: "clamp(18px, 1.4vw + 10px, 26px)", fontWeight: 800, letterSpacing: -0.2, color: "var(--text)", overflowWrap: "anywhere" },
+  subtitle: { fontSize: 13, fontWeight: 500, color: "var(--text-3)", marginTop: 3 },
+  dateBox: { display: "flex", alignItems: "center", gap: 10, padding: "7px 14px", borderRadius: 999, border: "1px solid var(--border)", background: "var(--surface)", color: "#16a34a" },
+  dateLabel: { fontSize: 10, color: "var(--text-3)" },
+  dateValue: { fontSize: 12, fontWeight: 700, color: "var(--text)" },
 
   /* filtres */
-  filterIcon: { width: 34, height: 34, borderRadius: 8, background: "var(--blue-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  filterIcon: { width: 38, height: 38, borderRadius: 10, background: "rgba(22,163,74,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   filterLabel: { display: "block", fontSize: 12, fontWeight: 600, color: "#16a34a", letterSpacing: 0.3, marginBottom: 2 },
   bigSelect: {
     width: "100%", minWidth: 0, height: 30, borderRadius: 8, border: "1px solid var(--border)", padding: "0 8px",
@@ -921,53 +597,53 @@ const styles: Record<string, React.CSSProperties> = {
 
   /* cartes */
   cardHeader: {
-    fontSize: 13, fontWeight: 700, letterSpacing: 0.4, textTransform: "uppercase", paddingBottom: 6,
-    color: "#16a34a", textAlign: "center", borderBottom: "1px solid var(--border)",
+    fontSize: 12, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", paddingBottom: 4,
+    color: "var(--text-2)", textAlign: "left",
   },
 
-  globalWrap: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, marginTop: 8 },
+  globalWrap: { flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, marginTop: 8 },
   kpiList: { display: "grid", gridTemplateColumns: "minmax(0,1fr)", gap: 8, width: "100%" },
-  kpiItem: { display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 10, padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface)" },
+  kpiItem: { display: "grid", gridTemplateColumns: "auto 1fr auto", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 10, background: "var(--surface-2)" },
   kpiLabel: { fontSize: 12, color: "var(--text)", minWidth: 0 },
   kpiValue: { minWidth: 40, textAlign: "right", fontWeight: 700, color: "var(--text)", fontSize: 13 },
 
-  resultsColumn: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 8, marginTop: 10 },
+  resultsColumn: { flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", gap: 10, marginTop: 10 },
   resultBlock: {
-    width: "100%", maxWidth: 380, margin: "0 auto", border: "1px solid var(--border)", borderRadius: 10, padding: 10,
+    width: "100%", maxWidth: 380, margin: "0 auto", background: "var(--surface-2)", borderRadius: 14, padding: 12,
     display: "flex", flexDirection: "column", alignItems: "center", gap: 4, boxSizing: "border-box",
   },
   resultTitle: { fontSize: 14, fontWeight: 900, color: "var(--text)", textAlign: "center" },
 
-  smallCard: { background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, minWidth: 0 },
-  compIcon: { width: 38, height: 38, borderRadius: "50%", background: "rgba(22, 163, 74, 0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  smallCard: { background: "var(--surface-2)", borderRadius: 12, minWidth: 0 },
+  compIcon: { width: 38, height: 38, borderRadius: "50%", background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   compLabel: { fontSize: 11, fontWeight: 700, color: "var(--text)", lineHeight: 1.2, overflowWrap: "anywhere" },
 
   /* axes prioritaires */
   axisHeader: {
-    background: "#16a34a", color: "#fff", padding: "8px 10px", borderRadius: 8, fontWeight: 700, fontSize: 12,
-    letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 10,
+    background: "rgba(22,163,74,0.10)", color: "#16a34a", padding: "9px 12px", borderRadius: 10, fontWeight: 800, fontSize: 12,
+    letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 10, display: "flex", alignItems: "center", gap: 10,
   },
   axisTableHeader: {
     display: "grid", gridTemplateColumns: "minmax(0,1.1fr) minmax(0,1fr)", gap: 10, fontSize: 11, fontWeight: 600,
-    color: "#16a34a", padding: "6px 4px", borderBottom: "1px solid var(--border)",
+    color: "var(--text-3)", padding: "6px 4px", borderBottom: "1px solid var(--border)",
   },
   axisLeftCol: { display: "grid", gridTemplateColumns: "42px minmax(0,1fr)", gap: 4, alignItems: "center", minWidth: 0 },
   axisCode: { fontWeight: 600, color: "var(--text-3)", fontSize: 11 },
   axisName: { fontSize: 12, lineHeight: 1.3, overflowWrap: "anywhere" },
   axisRightCol: { display: "grid", gridTemplateColumns: "minmax(0,1fr) auto", gap: 6, alignItems: "center" },
-  axisBar: { height: 10, background: "var(--track)", borderRadius: 999, overflow: "hidden" },
+  axisBar: { height: 8, background: "var(--track)", borderRadius: 999, overflow: "hidden" },
   axisFill: { height: "100%", borderRadius: 999 },
   axisPercent: { minWidth: 44, paddingRight: 6, textAlign: "right", fontWeight: 900, fontSize: 11 },
 
   /* légende */
-  footerHeader: { color: "var(--accent)", fontWeight: 900, fontSize: 11, letterSpacing: 0.4 },
+  footerHeader: { color: "var(--text-2)", fontWeight: 800, fontSize: 11, letterSpacing: 0.4 },
   footerLegend: { display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" },
   legendItem: { display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 800 },
   dot: { display: "inline-block", width: 12, height: 12, borderRadius: "50%", flexShrink: 0 },
   footerCTA: {
     display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, background: "var(--green-soft)",
-    border: "1px solid var(--border)", borderRadius: 10, padding: "8px 10px",
+    borderRadius: 12, padding: "10px 12px",
   },
-  ctaIcon: { width: 32, height: 32, borderRadius: 8, background: "var(--green-soft)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  ctaButton: { background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" },
+  ctaIcon: { width: 32, height: 32, borderRadius: 8, background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  ctaButton: { background: "#16a34a", color: "#fff", border: "none", borderRadius: 999, padding: "8px 14px", fontSize: 11, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" },
 };
