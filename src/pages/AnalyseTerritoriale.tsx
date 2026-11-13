@@ -487,7 +487,9 @@ const vuln = (r: Result) => {
 };
 const vulnLabel = (v: number) => (v < 25 ? "faible" : v < 50 ? "modérée" : v < 70 ? "élevée" : "très élevée");
 
-function orientations(r: Result, x: Extra, periode: string): Orient[] {
+function orientations(R: Result, x: Extra, periode: string): Orient[] {
+  // Cultures : on retient la plus grande des deux estimations (Impact Observatory, WorldCover)
+  const r = { ...R, cropPct: Math.max(R.cropPct, R.cultWC ?? 0) };
   const o: Orient[] = [];
   const add = (th: Thematique, lvl: Lvl, t: string, d: string, acts?: string[]) => o.push({ th, lvl, t, d, acts });
   const loss = x.lossPct;
@@ -1021,7 +1023,7 @@ export default function AnalyseTerritoriale() {
                       {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
                       {res.cultWC != null && (
                         <p className="at-note">
-                          <strong>Cultures selon WorldCover 2021 : {nf(res.cultWC, 1)} %</strong> (second avis, 10 m, autre modèle que la carte ci-dessus).
+                          Cultures : Impact Observatory {nf(res.cropPct, 1)} % · WorldCover 2021 {nf(res.cultWC, 1)} %
                         </p>
                       )}
                     </>
@@ -1190,7 +1192,10 @@ export default function AnalyseTerritoriale() {
             <div className="at-mb">
               <div className="at-kpis">
                 <div className="at-kpi"><b>{nf(res.treePct)} %</b><span>couvert arboré</span></div>
-                <div className="at-kpi"><b>{nf(res.cropPct)} %</b><span>cultures</span></div>
+                <div className="at-kpi">
+                  <b>{nf(Math.max(res.cropPct, res.cultWC ?? 0))} %</b>
+                  <span>cultures (max Impact Observatory / WorldCover)</span>
+                </div>
                 <div className="at-kpi"><b>{nf(res.steepPct)} %</b><span>pente de 15 % ou plus</span></div>
                 <div className="at-kpi"><b>{lossStats ? `${nf(Math.round(lossStats.total))} ha` : "n/d"}</b><span>perdus, {periodeTxt}</span></div>
                 <div className="at-kpi"><b>{nf(n72)}</b><span>feux en 72 h</span></div>
