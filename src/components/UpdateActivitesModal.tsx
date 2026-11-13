@@ -252,6 +252,10 @@ function HistoriqueModal({ token, onClose }: HistoriqueModalProps) {
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(true);
 
+  // Filtres de l'historique
+  const [fUser, setFUser] = useState("");
+  const [fUc, setFUc] = useState("");
+
   // Échap ferme l'historique (et pas la fenêtre de mise à jour qui est dessous)
   useModalLock(onClose);
 
@@ -321,6 +325,8 @@ function HistoriqueModal({ token, onClose }: HistoriqueModalProps) {
     return (Array.isArray(e.changements) ? e.changements : [])
       .map((c: any, j: number) => ({
         key: `${e.id ?? i}-${j}`,
+        utilisateur: String(e.utilisateur ?? e.nom ?? ""),
+        uc: String(e.uc ?? ""),
         cells: [
           e.utilisateur ?? e.nom ?? "",
           valide ? d!.toLocaleDateString("fr-FR") : "",
@@ -334,6 +340,18 @@ function HistoriqueModal({ token, onClose }: HistoriqueModalProps) {
       }))
       .filter((l: any) => JSON.stringify(l.ancienne) !== JSON.stringify(l.nouvelle));
   });
+
+  // Listes des filtres : uniquement les valeurs présentes dans l'historique
+  const utilisateurs = Array.from(
+    new Set(lignes.map((l: any) => l.utilisateur).filter(Boolean))
+  ).sort() as string[];
+  const ucs = Array.from(
+    new Set(lignes.map((l: any) => l.uc).filter(Boolean))
+  ).sort() as string[];
+
+  const visibles = lignes.filter(
+    (l: any) => (!fUser || l.utilisateur === fUser) && (!fUc || l.uc === fUc)
+  );
 
   return (
     <ModalPortal>
@@ -353,6 +371,51 @@ function HistoriqueModal({ token, onClose }: HistoriqueModalProps) {
             </button>
           </div>
 
+          {/* ===== Filtres ===== */}
+          {!chargement && !erreur && lignes.length > 0 && (
+            <div className="uam-hfilters">
+              <div>
+                <label className="uam-slabel" htmlFor="uam-h-user">Utilisateur</label>
+                <select
+                  id="uam-h-user"
+                  className="uam-select"
+                  value={fUser}
+                  onChange={(e) => setFUser(e.target.value)}
+                >
+                  <option value="">Tous</option>
+                  {utilisateurs.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="uam-slabel" htmlFor="uam-h-uc">Unité de coordination</label>
+                <select
+                  id="uam-h-uc"
+                  className="uam-select"
+                  value={fUc}
+                  onChange={(e) => setFUc(e.target.value)}
+                >
+                  <option value="">Toutes</option>
+                  {ucs.map((u) => (
+                    <option key={u} value={u}>{u}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                type="button"
+                className="uam-btn uam-btn-reset"
+                onClick={() => { setFUser(""); setFUc(""); }}
+                disabled={!fUser && !fUc}
+              >
+                <RotateCcw size={16} />
+                Réinitialiser
+              </button>
+            </div>
+          )}
+
           <div className="uam-hbody">
             {chargement ? (
               <div className="uam-hmsg">Chargement de l'historique...</div>
@@ -360,6 +423,8 @@ function HistoriqueModal({ token, onClose }: HistoriqueModalProps) {
               <div className="uam-hmsg is-error">{erreur}</div>
             ) : lignes.length === 0 ? (
               <div className="uam-hmsg">Aucune modification enregistrée.</div>
+            ) : visibles.length === 0 ? (
+              <div className="uam-hmsg">Aucun résultat pour ces filtres.</div>
             ) : (
               <table className="uam-table">
                 <thead>
@@ -370,7 +435,7 @@ function HistoriqueModal({ token, onClose }: HistoriqueModalProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {lignes.map((l: any) => (
+                  {visibles.map((l: any) => (
                     <tr key={l.key}>
                       {l.cells.map((cell: unknown, k: number) => (
                         <td key={k}>{String(cell)}</td>
@@ -882,6 +947,24 @@ const css = `
 .uam-btn-reset,
 .uam-btn-cancel { border: 1px solid var(--u-bd); background: var(--u-card); color: var(--u-txt3); }
 .uam-btn-save { border: none; background: #15803d; color: #fff; font-weight: 700; }
+
+/* ----- Filtres de l'historique ----- */
+.uam-hfilters {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--u-line);
+  background: var(--u-soft);
+}
+.uam-hfilters > div { flex: 1 1 180px; min-width: 0; }
+.uam-hfilters .uam-btn:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 560px) {
+  .uam-hfilters { padding: 12px 14px; }
+  .uam-hfilters .uam-btn { width: 100%; }
+}
 
 /* ----- Historique ----- */
 .uam-hbody { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
