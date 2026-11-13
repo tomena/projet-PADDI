@@ -66,8 +66,10 @@ export default async function handler(req, res) {
     res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "s-maxage=86400, stale-while-revalidate=604800");
     res.send(Buffer.from(await r.arrayBuffer()));
-  } catch (e) {
-    console.error("WorldCover :", e);
-    res.status(502).json({ erreur: "WorldCover : " + (e?.message || "injoignable") });
+    } catch (e) {
+    const c = e?.cause || {};
+    const detail = [c.code, c.message, c.hostname].filter(Boolean).join(" | ");
+    console.error("WorldCover :", e, c);
+    res.status(502).json({ erreur: `WorldCover : ${e?.message || "injoignable"}${detail ? " (" + detail + ")" : ""}` });
   }
 }
