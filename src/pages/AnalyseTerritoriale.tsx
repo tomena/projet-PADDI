@@ -12,6 +12,7 @@
  * Données :
  *  - Limites : geoBoundaries (en ligne, plusieurs miroirs essayés en parallèle)
  *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m
+ *  - Cultures (second avis) : ESA WorldCover 2021 via /api/worldcover (Terrascope)   // AJOUT
  *  - Perte de couvert : tuiles Global Forest Watch (carte) + POST /api/gfw-perte (chiffres, clé côté serveur)
  *  - Points de feux : GET /api/firms (NASA FIRMS, la même route que votre page « Zones de pression »)
  *  - Altitude / pluie : Open-Meteo (pluie = moyenne annuelle sur RAIN_YEARS ans). Bassins versants : BASSINS_GEOJSON_URL (à fournir).
@@ -208,6 +209,42 @@ async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Prom
   }
 }
 
+/* ===================== CULTURES : SECOND AVIS (ESA WorldCover 2021) ===================== */
+
+/** AJOUT — Part (%) de cultures selon ESA WorldCover 2021 (classe 40, couleur 240,150,255), dans le polygone. */
+async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<number | null> {
+  try {
+    const img = new Image();
+    img.src = `/api/worldcover?minLon=${b.minLon}&minLat=${b.minLat}&maxLon=${b.maxLon}&maxLat=${b.maxLat}&w=${W}&h=${H}`;
+    await img.decode();
+
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
+    const cx = cv.getContext("2d", { willReadFrequently: true })!;
+    cx.drawImage(img, 0, 0);
+    const px = cx.getImageData(0, 0, W, H).data;
+
+    const mk = document.createElement("canvas"); mk.width = W; mk.height = H;
+    const mc = mk.getContext("2d", { willReadFrequently: true })!;
+    const X = (lon: number) => ((lon - b.minLon) / (b.maxLon - b.minLon)) * W;
+    const Y = (lat: number) => ((b.maxLat - lat) / (b.maxLat - b.minLat)) * H;
+    mc.beginPath();
+    polys(f).forEach((p) => p.forEach((r) => r.forEach(([x, y], i) => (i ? mc.lineTo(X(x), Y(y)) : mc.moveTo(X(x), Y(y))))));
+    mc.fill("evenodd");
+    const mask = mc.getImageData(0, 0, W, H).data;
+
+    let crop = 0, tot = 0;
+    for (let i = 0; i < W * H; i++) {
+      if (mask[i * 4 + 3] < 128 || px[i * 4 + 3] < 128) continue;
+      tot++;
+      const d = (px[i * 4] - 240) ** 2 + (px[i * 4 + 1] - 150) ** 2 + (px[i * 4 + 2] - 255) ** 2;
+      if (d < 40 * 40 * 3) crop++;
+    }
+    return tot ? (crop / tot) * 100 : null;
+  } catch {
+    return null; // facultatif : n'empêche pas l'analyse
+  }
+}
+
 /* ===================== ANALYSE : OCCUPATION DU SOL ET RELIEF ===================== */
 
 type Part = { n: string; pct: number; col: string };
@@ -217,6 +254,7 @@ type Result = {
   rain: number | null; areaKm2: number;
   cropSteep: number; treePct: number; cropPct: number; barePct: number; steepPct: number; wetPct: number;
   savPct: number; builtPct: number; // savane et parcours ; bâti
+  cultWC: number | null; // AJOUT — cultures selon ESA WorldCover 2021
   bassin: string | null; resolution: string;
 };
 
@@ -286,6 +324,9 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const [cLon, cLat] = center(f);
   const rain = await moyennePluie(cLon, cLat, signal);
 
+  // AJOUT — second avis cultures (WorldCover 2021)
+  const cultWC = await pctCulturesWC(f, b, W, H);
+
   let bassin: string | null = null;
   if (BASSINS_GEOJSON_URL) {
     try {
@@ -297,7 +338,9 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
 
   const pct = (c: number) => (cnt[c] / tot) * 100;
   return {
-    land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) })).filter((x) => x.pct > 0).sort((a, c) => c.pct - a.pct),
+    // MODIF — la ligne « Cultures » reste visible même à 0 %
+    land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) }))
+      .filter((x) => x.pct > 0 || x.n === "Cultures").sort((a, c) => c.pct - a.pct),
     cloudPct: (cnt[8] / (tot + cnt[8])) * 100,
     slope: SLOPES.map((s, i) => ({ n: s.n, pct: sn ? (sc[i] / sn) * 100 : 0, col: s.col })),
     elevMin: Math.min(...zs), elevMax: Math.max(...zs), elevMean: zs.reduce((a, c) => a + c, 0) / zs.length,
@@ -305,6 +348,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     cropSteep: cropN ? (cropSteep / cropN) * 100 : 0,
     treePct: pct(0), cropPct: pct(2), barePct: pct(4), steepPct: sn ? ((sc[2] + sc[3]) / sn) * 100 : 0, wetPct: pct(6),
     savPct: pct(1), builtPct: pct(3),
+    cultWC,
     bassin,
     resolution: small
       ? "Occupation du sol à 10 m ; relief à 90 m autour de la parcelle (indicatif)"
@@ -938,6 +982,12 @@ export default function AnalyseTerritoriale() {
                         </tbody>
                       </table>
                       {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
+                      {/* AJOUT — second avis cultures (WorldCover 2021) */}
+                      {res.cultWC != null && (
+                        <p className="at-note">
+                          <strong>Cultures selon WorldCover 2021 : {nf(res.cultWC, 1)} %</strong> (second avis, 10 m, autre modèle que la carte ci-dessus).
+                        </p>
+                      )}
                     </>
                   ) : <p className="at-load">{current.busy ? "Calcul en cours…" : ""}</p>}
                 </section>
