@@ -1,5 +1,3 @@
-import { fromUrl } from "geotiff";
-
 // Données ESA WorldCover 2021 v200, tuiles de 3°x3° publiques sur AWS (sans clé).
 const BASE = "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/map";
 const MAX_COTE = 1000; // nombre max d'échantillons par côté et par tuile
@@ -33,6 +31,16 @@ const dansPoly = (x, y, polys) =>
   polys.some((p) => dansAnneau(x, y, p[0]) && !p.slice(1).some((h) => dansAnneau(x, y, h)));
 
 export default async function handler(req, res) {
+  try {
+    return await traiter(req, res);
+  } catch (e) {
+    console.error("WorldCover (route) :", e);
+    return res.status(500).json({ erreur: `WorldCover (route) : ${e?.message || e}` });
+  }
+}
+
+async function traiter(req, res) {
+  const { fromUrl } = await import("geotiff"); // échoue ici si le paquet n'est pas installé
   if (req.method !== "POST") return res.status(405).json({ erreur: "POST attendu" });
 
   const g = req.body?.geometry;
