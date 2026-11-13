@@ -12,7 +12,7 @@
  * Données :
  *  - Limites : geoBoundaries (en ligne, plusieurs miroirs essayés en parallèle)
  *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m
- *  - Cultures (second avis) : ESA WorldCover 2021 via /api/worldcover (Terrascope)   // AJOUT
+ *  - Cultures (second avis) : ESA WorldCover 2021 via /api/worldcover (Terrascope)
  *  - Perte de couvert : tuiles Global Forest Watch (carte) + POST /api/gfw-perte (chiffres, clé côté serveur)
  *  - Points de feux : GET /api/firms (NASA FIRMS, la même route que votre page « Zones de pression »)
  *  - Altitude / pluie : Open-Meteo (pluie = moyenne annuelle sur RAIN_YEARS ans). Bassins versants : BASSINS_GEOJSON_URL (à fournir).
@@ -211,11 +211,27 @@ async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Prom
 
 /* ===================== CULTURES : SECOND AVIS (ESA WorldCover 2021) ===================== */
 
-/** AJOUT — Part (%) de cultures selon ESA WorldCover 2021 (classe 40, couleur 240,150,255), dans le polygone. */
+/* Palette officielle ESA WorldCover (classe : couleur RGB) */
+const WC_PALETTE: { code: number; n: string; c: [number, number, number] }[] = [
+  { code: 10, n: "Couvert arboré", c: [0, 100, 0] },
+  { code: 20, n: "Arbustes", c: [255, 187, 34] },
+  { code: 30, n: "Prairies", c: [255, 255, 76] },
+  { code: 40, n: "Cultures", c: [240, 150, 255] },
+  { code: 50, n: "Bâti", c: [250, 0, 0] },
+  { code: 60, n: "Sol nu", c: [180, 180, 180] },
+  { code: 70, n: "Neige", c: [240, 240, 240] },
+  { code: 80, n: "Eau", c: [0, 100, 200] },
+  { code: 90, n: "Zones humides herbacées", c: [0, 150, 160] },
+  { code: 95, n: "Mangrove", c: [0, 207, 117] },
+  { code: 100, n: "Mousse et lichen", c: [250, 230, 160] },
+];
+
+/** Part (%) de cultures selon ESA WorldCover 2021, dans le polygone. Diagnostic dans la console. */
 async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<number | null> {
   try {
+    const url = `/api/worldcover?minLon=${b.minLon}&minLat=${b.minLat}&maxLon=${b.maxLon}&maxLat=${b.maxLat}&w=${W}&h=${H}`;
     const img = new Image();
-    img.src = `/api/worldcover?minLon=${b.minLon}&minLat=${b.minLat}&maxLon=${b.maxLon}&maxLat=${b.maxLat}&w=${W}&h=${H}`;
+    img.src = url;
     await img.decode();
 
     const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
@@ -232,16 +248,37 @@ async function pctCulturesWC(f: Feat, b: Box, W: number, H: number): Promise<num
     mc.fill("evenodd");
     const mask = mc.getImageData(0, 0, W, H).data;
 
-    let crop = 0, tot = 0;
+    const cnt = new Array(WC_PALETTE.length).fill(0);
+    const brutes = new Map<string, number>(); // diagnostic : couleurs réelles reçues
+    let tot = 0;
+
     for (let i = 0; i < W * H; i++) {
       if (mask[i * 4 + 3] < 128 || px[i * 4 + 3] < 128) continue;
-      tot++;
-      const d = (px[i * 4] - 240) ** 2 + (px[i * 4 + 1] - 150) ** 2 + (px[i * 4 + 2] - 255) ** 2;
-      if (d < 40 * 40 * 3) crop++;
+      const r = px[i * 4], g = px[i * 4 + 1], bl = px[i * 4 + 2];
+      const key = `${r},${g},${bl}`;
+      brutes.set(key, (brutes.get(key) ?? 0) + 1);
+
+      // classe la plus proche dans la palette
+      let best = -1, bd = Infinity;
+      WC_PALETTE.forEach((k, ci) => {
+        const d = (r - k.c[0]) ** 2 + (g - k.c[1]) ** 2 + (bl - k.c[2]) ** 2;
+        if (d < bd) { bd = d; best = ci; }
+      });
+      if (bd < 90 * 90) { cnt[best]++; tot++; } // tolérance plus large que la première version
     }
-    return tot ? (crop / tot) * 100 : null;
-  } catch {
-    return null; // facultatif : n'empêche pas l'analyse
+
+    console.groupCollapsed(`WorldCover : ${W}×${H} px, ${tot} pixels classés`);
+    console.table(WC_PALETTE.map((k, i) => ({ classe: k.n, pixels: cnt[i] })));
+    console.log("Couleurs les plus fréquentes reçues :",
+      [...brutes.entries()].sort((a, c) => c[1] - a[1]).slice(0, 8));
+    console.groupEnd();
+
+    if (!tot) return null;
+    const idx = WC_PALETTE.findIndex((k) => k.code === 40);
+    return (cnt[idx] / tot) * 100;
+  } catch (e) {
+    console.warn("WorldCover indisponible :", e);
+    return null;
   }
 }
 
@@ -254,7 +291,7 @@ type Result = {
   rain: number | null; areaKm2: number;
   cropSteep: number; treePct: number; cropPct: number; barePct: number; steepPct: number; wetPct: number;
   savPct: number; builtPct: number; // savane et parcours ; bâti
-  cultWC: number | null; // AJOUT — cultures selon ESA WorldCover 2021
+  cultWC: number | null; // cultures selon ESA WorldCover 2021
   bassin: string | null; resolution: string;
 };
 
@@ -324,7 +361,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const [cLon, cLat] = center(f);
   const rain = await moyennePluie(cLon, cLat, signal);
 
-  // AJOUT — second avis cultures (WorldCover 2021)
+  // second avis cultures (WorldCover 2021)
   const cultWC = await pctCulturesWC(f, b, W, H);
 
   let bassin: string | null = null;
@@ -338,7 +375,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
 
   const pct = (c: number) => (cnt[c] / tot) * 100;
   return {
-    // MODIF — la ligne « Cultures » reste visible même à 0 %
+    // la ligne « Cultures » reste visible même à 0 %
     land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) }))
       .filter((x) => x.pct > 0 || x.n === "Cultures").sort((a, c) => c.pct - a.pct),
     cloudPct: (cnt[8] / (tot + cnt[8])) * 100,
@@ -982,7 +1019,6 @@ export default function AnalyseTerritoriale() {
                         </tbody>
                       </table>
                       {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
-                      {/* AJOUT — second avis cultures (WorldCover 2021) */}
                       {res.cultWC != null && (
                         <p className="at-note">
                           <strong>Cultures selon WorldCover 2021 : {nf(res.cultWC, 1)} %</strong> (second avis, 10 m, autre modèle que la carte ci-dessus).
