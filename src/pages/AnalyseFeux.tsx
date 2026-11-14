@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   Flame, Trees, MapPinned, MapPin, Calendar, Trophy, Medal,
-  TrendingUp, TrendingDown, BarChart3, Globe2, RefreshCw,
+  TrendingUp, TrendingDown, BarChart3, Globe2, RefreshCw, Bell, X,
 } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Area, Line, BarChart, Bar, XAxis, YAxis,
@@ -43,6 +43,7 @@ const txt: any = {
     scaleAbs: "Échelle fixe (comparable)", scaleRel: "Échelle adaptée à l'AP", severity: "Gravité", sevLow: "faible", sevHigh: "forte",
     noCommunes: "Limites des communes introuvables : vérifiez DATA.communesGeo.", missingCommunes: "Communes de la base sans limite sur la carte (nom différent) :", noneForAp: "Aucune commune trouvée pour cette AP dans le fichier des limites (champ nom_ap).", loadedLbl: "chargées", opacity: "Opacité des communes",
     refresh: "Actualiser", noFire: "Aucun feu actif détecté dans cette zone.", noBase: "Base de feux introuvable : vérifiez les chemins dans DATA.",
+    alertTitle: "Alerte feux", alertSub: "Des feux actifs ont été détectés depuis moins de 24 h", alertIn: "dans l'AP", alertPer: "en périphérie (5 km)", alertLast: "dernière détection il y a", alertView: "Voir sur la carte", alertClose: "Fermer", alertBell: "Alertes feux",
     months: { Jan: "Jan", Feb: "Fév", Mar: "Mar", Apr: "Avr", May: "Mai", Jun: "Juin", Jul: "Juil", Aug: "Août", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Déc" },
   },
   mg: {
@@ -73,6 +74,7 @@ const txt: any = {
     scaleAbs: "Refy raikitra (azo ampitahaina)", scaleRel: "Refy mifanaraka amin'ny AP", severity: "Hamafin'ny doro", sevLow: "kely", sevHigh: "avo",
     noCommunes: "Tsy hita ny sisin'ny kaominina: jereo ny DATA.communesGeo.", missingCommunes: "Kaominina ao amin'ny angona tsy hita eo amin'ny sarintany (anarana samy hafa) :", noneForAp: "Tsy misy kaominina hita ho an'ity AP ity ao amin'ny rakitra (nom_ap).", loadedLbl: "voakarakara", opacity: "Hamafisan'ny loko ny kaominina",
     refresh: "Havaozina", noFire: "Tsy misy doro mavitrika hita amin'ity faritra ity.", noBase: "Tsy hita ny angona doro: jereo ny lalana ao amin'ny DATA.",
+    alertTitle: "Fampitandremana doro", alertSub: "Misy doro mavitrika hita tao anatin'ny 24 ora latsaka", alertIn: "ao anatin'ny AP", alertPer: "manodidina (5 km)", alertLast: "fanamarihana farany", alertView: "Jereo amin'ny sarintany", alertClose: "Hidio", alertBell: "Fampitandremana doro",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "Mey", Jun: "Jon", Jul: "Jol", Aug: "Aog", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Des" },
   },
   en: {
@@ -104,6 +106,7 @@ const txt: any = {
     scaleAbs: "Fixed scale (comparable)", scaleRel: "Scale adapted to the PA", severity: "Severity", sevLow: "low", sevHigh: "high",
     noCommunes: "Commune boundaries not found: check DATA.communesGeo.", missingCommunes: "Communes in the database with no boundary on the map (different name):", noneForAp: "No commune found for this PA in the boundary file (field nom_ap).", loadedLbl: "loaded", opacity: "Commune opacity",
     refresh: "Refresh", noFire: "No active fire detected in this area.", noBase: "Fire database not found: check the paths in DATA.",
+    alertTitle: "Fire alert", alertSub: "Active fires were detected less than 24 h ago", alertIn: "inside the PA", alertPer: "in the 5 km periphery", alertLast: "last detection", alertView: "View on map", alertClose: "Close", alertBell: "Fire alerts",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "May", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Dec" },
   },
   de: {
@@ -135,6 +138,7 @@ const txt: any = {
     scaleAbs: "Feste Skala (vergleichbar)", scaleRel: "An das Schutzgebiet angepasste Skala", severity: "Schweregrad", sevLow: "gering", sevHigh: "hoch",
     noCommunes: "Gemeindegrenzen nicht gefunden: DATA.communesGeo prüfen.", missingCommunes: "Gemeinden der Datenbank ohne Grenze auf der Karte (anderer Name):", noneForAp: "Keine Gemeinde für dieses Schutzgebiet in der Grenzdatei gefunden (Feld nom_ap).", loadedLbl: "geladen", opacity: "Deckkraft der Gemeinden",
     refresh: "Aktualisieren", noFire: "Kein aktiver Brand in diesem Gebiet erkannt.", noBase: "Brand-Datenbank nicht gefunden: Pfade in DATA prüfen.",
+    alertTitle: "Brandalarm", alertSub: "Aktive Brände wurden vor weniger als 24 h erkannt", alertIn: "im Schutzgebiet", alertPer: "im 5-km-Umfeld", alertLast: "letzte Erkennung vor", alertView: "Auf der Karte zeigen", alertClose: "Schließen", alertBell: "Brandalarme",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mär", Apr: "Apr", May: "Mai", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Dez" },
   },
 };
@@ -208,6 +212,7 @@ const src = (p: any) => String(p.Source).trim().toLowerCase();
 const fmtHa = (v: number) => v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ha";
 const nHa = (v: number) => v.toLocaleString("fr-FR"); // seuils de la légende
 const compact = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(Math.round(v)));
+const agoTxt = (h: number) => (h < 1 ? `${Math.max(1, Math.round(h * 60))} min` : `${Math.floor(h)} h ${String(Math.round((h % 1) * 60)).padStart(2, "0")}`);
 const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const sameArea = (a: unknown, b: unknown) => {
   const x = norm(a), y = norm(b);
@@ -422,7 +427,26 @@ const CSS = `
 .fx-load{padding:30px;text-align:center;color:var(--bleu);font-weight:600}
 .fx .leaflet-tooltip{font-size:12px;font-weight:600}
 @media(max-width:560px){.fx-lg{font-size:10px;padding:4px 6px}.fx-legend{max-width:75%}}
-@media(prefers-reduced-motion:reduce){.fx *{transition:none!important}}
+@media(prefers-reduced-motion:reduce){.fx *{transition:none!important}.fx-bell{animation:none!important}}
+
+/* ---- alerte feux < 24 h ---- */
+.fx-bell{display:inline-flex;align-items:center;gap:6px;align-self:flex-end;height:34px;padding:0 12px;border-radius:999px;border:1px solid #dc2626;background:rgba(239,68,68,.15);color:color-mix(in srgb,#dc2626 70%,var(--text));font-weight:800;font-size:12px;cursor:pointer;animation:fxPulse 1.8s ease-in-out infinite}
+.fx-ov{position:fixed;inset:0;z-index:5000;display:grid;place-items:center;padding:16px;background:rgba(10,15,25,.6);backdrop-filter:blur(2px)}
+.fx-alert{width:min(520px,100%);max-height:88vh;display:flex;flex-direction:column;background:var(--surface);color:var(--text);border:1px solid var(--border);border-top:5px solid #dc2626;border-radius:16px;box-shadow:0 24px 70px rgba(0,0,0,.45);overflow:hidden}
+.fx-al-h{display:flex;align-items:center;gap:12px;padding:16px 16px 10px}
+.fx-al-h h2{margin:0;font-size:18px;color:color-mix(in srgb,#dc2626 75%,var(--text))}
+.fx-al-h p{margin:2px 0 0;font-size:12.5px;color:var(--text-2)}
+.fx-al-ico{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,#dc2626,#f97316)}
+.fx-al-l{list-style:none;margin:0;padding:6px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+.fx-al-l li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border-radius:10px;background:var(--surface-3);border:1px solid var(--border-soft)}
+.fx-al-t{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:12.5px}
+.fx-al-t strong{font-size:14px}
+.fx-al-t small{color:var(--text-3)}
+.fx-al-go{flex:none;padding:7px 12px;border:0;border-radius:8px;background:#0b4ea2;color:#fff;font-weight:700;font-size:12px;cursor:pointer}
+.fx-al-go.sec{background:var(--surface-3);color:var(--text);border:1px solid var(--border)}
+.fx-al-f{display:flex;justify-content:flex-end;padding:10px 16px 14px}
+@keyframes fxPulse{50%{box-shadow:0 0 0 5px rgba(239,68,68,.18)}}
+@media(max-width:480px){.fx-al-l li{flex-direction:column;align-items:stretch}}
 `;
 
 /* ============================ COMPOSANTS ============================ */
@@ -1045,6 +1069,50 @@ export default function AnalyseFeux() {
       .filter((f) => (scope.length ? scope.some((z) => inZone(f.lon, f.lat, z)) : regionZone ? inZone(f.lon, f.lat, regionZone) : true));
   }, [firesRaw, now, hours, apZones, periphSel, regionZone]);
 
+  // Alertes : feux de moins de 24 h dans chaque AP (ou à moins de 5 km)
+  const alertes = useMemo(() => {
+    const recents = parseFires(firesRaw)
+      .map((f) => ({ ...f, age: (now - f.t) / 3.6e6, id: `${f.lon},${f.lat},${f.t}` }))
+      .filter((f) => f.age <= 24 && f.age >= -1);
+    if (!recents.length) return [];
+    return apNames.map((n) => {
+      const zin = apGeo[n] || [];
+      const zper = periphZ.filter((p) => sameArea(p.nom, n));
+      const dedans = recents.filter((f) => zin.some((z) => inZone(f.lon, f.lat, z)));
+      const dans = new Set(dedans.map((f) => f.id));
+      const peri = recents.filter((f) => !dans.has(f.id) && zper.some((z) => inZone(f.lon, f.lat, z)));
+      const tous = [...dedans, ...peri];
+      return {
+        ap: n, dedans: dedans.length, peri: peri.length,
+        ids: tous.map((f) => f.id),
+        recent: tous.length ? Math.min(...tous.map((f) => f.age)) : 0,
+      };
+    }).filter((a) => a.ids.length).sort((a, b) => b.dedans - a.dedans || b.peri - a.peri);
+  }, [firesRaw, now, apNames, apGeo, periphZ]);
+
+  const [alertOpen, setAlertOpen] = useState(false);
+  const vus = useRef<Set<string>>(new Set()); // feux déjà montrés dans le pop-up
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const nbAlertes = alertes.reduce((s, a) => s + a.ids.length, 0);
+
+  useEffect(() => {
+    if (alertes.some((a) => a.ids.some((id) => !vus.current.has(id)))) setAlertOpen(true);
+  }, [alertes]);
+
+  const fermerAlerte = () => {
+    alertes.forEach((a) => a.ids.forEach((id) => vus.current.add(id)));
+    setAlertOpen(false);
+  };
+  const voirAlerte = (nom: string) => { setRegion("all"); setAp(nom); setHours(24); fermerAlerte(); };
+
+  useEffect(() => {
+    if (!alertOpen) return;
+    closeRef.current?.focus();
+    const k = (e: KeyboardEvent) => { if (e.key === "Escape") fermerAlerte(); };
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [alertOpen, alertes]);
+
   // Graphiques
   const chart1 = useMemo(() => {
     const monthly = (y: number) => MOIS.map((m) => rows(y, "commune").reduce((a, f) => a + num(f.properties[m]), 0));
@@ -1124,6 +1192,11 @@ export default function AnalyseFeux() {
               {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
+          {nbAlertes > 0 && (
+            <button type="button" className="fx-bell" onClick={() => setAlertOpen(true)} title={t.alertBell} aria-label={`${t.alertBell} : ${nbAlertes}`}>
+              <Bell size={16} /><span>{nbAlertes}</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -1176,6 +1249,40 @@ export default function AnalyseFeux() {
             />
           </div>
         </>
+      )}
+
+      {alertOpen && alertes.length > 0 && (
+        <div className="fx-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) fermerAlerte(); }}>
+          <div className="fx-alert" role="alertdialog" aria-modal="true" aria-labelledby="fx-al-t">
+            <div className="fx-al-h">
+              <span className="fx-al-ico"><Flame size={22} color="#fff" /></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h2 id="fx-al-t">{t.alertTitle}</h2>
+                <p>{t.alertSub}</p>
+              </div>
+              <button type="button" className="fx-ico" ref={closeRef} onClick={fermerAlerte} aria-label={t.alertClose}><X size={16} /></button>
+            </div>
+            <ul className="fx-al-l">
+              {alertes.map((a) => (
+                <li key={a.ap}>
+                  <div className="fx-al-t">
+                    <strong>{a.ap}</strong>
+                    <span>
+                      {a.dedans > 0 && <b style={{ color: tonText("#dc2626") }}>{a.dedans} {t.fireUnit} {t.alertIn}</b>}
+                      {a.dedans > 0 && a.peri > 0 && " · "}
+                      {a.peri > 0 && <>{a.peri} {t.fireUnit} {t.alertPer}</>}
+                    </span>
+                    <small>{t.alertLast} {agoTxt(a.recent)}</small>
+                  </div>
+                  <button type="button" className="fx-al-go" onClick={() => voirAlerte(a.ap)}>{t.alertView}</button>
+                </li>
+              ))}
+            </ul>
+            <div className="fx-al-f">
+              <button type="button" className="fx-al-go sec" onClick={fermerAlerte}>{t.alertClose}</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
