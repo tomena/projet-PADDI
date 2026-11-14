@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
+import type { KeyboardEvent as RKeyboardEvent, PointerEvent as RPointerEvent } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme, ThemeToggle } from "../context/ThemeContext";
+import { useFireAlerts } from "../context/FireAlertContext";
 
 import {
   LayoutDashboard, BarChart3, Flame, Trees, Users, Globe2, Landmark, MapPinned,
   Library, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, Home,
-  FolderKanban, Database, Briefcase, DollarSign, Gavel, Wheat, Activity, Store,
-  Wallet, CalendarCheck, LogOut, Menu, X, ShieldAlert, Mountain,TrendingUp, Calculator,
+  FolderKanban, Database, Briefcase, DollarSign, Gavel, Activity, Store,
+  Wallet, CalendarCheck, LogOut, Menu, X, ShieldAlert, Mountain, TrendingUp, Calculator, Bell,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -62,12 +64,14 @@ const sidebarTxt = {
     areaMonitoring: "Suivi de superficie",
 
     pressureZones: "Points de feux",
+    fireAlerts: "Alertes feux",
 
     quit: "Quitter",
     openMenu: "Ouvrir le menu",
     closeMenu: "Fermer le menu",
     collapse: "Réduire le menu",
     expand: "Agrandir le menu",
+    resize: "Redimensionner le menu",
   },
 
   mg: {
@@ -115,12 +119,14 @@ const sidebarTxt = {
     localEconomy: "Toekarena eo an-toerana",
 
     pressureZones: "Tebok'afo",
+    fireAlerts: "Fampitandremana doro",
 
     quit: "Hiala",
     openMenu: "Sokafy ny menio",
     closeMenu: "Akatony ny menio",
     collapse: "Hahena ny menio",
     expand: "Hanitatra ny menio",
+    resize: "Hanova ny habetsaky ny menio",
   },
 
   en: {
@@ -168,12 +174,14 @@ const sidebarTxt = {
     localEconomy: "Local Economy",
 
     pressureZones: "Fire spots",
+    fireAlerts: "Fire alerts",
 
     quit: "Quit",
     openMenu: "Open menu",
     closeMenu: "Close menu",
     collapse: "Collapse menu",
     expand: "Expand menu",
+    resize: "Resize menu",
   },
 
   de: {
@@ -221,12 +229,14 @@ const sidebarTxt = {
     localEconomy: "Lokale Wirtschaft",
 
     pressureZones: "Feuerstellen",
+    fireAlerts: "Brandalarme",
 
     quit: "Beenden",
     openMenu: "Menü öffnen",
     closeMenu: "Menü schließen",
     collapse: "Menü einklappen",
     expand: "Menü ausklappen",
+    resize: "Menübreite ändern",
   },
 };
 
@@ -267,7 +277,6 @@ const MENUS: Record<string, Entree[]> = {
         lien("micro", Store, "microEnterprises", "micro-entreprises"),
       ]),
     ]),
-    // Wallet = argent / dépenses ; CalendarCheck = activités réalisées dans l'année
     lien("couts", Wallet, "costMonitoring", "suivi-couts"),
     lien("annuel", CalendarCheck, "annualActivityMonitoring", "suivi-activites-annuelles"),
     lien("biblio", Library, "library", "bibliotheque"),
@@ -284,7 +293,7 @@ const MENUS: Record<string, Entree[]> = {
 
   cadre: [lien("synthese", BarChart3, "territorialSynthesis", "analyse")],
 
-   societe: [
+  societe: [
     lien("territoires", MapPinned, "territoryDiagnostic", "analyse-social"),
     lien("priorites", Users, "priorityPlanner", "analyse-social/priorites"),
     lien("socio", Globe2, "socioeconomic", "analyse-socio-economique"),
@@ -305,10 +314,18 @@ function moduleDuChemin(pathname: string): string | null {
 }
 
 /* =====================================================================
-   OUTILS
+   OUTILS & PRÉFÉRENCES
    ===================================================================== */
 
 const CLE_PREF = "sidebar_reduite";
+const CLE_LARGEUR = "sidebar_largeur";
+const W_MIN = 200;     // largeur minimale du menu étendu (px)
+const W_MAX = 420;     // largeur maximale (px)
+const W_REDUIT = 78;   // largeur du menu en icônes (px)
+const W_SNAP = 120;    // en dessous de cette largeur, le menu se réduit en icônes
+const W_DEFAUT = 240;  // largeur par défaut (px)
+
+const clamp = (v: number) => Math.round(Math.min(W_MAX, Math.max(W_MIN, v)));
 
 function lirePref() {
   try {
@@ -326,7 +343,24 @@ function ecrirePref(v: boolean) {
   }
 }
 
-function useLargeur() {
+function lireLargeur(): number {
+  try {
+    const v = Number(localStorage.getItem(CLE_LARGEUR));
+    return Number.isFinite(v) && v >= W_MIN && v <= W_MAX ? v : W_DEFAUT;
+  } catch {
+    return W_DEFAUT;
+  }
+}
+
+function ecrireLargeur(v: number) {
+  try {
+    localStorage.setItem(CLE_LARGEUR, String(v));
+  } catch {
+    /* ignore */
+  }
+}
+
+function useLargeurFenetre() {
   const lire = () => (typeof window === "undefined" ? 1280 : window.innerWidth);
   const [largeur, setLargeur] = useState(lire);
   useEffect(() => {
@@ -339,31 +373,36 @@ function useLargeur() {
 
 /* =====================================================================
    COMPOSANT
-   Ordinateur (≥ 1024 px) : menu complet, réductible, préférence mémorisée
-   Tablette (768-1023 px) : menu réduit en icônes, extensible
+   Ordinateur (≥ 1024 px) : menu étirable à la souris, réductible, mémorisé
+   Tablette (768-1023 px) : menu en icônes par défaut, étirable
    Téléphone (< 768 px)   : menu caché, ouvert par le bouton ☰
+   La cloche n'apparaît que s'il y a des feux actifs dans l'AP ou à 5 km.
    ===================================================================== */
 
 export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { lang } = useLanguage();
-  const t = sidebarTxt[lang];
+  const t = sidebarTxt[lang as keyof typeof sidebarTxt] ?? sidebarTxt.fr;
   const { theme } = useTheme();
+  const { nbAlertes, ouvrirAlertes } = useFireAlerts();
 
-  // Module envoyé depuis Home.tsx : navigate("/dashboard", { state: { module: "paddi" } })
   const module: string = location.state?.module || moduleDuChemin(location.pathname) || "paddi";
 
-  const largeur = useLargeur();
-  const mobile = largeur < 768;
-  const tablette = !mobile && largeur < 1024;
+  const largeurFenetre = useLargeurFenetre();
+  const mobile = largeurFenetre < 768;
+  const tablette = !mobile && largeurFenetre < 1024;
 
-  const [prefBureau, setPrefBureau] = useState(lirePref);
+  const [largeurBureau, setLargeurBureau] = useState<number>(lireLargeur);
+  const [prefBureau, setPrefBureau] = useState<boolean>(lirePref);
+  const [largeurTablette, setLargeurTablette] = useState(W_DEFAUT);
   const [prefTablette, setPrefTablette] = useState(true);
+  const [glisse, setGlisse] = useState(false);
   const [tiroir, setTiroir] = useState(false);
   const [ouverts, setOuverts] = useState<Record<string, boolean>>({ indicateurs: true });
 
   const reduit = mobile ? false : tablette ? prefTablette : prefBureau;
+  const largeur = reduit ? W_REDUIT : tablette ? largeurTablette : largeurBureau;
 
   const entrees = useMemo(() => MENUS[module] ?? [], [module]);
 
@@ -372,7 +411,6 @@ export default function Sidebar() {
       ? location.pathname === "/dashboard" || location.pathname === "/dashboard/"
       : location.pathname === `/dashboard/${chemin}`;
 
-  // Le tiroir se ferme après chaque navigation et quand on quitte le mode téléphone
   useEffect(() => {
     setTiroir(false);
   }, [location.pathname]);
@@ -381,7 +419,6 @@ export default function Sidebar() {
     if (!mobile) setTiroir(false);
   }, [mobile]);
 
-  // Tiroir ouvert : touche Échap pour fermer + page derrière bloquée
   useEffect(() => {
     if (!mobile || !tiroir) return;
     const touche = (e: KeyboardEvent) => e.key === "Escape" && setTiroir(false);
@@ -419,27 +456,58 @@ export default function Sidebar() {
     setTiroir(false);
   };
 
-  const agrandir = () => {
-    if (tablette) setPrefTablette(false);
+  // Réduit ou étend le menu selon le point de rupture courant
+  const definirReduit = (v: boolean) => {
+    if (tablette) setPrefTablette(v);
     else {
-      setPrefBureau(false);
-      ecrirePref(false);
+      setPrefBureau(v);
+      ecrirePref(v);
     }
   };
 
-  const basculerReduit = () => {
-    if (tablette) setPrefTablette((v) => !v);
+  // Applique une largeur choisie à la souris ou au clavier
+  const appliquerLargeur = (w: number) => {
+    if (w < W_SNAP) {
+      definirReduit(true);
+      return;
+    }
+    definirReduit(false);
+    const c = clamp(w);
+    if (tablette) setLargeurTablette(c);
     else {
-      const n = !prefBureau;
-      setPrefBureau(n);
-      ecrirePref(n);
+      setLargeurBureau(c);
+      ecrireLargeur(c);
     }
   };
+
+  const demarrerGlisse = (e: RPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    setGlisse(true);
+    const bouger = (ev: PointerEvent) => appliquerLargeur(ev.clientX);
+    const fin = () => {
+      setGlisse(false);
+      window.removeEventListener("pointermove", bouger);
+      window.removeEventListener("pointerup", fin);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", bouger);
+    window.addEventListener("pointerup", fin);
+  };
+
+  const toucheRedim = (e: RKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "ArrowLeft") { e.preventDefault(); appliquerLargeur(largeur - 10); }
+    if (e.key === "ArrowRight") { e.preventDefault(); appliquerLargeur(reduit ? W_SNAP : largeur + 10); }
+  };
+
+  const basculerReduit = () => definirReduit(!reduit);
 
   const basculerGroupe = (cle: string) => {
     if (reduit) {
-      // menu en icônes : on l'agrandit et on ouvre le groupe cliqué
-      agrandir();
+      definirReduit(false);
       setOuverts((o) => ({ ...o, [cle]: true }));
       return;
     }
@@ -500,35 +568,59 @@ export default function Sidebar() {
     );
   };
 
+  // Cloche d'alerte : rendue uniquement s'il y a au moins un feu actif (AP ou périphérie 5 km)
+  const cloche = (classe: string) => {
+    if (nbAlertes <= 0) return null;
+    const libelle = `${t.fireAlerts} : ${nbAlertes}`;
+    return (
+      <button
+        type="button"
+        className={`${classe} alerte`}
+        onClick={ouvrirAlertes}
+        title={libelle}
+        aria-label={libelle}
+      >
+        <Bell size={18} />
+        <span className="sb-badge">{nbAlertes}</span>
+      </button>
+    );
+  };
+
   return (
     <>
       <style>{CSS}</style>
 
-      {/* Téléphone : bouton pour ouvrir le menu */}
+      {/* Téléphone : bouton ☰ (et cloche à côté, seulement s'il y a des alertes) */}
       {mobile && !tiroir && (
-        <button type="button" className="sb-burger" aria-label={t.openMenu} onClick={() => setTiroir(true)}>
-          <Menu size={20} />
-        </button>
+        <>
+          <button type="button" className="sb-burger" aria-label={t.openMenu} onClick={() => setTiroir(true)}>
+            <Menu size={20} />
+          </button>
+          {cloche("sb-cloche-mobile")}
+        </>
       )}
 
-      {/* Téléphone : fond sombre derrière le menu ouvert */}
       {mobile && tiroir && <div className="sb-voile" onClick={() => setTiroir(false)} />}
 
       <aside
-        className={`sb ${reduit ? "reduit" : ""} ${mobile ? "mobile" : ""} ${tiroir ? "ouvert" : ""}`}
+        className={`sb ${reduit ? "reduit" : ""} ${mobile ? "mobile" : ""} ${tiroir ? "ouvert" : ""} ${glisse ? "glisse" : ""}`}
+        style={mobile ? undefined : { width: largeur }}
         aria-label="Menu"
       >
-        {/* ======================== LOGO ======================== */}
+        {/* ======================== EN-TÊTE ======================== */}
         <div className="sb-logobox">
-          <button
-            type="button"
-            className="sb-collapse"
-            title={mobile ? t.closeMenu : reduit ? t.expand : t.collapse}
-            aria-label={mobile ? t.closeMenu : reduit ? t.expand : t.collapse}
-            onClick={mobile ? () => setTiroir(false) : basculerReduit}
-          >
-            {mobile ? <X size={18} /> : reduit ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-          </button>
+          <div className={`sb-tete ${reduit ? "vertical" : ""}`}>
+            <button
+              type="button"
+              className="sb-collapse"
+              title={mobile ? t.closeMenu : reduit ? t.expand : t.collapse}
+              aria-label={mobile ? t.closeMenu : reduit ? t.expand : t.collapse}
+              onClick={mobile ? () => setTiroir(false) : basculerReduit}
+            >
+              {mobile ? <X size={18} /> : reduit ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+            </button>
+            {!mobile && cloche("sb-cloche")}
+          </div>
 
           <div className="sb-logo">
             <img
@@ -562,7 +654,7 @@ export default function Sidebar() {
           {entrees.map((e) => rendre(e, 0))}
         </nav>
 
-        {/* ======================== QUITTER ===================== */}
+        {/* ======================== PIED ======================== */}
         <div className="sb-pied">
           <div style={{ marginBottom: 8 }}>
             <ThemeToggle compact={reduit} />
@@ -578,43 +670,67 @@ export default function Sidebar() {
             {!reduit && <span className="sb-label">{t.quit}</span>}
           </button>
         </div>
+
+        {/* ======================== POIGNÉE DE REDIMENSIONNEMENT ======================== */}
+        {!mobile && (
+          <div
+            className="sb-poignee"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t.resize}
+            aria-valuemin={W_REDUIT}
+            aria-valuemax={W_MAX}
+            aria-valuenow={largeur}
+            tabIndex={0}
+            onPointerDown={demarrerGlisse}
+            onDoubleClick={() => appliquerLargeur(W_DEFAUT)}
+            onKeyDown={toucheRedim}
+          />
+        )}
       </aside>
     </>
   );
 }
 
 /* =====================================================================
-   STYLES (feuille de style locale : les media queries sont impossibles en inline)
+   STYLES
    ===================================================================== */
 
 const CSS = `
 .sb{
-  width:240px;flex:0 0 auto;height:100vh;height:100dvh;padding:14px;display:flex;flex-direction:column;
+  position:relative;flex:0 0 auto;height:100vh;height:100dvh;padding:14px;display:flex;flex-direction:column;
   background:transparent;border-right:1px solid var(--border-soft);color:var(--text);overflow:hidden;
-  box-sizing:border-box;transition:width .25s ease;font-family:inherit;
+  box-sizing:border-box;transition:width .25s ease;font-family:inherit;min-width:0;
 }
+.sb.glisse{transition:none}
 .sb *{box-sizing:border-box}
-.sb.reduit{width:78px}
 .sb button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
 
-/* ---- Logo ---- */
+/* ---- En-tête : coulisse + cloche ---- */
 .sb-logobox{margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--border-soft)}
-.sb-collapse{width:36px;height:36px;border-radius:10px;display:flex !important;align-items:center;justify-content:center;
-  background:var(--surface) !important;border:1px solid var(--border) !important;margin-bottom:10px;
-  transition:background .15s}
-.sb-collapse:hover{background:var(--surface-2) !important}
+.sb-tete{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sb-tete.vertical{flex-direction:column}
+.sb-collapse{width:36px;height:36px;flex:none;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  background:var(--surface);border:1px solid var(--border);transition:background .15s}
+.sb-collapse:hover{background:var(--surface-2)}
 .sb-logo{font-size:20px;font-weight:800;letter-spacing:1px;color:var(--text)}
-.sb-logo.petit{font-size:14px;letter-spacing:.5px}
-.sb-subtitle{font-size:11px;margin-top:6px;color:var(--text-3);line-height:1.4}
+
+/* ---- Cloche d'alerte feux ---- */
+.sb-cloche,.sb-cloche-mobile{position:relative;width:36px;height:36px;flex:none;border-radius:10px;display:flex;align-items:center;
+  justify-content:center;border:1px solid #dc2626;color:#dc2626;background:rgba(239,68,68,.12);
+  animation:fxPulse 1.8s ease-in-out infinite;transition:background .15s}
+.sb-cloche:hover,.sb-cloche-mobile:hover{background:rgba(239,68,68,.22)}
+.sb-cloche:focus-visible,.sb-cloche-mobile:focus-visible,.sb-collapse:focus-visible,.sb-item:focus-visible,
+.sb-quitter:focus-visible,.sb-burger:focus-visible,.sb-poignee:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.sb-badge{position:absolute;top:-6px;right:-6px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:#dc2626;
+  color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;line-height:1}
 
 /* ---- Liste des pages ---- */
 .sb-nav{flex:1;min-height:0;overflow-y:auto;padding:0 4px 6px 6px;display:flex;flex-direction:column;gap:3px;
   overscroll-behavior:contain}
-.sb-item{display:flex;align-items:center;gap:10px;width:100%;min-height:40px;padding:9px 10px;border-radius:10px;
+.sb-item{position:relative;display:flex;align-items:center;gap:10px;width:100%;min-height:40px;padding:9px 10px;border-radius:10px;
   font-size:13px;font-weight:600;color:var(--text-2);transition:background .15s,color .15s}
 .sb-item:hover{background:var(--hover)}
-.sb-item:focus-visible,.sb-collapse:focus-visible,.sb-quitter:focus-visible,.sb-burger:focus-visible{
-  outline:2px solid var(--accent);outline-offset:-2px}
 .sb-item.actif{color:var(--accent);background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
 .sb-item.parent{color:var(--accent)}
 .sb-label{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -630,16 +746,25 @@ const CSS = `
 
 /* ---- Bas du menu ---- */
 .sb-pied{padding-top:10px;margin-top:6px;border-top:1px solid var(--border-soft)}
-.sb-quitter{display:flex !important;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:10px;
-  border:1px solid rgba(220,38,38,.28) !important;color:var(--danger) !important;font-size:13px;font-weight:600;
-  background:transparent !important;transition:background .15s}
-.sb-quitter:hover{background:var(--danger-soft) !important}
+.sb-quitter{display:flex;align-items:center;gap:10px;width:100%;padding:11px 12px;border-radius:10px;
+  border:1px solid rgba(220,38,38,.28);color:var(--danger);font-size:13px;font-weight:600;
+  background:transparent;transition:background .15s}
+.sb-quitter:hover{background:var(--danger-soft)}
 .sb.reduit .sb-quitter{justify-content:center;padding:11px 0}
 
-/* ---- Téléphone : menu en tiroir ---- */
+/* ---- Poignée de redimensionnement (bureau et tablette) ---- */
+.sb-poignee{position:absolute;top:0;right:0;bottom:0;width:8px;cursor:col-resize;z-index:5;touch-action:none}
+.sb-poignee::after{content:"";position:absolute;top:50%;left:3px;width:2px;height:56px;transform:translateY(-50%);
+  border-radius:2px;background:var(--border);opacity:0;transition:opacity .15s,background .15s}
+.sb-poignee:hover::after,.sb-poignee:focus-visible::after,.sb.glisse .sb-poignee::after{opacity:1;background:var(--accent)}
+
+/* ---- Téléphone : tiroir + boutons flottants ---- */
 .sb-burger{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:10px;z-index:1500;width:42px;height:42px;
   border-radius:12px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;
   display:grid;place-items:center;box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.sb-cloche-mobile{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:62px;z-index:1500;width:42px;height:42px;
+  box-shadow:0 2px 10px rgba(0,0,0,.15)}
+.sb-cloche-mobile .sb-badge{top:-5px;right:-5px}
 .sb-voile{position:fixed;inset:0;z-index:1999;background:var(--overlay);animation:sbFondu .2s ease}
 .sb.mobile{position:fixed;top:0;left:0;bottom:0;z-index:2000;width:min(300px,86vw);background:var(--surface);
   padding-top:calc(14px + env(safe-area-inset-top,0px));padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));
@@ -651,10 +776,12 @@ const CSS = `
 @media (pointer:coarse){
   .sb-item{min-height:44px}
   .sb-item.niveau1:not(.sb-groupe),.sb-item.niveau2{min-height:42px}
+  .sb-poignee{width:16px}
 }
 
 @keyframes sbFondu{from{opacity:0}to{opacity:1}}
+@keyframes fxPulse{50%{box-shadow:0 0 0 6px rgba(239,68,68,.22)}}
 @media (prefers-reduced-motion:reduce){
-  .sb,.sb *,.sb-voile{transition:none !important;animation:none !important}
+  .sb,.sb *,.sb-voile,.sb-cloche,.sb-cloche-mobile{transition:none !important;animation:none !important}
 }
 `;
