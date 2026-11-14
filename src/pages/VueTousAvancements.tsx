@@ -28,7 +28,7 @@ const L: Record<string, any> = {
     year: "ANNÉE", month: "MOIS", analysis: "ANALYSE DES RÉSULTATS", noData: "Aucune donnée pour cette période.",
     ref: "Moyenne (Tous)", components: "Composantes", axesWeak: "Axes les plus faibles",
     late: "En retard", critical: "Retard important", avg: "Dans la moyenne", ahead: "En avance", global: "Global",
-    weakUc: "UC la plus faible", bestUc: "UC la plus avancée", close: "Fermer", clickHint: "Cliquer pour voir l'analyse",
+    weakUc: "UC la plus en retard", bestUc: "UC la plus avancée", close: "Fermer", clickHint: "Cliquer pour voir l'analyse",
     gapTxt: "écart de {gap} pt",
     s_tous: "Au niveau global ({taux}), la composante la plus en retard est {comp} ({cp}). L'axe le plus faible est « {axis} » ({ap}).",
     s_critical: "{uc} est en retard important ({taux}, moyenne {ref}), principalement à cause de la composante {comp} ({cp}). L'axe le plus faible est « {axis} » ({ap}).",
@@ -41,7 +41,7 @@ const L: Record<string, any> = {
     year: "YEAR", month: "MONTH", analysis: "RESULTS ANALYSIS", noData: "No data for this period.",
     ref: "Average (All)", components: "Components", axesWeak: "Weakest axes",
     late: "Behind", critical: "Seriously behind", avg: "On average", ahead: "Ahead", global: "Overall",
-    weakUc: "Weakest unit", bestUc: "Most advanced unit", close: "Close", clickHint: "Click to see the analysis",
+    weakUc: "Most delayed unit", bestUc: "Most advanced unit", close: "Close", clickHint: "Click to see the analysis",
     gapTxt: "{gap} pt gap",
     s_tous: "Overall ({taux}), the component furthest behind is {comp} ({cp}). The weakest axis is “{axis}” ({ap}).",
     s_critical: "{uc} is seriously behind ({taux}, average {ref}), mainly because of component {comp} ({cp}). The weakest axis is “{axis}” ({ap}).",
@@ -54,7 +54,7 @@ const L: Record<string, any> = {
     year: "JAHR", month: "MONAT", analysis: "ERGEBNISANALYSE", noData: "Keine Daten für diesen Zeitraum.",
     ref: "Durchschnitt (Alle)", components: "Komponenten", axesWeak: "Schwächste Achsen",
     late: "Im Rückstand", critical: "Stark im Rückstand", avg: "Im Durchschnitt", ahead: "Voraus", global: "Gesamt",
-    weakUc: "Schwächste Einheit", bestUc: "Am weitesten fortgeschrittene Einheit", close: "Schließen", clickHint: "Klicken, um die Analyse zu sehen",
+    weakUc: "Am weitesten zurückliegende Einheit", bestUc: "Am weitesten fortgeschrittene Einheit", close: "Schließen", clickHint: "Klicken, um die Analyse zu sehen",
     gapTxt: "{gap} Pkt. Abstand",
     s_tous: "Insgesamt ({taux}) liegt die Komponente {comp} am weitesten zurück ({cp}). Schwächste Achse: „{axis}“ ({ap}).",
     s_critical: "{uc} liegt stark im Rückstand ({taux}, Durchschnitt {ref}), hauptsächlich wegen der Komponente {comp} ({cp}). Schwächste Achse: „{axis}“ ({ap}).",
@@ -67,7 +67,7 @@ const L: Record<string, any> = {
     year: "TAONA", month: "VOLANA", analysis: "FAMPIASANA NY ZAVATRA VITA", noData: "Tsy misy angon-drakitra amin'ity vanim-potoana ity.",
     ref: "Salan'isa (Rehetra)", components: "Singa", axesWeak: "Laharana malemy indrindra",
     late: "Tara", critical: "Tara be", avg: "Salan'isa", ahead: "Mialoha", global: "Ankapobeny",
-    weakUc: "UC malemy indrindra", bestUc: "UC mandroso indrindra", close: "Hidio", clickHint: "Tsindrio hijerena ny fampiasana",
+    weakUc: "UC tara indrindra", bestUc: "UC mandroso indrindra", close: "Hidio", clickHint: "Tsindrio hijerena ny fampiasana",
     gapTxt: "elanelana {gap} pt",
     s_tous: "Amin'ny ankapobeny ({taux}), ny singa tara indrindra dia {comp} ({cp}). Ny laharana malemy indrindra dia « {axis} » ({ap}).",
     s_critical: "Tara be ny {uc} ({taux}, salan'isa {ref}), indrindra noho ny singa {comp} ({cp}). Ny laharana malemy indrindra dia « {axis} » ({ap}).",
@@ -157,11 +157,16 @@ const CSS = `
 .vt-chipc{display:flex;flex-direction:column;align-items:center;gap:2px;padding:5px 4px;border-radius:10px;background:var(--surface,#fff);border:2px solid transparent;font-size:10px;color:var(--text-3,#64748b);font-weight:700}
 .vt-chipc b{font-size:12px;font-weight:900}
 .vt-chipc.weak{border-color:#ef4444}
-.vt-axl{display:flex;flex-direction:column;gap:4px}
-.vt-axi{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text,#0f172a)}
+
+/* liste des axes les plus faibles : responsive (retour à la ligne + % toujours visible) */
+.vt-axl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.vt-axi{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:12px;color:var(--text,#0f172a);min-width:0}
+.vt-axi span{min-width:0;overflow-wrap:anywhere}
+.vt-axi b{flex-shrink:0;white-space:nowrap}
+
 .vt-axinline{font-size:12px;line-height:1.6;color:var(--text,#0f172a)}
 .vt-axinline .sep{color:var(--text-3,#64748b);margin:0 6px}
-.vt-axinline .it{white-space:nowrap}
+.vt-axinline .it{display:inline-block;max-width:100%;overflow-wrap:anywhere}
 .vt-an-txt{font-size:12px;line-height:1.5;color:var(--text,#0f172a)}
 
 /* pop-up (rendu dans <body> : valeurs de repli pour les variables) */
@@ -250,7 +255,7 @@ function CarteGlobale({ uc, row, t, fmtPct, ringSize, ringFont, ringThick, compa
   );
 }
 
-/* Bloc d'analyse (en bas de page avec inline, et dans le pop-up sans inline) */
+/* Bloc d'analyse (en bas de page et dans le pop-up) */
 function AnalyseBloc({ a, refTaux, tx, fmtPct, t, inline }: any) {
   const isTous = a.kind === "tous";
   const b =
@@ -275,7 +280,7 @@ function AnalyseBloc({ a, refTaux, tx, fmtPct, t, inline }: any) {
         <div className="vt-an-meta" style={{ marginTop: 6 }}>
           <span><b style={{ color: getProgressColor(a.taux) }}>{fmtPct(a.taux)}</b></span>
           {!isTous && (
-            <span>{tx.ref} : {fmtPct(refTaux)} · {fill(tx.gapTxt, { gap: `${a.ecart > 0 ? "+" : ""}${a.ecart.toFixed(1)}` })}</span>
+            <span>{fill(tx.gapTxt, { gap: `${a.ecart > 0 ? "+" : ""}${a.ecart.toFixed(1)}` })}</span>
           )}
         </div>
       </div>
@@ -380,7 +385,7 @@ export default function VueTousAvancements({ data, annee: anneeInit, mois: moisI
     return map;
   }, [ucs, data, annee, moisValide, rowTous, refTaux, t, tx, fmtPct]);
 
-  /* UC la plus faible / la plus avancée */
+  /* UC la plus en retard / la plus avancée */
   const classees = useMemo(
     () => ucs.map((u) => analyseMap[u]).filter(Boolean).sort((a: any, b: any) => a.taux - b.taux),
     [ucs, analyseMap]
@@ -437,21 +442,21 @@ export default function VueTousAvancements({ data, annee: anneeInit, mois: moisI
           </div>
         </div>
 
-        {/* ===== 2 analyses : la plus faible et la plus avancée ===== */}
+        {/* ===== 2 analyses : la plus en retard et la plus avancée ===== */}
         <div className="vt-card">
           <div className="vt-ch">{tx.analysis} · {annee} · {moisValide === "Tous" ? t.all : (t.months[moisValide] || moisValide)}</div>
           {!plusFaible ? (
             <div className="vt-an-txt">{tx.noData}</div>
           ) : (
             <div className="vt-an-list">
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
                 <span className="vt-an-tag" style={{ color: "#ef4444" }}>{tx.weakUc}</span>
-                <AnalyseBloc a={plusFaible} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} inline />
+                <AnalyseBloc a={plusFaible} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} />
               </div>
               {plusAvancee && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
                   <span className="vt-an-tag" style={{ color: "#2563eb" }}>{tx.bestUc}</span>
-                  <AnalyseBloc a={plusAvancee} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} inline />
+                  <AnalyseBloc a={plusAvancee} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} />
                 </div>
               )}
             </div>
