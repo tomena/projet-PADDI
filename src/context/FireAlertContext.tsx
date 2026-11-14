@@ -8,21 +8,25 @@ const alertTxt: Record<string, Record<string, string>> = {
     title: "Alerte feux", sub: "Feux actifs détectés depuis moins de 24 h", inAp: "dans l'AP", perShort: "périphérie 5 km",
     last: "dernière détection il y a", view: "Voir sur la carte", close: "Fermer", unit: "feux",
     communes: "Communes concernées", noCommune: "Commune non identifiée", noAlert: "Aucun feu actif détecté ces dernières 24 h.",
+    showCommunes: "Voir les communes", hideCommunes: "Masquer les communes",
   },
   en: {
     title: "Fire alert", sub: "Active fires detected less than 24 h ago", inAp: "inside the PA", perShort: "5 km periphery",
     last: "last detection", view: "View on map", close: "Close", unit: "fires",
     communes: "Affected communes", noCommune: "Commune not identified", noAlert: "No active fire detected in the last 24 h.",
+    showCommunes: "Show communes", hideCommunes: "Hide communes",
   },
   mg: {
     title: "Fampitandremana doro", sub: "Misy doro mavitrika hita tao anatin'ny 24 ora latsaka", inAp: "ao anatin'ny AP", perShort: "manodidina 5 km",
     last: "fanamarihana farany", view: "Jereo amin'ny sarintany", close: "Hidio", unit: "doro",
     communes: "Kaominina voakasika", noCommune: "Kaominina tsy voamarina", noAlert: "Tsy misy doro mavitrika tao anatin'ny 24 ora latsaka.",
+    showCommunes: "Jereo ny kaominina", hideCommunes: "Afeno ny kaominina",
   },
   de: {
     title: "Brandalarm", sub: "Aktive Brände wurden vor weniger als 24 h erkannt", inAp: "im Schutzgebiet", perShort: "5-km-Umfeld",
     last: "letzte Erkennung vor", view: "Auf der Karte zeigen", close: "Schließen", unit: "Brände",
     communes: "Betroffene Gemeinden", noCommune: "Gemeinde nicht zugeordnet", noAlert: "Keine aktiven Brände in den letzten 24 h.",
+    showCommunes: "Gemeinden anzeigen", hideCommunes: "Gemeinden ausblenden",
   },
 };
 
@@ -64,15 +68,18 @@ const CSS_ALERTE = `
 .fx-al-t{display:flex;flex-direction:column;gap:2px;min-width:0;font-size:12.5px}
 .fx-al-t strong{font-size:14px}
 .fx-al-t small{color:var(--text-3)}
+.fx-al-acts{display:flex;align-items:center;gap:6px;flex:none}
 .fx-al-cl{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px dashed var(--border);display:flex;flex-direction:column;gap:5px}
 .fx-al-cl li{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:0;background:none;border:0;font-size:12.5px}
 .fx-al-cl small{color:var(--text-3);font-size:11px;white-space:nowrap}
 .fx-al-cl b{color:#dc2626;white-space:nowrap}
 .fx-al-go{flex:none;padding:7px 12px;border:0;border-radius:8px;background:#0b4ea2;color:#fff;font-weight:700;font-size:12px;cursor:pointer}
 .fx-al-go.sec{background:var(--surface-3);color:var(--text);border:1px solid var(--border)}
+.fx-al-tog{flex:none;width:30px;height:30px;display:grid;place-items:center;border-radius:8px;border:1px solid var(--border);background:var(--surface-3);color:var(--text);font-weight:800;font-size:14px;cursor:pointer}
 .fx-al-f{display:flex;justify-content:flex-end;gap:8px;padding:10px 16px 14px}
 .fx-al-vide{padding:14px 4px;font-size:13px;color:var(--text-2);text-align:center}
-@media(max-width:480px){.fx-al-row{flex-direction:column;align-items:stretch}}
+.fx-al-sub{margin-top:8px;font-size:11px;font-weight:700;color:var(--text-2)}
+@media(max-width:480px){.fx-al-row{flex-direction:column;align-items:stretch}.fx-al-acts{justify-content:flex-end}}
 `;
 
 export function FireAlertProvider({ children }: { children: ReactNode }) {
@@ -170,9 +177,12 @@ export function FireAlertProvider({ children }: { children: ReactNode }) {
 
   const nbAlertes = alertes.reduce((s, a) => s + a.ids.length, 0);
 
-  // Feux déjà vus : conservés dans le contexte, donc pas de pop-up répété à chaque page
+  // Feux déjà vus : gardés dans le contexte, donc pas de pop-up répété à chaque page
   const vus = useRef<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
+  // AP dont la liste des communes est dépliée (repliée par défaut)
+  const [depliees, setDepliees] = useState<Record<string, boolean>>({});
+  const basculer = (ap: string) => setDepliees((d) => ({ ...d, [ap]: !d[ap] }));
 
   useEffect(() => {
     if (alertes.some((a) => a.ids.some((id) => !vus.current.has(id)))) setOpen(true);
@@ -232,53 +242,72 @@ export function FireAlertProvider({ children }: { children: ReactNode }) {
               <div className="fx-al-vide">{t.noAlert}</div>
             ) : (
               <ul className="fx-al-l">
-                {alertes.map((a) => (
-                  <li key={a.ap}>
-                    <div className="fx-al-row">
-                      <div className="fx-al-t">
-                        <strong>{a.ap}</strong>
-                        <span>
-                          {a.dedans > 0 && (
-                            <b style={{ color: "#dc2626" }}>
-                              {a.dedans} {t.unit} {t.inAp}
-                            </b>
-                          )}
-                          {a.dedans > 0 && a.peri > 0 && " · "}
-                          {a.peri > 0 && (
-                            <>
-                              {a.peri} {t.unit} {t.perShort}
-                            </>
-                          )}
-                        </span>
-                        <small>
-                          {t.last} {agoTxt(a.recent)}
-                        </small>
-                      </div>
-                      <button type="button" className="fx-al-go" onClick={() => voir(a.ap)}>
-                        {t.view}
-                      </button>
-                    </div>
-
-                    <div style={{ marginTop: 8, fontSize: 11, fontWeight: 700, color: "var(--text-2)" }}>{t.communes}</div>
-                    <ul className="fx-al-cl">
-                      {a.communes.map((c) => (
-                        <li key={c.commune || "?"}>
-                          <span>{c.commune || t.noCommune}</span>
+                {alertes.map((a) => {
+                  const ouvert = !!depliees[a.ap];
+                  return (
+                    <li key={a.ap}>
+                      <div className="fx-al-row">
+                        <div className="fx-al-t">
+                          <strong>{a.ap}</strong>
                           <span>
-                            <b>
-                              {c.total} {t.unit}
-                            </b>{" "}
-                            <small>
-                              ({c.dedans > 0 && `${c.dedans} ${t.inAp}`}
-                              {c.dedans > 0 && c.peri > 0 && " · "}
-                              {c.peri > 0 && `${c.peri} ${t.perShort}`})
-                            </small>
+                            {a.dedans > 0 && (
+                              <b style={{ color: "#dc2626" }}>
+                                {a.dedans} {t.unit} {t.inAp}
+                              </b>
+                            )}
+                            {a.dedans > 0 && a.peri > 0 && " · "}
+                            {a.peri > 0 && (
+                              <>
+                                {a.peri} {t.unit} {t.perShort}
+                              </>
+                            )}
                           </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </li>
-                ))}
+                          <small>
+                            {t.last} {agoTxt(a.recent)}
+                          </small>
+                        </div>
+                        <div className="fx-al-acts">
+                          <button type="button" className="fx-al-go" onClick={() => voir(a.ap)}>
+                            {t.view}
+                          </button>
+                          <button
+                            type="button"
+                            className="fx-al-tog"
+                            onClick={() => basculer(a.ap)}
+                            aria-expanded={ouvert}
+                            title={ouvert ? t.hideCommunes : t.showCommunes}
+                            aria-label={ouvert ? t.hideCommunes : t.showCommunes}
+                          >
+                            {ouvert ? "⌄" : ">"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {ouvert && (
+                        <>
+                          <div className="fx-al-sub">{t.communes}</div>
+                          <ul className="fx-al-cl">
+                            {a.communes.map((c) => (
+                              <li key={c.commune || "?"}>
+                                <span>{c.commune || t.noCommune}</span>
+                                <span>
+                                  <b>
+                                    {c.total} {t.unit}
+                                  </b>{" "}
+                                  <small>
+                                    ({c.dedans > 0 && `${c.dedans} ${t.inAp}`}
+                                    {c.dedans > 0 && c.peri > 0 && " · "}
+                                    {c.peri > 0 && `${c.peri} ${t.perShort}`})
+                                  </small>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
 
