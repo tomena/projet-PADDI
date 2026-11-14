@@ -37,6 +37,7 @@ const FONDS = {
 };
 const MADA: L.LatLngBoundsExpression = [[-25.9, 43.0], [-11.8, 50.7]];
 const LAURITE = "#ff7a3d", CYAN = "#22d3ee", COULEUR_PERTE = "#dc6c9a";
+const ORANGE_WC = "#f97316", ORANGE_WC_TXT = "#ea580c";
 
 const ESRI = "https://ic.imagery1.arcgis.com/arcgis/rest/services/Sentinel2_10m_LandCover/ImageServer/exportImage";
 type Box = { minLon: number; minLat: number; maxLon: number; maxLat: number };
@@ -600,9 +601,6 @@ export default function AnalyseTerritoriale() {
   const [showLoss, setShowLoss] = useState(true), [dfFrom, setDfFrom] = useState(2015), [dfTo, setDfTo] = useState(LOSS_LAST);
   const [showFires, setShowFires] = useState(true), [fPeriod, setFPeriod] = useState<24 | 48 | 72>(72), [conf, setConf] = useState<"l" | "n" | "h">("l");
   const [mask, setMask] = useState(true);
-  const [showRoutes, setShowRoutes] = useState(false), [showRiv, setShowRiv] = useState(false);
-  const [osm, setOsm] = useState<{ routes: any; rivieres: any }>({ routes: null, rivieres: null });
-  const osmLayer = useRef<L.LayerGroup | null>(null);
   const [show, setShow] = useState(false);
   const [themeF, setThemeF] = useState<"Toutes" | Thematique>("Toutes");
   const [loadErr, setLoadErr] = useState("");
@@ -718,24 +716,6 @@ export default function AnalyseTerritoriale() {
   useEffect(() => { if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message)); }, [rF, adm2]);
   useEffect(() => { if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message)); }, [dF, adm3]);
   useEffect(() => { setShow(false); }, [selected]);
-
-  /* ----- OSM : routes et rivières (zones de taille raisonnable seulement) ----- */
-  useEffect(() => {
-    setOsm({ routes: null, rivieres: null });
-    if (!selected || (!showRoutes && !showRiv) || areaKm2(selected) > 2000) return;
-    const b = bbox(selected);
-    const c = new AbortController();
-    const charge = (couche: string) =>
-      fetch("/api/osm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ couche, bbox: b }),
-        signal: c.signal,
-      }).then((r) => r.json()).then((j) => (j.features ? j : null)).catch(() => null);
-    if (showRoutes) charge("routes").then((r) => !c.signal.aborted && setOsm((o) => ({ ...o, routes: r })));
-    if (showRiv) charge("rivieres").then((r) => !c.signal.aborted && setOsm((o) => ({ ...o, rivieres: r })));
-    return () => c.abort();
-  }, [selected, showRoutes, showRiv]);
 
   /* ----- fenêtre des orientations : Échap, piège du focus, blocage du défilement ----- */
   useEffect(() => {
@@ -868,19 +848,6 @@ export default function AnalyseTerritoriale() {
     };
   }, [drawing]);
 
-  /* ----- OSM : dessin sur la carte ----- */
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    osmLayer.current?.remove();
-    const g = L.layerGroup();
-    if (showRoutes && osm.routes) L.geoJSON(osm.routes, { pane: "vec", interactive: false, style: { color: "#ffd166", weight: 1.5, opacity: 0.9 } }).addTo(g);
-    if (showRiv && osm.rivieres) L.geoJSON(osm.rivieres, { pane: "vec", interactive: false, style: { color: "#38bdf8", weight: 2, opacity: 0.9 } }).addTo(g);
-    g.addTo(m);
-    osmLayer.current = g;
-    return () => { g.remove(); };
-  }, [osm, showRoutes, showRiv]);
-
   /* ----- affichage ----- */
   const levels = [{ f: rF, s: rRes }, { f: dF, s: dRes }, { f: cF, s: cRes }, { f: parcel, s: pRes }];
   const periodeTxt = dfFrom === dfTo ? String(dfFrom) : `${dfFrom} à ${dfTo}`;
@@ -990,8 +957,8 @@ export default function AnalyseTerritoriale() {
                             </tr>
                           ))}
                           {res.cultWC != null && (
-                            <tr>
-                              <td><i style={{ background: "#7a3db8" }} />Cultures (WorldCover 2021)</td>
+                            <tr style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>
+                              <td><i style={{ background: ORANGE_WC }} />Cultures (WorldCover 2021)</td>
                               <td>{res.cultWC < 0.1 ? "< 0,1" : nf(res.cultWC, 1)} %</td>
                               <td>{nf((res.cultWC / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
                             </tr>
@@ -1001,7 +968,7 @@ export default function AnalyseTerritoriale() {
                       {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
                       <p className="at-note">
                         Cultures : Impact Observatory {nf(res.cropPct, 1)} % · {res.cultWC != null
-                          ? <>WorldCover 2021 {nf(res.cultWC, 1)} %</>
+                          ? <span style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>WorldCover 2021 {nf(res.cultWC, 1)} %</span>
                           : <>WorldCover indisponible{res.cultErr ? ` (${res.cultErr})` : ""}</>}
                       </p>
                     </>
@@ -1121,8 +1088,6 @@ export default function AnalyseTerritoriale() {
               <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />Déforestation</label>
               <label className="at-chk"><input type="checkbox" checked={showFires} onChange={(e) => setShowFires(e.target.checked)} />Points de feux</label>
               <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />Estomper l’extérieur</label>
-              <label className="at-chk"><input type="checkbox" checked={showRoutes} onChange={(e) => setShowRoutes(e.target.checked)} />Routes (OSM)</label>
-              <label className="at-chk"><input type="checkbox" checked={showRiv} onChange={(e) => setShowRiv(e.target.checked)} />Rivières (OSM)</label>
             </div>
             <div className="at-mtools">
               {!drawing ? (
