@@ -25,6 +25,7 @@ import MesureRegionale from "./pages/MesureRegionale";
 import ZonesBrulees from "./pages/ZonesBrulees";
 import Bibliotheque from "./pages/Bibliotheque";
 import AnalyseTerritoriale from "./pages/AnalyseTerritoriale";
+import { FireAlertProvider } from "./context/FireAlertContext";
 
 import EconomieDiagnostic from "./pages/EconomieDiagnostic";
 import EconomieSimulateur from "./pages/EconomieSimulateur";
@@ -45,7 +46,14 @@ export default function App() {
       <Route path="/" element={<Home />} />
 
       {/* ================= ESPACE PADDI ================= */}
-      <Route path="/dashboard" element={<DashboardLayout />}>
+      <Route
+        path="/dashboard"
+        element={
+          <FireAlertProvider>
+            <DashboardLayout />
+          </FireAlertProvider>
+        }
+      >
       
         {/* Tableau de bord */}
         <Route index element={<Dashboard data={data} />} />
