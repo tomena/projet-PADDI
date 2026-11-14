@@ -31,10 +31,10 @@ const L: Record<string, any> = {
     weakUc: "UC la plus en retard", bestUc: "UC la plus avancée", close: "Fermer", clickHint: "Cliquer pour voir l'analyse",
     gapTxt: "écart de {gap} pt",
     s_tous: "Au niveau global ({taux}), la composante la plus en retard est {comp} ({cp}). L'axe le plus faible est « {axis} » ({ap}).",
-    s_critical: "{uc} est en retard important ({taux}, moyenne {ref}), principalement à cause de la composante {comp} ({cp}). L'axe le plus faible est « {axis} » ({ap}).",
-    s_late: "{uc} est en retard ({taux}, moyenne {ref}), principalement à cause de la composante {comp} ({cp}). L'axe le plus faible est « {axis} » ({ap}).",
-    s_avg: "{uc} suit la moyenne ({taux}, moyenne {ref}). Point à surveiller : {comp} ({cp}), axe « {axis} » ({ap}).",
-    s_ahead: "{uc} est en avance ({taux}, moyenne {ref}). Son point le plus faible reste {comp} ({cp}).",
+    s_critical: "{uc} est en retard important ({taux}), principalement à cause de la composante {comp} ({cp}). L'axe le plus faible est « {axis} » ({ap}).",
+    s_late: "{uc} est en retard ({taux}), principalement à cause de la composante {comp} ({cp}). L'axe le plus faible est « {axis} » ({ap}).",
+    s_avg: "{uc} suit la moyenne ({taux}). Point à surveiller : {comp} ({cp}), axe « {axis} » ({ap}).",
+    s_ahead: "{uc} est en avance ({taux}). Son point le plus faible reste {comp} ({cp}).",
   },
   en: {
     pageTitle: "Progress overview",
@@ -44,10 +44,10 @@ const L: Record<string, any> = {
     weakUc: "Most delayed unit", bestUc: "Most advanced unit", close: "Close", clickHint: "Click to see the analysis",
     gapTxt: "{gap} pt gap",
     s_tous: "Overall ({taux}), the component furthest behind is {comp} ({cp}). The weakest axis is “{axis}” ({ap}).",
-    s_critical: "{uc} is seriously behind ({taux}, average {ref}), mainly because of component {comp} ({cp}). The weakest axis is “{axis}” ({ap}).",
-    s_late: "{uc} is behind ({taux}, average {ref}), mainly because of component {comp} ({cp}). The weakest axis is “{axis}” ({ap}).",
-    s_avg: "{uc} is in line with the average ({taux}, average {ref}). To watch: {comp} ({cp}), axis “{axis}” ({ap}).",
-    s_ahead: "{uc} is ahead ({taux}, average {ref}). Its weakest point remains {comp} ({cp}).",
+    s_critical: "{uc} is seriously behind ({taux}), mainly because of component {comp} ({cp}). The weakest axis is “{axis}” ({ap}).",
+    s_late: "{uc} is behind ({taux}), mainly because of component {comp} ({cp}). The weakest axis is “{axis}” ({ap}).",
+    s_avg: "{uc} is in line with the average ({taux}). To watch: {comp} ({cp}), axis “{axis}” ({ap}).",
+    s_ahead: "{uc} is ahead ({taux}). Its weakest point remains {comp} ({cp}).",
   },
   de: {
     pageTitle: "Fortschrittsübersicht",
@@ -57,10 +57,10 @@ const L: Record<string, any> = {
     weakUc: "Am weitesten zurückliegende Einheit", bestUc: "Am weitesten fortgeschrittene Einheit", close: "Schließen", clickHint: "Klicken, um die Analyse zu sehen",
     gapTxt: "{gap} Pkt. Abstand",
     s_tous: "Insgesamt ({taux}) liegt die Komponente {comp} am weitesten zurück ({cp}). Schwächste Achse: „{axis}“ ({ap}).",
-    s_critical: "{uc} liegt stark im Rückstand ({taux}, Durchschnitt {ref}), hauptsächlich wegen der Komponente {comp} ({cp}). Schwächste Achse: „{axis}“ ({ap}).",
-    s_late: "{uc} liegt im Rückstand ({taux}, Durchschnitt {ref}), hauptsächlich wegen der Komponente {comp} ({cp}). Schwächste Achse: „{axis}“ ({ap}).",
-    s_avg: "{uc} liegt im Durchschnitt ({taux}, Durchschnitt {ref}). Zu beobachten: {comp} ({cp}), Achse „{axis}“ ({ap}).",
-    s_ahead: "{uc} liegt vorn ({taux}, Durchschnitt {ref}). Schwächster Punkt bleibt {comp} ({cp}).",
+    s_critical: "{uc} liegt stark im Rückstand ({taux}), hauptsächlich wegen der Komponente {comp} ({cp}). Schwächste Achse: „{axis}“ ({ap}).",
+    s_late: "{uc} liegt im Rückstand ({taux}), hauptsächlich wegen der Komponente {comp} ({cp}). Schwächste Achse: „{axis}“ ({ap}).",
+    s_avg: "{uc} liegt im Durchschnitt ({taux}). Zu beobachten: {comp} ({cp}), Achse „{axis}“ ({ap}).",
+    s_ahead: "{uc} liegt vorn ({taux}). Schwächster Punkt bleibt {comp} ({cp}).",
   },
   mg: {
     pageTitle: "Topimaso ankapobeny momba ny fandrosoana",
@@ -70,10 +70,10 @@ const L: Record<string, any> = {
     weakUc: "UC tara indrindra", bestUc: "UC mandroso indrindra", close: "Hidio", clickHint: "Tsindrio hijerena ny fampiasana",
     gapTxt: "elanelana {gap} pt",
     s_tous: "Amin'ny ankapobeny ({taux}), ny singa tara indrindra dia {comp} ({cp}). Ny laharana malemy indrindra dia « {axis} » ({ap}).",
-    s_critical: "Tara be ny {uc} ({taux}, salan'isa {ref}), indrindra noho ny singa {comp} ({cp}). Ny laharana malemy indrindra dia « {axis} » ({ap}).",
-    s_late: "Tara ny {uc} ({taux}, salan'isa {ref}), indrindra noho ny singa {comp} ({cp}). Ny laharana malemy indrindra dia « {axis} » ({ap}).",
-    s_avg: "Mitovy amin'ny salan'isa ny {uc} ({taux}, salan'isa {ref}). Tokony harahana: {comp} ({cp}), laharana « {axis} » ({ap}).",
-    s_ahead: "Mialoha ny {uc} ({taux}, salan'isa {ref}). Ny teboka malemy indrindra dia {comp} ({cp}).",
+    s_critical: "Tara be ny {uc} ({taux}), indrindra noho ny singa {comp} ({cp}). Ny laharana malemy indrindra dia « {axis} » ({ap}).",
+    s_late: "Tara ny {uc} ({taux}), indrindra noho ny singa {comp} ({cp}). Ny laharana malemy indrindra dia « {axis} » ({ap}).",
+    s_avg: "Mitovy amin'ny salan'isa ny {uc} ({taux}). Tokony harahana: {comp} ({cp}), laharana « {axis} » ({ap}).",
+    s_ahead: "Mialoha ny {uc} ({taux}). Ny teboka malemy indrindra dia {comp} ({cp}).",
   },
 };
 const fill = (tpl: string, v: Record<string, string>) => tpl.replace(/\{(\w+)\}/g, (_, k) => v[k] ?? "");
@@ -451,12 +451,12 @@ export default function VueTousAvancements({ data, annee: anneeInit, mois: moisI
             <div className="vt-an-list">
               <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
                 <span className="vt-an-tag" style={{ color: "#ef4444" }}>{tx.weakUc}</span>
-                <AnalyseBloc a={plusFaible} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} />
+                <AnalyseBloc a={plusFaible} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} inline />
               </div>
               {plusAvancee && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 0 }}>
                   <span className="vt-an-tag" style={{ color: "#2563eb" }}>{tx.bestUc}</span>
-                  <AnalyseBloc a={plusAvancee} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} />
+                  <AnalyseBloc a={plusAvancee} refTaux={refTaux} tx={tx} fmtPct={fmtPct} t={t} inline />
                 </div>
               )}
             </div>
