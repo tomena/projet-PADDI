@@ -111,6 +111,8 @@ const CSS = `
 .vt-filter:focus-within{outline:2px solid rgba(22,163,74,.45)}
 .vt-filter label{display:block;font-size:10px;font-weight:800;letter-spacing:.5px;color:#16a34a}
 .vt-select{width:100%;border:none;background:transparent;color:var(--text);font-size:14px;font-weight:700;outline:none;cursor:pointer;padding:0}
+/* liste déroulante : suit le thème (clair / sombre) */
+.vt-select option{background:var(--surface,#fff);color:var(--text,#0f172a)}
 
 .vt-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,3fr);gap:12px;align-items:stretch}
 .vt-right{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(2,1fr);grid-auto-rows:1fr;gap:12px}
