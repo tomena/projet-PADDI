@@ -1,11 +1,14 @@
 /**
- * AnalyseTerritoriale.tsx — version 2 (aide à la décision, usage public)
+ * AnalyseTerritoriale.tsx — version 2.1 (aide à la décision, multilingue)
+ *
+ * Langue : lue dans LanguageContext (mg, fr, en, de), comme Home.tsx.
+ * Textes : analyseTexts.ts (même dossier).
  *
  * Principes :
  *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées
  *    et l'analyse est signalée comme partielle.
  *  - Aucune recommandation n'est donnée sur une donnée qui n'a pas pu être obtenue.
- *  - Toutes les sources, dates et limites sont accessibles et exportables.
+ *  - Sources, dates et limites accessibles et exportables.
  *
  * Dépendances : leaflet, @types/leaflet, lucide-react.
  * Routes serveur attendues : POST /api/worldcover, POST /api/gfw-perte, GET /api/firms.
@@ -14,14 +17,17 @@ import { Component, ReactNode, useCallback, useEffect, useMemo, useRef, useState
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ChevronRight, RotateCcw, PenTool, Check, X, Trash2, Download } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+import { TEXTS, ORI, LANGS, LOCALE, fill, type Lang, type Dict, type Lvl, type Theme, type OriKey } from "./analyseTexts";
 
 /* ===================== CONFIGURATION ===================== */
 
-type Level = "ADM1" | "ADM2" | "ADM3";
+type LevelKey = "ADM1" | "ADM2" | "ADM3";
 
-const VERSION = "2.0";
-const DELAI_MS = 20000;            // délai maximum par requête réseau
-const DELAI_FEUX_MAJ_MS = 3 * 3600e3; // au-delà, les feux sont signalés comme périmés
+const VERSION = "2.1";
+const DELAI_MS = 20000;
+const DELAI_FEUX_MAJ_MS = 3 * 3600e3;
+const REV = "9469f09";
 
 const NOM_CLES = ["shapename", "nom_region", "region", "nom_district", "district", "nom_commune", "commune",
   "adm3_fr", "adm2_fr", "adm1_fr", "name_3", "name_2", "name_1", "nom", "name", "libelle"];
@@ -50,60 +56,54 @@ const esriUrl = (b: Box, W: number, H: number, year: number) =>
 const lossUrl = (from: number, to: number) =>
   `https://tiles.globalforestwatch.org/umd_tree_cover_loss/latest/dynamic/{z}/{x}/{y}.png?start_year=${from}&end_year=${to}&tcd=30&render_type=true_color`;
 
-const GH = "wmgeolab/geoBoundaries", REV = "9469f09";
-const sources = (l: Level) => {
+const GH = "wmgeolab/geoBoundaries";
+const sources = (l: LevelKey) => {
   const f = `releaseData/gbOpen/MDG/${l}/geoBoundaries-MDG-${l}_simplified.geojson`;
   return [`https://raw.githubusercontent.com/${GH}/${REV}/${f}`, `https://cdn.jsdelivr.net/gh/${GH}@${REV}/${f}`,
     `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`];
 };
 
-/** Sources affichées dans « Méthode et sources » et incluses dans l'export. */
-const SOURCES_INFO = [
-  { nom: "Limites administratives", source: "geoBoundaries, Madagascar, version " + REV, usage: "Régions, districts, communes", limite: "Limites simplifiées, non cadastrales." },
-  { nom: "Occupation du sol", source: "Esri / Impact Observatory, Sentinel-2 10 m (2017-2024)", usage: "Forêt, cultures, savane, sol nu, bâti, eau", limite: "Classification automatique ; moins fiable sous les nuages et dans les zones hétérogènes." },
-  { nom: "Cultures (second avis)", source: "ESA WorldCover 2021, 10 m", usage: "Part de cultures", limite: "Autre algorithme : les deux estimations peuvent différer." },
-  { nom: "Perte de couvert arboré", source: "Hansen / UMD via Global Forest Watch", usage: "Perte par année", limite: "Seuil de couvert 30 %. La perte inclut incendies, plantations et coupes temporaires : ce n'est pas une déforestation au sens strict." },
-  { nom: "Détections de feux", source: "NASA FIRMS (VIIRS / MODIS)", usage: "Feux des 24 à 72 dernières heures", limite: "Points chauds, pas surfaces brûlées. Fiabilité dépendante du seuil de confiance." },
-  { nom: "Altitude et pente", source: "Open-Meteo (MNT Copernicus 90 m)", usage: "Altitude, pente", limite: "Échantillonnage de 100 points par zone : indicatif." },
-  { nom: "Pluie", source: "Open-Meteo, archive (moyenne annuelle sur " + RAIN_YEARS + " ans)", usage: "Pluviométrie moyenne", limite: "Valeur ponctuelle au centre de la zone." },
+/** Repères de classes : valeurs RGB de référence de l'occupation du sol (indices fixes). */
+const CLASSES_RGB = [
+  [57, 125, 73], [227, 226, 195], [228, 150, 53], [196, 40, 27], [165, 155, 143],
+  [65, 155, 223], [122, 135, 198], [168, 235, 255], [97, 97, 97],
 ];
-
-const CLASSES = [
-  { n: "Couvert arboré", c: [57, 125, 73] },
-  { n: "Savane et parcours", c: [227, 226, 195] },
-  { n: "Cultures", c: [228, 150, 53] },
-  { n: "Bâti", c: [196, 40, 27] },
-  { n: "Sol nu", c: [165, 155, 143] },
-  { n: "Eau", c: [65, 155, 223] },
-  { n: "Végétation inondée, mangrove", c: [122, 135, 198] },
-  { n: "Neige et glace", c: [168, 235, 255] },
-  { n: "Nuages", c: [97, 97, 97] },
-];
-const N_VALID = 8;           // classes 0 à 7 : utilisables ; 8 = nuages
+const N_VALID = 8; // classes 0 à 7 : utilisables ; 8 = nuages
 const NUAGES = 8;
-const rgb = (c: number[]) => `rgb(${c.join(",")})`;
-const SLOPES = [
-  { n: "Plat, moins de 5 %", max: 5, col: "#7fb069" },
-  { n: "Modérée, 5 à 15 %", max: 15, col: "#e6c84f" },
-  { n: "Forte, 15 à 30 %", max: 30, col: "#e08a3c" },
-  { n: "Très forte, plus de 30 %", max: 1e9, col: "#b23a2e" },
-];
+const SLOPES_MAX = [5, 15, 30, 1e9];
+const SLOPES_COL = ["#7fb069", "#e6c84f", "#e08a3c", "#b23a2e"];
 const RANG = { l: 1, n: 2, h: 3 } as const;
 const couleurAge = (age: number) => (age <= 24 ? "rgb(200,15,15)" : age <= 48 ? "#f97316" : "#facc15");
+const rgb = (c: number[]) => `rgb(${c.join(",")})`;
 
 /* ===================== ERREURS ET RÉSEAU ===================== */
 
-/** Erreur d'une source de données, avec un message lisible pour l'utilisateur. */
+/**
+ * Erreur d'une source. `code` est une clé de t.err (ou un message serveur brut),
+ * `vars` les valeurs à insérer. La traduction se fait à l'affichage (errMsg).
+ */
 class ErreurSource extends Error {
-  constructor(message: string) { super(message); this.name = "ErreurSource"; }
+  code: string;
+  vars: Record<string, string | number>;
+  constructor(code: string, vars: Record<string, string | number> = {}) {
+    super(code);
+    this.name = "ErreurSource";
+    this.code = code;
+    this.vars = vars;
+  }
 }
+type Err = ErreurSource | null;
 
+const toErr = (e: unknown): ErreurSource => (e instanceof ErreurSource ? e : new ErreurSource("unknown"));
 const abortError = () => new DOMException("Annulé", "AbortError");
 
-/**
- * fetch avec délai maximum, annulation externe et validation du JSON.
- * Lève une ErreurSource lisible en cas d'échec.
- */
+function errMsg(e: Err | unknown, t: Dict): string {
+  if (!(e instanceof ErreurSource)) return t.err.unknown;
+  const modele = (t.err as Record<string, string>)[e.code] ?? e.code;
+  return fill(modele, e.vars);
+}
+
+/** fetch avec délai maximum, annulation externe et validation du JSON. */
 async function fetchJSON<T>(url: string, signal?: AbortSignal, init: RequestInit = {}): Promise<T> {
   if (signal?.aborted) throw abortError();
   const ctl = new AbortController();
@@ -113,14 +113,14 @@ async function fetchJSON<T>(url: string, signal?: AbortSignal, init: RequestInit
   try {
     const r = await fetch(url, { ...init, signal: ctl.signal });
     const corps = await r.json().catch(() => null);
-    if (!r.ok) throw new ErreurSource(corps?.erreur || corps?.error || `erreur HTTP ${r.status}`);
-    if (corps == null) throw new ErreurSource("réponse illisible");
+    if (!r.ok) throw new ErreurSource(corps?.erreur || corps?.error || "http", corps?.erreur || corps?.error ? {} : { s: r.status });
+    if (corps == null) throw new ErreurSource("reponse");
     return corps as T;
   } catch (e: any) {
     if (signal?.aborted) throw abortError();
     if (e instanceof ErreurSource) throw e;
-    if (e?.name === "AbortError") throw new ErreurSource("délai dépassé");
-    throw new ErreurSource("connexion impossible");
+    if (e?.name === "AbortError") throw new ErreurSource("timeout");
+    throw new ErreurSource("conn");
   } finally {
     clearTimeout(minuteur);
     signal?.removeEventListener("abort", annule);
@@ -178,10 +178,8 @@ const nameOf = (f: Feat) => {
     if (real && lisible(p[real])) return p[real].trim();
   }
   const v = Object.values(p).find(lisible);
-  return v ? v.trim() : "Sans nom";
+  return v ? v.trim() : "—";
 };
-const nf = (n: number, d = 0) => n.toLocaleString("fr-FR", { maximumFractionDigits: d });
-const fmtArea = (km2: number) => (km2 < 10 ? `${nf(km2 * 100, km2 < 0.1 ? 2 : 1)} ha` : `${nf(km2)} km²`);
 
 const veil = (f: Feat) => {
   const monde: L.LatLngTuple[] = [[-89, -179], [-89, 179], [89, 179], [89, -179]];
@@ -212,28 +210,28 @@ function simple(f: Feat) {
   const rings = polys(f)
     .map((p) => rdp(p[0], eps).map(([x, y]) => [+x.toFixed(5), +y.toFixed(5)]))
     .filter((r) => r.length >= 4);
-  if (!rings.length) throw new ErreurSource("géométrie de zone invalide");
+  if (!rings.length) throw new ErreurSource("geom");
   return rings.length === 1 ? { type: "Polygon", coordinates: rings } : { type: "MultiPolygon", coordinates: rings.map((r) => [r]) };
 }
 
 /* ===================== LIMITES ADMINISTRATIVES ===================== */
 
-const CACHE: Partial<Record<Level, Feat[]>> = {};
-const ENCOURS: Partial<Record<Level, Promise<Feat[]>>> = {};
+const CACHE: Partial<Record<LevelKey, Feat[]>> = {};
+const ENCOURS: Partial<Record<LevelKey, Promise<Feat[]>>> = {};
 
-function loadLevel(l: Level): Promise<Feat[]> {
+function loadLevel(l: LevelKey): Promise<Feat[]> {
   if (CACHE[l]) return Promise.resolve(CACHE[l]!);
   if (ENCOURS[l]) return ENCOURS[l]!;
   const essais = sources(l).map(async (u) => {
     const j = await fetchJSON<any>(u);
     const feats: Feat[] = (j?.features ?? []).filter((f: Feat) => f?.geometry && /Polygon/.test(f.geometry.type));
-    if (!feats.length) throw new ErreurSource("fichier vide");
+    if (!feats.length) throw new ErreurSource("fichierVide");
     return feats;
   });
   const p = new Promise<Feat[]>((ok, ko) => {
     let reste = essais.length;
     essais.forEach((e) => e.then((v) => { CACHE[l] = v; ok(v); })
-      .catch(() => { if (--reste === 0) ko(new ErreurSource(`Limites ${l} indisponibles. Vérifiez votre connexion puis rechargez la page.`)); }));
+      .catch(() => { if (--reste === 0) ko(new ErreurSource("limits", { l })); }));
   }).finally(() => { delete ENCOURS[l]; });
   ENCOURS[l] = p;
   return p;
@@ -243,7 +241,7 @@ function loadLevel(l: Level): Promise<Feat[]> {
 
 const RAIN_CACHE = new Map<string, number>();
 
-async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Promise<{ valeur: number | null; err: string | null }> {
+async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Promise<{ valeur: number | null; err: Err }> {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   const hit = RAIN_CACHE.get(key);
   if (hit != null) return { valeur: hit, err: null };
@@ -252,32 +250,32 @@ async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Prom
       `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${RAIN_FIRST}-01-01&end_date=${RAIN_LAST}-12-31&daily=precipitation_sum&timezone=auto`,
       signal);
     const jours = r?.daily?.precipitation_sum;
-    if (!Array.isArray(jours) || !jours.length) throw new ErreurSource("données de pluie absentes");
+    if (!Array.isArray(jours) || !jours.length) throw new ErreurSource("rainAbsent");
     const total = jours.reduce<number>((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
     const val = Math.round(total / RAIN_YEARS);
     RAIN_CACHE.set(key, val);
     return { valeur: val, err: null };
   } catch (e: any) {
     if (signal.aborted) throw e;
-    return { valeur: null, err: e?.message || "pluie indisponible" };
+    return { valeur: null, err: toErr(e) };
   }
 }
 
 /* ===================== CULTURES : SECOND AVIS (WorldCover) ===================== */
 
-async function pctCulturesWC(f: Feat, signal: AbortSignal): Promise<{ pct: number | null; err: string | null }> {
-  if (!WORLDCOVER_ACTIVE) return { pct: null, err: "source désactivée" };
+async function pctCulturesWC(f: Feat, signal: AbortSignal): Promise<{ pct: number | null; err: Err }> {
+  if (!WORLDCOVER_ACTIVE) return { pct: null, err: new ErreurSource("wcDesactive") };
   try {
     const j = await fetchJSON<{ pct?: number }>("/api/worldcover", signal, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ geometry: simple(f) }),
     });
-    if (typeof j.pct !== "number" || !Number.isFinite(j.pct)) throw new ErreurSource("réponse invalide");
+    if (typeof j.pct !== "number" || !Number.isFinite(j.pct)) throw new ErreurSource("wcBad");
     return { pct: j.pct, err: null };
   } catch (e: any) {
     if (signal.aborted) throw e;
-    return { pct: null, err: e?.message || "erreur inconnue" };
+    return { pct: null, err: e instanceof ErreurSource ? e : new ErreurSource("wc") };
   }
 }
 
@@ -291,28 +289,28 @@ function chargerImage(src: string, signal: AbortSignal): Promise<HTMLImageElemen
     const stop = () => { img.src = ""; ko(abortError()); };
     signal.addEventListener("abort", stop, { once: true });
     img.onload = () => { signal.removeEventListener("abort", stop); ok(img); };
-    img.onerror = () => { signal.removeEventListener("abort", stop); ko(new ErreurSource("image satellite indisponible")); };
+    img.onerror = () => { signal.removeEventListener("abort", stop); ko(new ErreurSource("img")); };
     img.src = src;
   });
 }
 
 /* ===================== ANALYSE ===================== */
 
-type Part = { n: string; pct: number; col: string };
+type Part = { k: number; pct: number; col: string };
 type Fiabilite = "bonne" | "moyenne" | "faible";
 type Result = {
   land: Part[];
-  slope: Part[] | null;
+  slope: { k: number; pct: number; col: string }[] | null;
   cloudPct: number;
-  couverture: number;          // % de la zone où la classification est possible
+  couverture: number;
   elevMin: number | null; elevMax: number | null; elevMean: number | null;
   rain: number | null; areaKm2: number;
   cropSteep: number | null; steepPct: number | null;
   treePct: number; cropPct: number; barePct: number; wetPct: number; savPct: number; builtPct: number;
   cultWC: number | null;
   bassin: string | null;
-  resolution: string;
-  statuts: { relief: string | null; pluie: string | null; cultures: string | null };
+  resolution: { small: boolean; pixelM: number; stepKm: number };
+  statuts: { relief: Err; pluie: Err; cultures: Err };
   fiable: Fiabilite;
 };
 
@@ -332,7 +330,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   cx.drawImage(img, 0, 0);
   let px: Uint8ClampedArray;
   try { px = cx.getImageData(0, 0, W, H).data; }
-  catch { throw new ErreurSource("image satellite non lisible (accès refusé par le service)"); }
+  catch { throw new ErreurSource("cors"); }
 
   const mk = document.createElement("canvas"); mk.width = W; mk.height = H;
   const mc = mk.getContext("2d", { willReadFrequently: true })!;
@@ -346,14 +344,14 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const cls = (i: number) => {
     if (px[i * 4 + 3] < 128) return -1;
     let best = -1, bd = 40 * 40 * 3;
-    CLASSES.forEach((k, ci) => {
-      const d = (px[i * 4] - k.c[0]) ** 2 + (px[i * 4 + 1] - k.c[1]) ** 2 + (px[i * 4 + 2] - k.c[2]) ** 2;
+    CLASSES_RGB.forEach((c, ci) => {
+      const d = (px[i * 4] - c[0]) ** 2 + (px[i * 4 + 1] - c[1]) ** 2 + (px[i * 4 + 2] - c[2]) ** 2;
       if (d < bd) { bd = d; best = ci; }
     });
     return best;
   };
 
-  const cnt = new Array(CLASSES.length).fill(0);
+  const cnt = new Array(CLASSES_RGB.length).fill(0);
   let tot = 0, inMask = 0;
   for (let i = 0; i < W * H; i++) {
     if (mask[i * 4 + 3] <= 128) continue;
@@ -363,9 +361,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     cnt[c]++;
     if (c < N_VALID) tot++;
   }
-  if (!tot || !inMask) {
-    throw new ErreurSource("Aucune donnée d'occupation du sol pour cette zone (service indisponible ou zone couverte de nuages).");
-  }
+  if (!tot || !inMask) throw new ErreurSource("noOcc");
   const couverture = (tot / inMask) * 100;
   const pct = (c: number) => (cnt[c] / tot) * 100;
 
@@ -379,19 +375,19 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { lats.push(+(n1 - i * dLat).toFixed(5)); lons.push(+(e0 + j * dLon).toFixed(5)); }
 
   let z: number[] = [];
-  let statRelief: string | null = null;
+  let statRelief: Err = null;
   try {
     const el = await fetchJSON<{ elevation?: number[] }>(
       `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(",")}&longitude=${lons.join(",")}`, signal);
-    if (!Array.isArray(el.elevation) || el.elevation.length !== lats.length) throw new ErreurSource("altitude invalide");
+    if (!Array.isArray(el.elevation) || el.elevation.length !== lats.length) throw new ErreurSource("altitude");
     z = el.elevation.map((v) => (Number.isFinite(v) ? v : 0));
   } catch (e: any) {
     if (signal.aborted) throw e;
-    statRelief = e?.message || "relief indisponible";
+    statRelief = e instanceof ErreurSource ? e : new ErreurSource("relief");
   }
 
   const dx = dLon * 111320 * Math.cos((midLat * Math.PI) / 180), dy = dLat * 110540;
-  const sc = new Array(SLOPES.length).fill(0);
+  const sc = new Array(SLOPES_MAX.length).fill(0);
   let sn = 0, cropSteep = 0, cropN = 0;
   if (!statRelief) {
     for (let i = 1; i < N - 1; i++) for (let j = 1; j < N - 1; j++) {
@@ -399,7 +395,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
       const ins = inFeat(lons[k], lats[k], f);
       if (!ins && !small) continue;
       const s = Math.hypot((z[k + 1] - z[k - 1]) / (2 * dx), (z[k - N] - z[k + N]) / (2 * dy)) * 100;
-      sc[SLOPES.findIndex((t) => s < t.max)]++; sn++;
+      sc[SLOPES_MAX.findIndex((m) => s < m)]++; sn++;
       if (!ins) continue;
       const c = cls(Math.min(H - 1, Math.max(0, Math.floor(Y(lats[k])))) * W + Math.min(W - 1, Math.max(0, Math.floor(X(lons[k])))));
       if (c === 2) { cropN++; if (s >= 15) cropSteep++; }
@@ -419,7 +415,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     try {
       const g = await fetchJSON<any>(BASSINS_GEOJSON_URL, signal);
       const hit = (g.features ?? []).find((x: Feat) => inFeat(cLon, cLat, x));
-      bassin = hit ? nameOf(hit) : "Hors bassin référencé";
+      bassin = hit ? nameOf(hit) : "";
     } catch (e: any) {
       if (signal.aborted) throw e;
       bassin = null;
@@ -430,11 +426,11 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const fiable: Fiabilite = erreurs >= 2 || couverture < 60 ? "faible" : erreurs === 1 || couverture < 85 ? "moyenne" : "bonne";
 
   return {
-    land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) }))
+    land: CLASSES_RGB.slice(0, N_VALID).map((_, k) => ({ k, pct: pct(k), col: rgb(CLASSES_RGB[k]) }))
       .filter((x) => x.pct > 0).sort((a, c) => c.pct - a.pct),
     cloudPct: (cnt[NUAGES] / (tot + cnt[NUAGES] || 1)) * 100,
     couverture,
-    slope: elevOK && sn ? SLOPES.map((s, i) => ({ n: s.n, pct: (sc[i] / sn) * 100, col: s.col })) : null,
+    slope: elevOK && sn ? SLOPES_MAX.map((_, k) => ({ k, pct: (sc[k] / sn) * 100, col: SLOPES_COL[k] })) : null,
     elevMin: elevOK ? Math.min(...zs) : null,
     elevMax: elevOK ? Math.max(...zs) : null,
     elevMean: elevOK ? zs.reduce((a, c) => a + c, 0) / zs.length : null,
@@ -445,23 +441,21 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     treePct: pct(0), cropPct: pct(2), barePct: pct(4), wetPct: pct(6), savPct: pct(1), builtPct: pct(3),
     cultWC: wc.pct,
     bassin,
-    resolution: small
-      ? "Occupation du sol à 10 m ; relief à 90 m autour de la parcelle (indicatif)"
-      : `Occupation à ${nf((wKm * 1000) / W)} m par pixel ; altitude tous les ${nf(Math.max(dx, dy) / 1000, 1)} km`,
+    resolution: { small, pixelM: (wKm * 1000) / W, stepKm: Math.max(dx, dy) / 1000 },
     statuts: { relief: statRelief, pluie: pluieR.err, cultures: wc.err },
     fiable,
   };
 }
 
 function useAnalysis(f: Feat | null, year: number) {
-  const [s, setS] = useState<{ res: Result | null; busy: boolean; err: string }>({ res: null, busy: false, err: "" });
+  const [s, setS] = useState<{ res: Result | null; busy: boolean; err: Err }>({ res: null, busy: false, err: null });
   useEffect(() => {
-    if (!f) { setS({ res: null, busy: false, err: "" }); return; }
+    if (!f) { setS({ res: null, busy: false, err: null }); return; }
     const c = new AbortController();
-    setS({ res: null, busy: true, err: "" });
+    setS({ res: null, busy: true, err: null });
     analyse(f, c.signal, year)
-      .then((res) => { if (!c.signal.aborted) setS({ res, busy: false, err: "" }); })
-      .catch((e) => { if (!c.signal.aborted) setS({ res: null, busy: false, err: e?.message || "Erreur d'analyse inattendue" }); });
+      .then((res) => { if (!c.signal.aborted) setS({ res, busy: false, err: null }); })
+      .catch((e) => { if (!c.signal.aborted) setS({ res: null, busy: false, err: e instanceof ErreurSource ? e : new ErreurSource("analyse") }); });
     return () => c.abort();
   }, [f, year]);
   return s;
@@ -483,7 +477,7 @@ function lossFor(f: Feat): Promise<PerteAn[]> {
       const rows = Array.isArray(j?.annees)
         ? j.annees.filter((a: any) => Number.isFinite(a?.annee) && Number.isFinite(a?.ha) && a.ha >= 0)
         : null;
-      if (!rows) throw new ErreurSource("réponse invalide");
+      if (!rows) throw new ErreurSource("reponse");
       return rows as PerteAn[];
     });
     LOSS_CACHE.set(f, p);
@@ -493,14 +487,14 @@ function lossFor(f: Feat): Promise<PerteAn[]> {
 }
 
 function useLoss(f: Feat | null) {
-  const [s, setS] = useState<{ rows: PerteAn[] | null; busy: boolean; err: string }>({ rows: null, busy: false, err: "" });
+  const [s, setS] = useState<{ rows: PerteAn[] | null; busy: boolean; err: Err }>({ rows: null, busy: false, err: null });
   useEffect(() => {
-    if (!f) { setS({ rows: null, busy: false, err: "" }); return; }
+    if (!f) { setS({ rows: null, busy: false, err: null }); return; }
     let actif = true;
-    setS({ rows: null, busy: true, err: "" });
+    setS({ rows: null, busy: true, err: null });
     lossFor(f)
-      .then((rows) => { if (actif) setS({ rows, busy: false, err: "" }); })
-      .catch((e) => { if (actif) setS({ rows: null, busy: false, err: e?.message || "erreur inconnue" }); });
+      .then((rows) => { if (actif) setS({ rows, busy: false, err: null }); })
+      .catch((e) => { if (actif) setS({ rows: null, busy: false, err: toErr(e) }); });
     return () => { actif = false; };
   }, [f]);
   return s;
@@ -544,12 +538,9 @@ function analyserFeux(features: any[]): Omit<Feu, "age">[] {
 
 type Trend = "hausse" | "baisse" | "stable" | null;
 type Extra = { lossHa: number | null; lossPct: number | null; lossTrend: Trend; fires72: number; fires24: number; areaKm2: number };
-type Lvl = "haute" | "moyenne" | "info";
-type Thematique = "Restauration" | "Agriculture" | "Eau et sols" | "Feux" | "Conservation" | "Communautés";
-type Orient = { t: string; d: string; lvl: Lvl; th: Thematique; acts?: string[] };
+type Orient = { th: Theme; lvl: Lvl; t: string; d: string; acts?: string[] };
 
-const THEMES: Thematique[] = ["Restauration", "Agriculture", "Eau et sols", "Feux", "Conservation", "Communautés"];
-const LVL_TXT: Record<Lvl, string> = { haute: "Priorité haute", moyenne: "Priorité moyenne", info: "Recommandé" };
+const THEME_ORDER: Theme[] = ["restauration", "agriculture", "eau", "feux", "conservation", "communautes"];
 const LVL_RANK: Record<Lvl, number> = { haute: 0, moyenne: 1, info: 2 };
 
 /** Score de vulnérabilité à l'érosion (0-100). Null si le relief manque. */
@@ -558,156 +549,74 @@ const vuln = (r: Result): number | null => {
   const c = (v: number, m: number) => Math.min(v, m) / m;
   return Math.round(35 * c(r.steepPct, 60) + 25 * c(r.cropSteep ?? 0, 60) + 15 * c(r.barePct, 25) + 15 * (1 - c(r.treePct, 50)) + 10 * c(r.rain ?? 0, 2500));
 };
-const vulnLabel = (v: number) => (v < 25 ? "faible" : v < 50 ? "modérée" : v < 70 ? "élevée" : "très élevée");
 
-function orientations(R: Result, x: Extra, periode: string): Orient[] {
+function orientations(R: Result, x: Extra, periode: string, lang: Lang, N: (n: number, d?: number) => string): Orient[] {
+  const ti = ORI[lang];
+  const rules = ti.rules;
   const r = { ...R, cropPct: Math.max(R.cropPct, R.cultWC ?? 0) };
-  const relief = R.steepPct != null;               // les règles de pente ne tournent que si le relief existe
+  const relief = R.steepPct != null;
   const steep = R.steepPct ?? 0, cropSteep = R.cropSteep ?? 0;
   const o: Orient[] = [];
-  const add = (th: Thematique, lvl: Lvl, t: string, d: string, acts?: string[]) => o.push({ th, lvl, t, d, acts });
   const loss = x.lossPct;
   const rain = r.rain;
 
+  // Ajoute une recommandation : texte pris dans le dictionnaire de la langue, valeurs insérées.
+  const add = (th: Theme, lvl: Lvl, key: OriKey, v: Record<string, string> = {}) => {
+    const src = rules[key];
+    const vars = { periode, ...v };
+    o.push({ th, lvl, t: fill(src.t, vars), d: fill(src.d, vars), acts: src.a?.map((s) => fill(s, vars)) });
+  };
+
+  const pentes = relief && steep > 25 ? fill(ti.extras.pentesSuffix, { steep: N(steep) }) : "";
+  const bassinTxt = r.bassin ? fill(ti.extras.bassinSuffix, { nom: r.bassin }) : "";
+
   /* RESTAURATION */
-  if (loss != null && loss >= 3)
-    add("Restauration", "haute", "Restaurer les zones déboisées",
-      `${nf(x.lossHa ?? 0)} ha de couvert arboré perdus sur ${periode}, soit ${nf(loss, 1)} % de la zone. Ces surfaces sont les premiers candidats à la restauration${relief && steep > 25 ? ", surtout sur les pentes (" + nf(steep) + " % de la zone en pente forte)" : ""}.`,
-      ["Repérer les foyers de perte sur la carte et les classer par urgence", "Reboiser avec des espèces locales adaptées au site, en commençant par les pentes et les têtes de bassin", "Suivre la survie des plants à 1 an et à 3 ans"]);
-  else if (loss != null && loss >= 0.5)
-    add("Restauration", "moyenne", "Cibler les foyers de perte de couvert",
-      `${nf(x.lossHa ?? 0)} ha perdus sur ${periode} (${nf(loss, 1)} % de la zone). Cibler les foyers visibles sur la carte avant qu'ils ne s'étendent.`);
+  if (loss != null && loss >= 3) add("restauration", "haute", "lossHigh", { ha: N(x.lossHa ?? 0), pct: N(loss, 1), pentes });
+  else if (loss != null && loss >= 0.5) add("restauration", "moyenne", "lossMid", { ha: N(x.lossHa ?? 0), pct: N(loss, 1) });
 
-  if (relief && steep > 35 && r.treePct < 25)
-    add("Restauration", "haute", "Restauration forestière des versants",
-      `Pentes de 15 % ou plus sur ${nf(steep)} % du territoire pour seulement ${nf(r.treePct)} % de couvert arboré. Reboiser avec des espèces locales, en commençant par les têtes de bassin.`,
-      ["Planter en lignes suivant les courbes de niveau", "Associer arbres, arbustes et graminées pour couvrir le sol rapidement"]);
-
-  if (r.barePct > 10)
-    add("Restauration", "haute", "Réhabilitation des sols nus",
-      `${nf(r.barePct, 1)} % de sol nu : stabiliser par végétalisation (graminées, légumineuses), puis planter.`,
-      ["Végétaliser d'abord avec des plantes pionnières et des légumineuses", "Planter les arbres ensuite, quand le sol est stabilisé"]);
-
-  if (r.treePct >= 8 && r.treePct < 40 && (r.barePct > 2 || r.savPct > 20))
-    add("Restauration", "moyenne", "Régénération naturelle assistée",
-      `Avec ${nf(r.treePct, 1)} % de couvert arboré, une partie de la forêt peut repartir seule si on la protège. C'est souvent moins coûteux que planter.`,
-      ["Protéger les jeunes pousses du feu et du pâturage", "Enrichir par des plantations là où la régénération reste faible", "Mettre en défens les parcelles pendant plusieurs années"]);
-
-  if (r.treePct >= 15 && r.treePct < 45 && loss != null && loss >= 1)
-    add("Restauration", "moyenne", "Reconnecter les fragments forestiers",
-      `Le couvert arboré est morcelé (${nf(r.treePct, 1)} %) et il a reculé de ${nf(loss, 1)} % sur ${periode}. Relier les îlots forestiers aide la faune et la dispersion des graines.`,
-      ["Tracer des corridors entre les blocs forestiers restants", "Planter des haies vives et des bandes boisées le long des cours d'eau"]);
-
-  if (r.wetPct > 3 && loss != null && loss >= 1)
-    add("Restauration", "moyenne", "Restaurer les mangroves dégradées",
-      `${nf(r.wetPct, 1)} % de végétation inondée ou de mangrove, avec une perte de couvert sur la période. Restaurer d'abord l'hydrologie, puis replanter.`,
-      ["Rétablir la circulation de l'eau et des marées avant toute plantation", "Replanter des palétuviers adaptés à chaque niveau de marée"]);
-
-  if (r.treePct < 25 && r.cropPct + r.savPct + r.builtPct > 50)
-    add("Restauration", "moyenne", "Sécuriser le bois-énergie",
-      `Peu de forêt (${nf(r.treePct, 1)} %) autour de terres cultivées, de savane ou bâties : la pression du bois de chauffe et du charbon est possible sur les reliques forestières.`,
-      ["Créer des plantations villageoises à croissance rapide pour le bois-énergie", "Diffuser des foyers améliorés pour réduire la consommation de bois"]);
-
-  if (rain != null && rain < 800 && r.treePct < 15)
-    add("Restauration", "moyenne", "Restaurer en zone sèche",
-      `Seulement ${nf(rain)} mm de pluie par an en moyenne pour ${nf(r.treePct, 1)} % de couvert arboré : les plantations classiques risquent d'échouer.`,
-      ["Choisir des espèces adaptées à la sécheresse", "Capter l'eau au pied des plants (demi-lunes, paillage)", "Planter au début de la saison des pluies"]);
+  if (relief && steep > 35 && r.treePct < 25) add("restauration", "haute", "versants", { steep: N(steep), tree: N(r.treePct) });
+  if (r.barePct > 10) add("restauration", "haute", "solsNus", { bare: N(r.barePct, 1) });
+  if (r.treePct >= 8 && r.treePct < 40 && (r.barePct > 2 || r.savPct > 20)) add("restauration", "moyenne", "regen", { tree: N(r.treePct, 1) });
+  if (r.treePct >= 15 && r.treePct < 45 && loss != null && loss >= 1) add("restauration", "moyenne", "fragments", { tree: N(r.treePct, 1), loss: N(loss, 1) });
+  if (r.wetPct > 3 && loss != null && loss >= 1) add("restauration", "moyenne", "mangroves", { wet: N(r.wetPct, 1) });
+  if (r.treePct < 25 && r.cropPct + r.savPct + r.builtPct > 50) add("restauration", "moyenne", "boisEnergie", { tree: N(r.treePct, 1) });
+  if (rain != null && rain < 800 && r.treePct < 15) add("restauration", "moyenne", "zoneSeche", { rain: N(rain), tree: N(r.treePct, 1) });
 
   /* CONSERVATION */
-  if (x.lossTrend === "hausse" && loss != null && loss >= 0.5)
-    add("Conservation", "haute", "La perte de couvert s'accélère",
-      `Les pertes des dernières années de la période dépassent nettement celles du début. Il faut agir vite pour ne pas laisser le défrichement gagner du terrain.`,
-      ["Renforcer la surveillance (patrouilles, alertes de déforestation)", "Dialoguer avec les communautés sur les causes locales du défrichement"]);
-
-  if (r.treePct >= 40)
-    add("Conservation", "info", "Conserver le couvert existant",
-      `${nf(r.treePct, 1)} % de couvert arboré : protéger en priorité (gestion communautaire, lutte contre les feux et le défrichement).`,
-      ["Délimiter et matérialiser les limites de la forêt", "Soutenir la surveillance locale et le suivi de la biodiversité"]);
-
-  if (r.wetPct > 3)
-    add("Conservation", "moyenne", "Protection des zones humides et mangroves",
-      `${nf(r.wetPct, 1)} % de végétation inondée ou de mangrove : zones tampons, pas de drainage ni de coupe.`);
+  if (x.lossTrend === "hausse" && loss != null && loss >= 0.5) add("conservation", "haute", "accel");
+  if (r.treePct >= 40) add("conservation", "info", "conserver", { tree: N(r.treePct, 1) });
+  if (r.wetPct > 3) add("conservation", "moyenne", "zonesHumides", { wet: N(r.wetPct, 1) });
 
   /* AGRICULTURE */
-  if (relief && cropSteep > 30 && (rain ?? 0) > 1000)
-    add("Agriculture", "haute", "Lutte antiérosive sur les cultures de pente",
-      `${nf(cropSteep)} % des cultures échantillonnées sont sur pente de 15 % ou plus, avec ${nf(rain!)} mm de pluie par an en moyenne : risque élevé de ravinement et de lavaka.`,
-      ["Agroforesterie, cordons de pierres et bandes enherbées", "Terrasses et cultures suivant les courbes de niveau", "Haies de vétiver pour freiner le ruissellement"]);
-  else if (relief && cropSteep > 30)
-    add("Agriculture", "moyenne", "Cultures sur pente à sécuriser",
-      `${nf(cropSteep)} % des cultures sont sur pente de 15 % ou plus. Prévoir des pratiques de conservation des sols.`,
-      ["Cultiver en courbes de niveau", "Garder le sol couvert (paillage, plantes de couverture)"]);
-
-  if (r.cropPct > 20 && r.treePct < 30)
-    add("Agriculture", "moyenne", "Développer l'agroforesterie",
-      `${nf(r.cropPct, 1)} % de cultures pour ${nf(r.treePct, 1)} % d'arbres : associer des arbres aux cultures protège le sol, apporte de l'ombre et diversifie les revenus.`,
-      ["Associer arbres fixateurs d'azote et arbres fruitiers aux cultures", "Planter des haies vives autour des parcelles"]);
-
-  if (loss != null && loss >= 1 && r.cropPct > 10 && r.treePct >= 15)
-    add("Agriculture", loss >= 3 ? "haute" : "moyenne", "Réduire le défrichement-brûlis",
-      `La perte de couvert (${nf(loss, 1)} % sur ${periode}) se fait au contact de terres cultivées : le défrichement pour de nouvelles parcelles est une cause possible.`,
-      ["Intensifier les parcelles déjà ouvertes plutôt que d'en défricher de nouvelles", "Semer sous couvert végétal et améliorer les jachères avec des légumineuses", "Sécuriser le foncier des parcelles déjà cultivées"]);
-
-  if (rain != null && rain < 900 && r.cropPct > 10)
-    add("Agriculture", "moyenne", "Cultiver avec peu d'eau",
-      `${nf(rain)} mm de pluie par an en moyenne (${RAIN_FIRST}-${RAIN_LAST}) : l'eau limite les rendements et expose les cultures aux aléas.`,
-      ["Choisir des cultures tolérantes à la sécheresse", "Récolter l'eau de pluie et pailler le sol", "Caler les semis sur le début réel de la saison des pluies"]);
-
-  if (r.savPct > 40)
-    add("Agriculture", "moyenne", "Gérer les pâturages et l'élevage",
-      `${nf(r.savPct, 1)} % de savane et de parcours : un pâturage mieux géré réduit les feux de pâture et la dégradation du sol.`,
-      ["Organiser la rotation des pâturages et des parcs de nuit", "Semer des plantes fourragères pour compléter l'herbe", "Éviter les feux de renouvellement des pâturages en pleine saison sèche"]);
-
-  if (relief && r.cropPct > 25 && steep < 15)
-    add("Agriculture", "info", "Intensification durable en terrain plat",
-      `Terrain peu pentu et cultivé sur ${nf(r.cropPct, 1)} % : conditions favorables pour produire davantage sur les mêmes surfaces et alléger la pression sur les forêts.`,
-      ["Pratiquer la riziculture améliorée (SRI) et aménager les bas-fonds", "Alterner riz et légumineuses, fertiliser avec du compost", "Maîtriser l'eau (canaux, petits barrages) pour sécuriser les récoltes"]);
-
-  if (r.treePct >= 20 && r.cropPct > 8)
-    add("Agriculture", "info", "Valoriser des filières agroforestières",
-      `Forêt et cultures se côtoient : les produits cultivés sous ombrage donnent des revenus sans déboiser.`,
-      ["Développer le café, le cacao, les épices ou la vanille sous ombrage, selon le climat local", "Transformer sur place pour garder la valeur ajoutée", "Viser des filières équitables"]);
+  if (relief && cropSteep > 30 && (rain ?? 0) > 1000) add("agriculture", "haute", "erosionCultures", { cropSteep: N(cropSteep), rain: N(rain!) });
+  else if (relief && cropSteep > 30) add("agriculture", "moyenne", "pentesCultures", { cropSteep: N(cropSteep) });
+  if (r.cropPct > 20 && r.treePct < 30) add("agriculture", "moyenne", "agroforesterie", { crop: N(r.cropPct, 1), tree: N(r.treePct, 1) });
+  if (loss != null && loss >= 1 && r.cropPct > 10 && r.treePct >= 15) add("agriculture", loss >= 3 ? "haute" : "moyenne", "defriche", { loss: N(loss, 1) });
+  if (rain != null && rain < 900 && r.cropPct > 10) add("agriculture", "moyenne", "peuEau", { rain: N(rain), a: String(RAIN_FIRST), b: String(RAIN_LAST) });
+  if (r.savPct > 40) add("agriculture", "moyenne", "paturages", { sav: N(r.savPct, 1) });
+  if (relief && r.cropPct > 25 && steep < 15) add("agriculture", "info", "intensif", { crop: N(r.cropPct, 1) });
+  if (r.treePct >= 20 && r.cropPct > 8) add("agriculture", "info", "filieres");
 
   /* EAU ET SOLS */
-  if (relief && steep > 25 && r.barePct > 3)
-    add("Eau et sols", "haute", "Stabiliser les lavaka et les ravines",
-      `Pentes fortes sur ${nf(steep)} % de la zone et ${nf(r.barePct, 1)} % de sol nu : les ravines (lavaka) risquent de s'élargir à chaque saison des pluies.`,
-      ["Détourner l'eau de ruissellement en amont de la ravine", "Poser des fascines ou des digues en gradins dans le lit", "Végétaliser les bords (vétiver, arbustes) pour les fixer"]);
-
-  if (relief && steep > 25 && r.cropPct > 10)
-    add("Eau et sols", "moyenne", "Protéger les rizières de bas-fond contre l'ensablement",
-      `Des versants raides surplombent des cultures : l'érosion peut déposer du sable dans les bas-fonds et les canaux.`,
-      ["Installer des bandes enherbées et des fascines à la sortie des versants", "Curer régulièrement les canaux et les bassins de décantation"]);
-
-  if (relief && steep > 25 && (rain ?? 0) > 1200)
-    add("Eau et sols", "moyenne", "Protéger les têtes de bassin versant",
-      `Pentes fortes et ${nf(rain!)} mm de pluie par an en moyenne : la végétation des hauts de versant régule l'eau pour tout l'aval${r.bassin ? " (bassin : " + r.bassin + ")" : ""}.`,
-      ["Maintenir ou rétablir un couvert permanent sur les hauts de versant", "Boiser une bande protectrice le long des sources et des cours d'eau"]);
+  if (relief && steep > 25 && r.barePct > 3) add("eau", "haute", "lavaka", { steep: N(steep), bare: N(r.barePct, 1) });
+  if (relief && steep > 25 && r.cropPct > 10) add("eau", "moyenne", "rizieres");
+  if (relief && steep > 25 && (rain ?? 0) > 1200) add("eau", "moyenne", "tetes", { rain: N(rain!), bassin: bassinTxt });
 
   /* FEUX */
   if (x.fires72 > 0) {
     const dens = (x.fires72 / Math.max(x.areaKm2, 1)) * 100;
-    add("Feux", dens >= 1 || x.fires24 >= 10 ? "haute" : "moyenne", "Prévention et surveillance des feux",
-      `${nf(x.fires72)} détections ces 72 h (${nf(x.fires24)} ces 24 h). Ce sont des points chauds détectés par satellite, pas des surfaces brûlées. Renforcer les pare-feux et l'alerte communautaire, surtout sur les savanes et lisières forestières.`,
-      ["Ouvrir et entretenir des pare-feux autour des forêts et des plantations", "Organiser des brigades villageoises avec un système d'alerte", ...(r.savPct > 30 ? ["Pratiquer des brûlis précoces et contrôlés en début de saison sèche"] : [])]);
+    const lvl: Lvl = dens >= 1 || x.fires24 >= 10 ? "haute" : "moyenne";
+    add("feux", lvl, "feux", { f72: N(x.fires72), f24: N(x.fires24) });
+    if (r.savPct > 30) o[o.length - 1].acts = [...(o[o.length - 1].acts ?? []), ti.extras.feuxBrulis];
   }
 
   /* COMMUNAUTÉS */
-  if (r.treePct >= 15 && loss != null && loss >= 0.5)
-    add("Communautés", "moyenne", "Renforcer la gestion communautaire",
-      `Les habitants sont les mieux placés pour protéger ce qui reste de forêt si leurs droits de gestion sont reconnus.`,
-      ["Soutenir les transferts de gestion aux communautés (VOI, COBA)", "Faire adopter des règles locales (dina) et un suivi participatif", "Prévoir des financements durables pour les associations locales"]);
+  if (r.treePct >= 15 && loss != null && loss >= 0.5) add("communautes", "moyenne", "gestionComm");
+  if (r.treePct >= 25) add("communautes", "info", "revenus");
 
-  if (r.treePct >= 25)
-    add("Communautés", "info", "Offrir des revenus qui dépendent de la forêt debout",
-      `Quand la forêt rapporte, on la protège. Des activités à faible impact peuvent réduire la pression du défrichement.`,
-      ["Développer l'apiculture et les produits forestiers non ligneux", "Étudier l'écotourisme là où le site s'y prête", "Appuyer la pisciculture ou l'élevage à cycle court"]);
+  if (!o.length) add("conservation", "info", "aucun");
 
-  if (!o.length)
-    add("Conservation", "info", "Aucun signal prioritaire", "Les indicateurs calculés ne montrent pas de pression marquée. Affinez par un diagnostic de terrain.");
-
-  /* Avertissement systématique si les données sont partielles */
-  const final = R.fiable === "bonne" ? o : o.map((a) => ({ ...a, d: a.d + " Données partielles : à confirmer sur le terrain avant toute décision." }));
+  const final = R.fiable === "bonne" ? o : o.map((a) => ({ ...a, d: a.d + " " + ti.extras.partialSuffix }));
   return final.sort((a, b) => LVL_RANK[a.lvl] - LVL_RANK[b.lvl]);
 }
 
@@ -724,20 +633,18 @@ function telechargerJSON(nomFichier: string, contenu: unknown) {
 
 /* ===================== COMPOSANT COEUR ===================== */
 
-const ROWS = ["Région", "District", "Commune", "Parcelle"];
-const FIABLE_TXT: Record<Fiabilite, string> = { bonne: "Données complètes", moyenne: "Données partielles", faible: "Données très partielles" };
-const LIBELLE_STATUT: Record<string, string> = {
-  relief: "altitude et pente", pluie: "pluviométrie", cultures: "second avis cultures (WorldCover)",
-};
+function Coeur({ lang, t }: { lang: Lang; t: Dict }) {
+  const N = useCallback((n: number, d = 0) => n.toLocaleString(LOCALE[lang], { maximumFractionDigits: d }), [lang]);
+  const fmtArea = (km2: number) => (km2 < 10 ? `${N(km2 * 100, km2 < 0.1 ? 2 : 1)} ha` : `${N(km2)} km²`);
+  const periodeDe = (a: number, b: number) => (a === b ? String(a) : fill(t.periode, { a, b }));
 
-function Coeur() {
   const elMap = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const base = useRef<L.TileLayer | null>(null), loss = useRef<L.TileLayer | null>(null), ov = useRef<L.ImageOverlay | null>(null);
   const kids = useRef<L.GeoJSON | null>(null), outline = useRef<L.GeoJSON | null>(null);
   const veilL = useRef<L.Polygon | null>(null), draft = useRef<L.FeatureGroup | null>(null), fireL = useRef<L.FeatureGroup | null>(null);
   const pts = useRef<L.LatLng[]>([]);
-  const pickRef = useRef<(l: Level, i: number) => void>(() => {});
+  const pickRef = useRef<(l: LevelKey, i: number) => void>(() => {});
   const modalRef = useRef<HTMLDivElement>(null), closeRef = useRef<HTMLButtonElement>(null);
 
   const [regs, setRegs] = useState<Feat[]>([]);
@@ -752,19 +659,19 @@ function Coeur() {
   const [showFires, setShowFires] = useState(true), [fPeriod, setFPeriod] = useState<24 | 48 | 72>(72), [conf, setConf] = useState<"l" | "n" | "h">("l");
   const [mask, setMask] = useState(true);
   const [show, setShow] = useState(false);
-  const [themeF, setThemeF] = useState<"Toutes" | Thematique>("Toutes");
+  const [themeF, setThemeF] = useState<"Toutes" | Theme>("Toutes");
   const [loadErr, setLoadErr] = useState("");
   const [annonce, setAnnonce] = useState("");
 
   /* ----- sélection administrative ----- */
   const rF = ri !== "" ? regs[+ri] ?? null : null;
   const dists = useMemo(
-    () => (rF && adm2 ? adm2.filter((d) => childOf(d, rF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr")) : []),
-    [rF, adm2]);
+    () => (rF && adm2 ? adm2.filter((d) => childOf(d, rF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), lang)) : []),
+    [rF, adm2, lang]);
   const dF = di !== "" ? dists[+di] ?? null : null;
   const coms = useMemo(
-    () => (dF && adm3 ? adm3.filter((c) => childOf(c, dF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr")) : []),
-    [dF, adm3]);
+    () => (dF && adm3 ? adm3.filter((c) => childOf(c, dF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), lang)) : []),
+    [dF, adm3, lang]);
   const cF = ci !== "" ? coms[+ci] ?? null : null;
   const admin = cF || dF || rF;
   const selected = parcel || admin;
@@ -777,7 +684,7 @@ function Coeur() {
   const zoneKm2 = useMemo(() => (selected ? areaKm2(selected) : 0), [selected]);
 
   const list = !rF ? regs : !dF ? dists : coms;
-  const kidLevel: Level = !rF ? "ADM1" : !dF ? "ADM2" : "ADM3";
+  const kidLevel: LevelKey = !rF ? "ADM1" : !dF ? "ADM2" : "ADM3";
 
   /* ----- perte de couvert : chiffres de la période ----- */
   const lossStats = useMemo(() => {
@@ -802,15 +709,15 @@ function Coeur() {
 
   /* ----- points de feux ----- */
   const [feuxBruts, setFeuxBruts] = useState<any[]>([]);
-  const [fLoad, setFLoad] = useState(true), [fErr, setFErr] = useState(""), [fMaj, setFMaj] = useState<number | null>(null), [now, setNow] = useState(Date.now());
+  const [fLoad, setFLoad] = useState(true), [fErr, setFErr] = useState<Err>(null), [fMaj, setFMaj] = useState<number | null>(null), [now, setNow] = useState(Date.now());
   const chargerFeux = useCallback(async () => {
-    setFLoad(true); setFErr("");
+    setFLoad(true); setFErr(null);
     try {
       const j = await fetchJSON<any>("/api/firms");
       setFeuxBruts(Array.isArray(j.features) ? j.features : []);
       setFMaj(Date.now());
     } catch (e: any) {
-      setFErr(e?.message || "erreur inconnue");
+      setFErr(toErr(e));
     } finally {
       setFLoad(false);
     }
@@ -837,7 +744,7 @@ function Coeur() {
     return b as number[];
   }, [feuxZone]);
   const maxChrono = Math.max(1, ...chrono);
-  const heureMaj = fMaj ? new Date(fMaj).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : "—";
+  const heureMaj = fMaj ? new Date(fMaj).toLocaleTimeString(LOCALE[lang], { hour: "2-digit", minute: "2-digit" }) : "—";
 
   /* ----- tracé de parcelle ----- */
   const redraw = () => {
@@ -854,7 +761,7 @@ function Coeur() {
     const p = pts.current;
     if (p.length < 3) return;
     const ring = [...p.map((q) => [q.lng, q.lat]), [p[0].lng, p[0].lat]];
-    setParcel({ type: "Feature", properties: { shapeName: "Parcelle tracée" }, geometry: { type: "Polygon", coordinates: [ring] } });
+    setParcel({ type: "Feature", properties: { shapeName: t.niveaux.parcelle }, geometry: { type: "Polygon", coordinates: [ring] } });
     cancelDraw();
   };
   const startDraw = () => { setParcel(null); pts.current = []; draft.current?.clearLayers(); setNPts(0); setDrawing(true); };
@@ -870,25 +777,25 @@ function Coeur() {
     loadLevel("ADM1")
       .then((r) => {
         setRegs(r);
-        if (r.length < 15 || r.length > 30) setLoadErr(`Attention : ${r.length} entités au niveau 1 au lieu d'environ 22 régions. Les limites sont peut-être incorrectes.`);
+        if (r.length < 15 || r.length > 30) setLoadErr(fill(t.banniereNiveau, { n: r.length }));
       })
-      .catch((e) => setLoadErr(e.message));
-  }, []);
+      .catch((e) => setLoadErr(errMsg(toErr(e), t)));
+  }, [t]);
   useEffect(() => {
-    if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message));
-  }, [rF, adm2]);
+    if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(errMsg(toErr(e), t)));
+  }, [rF, adm2, t]);
   useEffect(() => {
-    if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message));
-  }, [dF, adm3]);
+    if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(errMsg(toErr(e), t)));
+  }, [dF, adm3, t]);
   useEffect(() => { setShow(false); }, [selected]);
 
-  /* Annonce vocale du résultat (lecteurs d'écran) */
+  /* Annonce pour lecteurs d'écran */
   useEffect(() => {
     if (!selected) { setAnnonce(""); return; }
-    if (current.busy) setAnnonce("Analyse en cours");
-    else if (current.err) setAnnonce(`Erreur : ${current.err}`);
-    else if (res) setAnnonce(`Analyse terminée. Fiabilité : ${FIABLE_TXT[res.fiable].toLowerCase()}.`);
-  }, [selected, current.busy, current.err, res]);
+    if (current.busy) setAnnonce(t.annonce.analyse);
+    else if (current.err) setAnnonce(fill(t.annonce.erreur, { e: errMsg(current.err, t) }));
+    else if (res) setAnnonce(fill(t.annonce.termine, { f: t.fiableBas[res.fiable] }));
+  }, [selected, current.busy, current.err, res, t]);
 
   /* ----- fenêtre des orientations ----- */
   useEffect(() => {
@@ -997,9 +904,9 @@ function Coeur() {
     const m = map.current, g = L.featureGroup(), renderer = L.canvas({ pane: "feux", padding: 0.5 });
     const rayon = (z: number) => Math.max(2.5, Math.min(9, 2 + (z - 5) * 0.75));
     feuxAff.forEach((f) => {
-      const confTxt = f.conf === "h" ? "élevée" : f.conf === "n" ? "nominale" : f.conf === "l" ? "faible" : "non précisée";
+      const confTxt = t.feux.conf[f.conf ?? "na"];
       L.circleMarker([f.lat, f.lon], { pane: "feux", renderer, radius: rayon(m.getZoom()), fillColor: couleurAge(f.age), color: "#fff", weight: 0.6, opacity: 0.9, fillOpacity: 0.92 })
-        .bindPopup(`<div style="font:13px/1.5 system-ui"><strong>Point chaud détecté par satellite</strong><br/>${new Date(f.t).toLocaleDateString("fr-FR")} à ${f.heure} UTC<br/>Confiance : ${confTxt}${f.frp != null ? `<br/>Puissance : ${f.frp} MW` : ""}${f.sat ? `<br/>Satellite : ${f.sat}` : ""}</div>`)
+        .bindPopup(`<div style="font:13px/1.5 system-ui"><strong>${t.feux.pointTitre}</strong><br/>${new Date(f.t).toLocaleDateString(LOCALE[lang])} · ${f.heure} UTC<br/>${confTxt}${f.frp != null ? `<br/>${t.feux.puissance} : ${f.frp} MW` : ""}${f.sat ? `<br/>${t.feux.satellite} : ${f.sat}` : ""}</div>`)
         .addTo(g);
     });
     g.addTo(m);
@@ -1007,7 +914,7 @@ function Coeur() {
     m.on("zoomend", maj);
     fireL.current = g;
     return () => { m.off("zoomend", maj); g.remove(); };
-  }, [showFires, feuxAff]);
+  }, [showFires, feuxAff, lang, t]);
 
   /* tracé de parcelle : clics */
   useEffect(() => {
@@ -1016,7 +923,6 @@ function Coeur() {
     m.getContainer().style.cursor = "crosshair";
     m.doubleClickZoom.disable();
     const click = (e: L.LeafletMouseEvent) => {
-      // Ignore un clic identique au dernier sommet (évite les doublons du double-clic)
       const last = pts.current[pts.current.length - 1];
       if (last && last.distanceTo(e.latlng) < 1e-7) return;
       pts.current.push(e.latlng); redraw();
@@ -1034,12 +940,12 @@ function Coeur() {
 
   /* ----- affichage ----- */
   const levels = [{ f: rF, s: rRes }, { f: dF, s: dRes }, { f: cF, s: cRes }, { f: parcel, s: pRes }];
-  const periodeTxt = dfFrom === dfTo ? String(dfFrom) : `${dfFrom} à ${dfTo}`;
+  const periodeTxt = periodeDe(dfFrom, dfTo);
   const advice = useMemo(
-    () => (res ? orientations(res, { lossHa: lossStats?.total ?? null, lossPct: lossStats?.pct ?? null, lossTrend: lossStats?.trend ?? null, fires72: n72, fires24: n24, areaKm2: zoneKm2 }, periodeTxt) : []),
-    [res, lossStats, n72, n24, zoneKm2, periodeTxt]);
+    () => (res ? orientations(res, { lossHa: lossStats?.total ?? null, lossPct: lossStats?.pct ?? null, lossTrend: lossStats?.trend ?? null, fires72: n72, fires24: n24, areaKm2: zoneKm2 }, periodeTxt, lang, N) : []),
+    [res, lossStats, n72, n24, zoneKm2, periodeTxt, lang, N]);
   const themesPresents = useMemo(
-    () => THEMES.map((th) => ({ th, n: advice.filter((a) => a.th === th).length })).filter((x) => x.n > 0),
+    () => THEME_ORDER.map((th) => ({ th, n: advice.filter((a) => a.th === th).length })).filter((x) => x.n > 0),
     [advice]);
   const adviceShown = themeF === "Toutes" ? advice : advice.filter((a) => a.th === themeF);
   const nHautes = advice.filter((a) => a.lvl === "haute").length;
@@ -1047,31 +953,37 @@ function Coeur() {
   const openAnalysis = () => { setThemeF("Toutes"); setShow(true); };
 
   const statutsManquants = res
-    ? Object.entries(res.statuts).filter(([, v]) => v).map(([k, v]) => `${LIBELLE_STATUT[k] ?? k} (${v})`)
+    ? (Object.entries(res.statuts) as [keyof Result["statuts"], Err][])
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${t.statuts[k]} (${errMsg(v, t)})`)
     : [];
 
   const hint = drawing
-    ? `Cliquez pour poser les sommets (${nPts}). Double-clic ou « Terminer » pour fermer, Échap pour annuler.`
-    : !rF ? "Cliquez sur une région pour zoomer" : !dF ? "Cliquez sur un district" : !cF ? "Cliquez sur une commune" : "Cliquez sur une autre commune pour comparer";
-  const legendLC = res ? res.land : CLASSES.slice(0, N_VALID).map((k) => ({ n: k.n, pct: 0, col: rgb(k.c) }));
+    ? fill(t.hint.dessin, { n: nPts })
+    : !rF ? t.hint.region : !dF ? t.hint.district : !cF ? t.hint.commune : t.hint.comparer;
+  const classeNom = (k: number) => t.classes[k];
+  const legendLC = res ? res.land : CLASSES_RGB.slice(0, N_VALID).map((c, k) => ({ k, pct: 0, col: rgb(c) }));
   const lvlText = parcel
-    ? `Parcelle tracée${admin ? ` dans ${nameOf(admin)}` : ""}`
-    : cF ? `Commune de ${nameOf(dF!)}, ${nameOf(rF!)}` : dF ? `District de ${nameOf(rF!)}` : "Région";
+    ? (admin ? fill(t.lvlParcelleDans, { nom: nameOf(admin) }) : t.lvlParcelle)
+    : cF ? fill(t.lvlCommune, { commune: nameOf(cF), region: nameOf(rF!) })
+    : dF ? fill(t.lvlDistrict, { region: nameOf(rF!) })
+    : t.lvlRegion;
   const area = fmtArea(zoneKm2).split(" ");
   const yearOptions = LOSS_YEARS.map((y) => <option key={y}>{y}</option>);
 
   const exporter = () => {
     if (!res || !selected) return;
     const doc = {
-      outil: "Analyse territoriale Madagascar",
+      outil: t.titre,
       version: VERSION,
+      langue: lang,
       genere_le: new Date().toISOString(),
-      avertissement: "Outil d'aide à la décision. Les résultats sont des estimations issues de données satellitaires et de modèles. Ils ne remplacent pas la validation de terrain ni la concertation avec les communautés.",
+      avertissement: t.avertExport,
       zone: { nom: nameOf(selected), niveau: lvlText, surface_km2: +zoneKm2.toFixed(3) },
       parametres: { annee_occupation_du_sol: lcYear, periode_perte: periodeTxt, confiance_feux: conf, fond_de_carte: fond },
-      fiabilite: { niveau: res.fiable, libelle: FIABLE_TXT[res.fiable], sources_en_echec: statutsManquants, couverture_classification_pct: +res.couverture.toFixed(1) },
+      fiabilite: { niveau: res.fiable, libelle: t.fiable[res.fiable], sources_en_echec: statutsManquants, couverture_classification_pct: +res.couverture.toFixed(1) },
       indicateurs: {
-        occupation_du_sol_pct: Object.fromEntries(res.land.map((p) => [p.n, +p.pct.toFixed(2)])),
+        occupation_du_sol_pct: Object.fromEntries(res.land.map((p) => [classeNom(p.k), +p.pct.toFixed(2)])),
         cultures_impact_observatory_pct: +res.cropPct.toFixed(2),
         cultures_worldcover_2021_pct: res.cultWC != null ? +res.cultWC.toFixed(2) : null,
         pente_15pct_ou_plus_pct: res.steepPct != null ? +res.steepPct.toFixed(2) : null,
@@ -1082,11 +994,15 @@ function Coeur() {
         feux_72h: n72, feux_24h: n24,
         vulnerabilite_erosion_sur_100: score,
       },
-      orientations: advice.map((a) => ({ priorite: LVL_TXT[a.lvl], theme: a.th, titre: a.t, description: a.d, actions: a.acts ?? [] })),
-      sources: SOURCES_INFO,
+      orientations: advice.map((a) => ({ priorite: t.prio[a.lvl], theme: t.themes[a.th], titre: a.t, description: a.d, actions: a.acts ?? [] })),
+      sources: t.sources.nom.map((nom, i) => ({
+        nom,
+        source: fill(t.sources.source[i], { rev: REV, n: RAIN_YEARS }),
+        limite: t.sources.limite[i],
+      })),
     };
     const nom = nameOf(selected).replace(/[^\p{L}\p{N}]+/gu, "_");
-    telechargerJSON(`analyse-${nom}-${lcYear}.json`, doc);
+    telechargerJSON(`analyse-${nom}-${lcYear}-${lang}.json`, doc);
   };
 
   return (
@@ -1096,25 +1012,25 @@ function Coeur() {
 
       <header className="at-head">
         <div>
-          <h1>Analyse territoriale</h1>
-          <p>Occupation du sol, perte de couvert, relief, feux et orientations pour restaurer · version {VERSION}</p>
+          <h1>{t.titre}</h1>
+          <p>{t.sousTitre} · {t.version} {VERSION}</p>
         </div>
         <div className="at-chain">
-          <select value={ri} onChange={(e) => onRegion(e.target.value)} aria-label="Région">
-            <option value="">{regs.length ? "Région" : loadErr ? "Indisponible" : "Chargement…"}</option>
-            {regs.map((f, i) => ({ f, i })).sort((a, b) => nameOf(a.f).localeCompare(nameOf(b.f), "fr")).map(({ f, i }) => <option key={i} value={i}>{nameOf(f)}</option>)}
+          <select value={ri} onChange={(e) => onRegion(e.target.value)} aria-label={t.niveaux.region}>
+            <option value="">{regs.length ? t.niveaux.region : loadErr ? t.indisponible : t.chargement}</option>
+            {regs.map((f, i) => ({ f, i })).sort((a, b) => nameOf(a.f).localeCompare(nameOf(b.f), lang)).map(({ f, i }) => <option key={i} value={i}>{nameOf(f)}</option>)}
           </select>
           <ChevronRight size={16} aria-hidden />
-          <select value={di} onChange={(e) => onDistrict(e.target.value)} disabled={!rF} aria-label="District">
-            <option value="">{rF && !adm2 ? "Chargement…" : "District"}</option>
+          <select value={di} onChange={(e) => onDistrict(e.target.value)} disabled={!rF} aria-label={t.niveaux.district}>
+            <option value="">{rF && !adm2 ? t.chargement : t.niveaux.district}</option>
             {dists.map((f, i) => <option key={i} value={i}>{nameOf(f)}</option>)}
           </select>
           <ChevronRight size={16} aria-hidden />
-          <select value={ci} onChange={(e) => onCommune(e.target.value)} disabled={!dF} aria-label="Commune">
-            <option value="">{dF && !adm3 ? "Chargement…" : "Commune"}</option>
+          <select value={ci} onChange={(e) => onCommune(e.target.value)} disabled={!dF} aria-label={t.niveaux.commune}>
+            <option value="">{dF && !adm3 ? t.chargement : t.niveaux.commune}</option>
             {coms.map((f, i) => <option key={i} value={i}>{nameOf(f)}</option>)}
           </select>
-          <button type="button" className="at-reset" onClick={reset} disabled={!selected && !drawing} title="Revenir à Madagascar" aria-label="Réinitialiser">
+          <button type="button" className="at-reset" onClick={reset} disabled={!selected && !drawing} title={t.reinitTitre} aria-label={t.reinit}>
             <RotateCcw size={16} />
           </button>
         </div>
@@ -1126,9 +1042,9 @@ function Coeur() {
         <aside className="at-panel">
           {!selected ? (
             <div className="at-empty">
-              <h2>Commencez par une région</h2>
-              <p>Choisissez-la dans la liste ou cliquez sur la carte. Les informations se précisent jusqu’à la commune. Vous pouvez aussi tracer votre propre parcelle.</p>
-              <p className="at-note">Les chiffres sont des estimations à partir de données satellitaires publiques. Chaque résultat indique ses sources et son niveau de fiabilité.</p>
+              <h2>{t.videTitre}</h2>
+              <p>{t.videTexte}</p>
+              <p className="at-note">{t.videNote}</p>
             </div>
           ) : (
             <>
@@ -1137,34 +1053,38 @@ function Coeur() {
                 <div className="at-lvl">{lvlText}</div>
                 <dl className="at-facts">
                   <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
-                  <div><dd>{res?.elevMean != null ? nf(res.elevMean) : res ? "n/d" : "…"}</dd><dt>m d’altitude moyenne</dt></div>
-                  <div><dd>{res?.rain != null ? nf(res.rain) : res ? "n/d" : "…"}</dd><dt>mm de pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</dt></div>
+                  <div><dd>{res?.elevMean != null ? N(res.elevMean) : res ? t.modal.na : "…"}</dd><dt>{t.altitude}</dt></div>
+                  <div><dd>{res?.rain != null ? N(res.rain) : res ? t.modal.na : "…"}</dd><dt>{fill(t.pluieAn, { a: RAIN_FIRST, b: RAIN_LAST })}</dt></div>
                 </dl>
-                {res && <p className="at-note">Bassin versant : {res.bassin ?? "non renseigné"}</p>}
+                {res && <p className="at-note">{t.bassin} : {res.bassin || t.bassinNon}</p>}
                 {res && (
                   <p className={`at-badge ${res.fiable}`}>
-                    {FIABLE_TXT[res.fiable]}
-                    {statutsManquants.length > 0 && <> · sources manquantes : {statutsManquants.join(", ")}</>}
+                    {t.fiable[res.fiable]}
+                    {statutsManquants.length > 0 && <> · {t.manquantes} : {statutsManquants.join(", ")}</>}
                   </p>
                 )}
-                {current.err && <p className="at-alert" role="alert">Analyse impossible : {current.err}. <button type="button" className="at-link" onClick={() => { setRi((v) => v); }}>Réessayer en sélectionnant de nouveau la zone</button></p>}
+                {current.err && (
+                  <p className="at-alert" role="alert">
+                    {t.analyseKo} : {errMsg(current.err, t)}. <button type="button" className="at-link" onClick={() => setRi((v) => v)}>{t.reessayer}</button>
+                  </p>
+                )}
               </div>
 
               <div className="at-duo">
                 <section className="at-card at-c">
                   <div className="at-ch">
-                    <h3>Occupation du sol</h3>
-                    <select value={lcYear} onChange={(e) => setLcYear(+e.target.value)} aria-label="Année de l'occupation du sol" className="at-mini">
+                    <h3>{t.occ.titre}</h3>
+                    <select value={lcYear} onChange={(e) => setLcYear(+e.target.value)} aria-label={t.occ.annee} className="at-mini">
                       {LC_YEARS.map((y) => <option key={y}>{y}</option>)}
                     </select>
                   </div>
-                  <p className="at-sub">Une ligne par niveau choisi.</p>
+                  <p className="at-sub">{t.occ.sub}</p>
                   {levels.map(({ f, s }, i) => f && (
                     <div className="at-core" key={i}>
-                      <div className="at-corelab"><small>{ROWS[i]}</small><span title={nameOf(f)}>{nameOf(f)}</span></div>
+                      <div className="at-corelab"><small>{[t.niveaux.region, t.niveaux.district, t.niveaux.commune, t.niveaux.parcelle][i]}</small><span title={nameOf(f)}>{nameOf(f)}</span></div>
                       {s.res ? (
                         <div className="at-stack" key={nameOf(f) + s.res.areaKm2}>
-                          {s.res.land.map((p) => <i key={p.n} style={{ width: `${p.pct}%`, background: p.col }} title={`${p.n} : ${nf(p.pct, 1)} %`} />)}
+                          {s.res.land.map((p) => <i key={p.k} style={{ width: `${p.pct}%`, background: p.col }} title={`${classeNom(p.k)} : ${N(p.pct, 1)} %`} />)}
                         </div>
                       ) : <div className="at-stack at-pulse" />}
                     </div>
@@ -1172,81 +1092,82 @@ function Coeur() {
                   {res ? (
                     <>
                       <table className="at-tbl">
-                        <thead><tr><th scope="col">Types présents</th><th scope="col">Part</th><th scope="col">ha</th></tr></thead>
+                        <thead><tr><th scope="col">{t.occ.types}</th><th scope="col">{t.occ.part}</th><th scope="col">{t.occ.ha}</th></tr></thead>
                         <tbody>
                           {res.land.map((p) => (
-                            <tr key={p.n}>
-                              <td><i style={{ background: p.col }} />{p.n}</td>
-                              <td>{p.pct < 0.1 ? "< 0,1" : nf(p.pct, 1)} %</td>
-                              <td>{nf((p.pct / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
+                            <tr key={p.k}>
+                              <td><i style={{ background: p.col }} />{classeNom(p.k)}</td>
+                              <td>{p.pct < 0.1 ? "< 0,1" : N(p.pct, 1)} %</td>
+                              <td>{N((p.pct / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
                             </tr>
                           ))}
                           {res.cultWC != null && (
                             <tr style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>
-                              <td><i style={{ background: ORANGE_WC }} />Cultures (WorldCover 2021)</td>
-                              <td>{res.cultWC < 0.1 ? "< 0,1" : nf(res.cultWC, 1)} %</td>
-                              <td>{nf((res.cultWC / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
+                              <td><i style={{ background: ORANGE_WC }} />{t.occ.wcRow}</td>
+                              <td>{res.cultWC < 0.1 ? "< 0,1" : N(res.cultWC, 1)} %</td>
+                              <td>{N((res.cultWC / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
                             </tr>
                           )}
                         </tbody>
                       </table>
-                      {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
-                      <p className="at-note">Classification exploitable sur {nf(res.couverture, 0)} % de la zone.</p>
+                      {res.cloudPct > 0.5 && <p className="at-note">{fill(t.occ.nuages, { p: N(res.cloudPct, 1) })}</p>}
+                      <p className="at-note">{fill(t.occ.exploitable, { p: N(res.couverture, 0) })}</p>
                       <p className="at-note">
-                        Cultures : Impact Observatory {nf(res.cropPct, 1)} % · {res.cultWC != null
-                          ? <span style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>WorldCover 2021 {nf(res.cultWC, 1)} %</span>
-                          : <>WorldCover indisponible{res.statuts.cultures ? ` (${res.statuts.cultures})` : ""}</>}
+                        {fill(t.occ.cultIO, { p: N(res.cropPct, 1) })} · {res.cultWC != null
+                          ? <span style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>{fill(t.occ.wcLigne, { p: N(res.cultWC, 1) })}</span>
+                          : <>{t.occ.wcIndispo}{res.statuts.cultures ? ` (${errMsg(res.statuts.cultures, t)})` : ""}</>}
                       </p>
                     </>
-                  ) : <p className="at-load">{current.busy ? "Calcul en cours…" : ""}</p>}
+                  ) : <p className="at-load">{current.busy ? t.chargement : ""}</p>}
                 </section>
 
                 <section className="at-card at-c at-def">
                   <div className="at-ch">
-                    <h3>Perte de couvert</h3>
+                    <h3>{t.perte.titre}</h3>
                     <div className="at-yrs">
-                      <select className="at-mini" value={dfFrom} aria-label="Année de début" onChange={(e) => { const v = +e.target.value; setDfFrom(v); if (v > dfTo) setDfTo(v); }}>{yearOptions}</select>
-                      <span>à</span>
-                      <select className="at-mini" value={dfTo} aria-label="Année de fin" onChange={(e) => { const v = +e.target.value; setDfTo(v); if (v < dfFrom) setDfFrom(v); }}>{yearOptions}</select>
+                      <select className="at-mini" value={dfFrom} aria-label={t.perte.de} onChange={(e) => { const v = +e.target.value; setDfFrom(v); if (v > dfTo) setDfTo(v); }}>{yearOptions}</select>
+                      <span>{t.perte.a}</span>
+                      <select className="at-mini" value={dfTo} aria-label={t.perte.fin} onChange={(e) => { const v = +e.target.value; setDfTo(v); if (v < dfFrom) setDfFrom(v); }}>{yearOptions}</select>
                     </div>
                   </div>
-                  {lossS.busy && <p className="at-load">Calcul en cours… (quelques secondes pour une région)</p>}
-                  {lossS.err && (
-                    <p className="at-alert" role="alert">
-                      Chiffres indisponibles ({lossS.err}). La carte de perte, elle, s’affiche.
-                    </p>
-                  )}
+                  {lossS.busy && <p className="at-load">{t.perte.attente}</p>}
+                  {lossS.err && <p className="at-alert" role="alert">{fill(t.perte.indispo, { e: errMsg(lossS.err, t) })}</p>}
                   {lossStats && (
                     <>
-                      <div className="at-big at-big-def">{nf(Math.round(lossStats.total))}<small>ha</small></div>
-                      <p className="at-sub">de couvert arboré perdus sur {periodeTxt}, soit {nf(lossStats.pct, lossStats.pct < 1 ? 2 : 1)} % de la zone. Cette perte inclut incendies et coupes temporaires.</p>
-                      <div className="at-cols" role="img" aria-label="Perte de couvert par année">
+                      <div className="at-big at-big-def">{N(Math.round(lossStats.total))}<small>{t.perte.unite}</small></div>
+                      <p className="at-sub">{fill(t.perte.desc, { p: periodeTxt, pct: N(lossStats.pct, lossStats.pct < 1 ? 2 : 1) })}</p>
+                      <div className="at-cols" role="img" aria-label={t.perte.titre}>
                         {lossStats.years.map((a) => (
-                          <div key={a.annee} className="at-colw" title={`${a.annee} : ${nf(Math.round(a.ha))} ha`}>
+                          <div key={a.annee} className="at-colw" title={`${a.annee} : ${N(Math.round(a.ha))} ${t.perte.unite}`}>
                             <i style={{ height: `${Math.max(3, (a.ha / lossStats.max) * 100)}%`, background: a.annee === lossStats.peak.annee ? "#b0285f" : COULEUR_PERTE }} />
                           </div>
                         ))}
                       </div>
                       <div className="at-colsl"><span>{dfFrom}</span><span>{dfTo}</span></div>
                       <dl className="at-mini-facts">
-                        <div><dt>Année la plus touchée</dt><dd>{lossStats.peak.annee} · {nf(Math.round(lossStats.peak.ha))} ha</dd></div>
-                        <div><dt>Moyenne annuelle</dt><dd>{nf(Math.round(lossStats.total / Math.max(1, lossStats.years.length)))} ha/an</dd></div>
-                        {lossStats.trend && <div><dt>Tendance</dt><dd>{lossStats.trend === "hausse" ? "en hausse" : lossStats.trend === "baisse" ? "en baisse" : "stable"}</dd></div>}
+                        <div><dt>{t.perte.pic}</dt><dd>{lossStats.peak.annee} · {N(Math.round(lossStats.peak.ha))} {t.perte.unite}</dd></div>
+                        <div><dt>{t.perte.moyenne}</dt><dd>{N(Math.round(lossStats.total / Math.max(1, lossStats.years.length)))} {t.perte.parAn}</dd></div>
+                        {lossStats.trend && (
+                          <div>
+                            <dt>{t.perte.tendance}</dt>
+                            <dd>{lossStats.trend === "hausse" ? t.perte.hausse : lossStats.trend === "baisse" ? t.perte.baisse : t.perte.stable}</dd>
+                          </div>
+                        )}
                       </dl>
                     </>
                   )}
                 </section>
 
                 <section className="at-card at-c">
-                  <h3>Relief et pente</h3>
+                  <h3>{t.relief.titre}</h3>
                   {res && res.slope ? (
                     <>
                       <div className="at-stack at-slope" key={nameOf(selected)}>
-                        {res.slope.map((p) => <i key={p.n} style={{ width: `${p.pct}%`, background: p.col }} title={`${p.n} : ${nf(p.pct, 1)} %`} />)}
+                        {res.slope.map((p) => <i key={p.k} style={{ width: `${p.pct}%`, background: p.col }} title={`${t.pentes[p.k]} : ${N(p.pct, 1)} %`} />)}
                       </div>
                       <table className="at-tbl">
                         <tbody>
-                          {res.slope.map((p) => <tr key={p.n}><td><i style={{ background: p.col }} />{p.n}</td><td>{nf(p.pct, 1)} %</td></tr>)}
+                          {res.slope.map((p) => <tr key={p.k}><td><i style={{ background: p.col }} />{t.pentes[p.k]}</td><td>{N(p.pct, 1)} %</td></tr>)}
                         </tbody>
                       </table>
                       {res.elevMin != null && res.elevMax != null && (
@@ -1255,84 +1176,88 @@ function Coeur() {
                             <b className="at-range" style={{ left: `${(Math.max(0, res.elevMin) / 2900) * 100}%`, width: `${Math.max(1.5, ((res.elevMax - Math.max(0, res.elevMin)) / 2900) * 100)}%` }} />
                             <u className="at-dot" style={{ left: `${((res.elevMean ?? 0) / 2900) * 100}%` }} />
                           </div>
-                          <div className="at-stripl"><span>0 m</span><span>{nf(res.elevMin)} à {nf(res.elevMax)} m</span><span>2 900 m</span></div>
+                          <div className="at-stripl"><span>0 m</span><span>{N(res.elevMin)} – {N(res.elevMax)} m</span><span>2 900 m</span></div>
                         </>
                       )}
-                      <p className="at-note">{res.resolution}.</p>
+                      <p className="at-note">
+                        {res.resolution.small
+                          ? t.relief.petit
+                          : fill(t.relief.grand, { m: N(res.resolution.pixelM), km: N(res.resolution.stepKm, 1) })}.
+                      </p>
                     </>
                   ) : res ? (
-                    <p className="at-alert" role="alert">Relief indisponible{res.statuts.relief ? ` (${res.statuts.relief})` : ""}. Les recommandations sur les pentes sont masquées.</p>
-                  ) : <p className="at-load">{current.busy ? "Calcul en cours…" : ""}</p>}
+                    <p className="at-alert" role="alert">{t.relief.indispo}{res.statuts.relief ? ` (${errMsg(res.statuts.relief, t)})` : ""}. {t.relief.masque}</p>
+                  ) : <p className="at-load">{current.busy ? t.chargement : ""}</p>}
                 </section>
 
                 <section className="at-card at-c at-feu">
                   <div className="at-ch">
-                    <h3>Points de feux</h3>
-                    <select className="at-mini" value={conf} onChange={(e) => setConf(e.target.value as "l" | "n" | "h")} aria-label="Fiabilité des détections">
-                      <option value="l">Toutes</option><option value="n">Nominale et plus</option><option value="h">Élevée seulement</option>
+                    <h3>{t.feux.titre}</h3>
+                    <select className="at-mini" value={conf} onChange={(e) => setConf(e.target.value as "l" | "n" | "h")} aria-label={t.feux.fiabiliteAria}>
+                      <option value="l">{t.feux.confToutes}</option><option value="n">{t.feux.confNominale}</option><option value="h">{t.feux.confElevee}</option>
                     </select>
                   </div>
                   {fErr && !feuxBruts.length ? (
-                    <p className="at-alert" role="alert">Données de feux indisponibles ({fErr}). <button type="button" className="at-link" onClick={chargerFeux}>Réessayer</button></p>
+                    <p className="at-alert" role="alert">{fill(t.feux.indispo, { e: errMsg(fErr, t) })} <button type="button" className="at-link" onClick={chargerFeux}>{t.feux.reessayer}</button></p>
                   ) : (
                     <>
-                      {feuxPerimes && <p className="at-alert" role="alert">Données de feux anciennes (mise à jour à {heureMaj}). <button type="button" className="at-link" onClick={chargerFeux}>Actualiser</button></p>}
-                      {fErr && feuxBruts.length > 0 && <p className="at-note">Dernière actualisation échouée ; affichage des données précédentes.</p>}
+                      {feuxPerimes && <p className="at-alert" role="alert">{fill(t.feux.perime, { h: heureMaj })} <button type="button" className="at-link" onClick={chargerFeux}>{t.feux.actualiser}</button></p>}
+                      {fErr && feuxBruts.length > 0 && <p className="at-note">{t.feux.echecMaj}</p>}
                       <div className="at-feu-top">
-                        <div className="at-big at-big-feu">{fLoad && !feuxBruts.length ? "…" : nf(feuxAff.length)}</div>
-                        <div className="at-seg" role="group" aria-label="Période des feux">
+                        <div className="at-big at-big-feu">{fLoad && !feuxBruts.length ? "…" : N(feuxAff.length)}</div>
+                        <div className="at-seg" role="group" aria-label={t.feux.periodeAria}>
                           {([24, 48, 72] as const).map((h) => <button key={h} type="button" aria-pressed={fPeriod === h} onClick={() => setFPeriod(h)}>{h} h</button>)}
                         </div>
                       </div>
-                      <p className="at-sub">points chauds détectés par satellite ces {fPeriod} dernières heures dans la zone.</p>
-                      <div className="at-cols" role="img" aria-label="Détections par tranche de 6 heures">
+                      <p className="at-sub">{fill(t.feux.sub, { h: fPeriod })}</p>
+                      <div className="at-cols" role="img" aria-label={t.feux.binAria}>
                         {[...chrono].map((n, i) => ({ n, i })).reverse().map(({ n, i }) => (
-                          <div key={i} className="at-colw" title={`${n} détections · il y a ${i * 6} à ${i * 6 + 6} h`}>
+                          <div key={i} className="at-colw" title={fill(t.feux.binTitre, { n: N(n), a: i * 6, b: i * 6 + 6 })}>
                             <i style={{ height: `${Math.max(4, (n / maxChrono) * 100)}%`, background: couleurAge(i * 6 + 3), opacity: i * 6 < fPeriod ? 1 : 0.22 }} />
                           </div>
                         ))}
                       </div>
-                      <div className="at-colsl"><span>il y a 72 h</span><span>maintenant</span></div>
+                      <div className="at-colsl"><span>{t.feux.ilya72}</span><span>{t.feux.maintenant}</span></div>
                       <table className="at-tbl">
                         <tbody>
-                          <tr><td><i style={{ background: "rgb(200,15,15)" }} />24 dernières heures</td><td>{nf(n24)}</td></tr>
-                          <tr><td><i style={{ background: "#f97316" }} />24 à 48 h</td><td>{nf(n48 - n24)}</td></tr>
-                          <tr><td><i style={{ background: "#facc15" }} />48 à 72 h</td><td>{nf(n72 - n48)}</td></tr>
+                          <tr><td><i style={{ background: "rgb(200,15,15)" }} />{t.feux.h24}</td><td>{N(n24)}</td></tr>
+                          <tr><td><i style={{ background: "#f97316" }} />{t.feux.h2448}</td><td>{N(n48 - n24)}</td></tr>
+                          <tr><td><i style={{ background: "#facc15" }} />{t.feux.h4872}</td><td>{N(n72 - n48)}</td></tr>
                         </tbody>
                       </table>
-                      <p className="at-note">NASA FIRMS, mise à jour à {heureMaj}.</p>
+                      <p className="at-note">{fill(t.feux.maj, { h: heureMaj })}</p>
                     </>
                   )}
                 </section>
               </div>
 
-              <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>Voir les orientations</button>
+              <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>{t.voirOrient}</button>
             </>
           )}
         </aside>
 
-        <section className="at-mcard" aria-label="Carte de Madagascar">
+        <section className="at-mcard" aria-label={t.carte.carteAria}>
           <div className="at-mhead">
             <div className="at-mtools">
-              <div className="at-seg" role="group" aria-label="Fond de carte">
-                <button type="button" aria-pressed={fond === "sat"} onClick={() => setFond("sat")}>Satellite</button>
-                <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>Topographie</button>
+              <div className="at-seg" role="group" aria-label={t.carte.fondAria}>
+                <button type="button" aria-pressed={fond === "sat"} onClick={() => setFond("sat")}>{t.carte.satellite}</button>
+                <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>{t.carte.topo}</button>
               </div>
-              <label className="at-chk"><input type="checkbox" checked={showLC} onChange={(e) => setShowLC(e.target.checked)} />Occupation du sol</label>
-              <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />Perte de couvert</label>
-              <label className="at-chk"><input type="checkbox" checked={showFires} onChange={(e) => setShowFires(e.target.checked)} />Points de feux</label>
-              <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />Estomper l’extérieur</label>
+              <label className="at-chk"><input type="checkbox" checked={showLC} onChange={(e) => setShowLC(e.target.checked)} />{t.carte.occ}</label>
+              <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />{t.carte.perte}</label>
+              <label className="at-chk"><input type="checkbox" checked={showFires} onChange={(e) => setShowFires(e.target.checked)} />{t.carte.feux}</label>
+              <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />{t.carte.estomper}</label>
             </div>
             <div className="at-mtools">
               {!drawing ? (
-                <button type="button" className="at-tool" onClick={startDraw}><PenTool size={15} />Tracer une parcelle</button>
+                <button type="button" className="at-tool" onClick={startDraw}><PenTool size={15} />{t.carte.tracer}</button>
               ) : (
                 <>
-                  <button type="button" className="at-tool on" onClick={finishDraw} disabled={nPts < 3}><Check size={15} />Terminer</button>
-                  <button type="button" className="at-tool" onClick={cancelDraw}><X size={15} />Annuler</button>
+                  <button type="button" className="at-tool on" onClick={finishDraw} disabled={nPts < 3}><Check size={15} />{t.carte.terminer}</button>
+                  <button type="button" className="at-tool" onClick={cancelDraw}><X size={15} />{t.carte.annuler}</button>
                 </>
               )}
-              {parcel && <button type="button" className="at-tool" onClick={() => setParcel(null)}><Trash2 size={15} />Effacer la parcelle</button>}
+              {parcel && <button type="button" className="at-tool" onClick={() => setParcel(null)}><Trash2 size={15} />{t.carte.effacer}</button>}
             </div>
           </div>
           <div className="at-mbox">
@@ -1340,12 +1265,12 @@ function Coeur() {
             <div className="at-ctl at-hint">{hint}</div>
             {(showLC || showLoss || showFires) && (
               <div className="at-ctl at-legend">
-                {showLC && <><strong>Occupation du sol {lcYear}</strong>{legendLC.map((k) => <span key={k.n}><i style={{ background: k.col }} />{k.n}</span>)}</>}
-                {showLoss && <><strong>Perte de couvert</strong><span><i style={{ background: COULEUR_PERTE }} />{periodeTxt}</span></>}
-                {showFires && <><strong>Points chauds (satellite)</strong>
-                  <span><i className="r" style={{ background: "rgb(200,15,15)" }} />Moins de 24 h</span>
-                  <span><i className="r" style={{ background: "#f97316" }} />24 à 48 h</span>
-                  <span><i className="r" style={{ background: "#facc15" }} />48 à 72 h</span></>}
+                {showLC && <><strong>{fill(t.legende.lc, { y: lcYear })}</strong>{legendLC.map((k) => <span key={k.k}><i style={{ background: k.col }} />{classeNom(k.k)}</span>)}</>}
+                {showLoss && <><strong>{t.legende.perte}</strong><span><i style={{ background: COULEUR_PERTE }} />{periodeTxt}</span></>}
+                {showFires && <><strong>{t.legende.feux}</strong>
+                  <span><i className="r" style={{ background: "rgb(200,15,15)" }} />{t.legende.m24}</span>
+                  <span><i className="r" style={{ background: "#f97316" }} />{t.legende.m2448}</span>
+                  <span><i className="r" style={{ background: "#facc15" }} />{t.legende.m4872}</span></>}
               </div>
             )}
           </div>
@@ -1357,45 +1282,48 @@ function Coeur() {
           <div className="at-modal" role="dialog" aria-modal="true" aria-labelledby="at-m-titre" ref={modalRef}>
             <header className="at-mh">
               <div>
-                <h2 id="at-m-titre">Orientations pour {nameOf(selected)}</h2>
-                <p>{lvlText} · {fmtArea(zoneKm2)} · {advice.length} orientation{advice.length > 1 ? "s" : ""}{nHautes ? `, dont ${nHautes} prioritaire${nHautes > 1 ? "s" : ""}` : ""} · {FIABLE_TXT[res.fiable].toLowerCase()}</p>
+                <h2 id="at-m-titre">{fill(t.modal.titre, { nom: nameOf(selected) })}</h2>
+                <p>
+                  {lvlText} · {fmtArea(zoneKm2)} · {fill(t.modal.nb, { n: advice.length })}
+                  {nHautes ? fill(t.modal.prio, { n: nHautes }) : ""} · {t.fiableBas[res.fiable]}
+                </p>
               </div>
-              <button type="button" className="at-x" ref={closeRef} onClick={() => setShow(false)} aria-label="Fermer la fenêtre"><X size={18} /></button>
+              <button type="button" className="at-x" ref={closeRef} onClick={() => setShow(false)} aria-label={t.modal.fermerAria}><X size={18} /></button>
             </header>
 
             <div className="at-mb">
               <div className="at-kpis">
-                <div className="at-kpi"><b>{nf(res.treePct, 1)} %</b><span>couvert arboré</span></div>
+                <div className="at-kpi"><b>{N(res.treePct, 1)} %</b><span>{t.modal.kTree}</span></div>
                 <div className="at-kpi">
-                  <b>{res.cultWC == null ? `${nf(res.cropPct, 1)} %` : `${nf(Math.max(res.cropPct, res.cultWC), 1)} %`}</b>
-                  <span>{res.cultWC == null ? "cultures (WorldCover indisponible)" : "cultures (max des 2 sources)"}</span>
+                  <b>{res.cultWC == null ? `${N(res.cropPct, 1)} %` : `${N(Math.max(res.cropPct, res.cultWC), 1)} %`}</b>
+                  <span>{res.cultWC == null ? t.modal.kCropIndispo : t.modal.kCrop}</span>
                 </div>
-                <div className="at-kpi"><b>{res.steepPct != null ? `${nf(res.steepPct, 1)} %` : "n/d"}</b><span>pente de 15 % ou plus</span></div>
-                <div className="at-kpi"><b>{lossStats ? `${nf(Math.round(lossStats.total))} ha` : "n/d"}</b><span>perte de couvert, {periodeTxt}</span></div>
-                <div className="at-kpi"><b>{nf(n72)}</b><span>points chauds en 72 h</span></div>
-                <div className="at-kpi"><b>{res.rain != null ? `${nf(res.rain)} mm` : "n/d"}</b><span>pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</span></div>
+                <div className="at-kpi"><b>{res.steepPct != null ? `${N(res.steepPct, 1)} %` : t.modal.na}</b><span>{t.modal.kSteep}</span></div>
+                <div className="at-kpi"><b>{lossStats ? `${N(Math.round(lossStats.total))} ${t.perte.unite}` : t.modal.na}</b><span>{fill(t.modal.kLoss, { p: periodeTxt })}</span></div>
+                <div className="at-kpi"><b>{N(n72)}</b><span>{t.modal.kFires}</span></div>
+                <div className="at-kpi"><b>{res.rain != null ? `${N(res.rain)} mm` : t.modal.na}</b><span>{fill(t.modal.kRain, { a: RAIN_FIRST, b: RAIN_LAST })}</span></div>
               </div>
 
               {score != null ? (
                 <div className="at-gauge-wrap">
                   <div className="at-gauge"><u style={{ left: `${score}%` }} /></div>
-                  <p>Vulnérabilité à l’érosion : <strong>{vulnLabel(score)}</strong> ({score} sur 100)</p>
+                  <p>{fill(t.modal.vuln, { label: t.vulnNiv[score < 25 ? "faible" : score < 50 ? "moderee" : score < 70 ? "elevee" : "tres"], s: score })}</p>
                 </div>
               ) : (
-                <p className="at-alert" role="alert">Score de vulnérabilité non calculé : le relief est indisponible.</p>
+                <p className="at-alert" role="alert">{t.modal.vulnNA}</p>
               )}
 
               {res.fiable !== "bonne" && (
                 <p className="at-alert" role="alert">
-                  Ces orientations reposent sur des données partielles{statutsManquants.length ? ` (${statutsManquants.join(", ")})` : ""}. Confirmez-les sur le terrain avant toute décision.
+                  {fill(t.modal.partiel, { s: statutsManquants.length ? ` (${statutsManquants.join(", ")})` : "" })}
                 </p>
               )}
 
               {themesPresents.length > 1 && (
-                <div className="at-chips" role="group" aria-label="Filtrer par thème">
-                  <button type="button" aria-pressed={themeF === "Toutes"} onClick={() => setThemeF("Toutes")}>Toutes ({advice.length})</button>
+                <div className="at-chips" role="group" aria-label={t.modal.filtre}>
+                  <button type="button" aria-pressed={themeF === "Toutes"} onClick={() => setThemeF("Toutes")}>{fill(t.modal.tous, { n: advice.length })}</button>
                   {themesPresents.map(({ th, n }) => (
-                    <button key={th} type="button" aria-pressed={themeF === th} onClick={() => setThemeF(th)}>{th} ({n})</button>
+                    <button key={th} type="button" aria-pressed={themeF === th} onClick={() => setThemeF(th)}>{t.themes[th]} ({n})</button>
                   ))}
                 </div>
               )}
@@ -1403,8 +1331,8 @@ function Coeur() {
               {adviceShown.map((a) => (
                 <article key={a.t} className={`at-reco ${a.lvl}`}>
                   <div className="at-rtags">
-                    <span className="at-tag">{a.th}</span>
-                    <span className={`at-lv ${a.lvl}`}>{LVL_TXT[a.lvl]}</span>
+                    <span className="at-tag">{t.themes[a.th]}</span>
+                    <span className={`at-lv ${a.lvl}`}>{t.prio[a.lvl]}</span>
                   </div>
                   <h4>{a.t}</h4>
                   <p>{a.d}</p>
@@ -1413,28 +1341,28 @@ function Coeur() {
               ))}
 
               <details className="at-meth">
-                <summary>Méthode, sources et limites</summary>
+                <summary>{t.modal.methode}</summary>
                 <table className="at-tbl">
-                  <thead><tr><th scope="col">Donnée</th><th scope="col">Source</th><th scope="col">Limite</th></tr></thead>
+                  <thead><tr><th scope="col">{t.modal.colDonnee}</th><th scope="col">{t.modal.colSource}</th><th scope="col">{t.modal.colLimite}</th></tr></thead>
                   <tbody>
-                    {SOURCES_INFO.map((s) => (
-                      <tr key={s.nom}><td>{s.nom}</td><td>{s.source}</td><td>{s.limite}</td></tr>
+                    {t.sources.nom.map((nom, i) => (
+                      <tr key={nom}>
+                        <td>{nom}</td>
+                        <td>{fill(t.sources.source[i], { rev: REV, n: RAIN_YEARS })}</td>
+                        <td>{t.sources.limite[i]}</td>
+                      </tr>
                     ))}
                   </tbody>
                 </table>
-                <p className="at-note">
-                  Règles d'orientation : un seuil ou une condition déclenche une recommandation si la valeur calculée le dépasse. Les seuils (par ex. 3 % de perte, 35 % de pente forte, 1 200 mm de pluie) sont des repères d'expert, non des normes officielles. Ils peuvent être révisés avec des données de terrain.
-                </p>
+                <p className="at-note">{t.modal.regles}</p>
               </details>
 
-              <p className="at-note">
-                Estimation indicative. Ne remplace pas la validation de terrain ni la concertation avec les communautés concernées.
-              </p>
+              <p className="at-note">{t.modal.estim}</p>
             </div>
 
             <footer className="at-mf">
-              <button type="button" className="at-tool" onClick={exporter}><Download size={15} />Exporter (JSON)</button>
-              <button type="button" className="at-tool on" onClick={() => setShow(false)}>Fermer</button>
+              <button type="button" className="at-tool" onClick={exporter}><Download size={15} />{t.modal.exporter}</button>
+              <button type="button" className="at-tool on" onClick={() => setShow(false)}>{t.modal.fermer}</button>
             </footer>
           </div>
         </div>
@@ -1444,14 +1372,14 @@ function Coeur() {
 }
 
 /** Limite d'erreur : une panne interne n'efface pas toute la page. */
-class Garde extends Component<{ children: ReactNode }, { err: Error | null }> {
+class Garde extends Component<{ children: ReactNode; t: Dict }, { err: Error | null }> {
   state = { err: null as Error | null };
   static getDerivedStateFromError(err: Error) { return { err }; }
   render() {
     if (this.state.err) {
       return (
         <div className="at-alert" role="alert" style={{ margin: 20 }}>
-          Une erreur inattendue est survenue. Rechargez la page. Si le problème persiste, notez l'heure et la zone choisie. ({this.state.err.message})
+          {this.props.t.garde} ({this.state.err.message})
         </div>
       );
     }
@@ -1459,8 +1387,16 @@ class Garde extends Component<{ children: ReactNode }, { err: Error | null }> {
   }
 }
 
+/** Langue lue dans le contexte, comme Home.tsx. Repli sur le français si la valeur est inconnue. */
 export default function AnalyseTerritoriale() {
-  return <Garde><Coeur /></Garde>;
+  const { lang: rawLang } = useLanguage();
+  const lang: Lang = (LANGS as string[]).includes(rawLang as string) ? (rawLang as Lang) : "fr";
+  const t = TEXTS[lang];
+  return (
+    <Garde t={t}>
+      <Coeur lang={lang} t={t} />
+    </Garde>
+  );
 }
 
 /* ===================== STYLES ===================== */
@@ -1548,7 +1484,7 @@ const CSS = `
 .at-x{flex:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink2);cursor:pointer;display:grid;place-items:center}
 .at-x:hover{background:var(--c-bg)}
 .at-mb{padding:16px 20px;overflow-y:auto;overscroll-behavior:contain;flex:1;min-height:0}
-.at-mf{padding:12px 20px;border-top:1px solid var(--c-line);display:flex;justify-content:flex-end}
+.at-mf{padding:12px 20px;border-top:1px solid var(--c-line);display:flex;justify-content:flex-end;gap:8px}
 .at-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .at-kpi{background:var(--c-bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
 .at-kpi b{font-family:'Newsreader',Georgia,serif;font-weight:500;font-size:24px;line-height:1.1}
@@ -1596,7 +1532,6 @@ const CSS = `
 .at-meth summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--c-ink2)}
 .at-meth table{margin-top:10px}
 .at-meth td,.at-meth th{vertical-align:top;text-align:left}
-.at-meth td:first-child{display:table-cell}
 @keyframes atGrow{from{transform:scaleX(0)}}
 @keyframes atPulse{50%{opacity:.45}}
 @keyframes atFade{from{opacity:0}}
