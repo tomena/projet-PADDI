@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import {
@@ -5,10 +6,12 @@ import {
   BookOpen,
   Compass,
   FolderKanban,
+  Info,
   Phone,
   Trees,
   TrendingUp,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -50,6 +53,7 @@ export default function Home() {
   const { lang, setLang } = useLanguage();
   const t = text[(lang as Lang) in text ? (lang as Lang) : "fr"];
   const navigate = useNavigate();
+  const infoRef = useRef<HTMLDialogElement>(null);
 
   const open = (module: string) => {
     const known = module in ROUTES;
@@ -58,103 +62,112 @@ export default function Home() {
     });
   };
 
+  const closeInfo = () => infoRef.current?.close();
+
   return (
-    <div className="home">
-      <section className="hero" style={{ backgroundImage: `url(${bg})` }}>
-        <div className="topbar">
-          <span className="brand">PADDI</span>
+    <div className="home" style={{ backgroundImage: `url(${bg})` }}>
+      <header className="topbar">
+        <span className="brand">PADDI</span>
 
-          <div className="lang" role="group" aria-label="Langue">
-            {LANGS.map((code) => (
-              <button
-                key={code}
-                type="button"
-                aria-pressed={lang === code}
-                onClick={() => setLang(code as never)}
-              >
-                {code.toUpperCase()}
-              </button>
-            ))}
-          </div>
+        <div className="lang" role="group" aria-label="Langue">
+          {LANGS.map((code) => (
+            <button
+              key={code}
+              type="button"
+              aria-pressed={lang === code}
+              onClick={() => setLang(code as never)}
+            >
+              {code.toUpperCase()}
+            </button>
+          ))}
         </div>
+      </header>
 
-        <div className="hero-content">
-          <h1>
-            <span>{t.title1}</span>
-            <span>{t.title2}</span>
-          </h1>
+      <section className="hero">
+        <h1>
+          <span>{t.title1}</span>
+          <span>{t.title2}</span>
+        </h1>
 
-          <button type="button" className="cta" onClick={() => open("paddi")}>
-            PADDI
-            <ArrowRight aria-hidden="true" />
-          </button>
-        </div>
+        <button type="button" className="cta" onClick={() => open("paddi")}>
+          PADDI
+          <ArrowRight aria-hidden="true" />
+        </button>
       </section>
 
-      <main>
-        <section className="section" aria-labelledby="modules-title">
-          <h2 id="modules-title" className="section-title">
-            {t.presentation}
-          </h2>
-
-          <ul className="modules">
-            {MODULES.map(({ key, tone, Icon, labelKey }) => (
-              <li key={key}>
-                <button
-                  type="button"
-                  className={`module ${tone}`}
-                  onClick={() => open(key)}
-                >
-                  <span className="module-icon" aria-hidden="true">
-                    <Icon strokeWidth={2.1} />
-                  </span>
-                  <span className="module-label">{t[labelKey]}</span>
-                  <span className="module-go" aria-hidden="true">
-                    Ouvrir <ArrowRight />
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <section className="section about" aria-label="Présentation">
-          <article className="card">
-            <h3>{t.presentation}</h3>
-            <p>{t.p1}</p>
-            <p>{t.p2}</p>
-            <ul>
-              {t.territories.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-            <p>{t.p3}</p>
-            <p>{t.p4}</p>
-          </article>
-
-          <article className="card">
-            <ul>
-              {t.features.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-            <p>{t.p5}</p>
-            <p>{t.p6}</p>
-            <p className="highlight">{t.p7}</p>
-          </article>
-        </section>
-      </main>
+      <nav className="modules" aria-label={t.presentation}>
+        <ul>
+          {MODULES.map(({ key, tone, Icon, labelKey }) => (
+            <li key={key}>
+              <button
+                type="button"
+                className={`module ${tone}`}
+                onClick={() => open(key)}
+              >
+                <span className="module-icon" aria-hidden="true">
+                  <Icon strokeWidth={2.1} />
+                </span>
+                <span className="module-label">{t[labelKey]}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <footer className="footer">
         <button type="button" className="footer-btn" onClick={() => open("guide")}>
           <BookOpen aria-hidden="true" />
           <strong>{t.guide}</strong>
         </button>
+        <button
+          type="button"
+          className="footer-btn"
+          onClick={() => infoRef.current?.showModal()}
+        >
+          <Info aria-hidden="true" />
+          <strong>{t.presentation}</strong>
+        </button>
         <button type="button" className="footer-btn" onClick={() => open("contact")}>
           <Phone aria-hidden="true" />
           <strong>{t.contact}</strong>
         </button>
       </footer>
+
+      <dialog
+        ref={infoRef}
+        className="info-dialog"
+        aria-labelledby="info-title"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) closeInfo();
+        }}
+      >
+        <div className="info-body">
+          <div className="info-head">
+            <h2 id="info-title">{t.presentation}</h2>
+            <button type="button" className="info-close" onClick={closeInfo} aria-label="Fermer">
+              <X aria-hidden="true" />
+            </button>
+          </div>
+
+          <p>{t.p1}</p>
+          <p>{t.p2}</p>
+          <ul>
+            {t.territories.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+          <p>{t.p3}</p>
+          <p>{t.p4}</p>
+          <ul>
+            {t.features.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ul>
+          <p>{t.p5}</p>
+          <p>{t.p6}</p>
+          <p className="highlight">{t.p7}</p>
+        </div>
+      </dialog>
     </div>
   );
 }
