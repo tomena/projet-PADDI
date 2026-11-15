@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
 import {
@@ -6,12 +5,10 @@ import {
   BookOpen,
   Compass,
   FolderKanban,
-  Info,
   Phone,
   Trees,
   TrendingUp,
   Users,
-  X,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,7 +50,6 @@ export default function Home() {
   const { lang, setLang } = useLanguage();
   const t = text[(lang as Lang) in text ? (lang as Lang) : "fr"];
   const navigate = useNavigate();
-  const infoRef = useRef<HTMLDialogElement>(null);
 
   const open = (module: string) => {
     const known = module in ROUTES;
@@ -61,8 +57,6 @@ export default function Home() {
       state: { module: known ? module : "paddi" },
     });
   };
-
-  const closeInfo = () => infoRef.current?.close();
 
   return (
     <div className="home" style={{ backgroundImage: `url(${bg})` }}>
@@ -74,6 +68,7 @@ export default function Home() {
             <button
               key={code}
               type="button"
+              className={lang === code ? "active" : ""}
               aria-pressed={lang === code}
               onClick={() => setLang(code as never)}
             >
@@ -83,91 +78,68 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="hero">
-        <h1>
-          <span>{t.title1}</span>
-          <span>{t.title2}</span>
-        </h1>
+      <div className="main">
+        <section className="intro">
+          <h1>
+            <span>{t.title1}</span>
+            <span>{t.title2}</span>
+          </h1>
 
-        <button type="button" className="cta" onClick={() => open("paddi")}>
-          PADDI
-          <ArrowRight aria-hidden="true" />
-        </button>
-      </section>
+          <button type="button" className="cta" onClick={() => open("paddi")}>
+            PADDI
+            <ArrowRight aria-hidden="true" />
+          </button>
 
-      <nav className="modules" aria-label={t.presentation}>
-        <ul>
-          {MODULES.map(({ key, tone, Icon, labelKey }) => (
-            <li key={key}>
-              <button
-                type="button"
-                className={`module ${tone}`}
-                onClick={() => open(key)}
-              >
-                <span className="module-icon" aria-hidden="true">
-                  <Icon strokeWidth={2.1} />
-                </span>
-                <span className="module-label">{t[labelKey]}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
+          <article className="info">
+            <h2>{t.presentation}</h2>
+            <p>{t.p1}</p>
+            <p>{t.p2}</p>
+            <ul>
+              {t.territories.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+            <p>{t.p3}</p>
+            <p>{t.p4}</p>
+            <ul>
+              {t.features.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+            <p>{t.p5}</p>
+            <p>{t.p6}</p>
+            <p className="highlight">{t.p7}</p>
+          </article>
+        </section>
+
+        <nav className="modules" aria-label={t.presentation}>
+          <ul>
+            {MODULES.map(({ key, tone, Icon, labelKey }) => (
+              <li key={key}>
+                <button
+                  type="button"
+                  className={`module ${tone}`}
+                  onClick={() => open(key)}
+                >
+                  <Icon strokeWidth={2.1} aria-hidden="true" />
+                  <span>{t[labelKey]}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
 
       <footer className="footer">
         <button type="button" className="footer-btn" onClick={() => open("guide")}>
           <BookOpen aria-hidden="true" />
           <strong>{t.guide}</strong>
         </button>
-        <button
-          type="button"
-          className="footer-btn"
-          onClick={() => infoRef.current?.showModal()}
-        >
-          <Info aria-hidden="true" />
-          <strong>{t.presentation}</strong>
-        </button>
         <button type="button" className="footer-btn" onClick={() => open("contact")}>
           <Phone aria-hidden="true" />
           <strong>{t.contact}</strong>
         </button>
       </footer>
-
-      <dialog
-        ref={infoRef}
-        className="info-dialog"
-        aria-labelledby="info-title"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) closeInfo();
-        }}
-      >
-        <div className="info-body">
-          <div className="info-head">
-            <h2 id="info-title">{t.presentation}</h2>
-            <button type="button" className="info-close" onClick={closeInfo} aria-label="Fermer">
-              <X aria-hidden="true" />
-            </button>
-          </div>
-
-          <p>{t.p1}</p>
-          <p>{t.p2}</p>
-          <ul>
-            {t.territories.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-          <p>{t.p3}</p>
-          <p>{t.p4}</p>
-          <ul>
-            {t.features.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
-          <p>{t.p5}</p>
-          <p>{t.p6}</p>
-          <p className="highlight">{t.p7}</p>
-        </div>
-      </dialog>
     </div>
   );
 }
