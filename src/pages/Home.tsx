@@ -61,7 +61,12 @@ export default function Home() {
   return (
     <div className="home" style={{ backgroundImage: `url(${bg})` }}>
       <header className="topbar">
-        <span className="brand">PADDI</span>
+        <div className="brand">
+          <span className="brand-mark" aria-hidden="true">
+            <Trees />
+          </span>
+          <span>PADDI</span>
+        </div>
 
         <div className="lang" role="group" aria-label="Langue">
           {LANGS.map((code) => (
@@ -78,38 +83,18 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="main">
-        <section className="intro">
+      <main className="content">
+        <section className="hero">
           <h1>
             <span>{t.title1}</span>
             <span>{t.title2}</span>
           </h1>
+          <p className="lead">{t.p1}</p>
 
           <button type="button" className="cta" onClick={() => open("paddi")}>
             PADDI
             <ArrowRight aria-hidden="true" />
           </button>
-
-          <article className="info">
-            <h2>{t.presentation}</h2>
-            <p>{t.p1}</p>
-            <p>{t.p2}</p>
-            <ul>
-              {t.territories.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-            <p>{t.p3}</p>
-            <p>{t.p4}</p>
-            <ul>
-              {t.features.map((item, i) => (
-                <li key={i}>{item}</li>
-              ))}
-            </ul>
-            <p>{t.p5}</p>
-            <p>{t.p6}</p>
-            <p className="highlight">{t.p7}</p>
-          </article>
         </section>
 
         <nav className="modules" aria-label={t.presentation}>
@@ -118,17 +103,40 @@ export default function Home() {
               <li key={key}>
                 <button
                   type="button"
-                  className={`module ${tone}`}
+                  className={`tile ${tone}`}
                   onClick={() => open(key)}
                 >
-                  <Icon strokeWidth={2.1} aria-hidden="true" />
-                  <span>{t[labelKey]}</span>
+                  <span className="tile-icon" aria-hidden="true">
+                    <Icon strokeWidth={2.2} />
+                  </span>
+                  <span className="tile-label">{t[labelKey]}</span>
                 </button>
               </li>
             ))}
           </ul>
         </nav>
-      </div>
+
+        <section className="panels" aria-label={t.presentation}>
+          <h2 className="panels-title">{t.presentation}</h2>
+          <article className="panel">
+            <ul className="chips">
+              {t.territories.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="panel">
+            <ul className="checks">
+              {t.features.map((item, i) => (
+                <li key={i}>{item}</li>
+              ))}
+            </ul>
+          </article>
+        </section>
+
+        <p className="tagline">{t.p7}</p>
+      </main>
 
       <footer className="footer">
         <button type="button" className="footer-btn" onClick={() => open("guide")}>
