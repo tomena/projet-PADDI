@@ -53,23 +53,39 @@
 .home-title span { display: block; }
 
 .lang {
-  display: flex;
-  background: #fff;
-  border-radius: 30px;
-  overflow: hidden;
-  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+  display: inline-flex;
+  padding: 4px;
+  gap: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 6px 18px rgba(11, 70, 173, 0.22);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 .lang button {
-  min-height: 40px;
-  padding: 0 clamp(12px, 1.4vw, 23px);
+  min-width: 44px;
+  min-height: 36px;
+  padding: 0 14px;
   border: none;
-  background: #fff;
+  border-radius: 999px;
+  background: transparent;
   color: #123b86;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
-.lang .active { background: var(--blue); color: #fff; }
+.lang button:hover:not(.active) {
+  background: rgba(255, 255, 255, 0.9);
+}
+.lang button:active { transform: scale(0.95); }
+.lang .active {
+  background: linear-gradient(180deg, #1a56bd 0%, var(--blue) 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(11, 70, 173, 0.45);
+}
 
 /* ---------- Arbre : la zone utile de l'image, dans l'espace restant ---------- */
 .tree-viewport {
@@ -104,14 +120,14 @@
   -webkit-user-drag: none;
 }
 
-/* ---------- Feuilles : zones cliquables transparentes ---------- */
+/* ---------- Feuilles : zones cliquables, style bouton ---------- */
 .leaf {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.3em;
+  gap: 0.35em;
   padding: 0;
   border: none;
   background: transparent;
@@ -122,28 +138,45 @@
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.25s ease, filter 0.25s ease;
 }
-.leaf:active {
-  transform: scale(1.06);
-  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
-}
-@media (hover: hover) {
-  .leaf:hover {
-    transform: scale(1.08);
-    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
-  }
-}
 .leaf svg {
-  width: clamp(20px, 3.1cqw, 110px);
+  width: clamp(26px, 3.4cqw, 110px);
   height: auto;
   aspect-ratio: 1;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+  padding: 0.22em;
+  box-sizing: content-box;
+  border-radius: 50%;
+  background: var(--tone, var(--blue));
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .leaf span {
-  font-size: clamp(10px, 1cqw, 28px);
+  padding: 0.2em 0.7em;
+  border-radius: 999px;
+  background: rgba(11, 45, 110, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-size: clamp(10px, 1cqw, 26px);
   font-weight: 700;
   line-height: 1.15;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.75);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  white-space: nowrap;
 }
+.leaf:active { transform: scale(0.96); }
+.leaf:active svg { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
+@media (hover: hover) {
+  .leaf:hover { transform: translateY(-3px) scale(1.05); }
+  .leaf:hover svg {
+    transform: scale(1.06);
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4), 0 0 0 6px rgba(255, 255, 255, 0.18);
+  }
+}
+.leaf.env  { --tone: #2e7d4f; }
+.leaf.eco  { --tone: #c77800; }
+.leaf.soc  { --tone: #7a4fb0; }
+.leaf.cadre{ --tone: #0b46ad; }
+.leaf.proj { --tone: #00838a; }
 
 .env   { left: 50.5%; top: 22.5%; width: 12%; height: 18%; }
 .eco   { left: 67.5%; top: 9%;    width: 11%; height: 16%; }
