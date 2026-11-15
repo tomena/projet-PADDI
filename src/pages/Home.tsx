@@ -1,15 +1,7 @@
 import { useState, type CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
 import { useLanguage } from "../context/LanguageContext";
-import {
-  BookOpen,
-  Phone,
-  Trees,
-  TrendingUp,
-  Users,
-  Compass,
-  FolderKanban,
-} from "lucide-react";
+import { BookOpen, Phone, Leaf, Wallet, HeartHandshake, Landmark, Rocket,} from "lucide-react";
 
 import bg from "../assets/home-bg.png";
 import { text } from "./homeText"; // ton objet `text`, déplacé tel quel (avec `export`)
@@ -42,11 +34,11 @@ export default function Home() {
   };
 
   const leaves = [
-    { key: "environnement", cls: "env", Icon: Trees, label: t.env },
-    { key: "economie", cls: "eco", Icon: TrendingUp, label: t.eco },
-    { key: "societe", cls: "soc", Icon: Users, label: t.soc },
-    { key: "cadre", cls: "cadre", Icon: Compass, label: t.cadre },
-    { key: "projets", cls: "proj", Icon: FolderKanban, label: t.projet },
+    { key: "environnement", cls: "env", Icon: Leaf, label: t.env },
+    { key: "economie", cls: "eco", Icon: Wallet, label: t.eco },
+    { key: "societe", cls: "soc", Icon: HeartHandshake, label: t.soc },
+    { key: "cadre", cls: "cadre", Icon: Landmark, label: t.cadre },
+    { key: "projets", cls: "proj", Icon: Rocket, label: t.projet },
   ];
 
   return (
