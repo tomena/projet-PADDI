@@ -1,35 +1,35 @@
 /* =====================================================
-   BASE (téléphone) : tout s'empile
+   PRINCIPE : tout l'accueil tient dans l'écran (100dvh).
+   - Téléphone : titre / arbre / texte / boutons empilés.
+   - Tablette et petit paysage : texte à gauche, arbre à droite.
+   - Grand écran : l'arbre remplit l'écran, texte et boutons par-dessus.
    ===================================================== */
 :root {
   --blue: #0b46ad;
   --navy: #15335f;
-  /* Zone de l'arbre affichée sur petit écran (part de la largeur de l'image) */
-  --crop-left: 0.42;
-  --crop-w: 0.56;
 }
 *, *::before, *::after { box-sizing: border-box; }
 
 .home-page {
   position: relative;
-  min-height: 100vh;
-  min-height: 100dvh;
-  overflow-x: hidden;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
   background: linear-gradient(#eaf5ff, #cfe6fb);
 }
 
 .stage {
   position: relative;
+  height: 100%;
   display: grid;
-  gap: 1rem;
-  max-width: 1200px;
-  margin-inline: auto;
+  gap: clamp(0.4rem, 1.2dvh, 0.9rem);
   padding:
-    max(1rem, env(safe-area-inset-top))
-    max(1rem, env(safe-area-inset-right))
-    max(1rem, env(safe-area-inset-bottom))
-    max(1rem, env(safe-area-inset-left));
+    max(0.6rem, env(safe-area-inset-top))
+    max(0.8rem, env(safe-area-inset-right))
+    max(0.6rem, env(safe-area-inset-bottom))
+    max(0.8rem, env(safe-area-inset-left));
   grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   grid-template-areas: "header" "tree" "card" "footer";
 }
 
@@ -40,11 +40,11 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem 1.5rem;
+  gap: 0.4rem 1rem;
 }
 .home-title {
   margin: 0;
-  font-size: clamp(1.25rem, 1rem + 1.6vw, 2.1rem);
+  font-size: clamp(1.1rem, 0.9rem + 1.2vw, 2rem);
   line-height: 1.1;
   font-weight: 700;
   color: var(--blue);
@@ -60,7 +60,7 @@
 }
 .lang button {
   min-height: 40px;
-  padding: 0 clamp(14px, 1.4vw, 23px);
+  padding: 0 clamp(12px, 1.4vw, 23px);
   border: none;
   background: #fff;
   color: #123b86;
@@ -70,23 +70,27 @@
 }
 .lang .active { background: var(--blue); color: #fff; }
 
-/* ---------- Arbre : on n'affiche que la partie utile de l'image ---------- */
+/* ---------- Arbre : la zone utile de l'image, dans l'espace restant ---------- */
 .tree-viewport {
   grid-area: tree;
   position: relative;
   overflow: hidden;
+  min-height: 0;
   width: 100%;
-  max-width: 640px;
-  justify-self: center;
-  border-radius: 1.25rem;
+  border-radius: 1.1rem;
   box-shadow: 0 12px 34px rgba(11, 70, 173, 0.25);
+  container-type: size;
 }
+/* L'image couvre la zone et se cale sur le groupe de feuilles (centre vers 62 %) */
 .tree-canvas {
-  position: relative;
-  width: calc(100% / var(--crop-w));
-  margin-left: calc(var(--crop-left) * -100% / var(--crop-w));
-  aspect-ratio: var(--ratio);
-  container-type: inline-size;   /* feuilles, icônes et textes suivent la taille de l'arbre */
+  --w: max(100cqw, calc(100cqh * var(--ratio)));
+  --h: calc(var(--w) / var(--ratio));
+  position: absolute;
+  width: var(--w);
+  height: var(--h);
+  left: min(0px, max(calc(100cqw - var(--w)), calc(50cqw - var(--w) * 0.62)));
+  top: calc((100cqh - var(--h)) * 0.5);
+  container-type: inline-size;
 }
 .home-bg {
   position: absolute;
@@ -106,7 +110,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35em;
+  gap: 0.3em;
   padding: 0;
   border: none;
   background: transparent;
@@ -128,13 +132,13 @@
   }
 }
 .leaf svg {
-  width: clamp(22px, 3.1cqw, 110px);
+  width: clamp(20px, 3.1cqw, 110px);
   height: auto;
   aspect-ratio: 1;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
 }
 .leaf span {
-  font-size: clamp(11px, 1cqw, 28px);
+  font-size: clamp(10px, 1cqw, 28px);
   font-weight: 700;
   line-height: 1.15;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.75);
@@ -168,39 +172,38 @@
 .info-card {
   grid-area: card;
   width: 100%;
-  max-width: 760px;
-  justify-self: center;
-  padding: 1rem 1.1rem;
-  border-radius: 18px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.75);
   color: var(--navy);
-  font-size: 0.95rem;
-  line-height: 1.5;
+  font-size: clamp(0.72rem, 0.62rem + 0.35vw, 0.95rem);
+  line-height: 1.35;
   font-weight: 500;
+  overflow: hidden;
 }
-.info-header { display: flex; align-items: center; gap: 10px; margin-bottom: 0.6em; }
+.info-header { display: flex; align-items: center; gap: 8px; margin-bottom: 0.4em; }
 .info-icon {
-  width: 30px;
-  height: 30px;
+  width: 1.9em;
+  height: 1.9em;
   flex-shrink: 0;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: var(--blue);
   color: #fff;
-  font-size: 20px;
+  font-size: 1em;
   font-weight: bold;
 }
 .info-card h2 {
   margin: 0;
-  font-size: clamp(1rem, 0.95rem + 0.4vw, 1.2rem);
+  font-size: 1.15em;
   line-height: 1.15;
   font-weight: 700;
   color: var(--blue);
 }
-.info-card p { margin: 0 0 0.5em; overflow-wrap: break-word; }
-.info-list { margin: 0.15em 0 0.55em; padding-left: 20px; }
-.info-list li { margin-bottom: 0.2em; }
+.info-card p { margin: 0 0 0.35em; overflow-wrap: break-word; }
+.info-list { margin: 0.1em 0 0.35em; padding-left: 1.1em; }
+.info-list li { margin-bottom: 0.1em; }
 .info-card .bold { color: var(--blue); font-weight: 700; margin-bottom: 0; }
 
 /* ---------- Boutons Guide / Contact ---------- */
@@ -209,86 +212,63 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 .bottom {
-  flex: 1 1 160px;
+  flex: 1 1 150px;
   max-width: 240px;
-  height: 55px;
+  height: clamp(44px, 6.5dvh, 55px);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   border: none;
-  border-radius: 18px;
+  border-radius: 16px;
   background: rgba(255, 255, 255, 0.96);
   color: var(--navy);
   cursor: pointer;
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.18);
 }
-.bottom svg { width: 24px; height: 24px; }
+.bottom svg { width: 22px; height: 22px; }
 .bottom strong { font-size: 15px; }
 
 button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 /* =====================================================
-   TABLETTE / PETIT PAYSAGE : texte à gauche, arbre à droite
+   TABLETTE / PAYSAGE : texte à gauche, arbre à droite, même écran
    ===================================================== */
 @media (min-width: 820px) {
   .stage {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas: "header header" "card tree" "footer footer";
-    align-items: start;
   }
-  .tree-viewport { position: sticky; top: 1rem; max-width: none; }
-  .info-card { max-width: none; }
+  .info-card { align-self: stretch; font-size: clamp(0.8rem, 0.6rem + 0.5vw, 1.05rem); }
 }
 
 /* =====================================================
-   GRAND ÉCRAN (ordinateur, TV…) : l'image REMPLIT tout l'écran.
-   Plus de bandes ni de flou : l'image est agrandie comme un "cover",
-   et les feuilles restent collées à l'image car elles sont dans le même
-   cadre. Le texte, le titre et les boutons sont placés par rapport à l'écran.
+   GRAND ÉCRAN : l'arbre remplit tout l'écran, texte et boutons par-dessus
    ===================================================== */
 @media (min-width: 1024px) and (min-aspect-ratio: 6/5) and (min-height: 600px) {
-  .home-page {
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
-    container-type: inline-size;   /* cqw = 1 % de la largeur de l'écran */
-  }
+  .home-page { container-type: inline-size; }
 
   .stage {
-    position: absolute;
-    inset: 0;
     display: block;
-    max-width: none;
-    margin: 0;
     padding: 0;
+    gap: 0;
   }
 
   .tree-viewport {
     position: absolute;
     inset: 0;
-    max-width: none;
+    width: auto;
     border-radius: 0;
     box-shadow: none;
   }
-
-  /* Cadre de l'image :
-     - largeur = "cover" (jamais plus petit que l'écran),
-     - mais agrandissement limité à 130 % de la hauteur d'écran pour ne jamais
-       rogner les feuilles (sur les écrans très larges, voir plus bas),
-     - centré horizontalement, légèrement remonté verticalement (40 % / 60 %). */
   .tree-canvas {
     --w: min(max(100cqw, calc(100dvh * var(--ratio))), calc(130dvh * var(--ratio)));
     --h: calc(var(--w) / var(--ratio));
-    position: absolute;
-    width: var(--w);
-    height: var(--h);
-    margin: 0;
-    aspect-ratio: auto;
     left: calc((100% - var(--w)) / 2);
     top: calc((100% - var(--h)) * 0.4);
   }
@@ -319,14 +299,10 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
     top: 15%;
     left: 2.5%;
     width: 41%;
-    max-width: none;
     max-height: 80%;
     padding: 6px 14px;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
+    overflow: hidden;
     background: transparent;
-    /* suit la largeur ET la hauteur de l'écran */
     font-size: clamp(11px, min(0.72cqw, 1.3dvh), 22px);
     line-height: 1.3;
     z-index: 10;
@@ -352,9 +328,7 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   .bottom strong { font-size: clamp(14px, 0.9cqw, 24px); }
 }
 
-/* Écrans ultra-larges (plus larges qu'environ 2:1) : l'image ne peut plus couvrir
-   toute la largeur sans couper les feuilles du haut. Les bords de l'image se fondent
-   alors dans le dégradé bleu du fond (pas de flou). */
+/* Écrans ultra-larges : les bords de l'image se fondent dans le fond */
 @media (min-width: 1024px) and (min-aspect-ratio: 39/20) and (min-height: 600px) {
   .home-bg {
     -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
