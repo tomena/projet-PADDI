@@ -1,29 +1,32 @@
 /**
- * AnalyseTerritoriale.tsx — Madagascar : Région → District → Commune → Parcelle tracée
+ * AnalyseTerritoriale.tsx — version 2 (aide à la décision, usage public)
  *
- * Données :
- *  - Limites : geoBoundaries (en ligne, plusieurs miroirs essayés en parallèle)
- *  - Occupation du sol : Esri / Impact Observatory Sentinel-2 10 m
- *  - Cultures (second avis) : ESA WorldCover 2021 via /api/worldcover (Terrascope)
- *  - Perte de couvert : tuiles Global Forest Watch (carte) + POST /api/gfw-perte (chiffres)
- *  - Points de feux : GET /api/firms (NASA FIRMS)
- *  - Altitude / pluie : Open-Meteo (pluie = moyenne annuelle sur RAIN_YEARS ans)
+ * Principes :
+ *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées
+ *    et l'analyse est signalée comme partielle.
+ *  - Aucune recommandation n'est donnée sur une donnée qui n'a pas pu être obtenue.
+ *  - Toutes les sources, dates et limites sont accessibles et exportables.
  *
  * Dépendances : leaflet, @types/leaflet, lucide-react.
+ * Routes serveur attendues : POST /api/worldcover, POST /api/gfw-perte, GET /api/firms.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { ChevronRight, RotateCcw, PenTool, Check, X, Trash2 } from "lucide-react";
+import { ChevronRight, RotateCcw, PenTool, Check, X, Trash2, Download } from "lucide-react";
 
 /* ===================== CONFIGURATION ===================== */
 
 type Level = "ADM1" | "ADM2" | "ADM3";
 
+const VERSION = "2.0";
+const DELAI_MS = 20000;            // délai maximum par requête réseau
+const DELAI_FEUX_MAJ_MS = 3 * 3600e3; // au-delà, les feux sont signalés comme périmés
+
 const NOM_CLES = ["shapename", "nom_region", "region", "nom_district", "district", "nom_commune", "commune",
   "adm3_fr", "adm2_fr", "adm1_fr", "name_3", "name_2", "name_1", "nom", "name", "libelle"];
 
-const WORLDCOVER_ACTIVE = true; // passer à true quand la source répond
+const WORLDCOVER_ACTIVE = true;
 const BASSINS_GEOJSON_URL = ""; // ex. "/data/bassins_versants.geojson"
 const LC_YEARS = [2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024];
 const LOSS_FIRST = 2001, LOSS_LAST = 2025;
@@ -54,6 +57,17 @@ const sources = (l: Level) => {
     `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`];
 };
 
+/** Sources affichées dans « Méthode et sources » et incluses dans l'export. */
+const SOURCES_INFO = [
+  { nom: "Limites administratives", source: "geoBoundaries, Madagascar, version " + REV, usage: "Régions, districts, communes", limite: "Limites simplifiées, non cadastrales." },
+  { nom: "Occupation du sol", source: "Esri / Impact Observatory, Sentinel-2 10 m (2017-2024)", usage: "Forêt, cultures, savane, sol nu, bâti, eau", limite: "Classification automatique ; moins fiable sous les nuages et dans les zones hétérogènes." },
+  { nom: "Cultures (second avis)", source: "ESA WorldCover 2021, 10 m", usage: "Part de cultures", limite: "Autre algorithme : les deux estimations peuvent différer." },
+  { nom: "Perte de couvert arboré", source: "Hansen / UMD via Global Forest Watch", usage: "Perte par année", limite: "Seuil de couvert 30 %. La perte inclut incendies, plantations et coupes temporaires : ce n'est pas une déforestation au sens strict." },
+  { nom: "Détections de feux", source: "NASA FIRMS (VIIRS / MODIS)", usage: "Feux des 24 à 72 dernières heures", limite: "Points chauds, pas surfaces brûlées. Fiabilité dépendante du seuil de confiance." },
+  { nom: "Altitude et pente", source: "Open-Meteo (MNT Copernicus 90 m)", usage: "Altitude, pente", limite: "Échantillonnage de 100 points par zone : indicatif." },
+  { nom: "Pluie", source: "Open-Meteo, archive (moyenne annuelle sur " + RAIN_YEARS + " ans)", usage: "Pluviométrie moyenne", limite: "Valeur ponctuelle au centre de la zone." },
+];
+
 const CLASSES = [
   { n: "Couvert arboré", c: [57, 125, 73] },
   { n: "Savane et parcours", c: [227, 226, 195] },
@@ -65,7 +79,8 @@ const CLASSES = [
   { n: "Neige et glace", c: [168, 235, 255] },
   { n: "Nuages", c: [97, 97, 97] },
 ];
-const N_VALID = 8;
+const N_VALID = 8;           // classes 0 à 7 : utilisables ; 8 = nuages
+const NUAGES = 8;
 const rgb = (c: number[]) => `rgb(${c.join(",")})`;
 const SLOPES = [
   { n: "Plat, moins de 5 %", max: 5, col: "#7fb069" },
@@ -75,6 +90,42 @@ const SLOPES = [
 ];
 const RANG = { l: 1, n: 2, h: 3 } as const;
 const couleurAge = (age: number) => (age <= 24 ? "rgb(200,15,15)" : age <= 48 ? "#f97316" : "#facc15");
+
+/* ===================== ERREURS ET RÉSEAU ===================== */
+
+/** Erreur d'une source de données, avec un message lisible pour l'utilisateur. */
+class ErreurSource extends Error {
+  constructor(message: string) { super(message); this.name = "ErreurSource"; }
+}
+
+const abortError = () => new DOMException("Annulé", "AbortError");
+
+/**
+ * fetch avec délai maximum, annulation externe et validation du JSON.
+ * Lève une ErreurSource lisible en cas d'échec.
+ */
+async function fetchJSON<T>(url: string, signal?: AbortSignal, init: RequestInit = {}): Promise<T> {
+  if (signal?.aborted) throw abortError();
+  const ctl = new AbortController();
+  const annule = () => ctl.abort();
+  signal?.addEventListener("abort", annule);
+  const minuteur = setTimeout(() => ctl.abort(), DELAI_MS);
+  try {
+    const r = await fetch(url, { ...init, signal: ctl.signal });
+    const corps = await r.json().catch(() => null);
+    if (!r.ok) throw new ErreurSource(corps?.erreur || corps?.error || `erreur HTTP ${r.status}`);
+    if (corps == null) throw new ErreurSource("réponse illisible");
+    return corps as T;
+  } catch (e: any) {
+    if (signal?.aborted) throw abortError();
+    if (e instanceof ErreurSource) throw e;
+    if (e?.name === "AbortError") throw new ErreurSource("délai dépassé");
+    throw new ErreurSource("connexion impossible");
+  } finally {
+    clearTimeout(minuteur);
+    signal?.removeEventListener("abort", annule);
+  }
+}
 
 /* ===================== GÉOMÉTRIE ===================== */
 
@@ -132,14 +183,12 @@ const nameOf = (f: Feat) => {
 const nf = (n: number, d = 0) => n.toLocaleString("fr-FR", { maximumFractionDigits: d });
 const fmtArea = (km2: number) => (km2 < 10 ? `${nf(km2 * 100, km2 < 0.1 ? 2 : 1)} ha` : `${nf(km2)} km²`);
 
-/** Voile « monde moins la zone » pour estomper l'extérieur de la zone choisie. */
 const veil = (f: Feat) => {
   const monde: L.LatLngTuple[] = [[-89, -179], [-89, 179], [89, 179], [89, -179]];
   const trous = polys(f).map((p) => p[0].map(([x, y]) => [y, x] as L.LatLngTuple));
   return L.polygon([monde, ...trous], { pane: "veil", stroke: false, fillColor: "#f1f4f7", fillOpacity: 0.78, interactive: false });
 };
 
-/** Allège un polygone (Douglas-Peucker) avant l'envoi à l'API : anneaux extérieurs seulement. */
 function rdp(p: Ring, eps: number): Ring {
   const keep = new Uint8Array(p.length); keep[0] = keep[p.length - 1] = 1;
   const st: [number, number][] = [[0, p.length - 1]];
@@ -163,79 +212,108 @@ function simple(f: Feat) {
   const rings = polys(f)
     .map((p) => rdp(p[0], eps).map(([x, y]) => [+x.toFixed(5), +y.toFixed(5)]))
     .filter((r) => r.length >= 4);
+  if (!rings.length) throw new ErreurSource("géométrie de zone invalide");
   return rings.length === 1 ? { type: "Polygon", coordinates: rings } : { type: "MultiPolygon", coordinates: rings.map((r) => [r]) };
 }
 
+/* ===================== LIMITES ADMINISTRATIVES ===================== */
+
 const CACHE: Partial<Record<Level, Feat[]>> = {};
+const ENCOURS: Partial<Record<Level, Promise<Feat[]>>> = {};
+
 function loadLevel(l: Level): Promise<Feat[]> {
   if (CACHE[l]) return Promise.resolve(CACHE[l]!);
-  const tries = sources(l).map((u) =>
-    fetch(u).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((j) => {
-      const feats: Feat[] = (j?.features ?? []).filter((f: Feat) => f?.geometry && /Polygon/.test(f.geometry.type));
-      if (!feats.length) throw new Error("vide");
-      console.info(`Limites ${l} : ${feats.length} entités`, feats[0].properties);
-      return feats;
-    }));
-  return new Promise((ok, ko) => {
-    let left = tries.length;
-    tries.forEach((p) => p.then((v) => { CACHE[l] = v; ok(v); }).catch(() => { if (--left === 0) ko(new Error(`Limites ${l} indisponibles en ligne. Vérifiez votre connexion et réessayez.`)); }));
+  if (ENCOURS[l]) return ENCOURS[l]!;
+  const essais = sources(l).map(async (u) => {
+    const j = await fetchJSON<any>(u);
+    const feats: Feat[] = (j?.features ?? []).filter((f: Feat) => f?.geometry && /Polygon/.test(f.geometry.type));
+    if (!feats.length) throw new ErreurSource("fichier vide");
+    return feats;
   });
+  const p = new Promise<Feat[]>((ok, ko) => {
+    let reste = essais.length;
+    essais.forEach((e) => e.then((v) => { CACHE[l] = v; ok(v); })
+      .catch(() => { if (--reste === 0) ko(new ErreurSource(`Limites ${l} indisponibles. Vérifiez votre connexion puis rechargez la page.`)); }));
+  }).finally(() => { delete ENCOURS[l]; });
+  ENCOURS[l] = p;
+  return p;
 }
 
-/* ===================== PLUIE MOYENNE (Open-Meteo) ===================== */
+/* ===================== PLUIE MOYENNE ===================== */
 
 const RAIN_CACHE = new Map<string, number>();
 
-async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Promise<number | null> {
+async function moyennePluie(lon: number, lat: number, signal: AbortSignal): Promise<{ valeur: number | null; err: string | null }> {
   const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
   const hit = RAIN_CACHE.get(key);
-  if (hit != null) return hit;
+  if (hit != null) return { valeur: hit, err: null };
   try {
-    const r = await (await fetch(
+    const r = await fetchJSON<any>(
       `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}&start_date=${RAIN_FIRST}-01-01&end_date=${RAIN_LAST}-12-31&daily=precipitation_sum&timezone=auto`,
-      { signal })).json();
-    const jours: (number | null)[] = r.daily.precipitation_sum;
-    const total = jours.reduce<number>((s, v) => s + (v || 0), 0);
+      signal);
+    const jours = r?.daily?.precipitation_sum;
+    if (!Array.isArray(jours) || !jours.length) throw new ErreurSource("données de pluie absentes");
+    const total = jours.reduce<number>((s, v) => s + (Number.isFinite(v) ? v : 0), 0);
     const val = Math.round(total / RAIN_YEARS);
     RAIN_CACHE.set(key, val);
-    return val;
-  } catch {
-    return null;
+    return { valeur: val, err: null };
+  } catch (e: any) {
+    if (signal.aborted) throw e;
+    return { valeur: null, err: e?.message || "pluie indisponible" };
   }
 }
 
-/* ===================== CULTURES : SECOND AVIS (ESA WorldCover 2021) ===================== */
+/* ===================== CULTURES : SECOND AVIS (WorldCover) ===================== */
 
-type WcRes = { pct: number | null; err: string | null };
-
-/** Part (%) de cultures selon ESA WorldCover 2021, dans le polygone. Renvoie aussi l'erreur éventuelle. */
-async function pctCulturesWC(f: Feat, _b: Box, _W: number, _H: number): Promise<WcRes> {
+async function pctCulturesWC(f: Feat, signal: AbortSignal): Promise<{ pct: number | null; err: string | null }> {
   if (!WORLDCOVER_ACTIVE) return { pct: null, err: "source désactivée" };
   try {
-    const r = await fetch("/api/worldcover", {
+    const j = await fetchJSON<{ pct?: number }>("/api/worldcover", signal, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ geometry: simple(f) }),
     });
-    const j = await r.json().catch(() => ({} as any));
-    if (!r.ok) return { pct: null, err: j.erreur || `HTTP ${r.status}` };
+    if (typeof j.pct !== "number" || !Number.isFinite(j.pct)) throw new ErreurSource("réponse invalide");
     return { pct: j.pct, err: null };
   } catch (e: any) {
+    if (signal.aborted) throw e;
     return { pct: null, err: e?.message || "erreur inconnue" };
   }
 }
 
-/* ===================== ANALYSE : OCCUPATION DU SOL ET RELIEF ===================== */
+/* ===================== IMAGE SATELLITE ===================== */
+
+function chargerImage(src: string, signal: AbortSignal): Promise<HTMLImageElement> {
+  return new Promise((ok, ko) => {
+    if (signal.aborted) return ko(abortError());
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const stop = () => { img.src = ""; ko(abortError()); };
+    signal.addEventListener("abort", stop, { once: true });
+    img.onload = () => { signal.removeEventListener("abort", stop); ok(img); };
+    img.onerror = () => { signal.removeEventListener("abort", stop); ko(new ErreurSource("image satellite indisponible")); };
+    img.src = src;
+  });
+}
+
+/* ===================== ANALYSE ===================== */
 
 type Part = { n: string; pct: number; col: string };
+type Fiabilite = "bonne" | "moyenne" | "faible";
 type Result = {
-  land: Part[]; slope: Part[]; cloudPct: number;
-  elevMin: number; elevMax: number; elevMean: number;
+  land: Part[];
+  slope: Part[] | null;
+  cloudPct: number;
+  couverture: number;          // % de la zone où la classification est possible
+  elevMin: number | null; elevMax: number | null; elevMean: number | null;
   rain: number | null; areaKm2: number;
-  cropSteep: number; treePct: number; cropPct: number; barePct: number; steepPct: number; wetPct: number;
-  savPct: number; builtPct: number;
-  cultWC: number | null; cultErr: string | null;
-  bassin: string | null; resolution: string;
+  cropSteep: number | null; steepPct: number | null;
+  treePct: number; cropPct: number; barePct: number; wetPct: number; savPct: number; builtPct: number;
+  cultWC: number | null;
+  bassin: string | null;
+  resolution: string;
+  statuts: { relief: string | null; pluie: string | null; cultures: string | null };
+  fiable: Fiabilite;
 };
 
 async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Result> {
@@ -247,14 +325,15 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const W = wKm >= hKm ? Lpx : Math.max(24, Math.round((Lpx * wKm) / hKm));
   const H = wKm >= hKm ? Math.max(24, Math.round((Lpx * hKm) / wKm)) : Lpx;
 
-  const img = new Image();
-  img.crossOrigin = "anonymous";
-  img.src = esriUrl(b, W, H, year);
-  await img.decode();
+  /* 1. Occupation du sol : indispensable */
+  const img = await chargerImage(esriUrl(b, W, H, year), signal);
   const cv = document.createElement("canvas"); cv.width = W; cv.height = H;
   const cx = cv.getContext("2d", { willReadFrequently: true })!;
   cx.drawImage(img, 0, 0);
-  const px = cx.getImageData(0, 0, W, H).data;
+  let px: Uint8ClampedArray;
+  try { px = cx.getImageData(0, 0, W, H).data; }
+  catch { throw new ErreurSource("image satellite non lisible (accès refusé par le service)"); }
+
   const mk = document.createElement("canvas"); mk.width = W; mk.height = H;
   const mc = mk.getContext("2d", { willReadFrequently: true })!;
   const X = (lon: number) => ((lon - b.minLon) / (b.maxLon - b.minLon)) * W;
@@ -263,6 +342,7 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   polys(f).forEach((p) => p.forEach((r) => r.forEach(([x, y], i) => (i ? mc.lineTo(X(x), Y(y)) : mc.moveTo(X(x), Y(y))))));
   mc.fill("evenodd");
   const mask = mc.getImageData(0, 0, W, H).data;
+
   const cls = (i: number) => {
     if (px[i * 4 + 3] < 128) return -1;
     let best = -1, bd = 40 * 40 * 3;
@@ -272,10 +352,24 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
     });
     return best;
   };
-  const cnt = new Array(CLASSES.length).fill(0); let tot = 0;
-  for (let i = 0; i < W * H; i++) if (mask[i * 4 + 3] > 128) { const c = cls(i); if (c >= 0) { cnt[c]++; if (c < N_VALID) tot++; } }
-  if (!tot) throw new Error("Aucune donnée d'occupation du sol pour cette zone (service Esri indisponible ou zone entièrement nuageuse).");
 
+  const cnt = new Array(CLASSES.length).fill(0);
+  let tot = 0, inMask = 0;
+  for (let i = 0; i < W * H; i++) {
+    if (mask[i * 4 + 3] <= 128) continue;
+    inMask++;
+    const c = cls(i);
+    if (c < 0) continue;
+    cnt[c]++;
+    if (c < N_VALID) tot++;
+  }
+  if (!tot || !inMask) {
+    throw new ErreurSource("Aucune donnée d'occupation du sol pour cette zone (service indisponible ou zone couverte de nuages).");
+  }
+  const couverture = (tot / inMask) * 100;
+  const pct = (c: number) => (cnt[c] / tot) * 100;
+
+  /* 2. Relief : facultatif, mais signalé s'il manque */
   const N = 10, minSpan = 0.012;
   const small = b.maxLon - b.minLon < minSpan || b.maxLat - b.minLat < minSpan;
   const sLon = Math.max(b.maxLon - b.minLon, minSpan), sLat = Math.max(b.maxLat - b.minLat, minSpan);
@@ -283,52 +377,79 @@ async function analyse(f: Feat, signal: AbortSignal, year: number): Promise<Resu
   const dLon = sLon / (N - 1), dLat = sLat / (N - 1);
   const lats: number[] = [], lons: number[] = [];
   for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { lats.push(+(n1 - i * dLat).toFixed(5)); lons.push(+(e0 + j * dLon).toFixed(5)); }
-  const el = await (await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lats.join(",")}&longitude=${lons.join(",")}`, { signal })).json();
-  const z: number[] = el.elevation;
+
+  let z: number[] = [];
+  let statRelief: string | null = null;
+  try {
+    const el = await fetchJSON<{ elevation?: number[] }>(
+      `https://api.open-meteo.com/v1/elevation?latitude=${lats.join(",")}&longitude=${lons.join(",")}`, signal);
+    if (!Array.isArray(el.elevation) || el.elevation.length !== lats.length) throw new ErreurSource("altitude invalide");
+    z = el.elevation.map((v) => (Number.isFinite(v) ? v : 0));
+  } catch (e: any) {
+    if (signal.aborted) throw e;
+    statRelief = e?.message || "relief indisponible";
+  }
+
   const dx = dLon * 111320 * Math.cos((midLat * Math.PI) / 180), dy = dLat * 110540;
-  const sc = new Array(SLOPES.length).fill(0); let sn = 0, cropSteep = 0, cropN = 0;
-  for (let i = 1; i < N - 1; i++) for (let j = 1; j < N - 1; j++) {
-    const k = i * N + j;
-    const ins = inFeat(lons[k], lats[k], f);
-    if (!ins && !small) continue;
-    const s = Math.hypot((z[k + 1] - z[k - 1]) / (2 * dx), (z[k - N] - z[k + N]) / (2 * dy)) * 100;
-    sc[SLOPES.findIndex((t) => s < t.max)]++; sn++;
-    if (!ins) continue;
-    const c = cls(Math.min(H - 1, Math.max(0, Math.floor(Y(lats[k])))) * W + Math.min(W - 1, Math.max(0, Math.floor(X(lons[k])))));
-    if (c === 2) { cropN++; if (s >= 15) cropSteep++; }
+  const sc = new Array(SLOPES.length).fill(0);
+  let sn = 0, cropSteep = 0, cropN = 0;
+  if (!statRelief) {
+    for (let i = 1; i < N - 1; i++) for (let j = 1; j < N - 1; j++) {
+      const k = i * N + j;
+      const ins = inFeat(lons[k], lats[k], f);
+      if (!ins && !small) continue;
+      const s = Math.hypot((z[k + 1] - z[k - 1]) / (2 * dx), (z[k - N] - z[k + N]) / (2 * dy)) * 100;
+      sc[SLOPES.findIndex((t) => s < t.max)]++; sn++;
+      if (!ins) continue;
+      const c = cls(Math.min(H - 1, Math.max(0, Math.floor(Y(lats[k])))) * W + Math.min(W - 1, Math.max(0, Math.floor(X(lons[k])))));
+      if (c === 2) { cropN++; if (s >= 15) cropSteep++; }
+    }
   }
   const inside = z.filter((_, k) => inFeat(lons[k], lats[k], f));
   const zs = small || !inside.length ? z : inside;
+  const elevOK = !statRelief && zs.length > 0;
 
+  /* 3. Pluie et second avis cultures (indépendants) */
   const [cLon, cLat] = center(f);
-  const rain = await moyennePluie(cLon, cLat, signal);
-  const wc = await pctCulturesWC(f, b, W, H);
+  const [pluieR, wc] = await Promise.all([moyennePluie(cLon, cLat, signal), pctCulturesWC(f, signal)]);
 
+  /* 4. Bassin versant (facultatif) */
   let bassin: string | null = null;
   if (BASSINS_GEOJSON_URL) {
     try {
-      const g = await (await fetch(BASSINS_GEOJSON_URL, { signal })).json();
-      const hit = g.features.find((x: Feat) => inFeat(cLon, cLat, x));
+      const g = await fetchJSON<any>(BASSINS_GEOJSON_URL, signal);
+      const hit = (g.features ?? []).find((x: Feat) => inFeat(cLon, cLat, x));
       bassin = hit ? nameOf(hit) : "Hors bassin référencé";
-    } catch { bassin = null; }
+    } catch (e: any) {
+      if (signal.aborted) throw e;
+      bassin = null;
+    }
   }
 
-  const pct = (c: number) => (cnt[c] / tot) * 100;
+  const erreurs = [statRelief, pluieR.err, wc.err].filter(Boolean).length;
+  const fiable: Fiabilite = erreurs >= 2 || couverture < 60 ? "faible" : erreurs === 1 || couverture < 85 ? "moyenne" : "bonne";
+
   return {
     land: CLASSES.slice(0, N_VALID).map((k, i) => ({ n: k.n, pct: pct(i), col: rgb(k.c) }))
       .filter((x) => x.pct > 0).sort((a, c) => c.pct - a.pct),
-    cloudPct: (cnt[8] / (tot + cnt[8])) * 100,
-    slope: SLOPES.map((s, i) => ({ n: s.n, pct: sn ? (sc[i] / sn) * 100 : 0, col: s.col })),
-    elevMin: Math.min(...zs), elevMax: Math.max(...zs), elevMean: zs.reduce((a, c) => a + c, 0) / zs.length,
-    rain, areaKm2: areaKm2(f),
-    cropSteep: cropN ? (cropSteep / cropN) * 100 : 0,
-    treePct: pct(0), cropPct: pct(2), barePct: pct(4), steepPct: sn ? ((sc[2] + sc[3]) / sn) * 100 : 0, wetPct: pct(6),
-    savPct: pct(1), builtPct: pct(3),
-    cultWC: wc.pct, cultErr: wc.err,
+    cloudPct: (cnt[NUAGES] / (tot + cnt[NUAGES] || 1)) * 100,
+    couverture,
+    slope: elevOK && sn ? SLOPES.map((s, i) => ({ n: s.n, pct: (sc[i] / sn) * 100, col: s.col })) : null,
+    elevMin: elevOK ? Math.min(...zs) : null,
+    elevMax: elevOK ? Math.max(...zs) : null,
+    elevMean: elevOK ? zs.reduce((a, c) => a + c, 0) / zs.length : null,
+    rain: pluieR.valeur,
+    areaKm2: areaKm2(f),
+    cropSteep: elevOK && cropN ? (cropSteep / cropN) * 100 : null,
+    steepPct: elevOK && sn ? ((sc[2] + sc[3]) / sn) * 100 : null,
+    treePct: pct(0), cropPct: pct(2), barePct: pct(4), wetPct: pct(6), savPct: pct(1), builtPct: pct(3),
+    cultWC: wc.pct,
     bassin,
     resolution: small
       ? "Occupation du sol à 10 m ; relief à 90 m autour de la parcelle (indicatif)"
       : `Occupation à ${nf((wKm * 1000) / W)} m par pixel ; altitude tous les ${nf(Math.max(dx, dy) / 1000, 1)} km`,
+    statuts: { relief: statRelief, pluie: pluieR.err, cultures: wc.err },
+    fiable,
   };
 }
 
@@ -339,14 +460,14 @@ function useAnalysis(f: Feat | null, year: number) {
     const c = new AbortController();
     setS({ res: null, busy: true, err: "" });
     analyse(f, c.signal, year)
-      .then((res) => !c.signal.aborted && setS({ res, busy: false, err: "" }))
-      .catch((e) => !c.signal.aborted && setS({ res: null, busy: false, err: e?.message || "Erreur d'analyse" }));
+      .then((res) => { if (!c.signal.aborted) setS({ res, busy: false, err: "" }); })
+      .catch((e) => { if (!c.signal.aborted) setS({ res: null, busy: false, err: e?.message || "Erreur d'analyse inattendue" }); });
     return () => c.abort();
   }, [f, year]);
   return s;
 }
 
-/* ===================== DÉFORESTATION ===================== */
+/* ===================== PERTE DE COUVERT ===================== */
 
 type PerteAn = { annee: number; ha: number };
 const LOSS_CACHE = new WeakMap<Feat, Promise<PerteAn[]>>();
@@ -354,15 +475,17 @@ const LOSS_CACHE = new WeakMap<Feat, Promise<PerteAn[]>>();
 function lossFor(f: Feat): Promise<PerteAn[]> {
   let p = LOSS_CACHE.get(f);
   if (!p) {
-    p = fetch("/api/gfw-perte", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ geometry: simple(f) }) })
-      .then(async (r) => {
-        if (!r.ok) {
-          const j = await r.json().catch(() => ({}));
-          throw new Error(`${r.status}${j.erreur || j.error ? " : " + (j.erreur || j.error) : ""}`);
-        }
-        return r.json();
-      })
-      .then((j) => j.annees as PerteAn[]);
+    p = fetchJSON<any>("/api/gfw-perte", undefined, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ geometry: simple(f) }),
+    }).then((j) => {
+      const rows = Array.isArray(j?.annees)
+        ? j.annees.filter((a: any) => Number.isFinite(a?.annee) && Number.isFinite(a?.ha) && a.ha >= 0)
+        : null;
+      if (!rows) throw new ErreurSource("réponse invalide");
+      return rows as PerteAn[];
+    });
     LOSS_CACHE.set(f, p);
     p.catch(() => LOSS_CACHE.delete(f));
   }
@@ -373,17 +496,19 @@ function useLoss(f: Feat | null) {
   const [s, setS] = useState<{ rows: PerteAn[] | null; busy: boolean; err: string }>({ rows: null, busy: false, err: "" });
   useEffect(() => {
     if (!f) { setS({ rows: null, busy: false, err: "" }); return; }
-    let on = true;
+    let actif = true;
     setS({ rows: null, busy: true, err: "" });
-    lossFor(f).then((rows) => on && setS({ rows, busy: false, err: "" })).catch((e) => on && setS({ rows: null, busy: false, err: e?.message || "réseau" }));
-    return () => { on = false; };
+    lossFor(f)
+      .then((rows) => { if (actif) setS({ rows, busy: false, err: "" }); })
+      .catch((e) => { if (actif) setS({ rows: null, busy: false, err: e?.message || "erreur inconnue" }); });
+    return () => { actif = false; };
   }, [f]);
   return s;
 }
 
-/* ===================== POINTS DE FEUX (NASA FIRMS) ===================== */
+/* ===================== FEUX (NASA FIRMS) ===================== */
 
-type Feu = { lon: number; lat: number; t: number; date: string; heure: string; conf: "l" | "n" | "h" | null; frp: number | null; sat: string; age: number };
+type Feu = { lon: number; lat: number; t: number; heure: string; conf: "l" | "n" | "h" | null; frp: number | null; sat: string; age: number };
 
 const niveauConfiance = (c: any): "l" | "n" | "h" | null => {
   if (c == null || c === "") return null;
@@ -399,17 +524,23 @@ function analyserFeux(features: any[]): Omit<Feu, "age">[] {
   const out: Omit<Feu, "age">[] = [];
   for (const f of features) {
     const p = f?.properties || {}, c = f?.geometry?.coordinates;
-    if (!c || !p.acq_date || p.acq_time == null) continue;
+    if (!Array.isArray(c) || !Number.isFinite(c[0]) || !Number.isFinite(c[1]) || !p.acq_date || p.acq_time == null) continue;
     const h = String(p.acq_time).padStart(4, "0");
     const t = new Date(`${p.acq_date}T${h.slice(0, 2)}:${h.slice(2, 4)}:00Z`).getTime();
     if (!Number.isFinite(t)) continue;
     const frp = Number(p.frp);
-    out.push({ lon: c[0], lat: c[1], t, date: p.acq_date, heure: `${h.slice(0, 2)}:${h.slice(2, 4)}`, conf: niveauConfiance(p.confidence), frp: Number.isFinite(frp) ? frp : null, sat: p.satellite ?? "" });
+    out.push({
+      lon: c[0], lat: c[1], t,
+      heure: `${h.slice(0, 2)}:${h.slice(2, 4)}`,
+      conf: niveauConfiance(p.confidence),
+      frp: Number.isFinite(frp) ? frp : null,
+      sat: typeof p.satellite === "string" ? p.satellite : "",
+    });
   }
   return out;
 }
 
-/* ===================== DÉCISION : ORIENTATIONS ===================== */
+/* ===================== ORIENTATIONS ===================== */
 
 type Trend = "hausse" | "baisse" | "stable" | null;
 type Extra = { lossHa: number | null; lossPct: number | null; lossTrend: Trend; fires72: number; fires24: number; areaKm2: number };
@@ -421,65 +552,68 @@ const THEMES: Thematique[] = ["Restauration", "Agriculture", "Eau et sols", "Feu
 const LVL_TXT: Record<Lvl, string> = { haute: "Priorité haute", moyenne: "Priorité moyenne", info: "Recommandé" };
 const LVL_RANK: Record<Lvl, number> = { haute: 0, moyenne: 1, info: 2 };
 
-const vuln = (r: Result) => {
+/** Score de vulnérabilité à l'érosion (0-100). Null si le relief manque. */
+const vuln = (r: Result): number | null => {
+  if (r.steepPct == null) return null;
   const c = (v: number, m: number) => Math.min(v, m) / m;
-  return Math.round(35 * c(r.steepPct, 60) + 25 * c(r.cropSteep, 60) + 15 * c(r.barePct, 25) + 15 * (1 - c(r.treePct, 50)) + 10 * c(r.rain ?? 0, 2500));
+  return Math.round(35 * c(r.steepPct, 60) + 25 * c(r.cropSteep ?? 0, 60) + 15 * c(r.barePct, 25) + 15 * (1 - c(r.treePct, 50)) + 10 * c(r.rain ?? 0, 2500));
 };
 const vulnLabel = (v: number) => (v < 25 ? "faible" : v < 50 ? "modérée" : v < 70 ? "élevée" : "très élevée");
 
 function orientations(R: Result, x: Extra, periode: string): Orient[] {
-  // Cultures : on retient la plus grande des deux estimations (Impact Observatory, WorldCover)
   const r = { ...R, cropPct: Math.max(R.cropPct, R.cultWC ?? 0) };
+  const relief = R.steepPct != null;               // les règles de pente ne tournent que si le relief existe
+  const steep = R.steepPct ?? 0, cropSteep = R.cropSteep ?? 0;
   const o: Orient[] = [];
   const add = (th: Thematique, lvl: Lvl, t: string, d: string, acts?: string[]) => o.push({ th, lvl, t, d, acts });
   const loss = x.lossPct;
   const rain = r.rain;
 
-  /* ---------- RESTAURATION ---------- */
+  /* RESTAURATION */
   if (loss != null && loss >= 3)
     add("Restauration", "haute", "Restaurer les zones déboisées",
-      `${nf(x.lossHa ?? 0)} ha de couvert arboré perdus sur ${periode}, soit ${nf(loss, 1)} % de la zone. Ces surfaces sont les premiers candidats à la restauration${r.steepPct > 25 ? ", surtout sur les pentes (" + nf(r.steepPct) + " % de la zone en pente forte)" : ""}.`,
-      ["Repérer les foyers de perte sur la carte et les classer par urgence", "Reboiser avec des espèces autochtones adaptées au site, en commençant par les pentes et les têtes de bassin", "Monter une pépinière locale et suivre la survie des plants à 1 an et à 3 ans"]);
+      `${nf(x.lossHa ?? 0)} ha de couvert arboré perdus sur ${periode}, soit ${nf(loss, 1)} % de la zone. Ces surfaces sont les premiers candidats à la restauration${relief && steep > 25 ? ", surtout sur les pentes (" + nf(steep) + " % de la zone en pente forte)" : ""}.`,
+      ["Repérer les foyers de perte sur la carte et les classer par urgence", "Reboiser avec des espèces locales adaptées au site, en commençant par les pentes et les têtes de bassin", "Suivre la survie des plants à 1 an et à 3 ans"]);
   else if (loss != null && loss >= 0.5)
     add("Restauration", "moyenne", "Cibler les foyers de perte de couvert",
-      `${nf(x.lossHa ?? 0)} ha perdus sur ${periode} (${nf(loss, 1)} % de la zone). Cibler les foyers de perte visibles sur la carte avant qu'ils ne s'étendent.`);
+      `${nf(x.lossHa ?? 0)} ha perdus sur ${periode} (${nf(loss, 1)} % de la zone). Cibler les foyers visibles sur la carte avant qu'ils ne s'étendent.`);
 
-  if (r.steepPct > 35 && r.treePct < 25)
+  if (relief && steep > 35 && r.treePct < 25)
     add("Restauration", "haute", "Restauration forestière des versants",
-      `Pentes de 15 % ou plus sur ${nf(r.steepPct)} % du territoire pour seulement ${nf(r.treePct)} % de couvert arboré. Reboiser avec des espèces locales, en commençant par les têtes de bassin.`,
+      `Pentes de 15 % ou plus sur ${nf(steep)} % du territoire pour seulement ${nf(r.treePct)} % de couvert arboré. Reboiser avec des espèces locales, en commençant par les têtes de bassin.`,
       ["Planter en lignes suivant les courbes de niveau", "Associer arbres, arbustes et graminées pour couvrir le sol rapidement"]);
 
   if (r.barePct > 10)
     add("Restauration", "haute", "Réhabilitation des sols nus",
-      `${nf(r.barePct)} % de sol nu : stabiliser par végétalisation (graminées, légumineuses), puis planter.`,
+      `${nf(r.barePct, 1)} % de sol nu : stabiliser par végétalisation (graminées, légumineuses), puis planter.`,
       ["Végétaliser d'abord avec des plantes pionnières et des légumineuses", "Planter les arbres ensuite, quand le sol est stabilisé"]);
 
   if (r.treePct >= 8 && r.treePct < 40 && (r.barePct > 2 || r.savPct > 20))
     add("Restauration", "moyenne", "Régénération naturelle assistée",
-      `Avec ${nf(r.treePct)} % de couvert arboré, une partie de la forêt peut repartir seule si on la protège. C'est souvent moins coûteux que planter.`,
+      `Avec ${nf(r.treePct, 1)} % de couvert arboré, une partie de la forêt peut repartir seule si on la protège. C'est souvent moins coûteux que planter.`,
       ["Protéger les jeunes pousses du feu et du pâturage", "Enrichir par des plantations là où la régénération reste faible", "Mettre en défens les parcelles pendant plusieurs années"]);
 
   if (r.treePct >= 15 && r.treePct < 45 && loss != null && loss >= 1)
     add("Restauration", "moyenne", "Reconnecter les fragments forestiers",
-      `Le couvert arboré est morcelé (${nf(r.treePct)} %) et il a reculé de ${nf(loss, 1)} % sur ${periode}. Relier les îlots forestiers aide la faune et la dispersion des graines.`,
+      `Le couvert arboré est morcelé (${nf(r.treePct, 1)} %) et il a reculé de ${nf(loss, 1)} % sur ${periode}. Relier les îlots forestiers aide la faune et la dispersion des graines.`,
       ["Tracer des corridors entre les blocs forestiers restants", "Planter des haies vives et des bandes boisées le long des cours d'eau"]);
 
   if (r.wetPct > 3 && loss != null && loss >= 1)
     add("Restauration", "moyenne", "Restaurer les mangroves dégradées",
       `${nf(r.wetPct, 1)} % de végétation inondée ou de mangrove, avec une perte de couvert sur la période. Restaurer d'abord l'hydrologie, puis replanter.`,
-      ["Rétablir la circulation de l'eau et des marées avant toute plantation", "Replanter des palétuviers (Avicennia, Rhizophora) adaptés à chaque niveau de marée"]);
+      ["Rétablir la circulation de l'eau et des marées avant toute plantation", "Replanter des palétuviers adaptés à chaque niveau de marée"]);
 
   if (r.treePct < 25 && r.cropPct + r.savPct + r.builtPct > 50)
     add("Restauration", "moyenne", "Sécuriser le bois-énergie",
-      `Peu de forêt (${nf(r.treePct)} %) autour de terres cultivées, de savane ou bâties : la pression du bois de chauffe et du charbon est probable sur les reliques forestières.`,
-      ["Créer des plantations villageoises à croissance rapide (eucalyptus, acacia) pour le bois-énergie", "Diffuser des foyers améliorés pour réduire la consommation de bois"]);
+      `Peu de forêt (${nf(r.treePct, 1)} %) autour de terres cultivées, de savane ou bâties : la pression du bois de chauffe et du charbon est possible sur les reliques forestières.`,
+      ["Créer des plantations villageoises à croissance rapide pour le bois-énergie", "Diffuser des foyers améliorés pour réduire la consommation de bois"]);
 
-  if (r.rain != null && r.rain < 800 && r.treePct < 15)
+  if (rain != null && rain < 800 && r.treePct < 15)
     add("Restauration", "moyenne", "Restaurer en zone sèche",
-      `Seulement ${nf(r.rain)} mm de pluie par an en moyenne pour ${nf(r.treePct)} % de couvert arboré : les plantations classiques risquent d'échouer.`,
+      `Seulement ${nf(rain)} mm de pluie par an en moyenne pour ${nf(r.treePct, 1)} % de couvert arboré : les plantations classiques risquent d'échouer.`,
       ["Choisir des espèces adaptées à la sécheresse", "Capter l'eau au pied des plants (demi-lunes, paillage)", "Planter au début de la saison des pluies"]);
 
-  /* ---------- CONSERVATION ---------- */
+  /* CONSERVATION */
   if (x.lossTrend === "hausse" && loss != null && loss >= 0.5)
     add("Conservation", "haute", "La perte de couvert s'accélère",
       `Les pertes des dernières années de la période dépassent nettement celles du début. Il faut agir vite pour ne pas laisser le défrichement gagner du terrain.`,
@@ -487,78 +621,78 @@ function orientations(R: Result, x: Extra, periode: string): Orient[] {
 
   if (r.treePct >= 40)
     add("Conservation", "info", "Conserver le couvert existant",
-      `${nf(r.treePct)} % de couvert arboré : protéger en priorité (gestion communautaire, lutte contre les feux et le défrichement).`,
+      `${nf(r.treePct, 1)} % de couvert arboré : protéger en priorité (gestion communautaire, lutte contre les feux et le défrichement).`,
       ["Délimiter et matérialiser les limites de la forêt", "Soutenir la surveillance locale et le suivi de la biodiversité"]);
 
   if (r.wetPct > 3)
     add("Conservation", "moyenne", "Protection des zones humides et mangroves",
       `${nf(r.wetPct, 1)} % de végétation inondée ou de mangrove : zones tampons, pas de drainage ni de coupe.`);
 
-  /* ---------- AGRICULTURE ---------- */
-  if (r.cropSteep > 30 && (rain ?? 0) > 1000)
+  /* AGRICULTURE */
+  if (relief && cropSteep > 30 && (rain ?? 0) > 1000)
     add("Agriculture", "haute", "Lutte antiérosive sur les cultures de pente",
-      `${nf(r.cropSteep)} % des cultures échantillonnées sont sur pente de 15 % ou plus, avec ${nf(rain!)} mm de pluie par an en moyenne : risque élevé de ravinement et de lavaka.`,
+      `${nf(cropSteep)} % des cultures échantillonnées sont sur pente de 15 % ou plus, avec ${nf(rain!)} mm de pluie par an en moyenne : risque élevé de ravinement et de lavaka.`,
       ["Agroforesterie, cordons de pierres et bandes enherbées", "Terrasses et cultures suivant les courbes de niveau", "Haies de vétiver pour freiner le ruissellement"]);
-  else if (r.cropSteep > 30)
+  else if (relief && cropSteep > 30)
     add("Agriculture", "moyenne", "Cultures sur pente à sécuriser",
-      `${nf(r.cropSteep)} % des cultures sont sur pente de 15 % ou plus. Prévoir des pratiques de conservation des sols.`,
+      `${nf(cropSteep)} % des cultures sont sur pente de 15 % ou plus. Prévoir des pratiques de conservation des sols.`,
       ["Cultiver en courbes de niveau", "Garder le sol couvert (paillage, plantes de couverture)"]);
 
   if (r.cropPct > 20 && r.treePct < 30)
     add("Agriculture", "moyenne", "Développer l'agroforesterie",
-      `${nf(r.cropPct)} % de cultures pour ${nf(r.treePct)} % d'arbres : associer des arbres aux cultures protège le sol, apporte de l'ombre et diversifie les revenus.`,
-      ["Associer arbres fixateurs d'azote et arbres fruitiers aux cultures", "Planter des haies vives autour des parcelles", "Garder des arbres d'ombrage dans les parcelles"]);
+      `${nf(r.cropPct, 1)} % de cultures pour ${nf(r.treePct, 1)} % d'arbres : associer des arbres aux cultures protège le sol, apporte de l'ombre et diversifie les revenus.`,
+      ["Associer arbres fixateurs d'azote et arbres fruitiers aux cultures", "Planter des haies vives autour des parcelles"]);
 
   if (loss != null && loss >= 1 && r.cropPct > 10 && r.treePct >= 15)
     add("Agriculture", loss >= 3 ? "haute" : "moyenne", "Réduire le défrichement-brûlis",
-      `La perte de couvert (${nf(loss, 1)} % sur ${periode}) se fait au contact de terres cultivées : le défrichement pour de nouvelles parcelles est une cause probable.`,
+      `La perte de couvert (${nf(loss, 1)} % sur ${periode}) se fait au contact de terres cultivées : le défrichement pour de nouvelles parcelles est une cause possible.`,
       ["Intensifier les parcelles déjà ouvertes plutôt que d'en défricher de nouvelles", "Semer sous couvert végétal et améliorer les jachères avec des légumineuses", "Sécuriser le foncier des parcelles déjà cultivées"]);
 
   if (rain != null && rain < 900 && r.cropPct > 10)
     add("Agriculture", "moyenne", "Cultiver avec peu d'eau",
       `${nf(rain)} mm de pluie par an en moyenne (${RAIN_FIRST}-${RAIN_LAST}) : l'eau limite les rendements et expose les cultures aux aléas.`,
-      ["Choisir des cultures tolérantes à la sécheresse (manioc, sorgho, niébé)", "Récolter l'eau de pluie et pailler le sol", "Caler les semis sur le début réel de la saison des pluies"]);
+      ["Choisir des cultures tolérantes à la sécheresse", "Récolter l'eau de pluie et pailler le sol", "Caler les semis sur le début réel de la saison des pluies"]);
 
   if (r.savPct > 40)
     add("Agriculture", "moyenne", "Gérer les pâturages et l'élevage",
-      `${nf(r.savPct)} % de savane et de parcours : un pâturage mieux géré réduit les feux de pâture et la dégradation du sol.`,
-      ["Organiser la rotation des pâturages et des parcs de nuit", "Semer des plantes fourragères (Brachiaria, Stylosanthes) pour compléter l'herbe", "Éviter les feux de renouvellement des pâturages en pleine saison sèche"]);
+      `${nf(r.savPct, 1)} % de savane et de parcours : un pâturage mieux géré réduit les feux de pâture et la dégradation du sol.`,
+      ["Organiser la rotation des pâturages et des parcs de nuit", "Semer des plantes fourragères pour compléter l'herbe", "Éviter les feux de renouvellement des pâturages en pleine saison sèche"]);
 
-  if (r.cropPct > 25 && r.steepPct < 15)
+  if (relief && r.cropPct > 25 && steep < 15)
     add("Agriculture", "info", "Intensification durable en terrain plat",
-      `Terrain peu pentu et cultivé sur ${nf(r.cropPct)} % : conditions favorables pour produire davantage sur les mêmes surfaces et alléger la pression sur les forêts.`,
-      ["Pratiquer la riziculture améliorée (SRI, SRA) et aménager les bas-fonds", "Alterner riz et légumineuses, fertiliser avec du compost", "Maîtriser l'eau (canaux, petits barrages) pour sécuriser les récoltes"]);
+      `Terrain peu pentu et cultivé sur ${nf(r.cropPct, 1)} % : conditions favorables pour produire davantage sur les mêmes surfaces et alléger la pression sur les forêts.`,
+      ["Pratiquer la riziculture améliorée (SRI) et aménager les bas-fonds", "Alterner riz et légumineuses, fertiliser avec du compost", "Maîtriser l'eau (canaux, petits barrages) pour sécuriser les récoltes"]);
 
   if (r.treePct >= 20 && r.cropPct > 8)
     add("Agriculture", "info", "Valoriser des filières agroforestières",
       `Forêt et cultures se côtoient : les produits cultivés sous ombrage donnent des revenus sans déboiser.`,
-      ["Développer le café, le cacao, les épices ou la vanille sous ombrage, selon le climat local", "Transformer sur place pour garder la valeur ajoutée", "Viser des labels ou des filières équitables"]);
+      ["Développer le café, le cacao, les épices ou la vanille sous ombrage, selon le climat local", "Transformer sur place pour garder la valeur ajoutée", "Viser des filières équitables"]);
 
-  /* ---------- EAU ET SOLS ---------- */
-  if (r.steepPct > 25 && r.barePct > 3)
+  /* EAU ET SOLS */
+  if (relief && steep > 25 && r.barePct > 3)
     add("Eau et sols", "haute", "Stabiliser les lavaka et les ravines",
-      `Pentes fortes sur ${nf(r.steepPct)} % de la zone et ${nf(r.barePct, 1)} % de sol nu : les ravines (lavaka) risquent de s'élargir à chaque saison des pluies.`,
+      `Pentes fortes sur ${nf(steep)} % de la zone et ${nf(r.barePct, 1)} % de sol nu : les ravines (lavaka) risquent de s'élargir à chaque saison des pluies.`,
       ["Détourner l'eau de ruissellement en amont de la ravine", "Poser des fascines ou des digues en gradins dans le lit", "Végétaliser les bords (vétiver, arbustes) pour les fixer"]);
 
-  if (r.steepPct > 25 && r.cropPct > 10)
+  if (relief && steep > 25 && r.cropPct > 10)
     add("Eau et sols", "moyenne", "Protéger les rizières de bas-fond contre l'ensablement",
       `Des versants raides surplombent des cultures : l'érosion peut déposer du sable dans les bas-fonds et les canaux.`,
       ["Installer des bandes enherbées et des fascines à la sortie des versants", "Curer régulièrement les canaux et les bassins de décantation"]);
 
-  if (r.steepPct > 25 && (rain ?? 0) > 1200)
+  if (relief && steep > 25 && (rain ?? 0) > 1200)
     add("Eau et sols", "moyenne", "Protéger les têtes de bassin versant",
       `Pentes fortes et ${nf(rain!)} mm de pluie par an en moyenne : la végétation des hauts de versant régule l'eau pour tout l'aval${r.bassin ? " (bassin : " + r.bassin + ")" : ""}.`,
       ["Maintenir ou rétablir un couvert permanent sur les hauts de versant", "Boiser une bande protectrice le long des sources et des cours d'eau"]);
 
-  /* ---------- FEUX ---------- */
+  /* FEUX */
   if (x.fires72 > 0) {
     const dens = (x.fires72 / Math.max(x.areaKm2, 1)) * 100;
     add("Feux", dens >= 1 || x.fires24 >= 10 ? "haute" : "moyenne", "Prévention et surveillance des feux",
-      `${nf(x.fires72)} feux détectés ces 72 h (${nf(x.fires24)} ces 24 h). Renforcer les pare-feux et l'alerte communautaire, surtout sur les savanes et lisières forestières.`,
+      `${nf(x.fires72)} détections ces 72 h (${nf(x.fires24)} ces 24 h). Ce sont des points chauds détectés par satellite, pas des surfaces brûlées. Renforcer les pare-feux et l'alerte communautaire, surtout sur les savanes et lisières forestières.`,
       ["Ouvrir et entretenir des pare-feux autour des forêts et des plantations", "Organiser des brigades villageoises avec un système d'alerte", ...(r.savPct > 30 ? ["Pratiquer des brûlis précoces et contrôlés en début de saison sèche"] : [])]);
   }
 
-  /* ---------- COMMUNAUTÉS ---------- */
+  /* COMMUNAUTÉS */
   if (r.treePct >= 15 && loss != null && loss >= 0.5)
     add("Communautés", "moyenne", "Renforcer la gestion communautaire",
       `Les habitants sont les mieux placés pour protéger ce qui reste de forêt si leurs droits de gestion sont reconnus.`,
@@ -572,15 +706,31 @@ function orientations(R: Result, x: Extra, periode: string): Orient[] {
   if (!o.length)
     add("Conservation", "info", "Aucun signal prioritaire", "Les indicateurs calculés ne montrent pas de pression marquée. Affinez par un diagnostic de terrain.");
 
-  return o.sort((a, b) => LVL_RANK[a.lvl] - LVL_RANK[b.lvl]);
+  /* Avertissement systématique si les données sont partielles */
+  const final = R.fiable === "bonne" ? o : o.map((a) => ({ ...a, d: a.d + " Données partielles : à confirmer sur le terrain avant toute décision." }));
+  return final.sort((a, b) => LVL_RANK[a.lvl] - LVL_RANK[b.lvl]);
 }
 
-/* ===================== COMPOSANT ===================== */
+/* ===================== EXPORT ===================== */
+
+function telechargerJSON(nomFichier: string, contenu: unknown) {
+  const blob = new Blob([JSON.stringify(contenu, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = nomFichier;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ===================== COMPOSANT COEUR ===================== */
 
 const ROWS = ["Région", "District", "Commune", "Parcelle"];
-const VERSION = "5 cartes, limites en ligne";
+const FIABLE_TXT: Record<Fiabilite, string> = { bonne: "Données complètes", moyenne: "Données partielles", faible: "Données très partielles" };
+const LIBELLE_STATUT: Record<string, string> = {
+  relief: "altitude et pente", pluie: "pluviométrie", cultures: "second avis cultures (WorldCover)",
+};
 
-export default function AnalyseTerritoriale() {
+function Coeur() {
   const elMap = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const base = useRef<L.TileLayer | null>(null), loss = useRef<L.TileLayer | null>(null), ov = useRef<L.ImageOverlay | null>(null);
@@ -604,15 +754,16 @@ export default function AnalyseTerritoriale() {
   const [show, setShow] = useState(false);
   const [themeF, setThemeF] = useState<"Toutes" | Thematique>("Toutes");
   const [loadErr, setLoadErr] = useState("");
+  const [annonce, setAnnonce] = useState("");
 
   /* ----- sélection administrative ----- */
-  const rF = ri !== "" ? regs[+ri] : null;
+  const rF = ri !== "" ? regs[+ri] ?? null : null;
   const dists = useMemo(
-    () => (rF && adm2 ? adm2.filter((d) => childOf(d, rF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b))) : []),
+    () => (rF && adm2 ? adm2.filter((d) => childOf(d, rF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr")) : []),
     [rF, adm2]);
   const dF = di !== "" ? dists[+di] ?? null : null;
   const coms = useMemo(
-    () => (dF && adm3 ? adm3.filter((c) => childOf(c, dF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b))) : []),
+    () => (dF && adm3 ? adm3.filter((c) => childOf(c, dF)).sort((a, b) => nameOf(a).localeCompare(nameOf(b), "fr")) : []),
     [dF, adm3]);
   const cF = ci !== "" ? coms[+ci] ?? null : null;
   const admin = cF || dF || rF;
@@ -628,10 +779,11 @@ export default function AnalyseTerritoriale() {
   const list = !rF ? regs : !dF ? dists : coms;
   const kidLevel: Level = !rF ? "ADM1" : !dF ? "ADM2" : "ADM3";
 
-  /* ----- déforestation : chiffres de la période ----- */
+  /* ----- perte de couvert : chiffres de la période ----- */
   const lossStats = useMemo(() => {
     if (!lossS.rows) return null;
-    const years = LOSS_YEARS.filter((y) => y >= dfFrom && y <= dfTo).map((y) => ({ annee: y, ha: lossS.rows!.find((a) => a.annee === y)?.ha ?? 0 }));
+    const rows = lossS.rows;
+    const years = LOSS_YEARS.filter((y) => y >= dfFrom && y <= dfTo).map((y) => ({ annee: y, ha: rows.find((a) => a.annee === y)?.ha ?? 0 }));
     const total = years.reduce((s, a) => s + a.ha, 0);
     const peak = years.reduce((m, a) => (a.ha > m.ha ? a : m), years[0] ?? { annee: 0, ha: 0 });
     let trend: Trend = null;
@@ -641,21 +793,27 @@ export default function AnalyseTerritoriale() {
       const a = avg(years.slice(0, half)), b = avg(years.slice(years.length - half));
       trend = b > a * 1.25 && b - a > 5 ? "hausse" : b < a * 0.75 ? "baisse" : "stable";
     }
-    return { years, total, peak, trend, max: Math.max(1, ...years.map((a) => a.ha)), pct: zoneKm2 > 0 ? (total / (zoneKm2 * 100)) * 100 : 0 };
+    return {
+      years, total, peak, trend,
+      max: Math.max(1, ...years.map((a) => a.ha)),
+      pct: zoneKm2 > 0 ? (total / (zoneKm2 * 100)) * 100 : 0,
+    };
   }, [lossS.rows, dfFrom, dfTo, zoneKm2]);
 
   /* ----- points de feux ----- */
   const [feuxBruts, setFeuxBruts] = useState<any[]>([]);
-  const [fLoad, setFLoad] = useState(true), [fErr, setFErr] = useState(false), [fMaj, setFMaj] = useState<number | null>(null), [now, setNow] = useState(Date.now());
+  const [fLoad, setFLoad] = useState(true), [fErr, setFErr] = useState(""), [fMaj, setFMaj] = useState<number | null>(null), [now, setNow] = useState(Date.now());
   const chargerFeux = useCallback(async () => {
+    setFLoad(true); setFErr("");
     try {
-      setFLoad(true); setFErr(false);
-      const r = await fetch("/api/firms");
-      if (!r.ok) throw new Error("FIRMS");
-      const j = await r.json();
+      const j = await fetchJSON<any>("/api/firms");
       setFeuxBruts(Array.isArray(j.features) ? j.features : []);
       setFMaj(Date.now());
-    } catch { setFErr(true); } finally { setFLoad(false); }
+    } catch (e: any) {
+      setFErr(e?.message || "erreur inconnue");
+    } finally {
+      setFLoad(false);
+    }
   }, []);
   useEffect(() => {
     chargerFeux();
@@ -663,6 +821,7 @@ export default function AnalyseTerritoriale() {
     return () => { clearInterval(a); clearInterval(b); };
   }, [chargerFeux]);
 
+  const feuxPerimes = fMaj != null && now - fMaj > DELAI_FEUX_MAJ_MS;
   const feuxZone: Feu[] = useMemo(() => {
     const bb = selected ? bbox(selected) : null;
     return analyserFeux(feuxBruts)
@@ -708,16 +867,30 @@ export default function AnalyseTerritoriale() {
 
   /* ----- chargement des limites ----- */
   useEffect(() => {
-    loadLevel("ADM1").then((r) => {
-      setRegs(r);
-      if (r.length < 15 || r.length > 30) setLoadErr(`Attention : ${r.length} entités au niveau 1 au lieu d'environ 22 régions.`);
-    }).catch((e) => setLoadErr(e.message));
+    loadLevel("ADM1")
+      .then((r) => {
+        setRegs(r);
+        if (r.length < 15 || r.length > 30) setLoadErr(`Attention : ${r.length} entités au niveau 1 au lieu d'environ 22 régions. Les limites sont peut-être incorrectes.`);
+      })
+      .catch((e) => setLoadErr(e.message));
   }, []);
-  useEffect(() => { if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message)); }, [rF, adm2]);
-  useEffect(() => { if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message)); }, [dF, adm3]);
+  useEffect(() => {
+    if (rF && !adm2) loadLevel("ADM2").then(setAdm2).catch((e) => setLoadErr(e.message));
+  }, [rF, adm2]);
+  useEffect(() => {
+    if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(e.message));
+  }, [dF, adm3]);
   useEffect(() => { setShow(false); }, [selected]);
 
-  /* ----- fenêtre des orientations : Échap, piège du focus, blocage du défilement ----- */
+  /* Annonce vocale du résultat (lecteurs d'écran) */
+  useEffect(() => {
+    if (!selected) { setAnnonce(""); return; }
+    if (current.busy) setAnnonce("Analyse en cours");
+    else if (current.err) setAnnonce(`Erreur : ${current.err}`);
+    else if (res) setAnnonce(`Analyse terminée. Fiabilité : ${FIABLE_TXT[res.fiable].toLowerCase()}.`);
+  }, [selected, current.busy, current.err, res]);
+
+  /* ----- fenêtre des orientations ----- */
   useEffect(() => {
     if (!show) return;
     const opener = document.activeElement as HTMLElement | null;
@@ -727,7 +900,7 @@ export default function AnalyseTerritoriale() {
     const key = (e: KeyboardEvent) => {
       if (e.key === "Escape") { setShow(false); return; }
       if (e.key !== "Tab" || !modalRef.current) return;
-      const f = modalRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), select, input, [tabindex]:not([tabindex="-1"])');
+      const f = modalRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), select, input, summary, [tabindex]:not([tabindex="-1"])');
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
@@ -741,7 +914,7 @@ export default function AnalyseTerritoriale() {
     };
   }, [show]);
 
-  /* ----- la carte unique ----- */
+  /* ----- la carte ----- */
   useEffect(() => {
     const m = L.map(elMap.current!, { zoomControl: false, zoomSnap: 0.25 }).fitBounds(MADA);
     L.control.zoom({ position: "bottomright" }).addTo(m);
@@ -754,17 +927,19 @@ export default function AnalyseTerritoriale() {
     map.current = m;
     const ro = new ResizeObserver(() => m.invalidateSize());
     ro.observe(elMap.current!);
-    return () => { ro.disconnect(); m.remove(); };
+    return () => { ro.disconnect(); m.remove(); map.current = null; };
   }, []);
 
   useEffect(() => {
+    if (!map.current) return;
     base.current?.remove();
-    base.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map.current!);
+    base.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map.current);
     base.current.bringToBack();
   }, [fond]);
 
   /* entités cliquables du niveau suivant */
   useEffect(() => {
+    if (!map.current) return;
     kids.current?.remove();
     if (!list.length) return;
     const idx = new Map<Feat, number>(list.map((f, i) => [f, i]));
@@ -778,19 +953,20 @@ export default function AnalyseTerritoriale() {
         p.on("mouseout", () => p.setStyle({ fillOpacity: 0.04, weight: 1.2 }));
         p.on("click", () => pickRef.current(kidLevel, idx.get(f as any)!));
       },
-    }).addTo(map.current!);
+    }).addTo(map.current);
   }, [list, kidLevel, drawing]);
 
   /* contour, voile et zoom */
   useEffect(() => {
+    if (!map.current) return;
     outline.current?.remove(); veilL.current?.remove();
-    if (!selected) { map.current?.flyToBounds(MADA, { duration: 1 }); return; }
-    if (mask) veilL.current = veil(selected).addTo(map.current!);
-    outline.current = L.geoJSON(selected as any, { pane: "vec", interactive: false, style: { color: hi, weight: 3.5, fill: false } }).addTo(map.current!);
+    if (!selected) { map.current.flyToBounds(MADA, { duration: 1 }); return; }
+    if (mask) veilL.current = veil(selected).addTo(map.current);
+    outline.current = L.geoJSON(selected as any, { pane: "vec", interactive: false, style: { color: hi, weight: 3.5, fill: false } }).addTo(map.current);
   }, [selected, mask]);
   useEffect(() => {
-    if (!selected) return;
-    map.current!.flyToBounds(L.geoJSON(selected as any).getBounds(), { padding: [40, 40], maxZoom: parcel ? 17 : undefined, duration: 1.2 });
+    if (!selected || !map.current) return;
+    map.current.flyToBounds(L.geoJSON(selected as any).getBounds(), { padding: [40, 40], maxZoom: parcel ? 17 : undefined, duration: 1.2 });
   }, [selected]);
 
   /* occupation du sol (image) */
@@ -805,22 +981,25 @@ export default function AnalyseTerritoriale() {
     ov.current = L.imageOverlay(esriUrl(b, W, H, lcYear), [[b.minLat, b.minLon], [b.maxLat, b.maxLon]], { opacity: 0.6, interactive: false }).addTo(map.current);
   }, [showLC, selected, lcYear]);
 
-  /* perte de couvert arboré (tuiles GFW) */
+  /* perte de couvert (tuiles GFW) */
   useEffect(() => {
+    if (!map.current) return;
     loss.current?.remove();
     if (!showLoss) return;
-    loss.current = L.tileLayer(lossUrl(dfFrom, dfTo), { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }).addTo(map.current!);
+    loss.current = L.tileLayer(lossUrl(dfFrom, dfTo), { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }).addTo(map.current);
   }, [showLoss, dfFrom, dfTo]);
 
   /* points de feux */
   useEffect(() => {
+    if (!map.current) return;
     fireL.current?.remove();
     if (!showFires || !feuxAff.length) return;
-    const m = map.current!, g = L.featureGroup(), renderer = L.canvas({ pane: "feux", padding: 0.5 });
+    const m = map.current, g = L.featureGroup(), renderer = L.canvas({ pane: "feux", padding: 0.5 });
     const rayon = (z: number) => Math.max(2.5, Math.min(9, 2 + (z - 5) * 0.75));
     feuxAff.forEach((f) => {
+      const confTxt = f.conf === "h" ? "élevée" : f.conf === "n" ? "nominale" : f.conf === "l" ? "faible" : "non précisée";
       L.circleMarker([f.lat, f.lon], { pane: "feux", renderer, radius: rayon(m.getZoom()), fillColor: couleurAge(f.age), color: "#fff", weight: 0.6, opacity: 0.9, fillOpacity: 0.92 })
-        .bindPopup(`<div style="font:13px/1.5 system-ui"><strong>Détection satellite</strong><br/>${new Date(f.t).toLocaleDateString("fr-FR")} à ${f.heure} UTC<br/>Confiance : ${f.conf === "h" ? "élevée" : f.conf === "n" ? "nominale" : f.conf === "l" ? "faible" : "n/d"}${f.frp != null ? `<br/>Puissance : ${f.frp} MW` : ""}${f.sat ? `<br/>Satellite : ${f.sat}` : ""}</div>`)
+        .bindPopup(`<div style="font:13px/1.5 system-ui"><strong>Point chaud détecté par satellite</strong><br/>${new Date(f.t).toLocaleDateString("fr-FR")} à ${f.heure} UTC<br/>Confiance : ${confTxt}${f.frp != null ? `<br/>Puissance : ${f.frp} MW` : ""}${f.sat ? `<br/>Satellite : ${f.sat}` : ""}</div>`)
         .addTo(g);
     });
     g.addTo(m);
@@ -832,13 +1011,18 @@ export default function AnalyseTerritoriale() {
 
   /* tracé de parcelle : clics */
   useEffect(() => {
-    const m = map.current!;
-    if (!drawing) return;
+    const m = map.current;
+    if (!m || !drawing) return;
     m.getContainer().style.cursor = "crosshair";
     m.doubleClickZoom.disable();
-    const click = (e: L.LeafletMouseEvent) => { pts.current.push(e.latlng); redraw(); };
-    const dbl = () => { pts.current.pop(); redraw(); finishDraw(); };
-    const key = (e: KeyboardEvent) => e.key === "Escape" && cancelDraw();
+    const click = (e: L.LeafletMouseEvent) => {
+      // Ignore un clic identique au dernier sommet (évite les doublons du double-clic)
+      const last = pts.current[pts.current.length - 1];
+      if (last && last.distanceTo(e.latlng) < 1e-7) return;
+      pts.current.push(e.latlng); redraw();
+    };
+    const dbl = () => finishDraw();
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") cancelDraw(); };
     m.on("click", click); m.on("dblclick", dbl);
     window.addEventListener("keydown", key);
     return () => {
@@ -859,8 +1043,13 @@ export default function AnalyseTerritoriale() {
     [advice]);
   const adviceShown = themeF === "Toutes" ? advice : advice.filter((a) => a.th === themeF);
   const nHautes = advice.filter((a) => a.lvl === "haute").length;
-  const score = res ? vuln(res) : 0;
+  const score = res ? vuln(res) : null;
   const openAnalysis = () => { setThemeF("Toutes"); setShow(true); };
+
+  const statutsManquants = res
+    ? Object.entries(res.statuts).filter(([, v]) => v).map(([k, v]) => `${LIBELLE_STATUT[k] ?? k} (${v})`)
+    : [];
+
   const hint = drawing
     ? `Cliquez pour poser les sommets (${nPts}). Double-clic ou « Terminer » pour fermer, Échap pour annuler.`
     : !rF ? "Cliquez sur une région pour zoomer" : !dF ? "Cliquez sur un district" : !cF ? "Cliquez sur une commune" : "Cliquez sur une autre commune pour comparer";
@@ -870,21 +1059,50 @@ export default function AnalyseTerritoriale() {
     : cF ? `Commune de ${nameOf(dF!)}, ${nameOf(rF!)}` : dF ? `District de ${nameOf(rF!)}` : "Région";
   const area = fmtArea(zoneKm2).split(" ");
   const yearOptions = LOSS_YEARS.map((y) => <option key={y}>{y}</option>);
-  const cultAff = res ? (res.cultWC == null ? null : Math.max(res.cropPct, res.cultWC)) : null;
+
+  const exporter = () => {
+    if (!res || !selected) return;
+    const doc = {
+      outil: "Analyse territoriale Madagascar",
+      version: VERSION,
+      genere_le: new Date().toISOString(),
+      avertissement: "Outil d'aide à la décision. Les résultats sont des estimations issues de données satellitaires et de modèles. Ils ne remplacent pas la validation de terrain ni la concertation avec les communautés.",
+      zone: { nom: nameOf(selected), niveau: lvlText, surface_km2: +zoneKm2.toFixed(3) },
+      parametres: { annee_occupation_du_sol: lcYear, periode_perte: periodeTxt, confiance_feux: conf, fond_de_carte: fond },
+      fiabilite: { niveau: res.fiable, libelle: FIABLE_TXT[res.fiable], sources_en_echec: statutsManquants, couverture_classification_pct: +res.couverture.toFixed(1) },
+      indicateurs: {
+        occupation_du_sol_pct: Object.fromEntries(res.land.map((p) => [p.n, +p.pct.toFixed(2)])),
+        cultures_impact_observatory_pct: +res.cropPct.toFixed(2),
+        cultures_worldcover_2021_pct: res.cultWC != null ? +res.cultWC.toFixed(2) : null,
+        pente_15pct_ou_plus_pct: res.steepPct != null ? +res.steepPct.toFixed(2) : null,
+        altitude_moyenne_m: res.elevMean != null ? Math.round(res.elevMean) : null,
+        pluie_moyenne_annuelle_mm: res.rain,
+        perte_couvert_ha: lossStats ? Math.round(lossStats.total) : null,
+        perte_couvert_par_annee_ha: lossStats ? Object.fromEntries(lossStats.years.map((a) => [a.annee, Math.round(a.ha)])) : null,
+        feux_72h: n72, feux_24h: n24,
+        vulnerabilite_erosion_sur_100: score,
+      },
+      orientations: advice.map((a) => ({ priorite: LVL_TXT[a.lvl], theme: a.th, titre: a.t, description: a.d, actions: a.acts ?? [] })),
+      sources: SOURCES_INFO,
+    };
+    const nom = nameOf(selected).replace(/[^\p{L}\p{N}]+/gu, "_");
+    telechargerJSON(`analyse-${nom}-${lcYear}.json`, doc);
+  };
 
   return (
     <div className="at">
       <style>{CSS}</style>
+      <div className="at-sr" role="status" aria-live="polite">{annonce}</div>
 
       <header className="at-head">
         <div>
           <h1>Analyse territoriale</h1>
-          <p>Occupation du sol, déforestation, relief, feux et orientations pour restaurer · version : {VERSION}</p>
+          <p>Occupation du sol, perte de couvert, relief, feux et orientations pour restaurer · version {VERSION}</p>
         </div>
         <div className="at-chain">
           <select value={ri} onChange={(e) => onRegion(e.target.value)} aria-label="Région">
             <option value="">{regs.length ? "Région" : loadErr ? "Indisponible" : "Chargement…"}</option>
-            {regs.map((f, i) => ({ f, i })).sort((a, b) => nameOf(a.f).localeCompare(nameOf(b.f))).map(({ f, i }) => <option key={i} value={i}>{nameOf(f)}</option>)}
+            {regs.map((f, i) => ({ f, i })).sort((a, b) => nameOf(a.f).localeCompare(nameOf(b.f), "fr")).map(({ f, i }) => <option key={i} value={i}>{nameOf(f)}</option>)}
           </select>
           <ChevronRight size={16} aria-hidden />
           <select value={di} onChange={(e) => onDistrict(e.target.value)} disabled={!rF} aria-label="District">
@@ -910,6 +1128,7 @@ export default function AnalyseTerritoriale() {
             <div className="at-empty">
               <h2>Commencez par une région</h2>
               <p>Choisissez-la dans la liste ou cliquez sur la carte. Les informations se précisent jusqu’à la commune. Vous pouvez aussi tracer votre propre parcelle.</p>
+              <p className="at-note">Les chiffres sont des estimations à partir de données satellitaires publiques. Chaque résultat indique ses sources et son niveau de fiabilité.</p>
             </div>
           ) : (
             <>
@@ -918,11 +1137,17 @@ export default function AnalyseTerritoriale() {
                 <div className="at-lvl">{lvlText}</div>
                 <dl className="at-facts">
                   <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
-                  <div><dd>{res ? nf(res.elevMean) : "…"}</dd><dt>m d’altitude moyenne</dt></div>
-                  <div><dd>{res ? (res.rain ? nf(res.rain) : "n/d") : "…"}</dd><dt>mm de pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</dt></div>
+                  <div><dd>{res?.elevMean != null ? nf(res.elevMean) : res ? "n/d" : "…"}</dd><dt>m d’altitude moyenne</dt></div>
+                  <div><dd>{res?.rain != null ? nf(res.rain) : res ? "n/d" : "…"}</dd><dt>mm de pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</dt></div>
                 </dl>
-                {res && <p className="at-note">Bassin versant : {res.bassin ?? "source non renseignée"}</p>}
-                {current.err && <p className="at-alert" role="alert">{current.err}</p>}
+                {res && <p className="at-note">Bassin versant : {res.bassin ?? "non renseigné"}</p>}
+                {res && (
+                  <p className={`at-badge ${res.fiable}`}>
+                    {FIABLE_TXT[res.fiable]}
+                    {statutsManquants.length > 0 && <> · sources manquantes : {statutsManquants.join(", ")}</>}
+                  </p>
+                )}
+                {current.err && <p className="at-alert" role="alert">Analyse impossible : {current.err}. <button type="button" className="at-link" onClick={() => { setRi((v) => v); }}>Réessayer en sélectionnant de nouveau la zone</button></p>}
               </div>
 
               <div className="at-duo">
@@ -966,10 +1191,11 @@ export default function AnalyseTerritoriale() {
                         </tbody>
                       </table>
                       {res.cloudPct > 0.5 && <p className="at-note">{nf(res.cloudPct, 1)} % sous les nuages, exclus des parts.</p>}
+                      <p className="at-note">Classification exploitable sur {nf(res.couverture, 0)} % de la zone.</p>
                       <p className="at-note">
                         Cultures : Impact Observatory {nf(res.cropPct, 1)} % · {res.cultWC != null
                           ? <span style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>WorldCover 2021 {nf(res.cultWC, 1)} %</span>
-                          : <>WorldCover indisponible{res.cultErr ? ` (${res.cultErr})` : ""}</>}
+                          : <>WorldCover indisponible{res.statuts.cultures ? ` (${res.statuts.cultures})` : ""}</>}
                       </p>
                     </>
                   ) : <p className="at-load">{current.busy ? "Calcul en cours…" : ""}</p>}
@@ -977,23 +1203,23 @@ export default function AnalyseTerritoriale() {
 
                 <section className="at-card at-c at-def">
                   <div className="at-ch">
-                    <h3>Déforestation</h3>
+                    <h3>Perte de couvert</h3>
                     <div className="at-yrs">
                       <select className="at-mini" value={dfFrom} aria-label="Année de début" onChange={(e) => { const v = +e.target.value; setDfFrom(v); if (v > dfTo) setDfTo(v); }}>{yearOptions}</select>
                       <span>à</span>
                       <select className="at-mini" value={dfTo} aria-label="Année de fin" onChange={(e) => { const v = +e.target.value; setDfTo(v); if (v < dfFrom) setDfFrom(v); }}>{yearOptions}</select>
                     </div>
                   </div>
-                  {lossS.busy && <p className="at-load">Calcul en cours… (peut durer quelques secondes pour une région)</p>}
+                  {lossS.busy && <p className="at-load">Calcul en cours… (quelques secondes pour une région)</p>}
                   {lossS.err && (
                     <p className="at-alert" role="alert">
-                      Chiffres indisponibles ({lossS.err}). Vérifiez la route /api/gfw-perte et la clé GFW côté serveur. La carte de perte, elle, s’affiche.
+                      Chiffres indisponibles ({lossS.err}). La carte de perte, elle, s’affiche.
                     </p>
                   )}
                   {lossStats && (
                     <>
                       <div className="at-big at-big-def">{nf(Math.round(lossStats.total))}<small>ha</small></div>
-                      <p className="at-sub">de couvert arboré perdus sur {periodeTxt}, soit {nf(lossStats.pct, lossStats.pct < 1 ? 2 : 1)} % de la zone.</p>
+                      <p className="at-sub">de couvert arboré perdus sur {periodeTxt}, soit {nf(lossStats.pct, lossStats.pct < 1 ? 2 : 1)} % de la zone. Cette perte inclut incendies et coupes temporaires.</p>
                       <div className="at-cols" role="img" aria-label="Perte de couvert par année">
                         {lossStats.years.map((a) => (
                           <div key={a.annee} className="at-colw" title={`${a.annee} : ${nf(Math.round(a.ha))} ha`}>
@@ -1013,7 +1239,7 @@ export default function AnalyseTerritoriale() {
 
                 <section className="at-card at-c">
                   <h3>Relief et pente</h3>
-                  {res ? (
+                  {res && res.slope ? (
                     <>
                       <div className="at-stack at-slope" key={nameOf(selected)}>
                         {res.slope.map((p) => <i key={p.n} style={{ width: `${p.pct}%`, background: p.col }} title={`${p.n} : ${nf(p.pct, 1)} %`} />)}
@@ -1023,13 +1249,19 @@ export default function AnalyseTerritoriale() {
                           {res.slope.map((p) => <tr key={p.n}><td><i style={{ background: p.col }} />{p.n}</td><td>{nf(p.pct, 1)} %</td></tr>)}
                         </tbody>
                       </table>
-                      <div className="at-strip" aria-hidden>
-                        <b className="at-range" style={{ left: `${(Math.max(0, res.elevMin) / 2900) * 100}%`, width: `${Math.max(1.5, ((res.elevMax - Math.max(0, res.elevMin)) / 2900) * 100)}%` }} />
-                        <u className="at-dot" style={{ left: `${(res.elevMean / 2900) * 100}%` }} />
-                      </div>
-                      <div className="at-stripl"><span>0 m</span><span>{nf(res.elevMin)} à {nf(res.elevMax)} m</span><span>2 900 m</span></div>
+                      {res.elevMin != null && res.elevMax != null && (
+                        <>
+                          <div className="at-strip" aria-hidden>
+                            <b className="at-range" style={{ left: `${(Math.max(0, res.elevMin) / 2900) * 100}%`, width: `${Math.max(1.5, ((res.elevMax - Math.max(0, res.elevMin)) / 2900) * 100)}%` }} />
+                            <u className="at-dot" style={{ left: `${((res.elevMean ?? 0) / 2900) * 100}%` }} />
+                          </div>
+                          <div className="at-stripl"><span>0 m</span><span>{nf(res.elevMin)} à {nf(res.elevMax)} m</span><span>2 900 m</span></div>
+                        </>
+                      )}
                       <p className="at-note">{res.resolution}.</p>
                     </>
+                  ) : res ? (
+                    <p className="at-alert" role="alert">Relief indisponible{res.statuts.relief ? ` (${res.statuts.relief})` : ""}. Les recommandations sur les pentes sont masquées.</p>
                   ) : <p className="at-load">{current.busy ? "Calcul en cours…" : ""}</p>}
                 </section>
 
@@ -1037,23 +1269,25 @@ export default function AnalyseTerritoriale() {
                   <div className="at-ch">
                     <h3>Points de feux</h3>
                     <select className="at-mini" value={conf} onChange={(e) => setConf(e.target.value as "l" | "n" | "h")} aria-label="Fiabilité des détections">
-                      <option value="l">Toutes</option><option value="n">Nominale+</option><option value="h">Élevée</option>
+                      <option value="l">Toutes</option><option value="n">Nominale et plus</option><option value="h">Élevée seulement</option>
                     </select>
                   </div>
-                  {fErr ? (
-                    <p className="at-alert" role="alert">Données de feux indisponibles (route /api/firms). <button type="button" className="at-link" onClick={chargerFeux}>Réessayer</button></p>
+                  {fErr && !feuxBruts.length ? (
+                    <p className="at-alert" role="alert">Données de feux indisponibles ({fErr}). <button type="button" className="at-link" onClick={chargerFeux}>Réessayer</button></p>
                   ) : (
                     <>
+                      {feuxPerimes && <p className="at-alert" role="alert">Données de feux anciennes (mise à jour à {heureMaj}). <button type="button" className="at-link" onClick={chargerFeux}>Actualiser</button></p>}
+                      {fErr && feuxBruts.length > 0 && <p className="at-note">Dernière actualisation échouée ; affichage des données précédentes.</p>}
                       <div className="at-feu-top">
                         <div className="at-big at-big-feu">{fLoad && !feuxBruts.length ? "…" : nf(feuxAff.length)}</div>
                         <div className="at-seg" role="group" aria-label="Période des feux">
                           {([24, 48, 72] as const).map((h) => <button key={h} type="button" aria-pressed={fPeriod === h} onClick={() => setFPeriod(h)}>{h} h</button>)}
                         </div>
                       </div>
-                      <p className="at-sub">feux détectés ces {fPeriod} dernières heures dans la zone.</p>
+                      <p className="at-sub">points chauds détectés par satellite ces {fPeriod} dernières heures dans la zone.</p>
                       <div className="at-cols" role="img" aria-label="Détections par tranche de 6 heures">
                         {[...chrono].map((n, i) => ({ n, i })).reverse().map(({ n, i }) => (
-                          <div key={i} className="at-colw" title={`${n} feux · il y a ${i * 6} à ${i * 6 + 6} h`}>
+                          <div key={i} className="at-colw" title={`${n} détections · il y a ${i * 6} à ${i * 6 + 6} h`}>
                             <i style={{ height: `${Math.max(4, (n / maxChrono) * 100)}%`, background: couleurAge(i * 6 + 3), opacity: i * 6 < fPeriod ? 1 : 0.22 }} />
                           </div>
                         ))}
@@ -1066,13 +1300,13 @@ export default function AnalyseTerritoriale() {
                           <tr><td><i style={{ background: "#facc15" }} />48 à 72 h</td><td>{nf(n72 - n48)}</td></tr>
                         </tbody>
                       </table>
-                      <p className="at-note">NASA FIRMS, données de {heureMaj}.</p>
+                      <p className="at-note">NASA FIRMS, mise à jour à {heureMaj}.</p>
                     </>
                   )}
                 </section>
               </div>
 
-              <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>Analyser ce territoire</button>
+              <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>Voir les orientations</button>
             </>
           )}
         </aside>
@@ -1085,7 +1319,7 @@ export default function AnalyseTerritoriale() {
                 <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>Topographie</button>
               </div>
               <label className="at-chk"><input type="checkbox" checked={showLC} onChange={(e) => setShowLC(e.target.checked)} />Occupation du sol</label>
-              <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />Déforestation</label>
+              <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />Perte de couvert</label>
               <label className="at-chk"><input type="checkbox" checked={showFires} onChange={(e) => setShowFires(e.target.checked)} />Points de feux</label>
               <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />Estomper l’extérieur</label>
             </div>
@@ -1107,8 +1341,8 @@ export default function AnalyseTerritoriale() {
             {(showLC || showLoss || showFires) && (
               <div className="at-ctl at-legend">
                 {showLC && <><strong>Occupation du sol {lcYear}</strong>{legendLC.map((k) => <span key={k.n}><i style={{ background: k.col }} />{k.n}</span>)}</>}
-                {showLoss && <><strong>Déforestation</strong><span><i style={{ background: COULEUR_PERTE }} />Perte de couvert, {periodeTxt}</span></>}
-                {showFires && <><strong>Feux</strong>
+                {showLoss && <><strong>Perte de couvert</strong><span><i style={{ background: COULEUR_PERTE }} />{periodeTxt}</span></>}
+                {showFires && <><strong>Points chauds (satellite)</strong>
                   <span><i className="r" style={{ background: "rgb(200,15,15)" }} />Moins de 24 h</span>
                   <span><i className="r" style={{ background: "#f97316" }} />24 à 48 h</span>
                   <span><i className="r" style={{ background: "#facc15" }} />48 à 72 h</span></>}
@@ -1124,28 +1358,38 @@ export default function AnalyseTerritoriale() {
             <header className="at-mh">
               <div>
                 <h2 id="at-m-titre">Orientations pour {nameOf(selected)}</h2>
-                <p>{lvlText} · {fmtArea(zoneKm2)} · {advice.length} orientation{advice.length > 1 ? "s" : ""}{nHautes ? `, dont ${nHautes} prioritaire${nHautes > 1 ? "s" : ""}` : ""}</p>
+                <p>{lvlText} · {fmtArea(zoneKm2)} · {advice.length} orientation{advice.length > 1 ? "s" : ""}{nHautes ? `, dont ${nHautes} prioritaire${nHautes > 1 ? "s" : ""}` : ""} · {FIABLE_TXT[res.fiable].toLowerCase()}</p>
               </div>
               <button type="button" className="at-x" ref={closeRef} onClick={() => setShow(false)} aria-label="Fermer la fenêtre"><X size={18} /></button>
             </header>
 
             <div className="at-mb">
               <div className="at-kpis">
-                <div className="at-kpi"><b>{nf(res.treePct)} %</b><span>couvert arboré</span></div>
+                <div className="at-kpi"><b>{nf(res.treePct, 1)} %</b><span>couvert arboré</span></div>
                 <div className="at-kpi">
-                  <b>{cultAff == null ? `${nf(res.cropPct, 1)} %` : `${nf(cultAff, 1)} %`}</b>
-                  <span>{cultAff == null ? "cultures (WorldCover indisponible)" : "cultures (max des 2 sources)"}</span>
+                  <b>{res.cultWC == null ? `${nf(res.cropPct, 1)} %` : `${nf(Math.max(res.cropPct, res.cultWC), 1)} %`}</b>
+                  <span>{res.cultWC == null ? "cultures (WorldCover indisponible)" : "cultures (max des 2 sources)"}</span>
                 </div>
-                <div className="at-kpi"><b>{nf(res.steepPct)} %</b><span>pente de 15 % ou plus</span></div>
-                <div className="at-kpi"><b>{lossStats ? `${nf(Math.round(lossStats.total))} ha` : "n/d"}</b><span>perdus, {periodeTxt}</span></div>
-                <div className="at-kpi"><b>{nf(n72)}</b><span>feux en 72 h</span></div>
-                <div className="at-kpi"><b>{res.rain ? `${nf(res.rain)} mm` : "n/d"}</b><span>pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</span></div>
+                <div className="at-kpi"><b>{res.steepPct != null ? `${nf(res.steepPct, 1)} %` : "n/d"}</b><span>pente de 15 % ou plus</span></div>
+                <div className="at-kpi"><b>{lossStats ? `${nf(Math.round(lossStats.total))} ha` : "n/d"}</b><span>perte de couvert, {periodeTxt}</span></div>
+                <div className="at-kpi"><b>{nf(n72)}</b><span>points chauds en 72 h</span></div>
+                <div className="at-kpi"><b>{res.rain != null ? `${nf(res.rain)} mm` : "n/d"}</b><span>pluie par an (moy. {RAIN_FIRST}-{RAIN_LAST})</span></div>
               </div>
 
-              <div className="at-gauge-wrap">
-                <div className="at-gauge"><u style={{ left: `${score}%` }} /></div>
-                <p>Vulnérabilité à l’érosion : <strong>{vulnLabel(score)}</strong> ({score} sur 100)</p>
-              </div>
+              {score != null ? (
+                <div className="at-gauge-wrap">
+                  <div className="at-gauge"><u style={{ left: `${score}%` }} /></div>
+                  <p>Vulnérabilité à l’érosion : <strong>{vulnLabel(score)}</strong> ({score} sur 100)</p>
+                </div>
+              ) : (
+                <p className="at-alert" role="alert">Score de vulnérabilité non calculé : le relief est indisponible.</p>
+              )}
+
+              {res.fiable !== "bonne" && (
+                <p className="at-alert" role="alert">
+                  Ces orientations reposent sur des données partielles{statutsManquants.length ? ` (${statutsManquants.join(", ")})` : ""}. Confirmez-les sur le terrain avant toute décision.
+                </p>
+              )}
 
               {themesPresents.length > 1 && (
                 <div className="at-chips" role="group" aria-label="Filtrer par thème">
@@ -1168,17 +1412,55 @@ export default function AnalyseTerritoriale() {
                 </article>
               ))}
 
-              <p className="at-note">Estimation indicative issue d’images satellite, de la perte de couvert GFW, des détections de feux, d’une pluie moyenne sur {RAIN_YEARS} ans et d’un relief à 90 m échantillonné. À valider avec des données locales et les acteurs du territoire avant toute décision.</p>
+              <details className="at-meth">
+                <summary>Méthode, sources et limites</summary>
+                <table className="at-tbl">
+                  <thead><tr><th scope="col">Donnée</th><th scope="col">Source</th><th scope="col">Limite</th></tr></thead>
+                  <tbody>
+                    {SOURCES_INFO.map((s) => (
+                      <tr key={s.nom}><td>{s.nom}</td><td>{s.source}</td><td>{s.limite}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="at-note">
+                  Règles d'orientation : un seuil ou une condition déclenche une recommandation si la valeur calculée le dépasse. Les seuils (par ex. 3 % de perte, 35 % de pente forte, 1 200 mm de pluie) sont des repères d'expert, non des normes officielles. Ils peuvent être révisés avec des données de terrain.
+                </p>
+              </details>
+
+              <p className="at-note">
+                Estimation indicative. Ne remplace pas la validation de terrain ni la concertation avec les communautés concernées.
+              </p>
             </div>
 
             <footer className="at-mf">
-              <button type="button" className="at-tool" onClick={() => setShow(false)}>Fermer</button>
+              <button type="button" className="at-tool" onClick={exporter}><Download size={15} />Exporter (JSON)</button>
+              <button type="button" className="at-tool on" onClick={() => setShow(false)}>Fermer</button>
             </footer>
           </div>
         </div>
       )}
     </div>
   );
+}
+
+/** Limite d'erreur : une panne interne n'efface pas toute la page. */
+class Garde extends Component<{ children: ReactNode }, { err: Error | null }> {
+  state = { err: null as Error | null };
+  static getDerivedStateFromError(err: Error) { return { err }; }
+  render() {
+    if (this.state.err) {
+      return (
+        <div className="at-alert" role="alert" style={{ margin: 20 }}>
+          Une erreur inattendue est survenue. Rechargez la page. Si le problème persiste, notez l'heure et la zone choisie. ({this.state.err.message})
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export default function AnalyseTerritoriale() {
+  return <Garde><Coeur /></Garde>;
 }
 
 /* ===================== STYLES ===================== */
@@ -1305,6 +1587,16 @@ const CSS = `
 .at-legend span{display:flex;gap:8px;align-items:center}
 .at-legend i.r{border-radius:50%}
 .at-tip{background:#fff;color:#1c2822;border:0;border-radius:6px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3)}
+.at-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.at-badge{display:inline-block;margin:8px 0 0;padding:4px 10px;border-radius:999px;font-size:12px;font-weight:600}
+.at-badge.bonne{background:rgba(127,176,105,.22);color:#3f6b2c}
+.at-badge.moyenne{background:rgba(224,162,60,.2);color:#8a5a0c}
+.at-badge.faible{background:rgba(178,58,46,.14);color:#9a2b20}
+.at-meth{margin-top:16px;border-top:1px solid var(--c-line);padding-top:12px}
+.at-meth summary{cursor:pointer;font-weight:600;font-size:14px;color:var(--c-ink2)}
+.at-meth table{margin-top:10px}
+.at-meth td,.at-meth th{vertical-align:top;text-align:left}
+.at-meth td:first-child{display:table-cell}
 @keyframes atGrow{from{transform:scaleX(0)}}
 @keyframes atPulse{50%{opacity:.45}}
 @keyframes atFade{from{opacity:0}}
