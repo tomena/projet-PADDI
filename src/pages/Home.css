@@ -120,14 +120,14 @@
   -webkit-user-drag: none;
 }
 
-/* ---------- Feuilles : zones cliquables, style bouton ---------- */
+/* ---------- Feuilles : zones cliquables transparentes ---------- */
 .leaf {
   position: absolute;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.35em;
+  gap: 0.3em;
   padding: 0;
   border: none;
   background: transparent;
@@ -138,45 +138,28 @@
   -webkit-tap-highlight-color: transparent;
   transition: transform 0.25s ease, filter 0.25s ease;
 }
-.leaf svg {
-  width: clamp(26px, 3.4cqw, 110px);
-  height: auto;
-  aspect-ratio: 1;
-  padding: 0.28em;
-  box-sizing: content-box;
-  /* forme de feuille : coins arrondis opposés */
-  border-radius: 62% 0 62% 0;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--tone, #0b46ad) 70%, white) 0%, var(--tone, #0b46ad) 100%);
-  box-shadow:
-    0 0 0 2px rgba(255, 255, 255, 0.35),
-    0 8px 18px rgba(0, 0, 0, 0.35);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+.leaf:active {
+  transform: scale(1.06);
+  filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
 }
-.leaf span {
-  font-size: clamp(11px, 1cqw, 26px);
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: 0.01em;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.45);
-  white-space: nowrap;
-}
-.leaf:active { transform: scale(0.96); }
-.leaf:active svg { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35), 0 4px 10px rgba(0, 0, 0, 0.35); }
 @media (hover: hover) {
-  .leaf:hover { transform: translateY(-3px) scale(1.05); }
-  .leaf:hover svg {
-    transform: scale(1.08) rotate(-6deg);
-    box-shadow:
-      0 0 0 2px rgba(255, 255, 255, 0.6),
-      0 0 22px rgba(255, 255, 255, 0.55),
-      0 10px 22px rgba(0, 0, 0, 0.4);
+  .leaf:hover {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8));
   }
 }
-.leaf.env  { --tone: #2e7d4f; }
-.leaf.eco  { --tone: #c77800; }
-.leaf.soc  { --tone: #7a4fb0; }
-.leaf.cadre{ --tone: #0b46ad; }
-.leaf.proj { --tone: #00838a; }
+.leaf svg {
+  width: clamp(20px, 3.1cqw, 110px);
+  height: auto;
+  aspect-ratio: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.55));
+}
+.leaf span {
+  font-size: clamp(10px, 1cqw, 28px);
+  font-weight: 700;
+  line-height: 1.15;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.75);
+}
 
 .env   { left: 50.5%; top: 22.5%; width: 12%; height: 18%; }
 .eco   { left: 67.5%; top: 9%;    width: 11%; height: 16%; }
