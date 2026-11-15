@@ -142,34 +142,34 @@
   width: clamp(26px, 3.4cqw, 110px);
   height: auto;
   aspect-ratio: 1;
-  padding: 0.22em;
+  padding: 0.28em;
   box-sizing: content-box;
-  border-radius: 50%;
-  background: var(--tone, var(--blue));
-  border: 2px solid rgba(255, 255, 255, 0.85);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  /* forme de feuille : coins arrondis opposés */
+  border-radius: 62% 0 62% 0;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--tone, #0b46ad) 70%, white) 0%, var(--tone, #0b46ad) 100%);
+  box-shadow:
+    0 0 0 2px rgba(255, 255, 255, 0.35),
+    0 8px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 .leaf span {
-  padding: 0.2em 0.7em;
-  border-radius: 999px;
-  background: rgba(11, 45, 110, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  font-size: clamp(10px, 1cqw, 26px);
+  font-size: clamp(11px, 1cqw, 26px);
   font-weight: 700;
   line-height: 1.15;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  letter-spacing: 0.01em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 12px rgba(0, 0, 0, 0.45);
   white-space: nowrap;
 }
 .leaf:active { transform: scale(0.96); }
-.leaf:active svg { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35); }
+.leaf:active svg { box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35), 0 4px 10px rgba(0, 0, 0, 0.35); }
 @media (hover: hover) {
   .leaf:hover { transform: translateY(-3px) scale(1.05); }
   .leaf:hover svg {
-    transform: scale(1.06);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.4), 0 0 0 6px rgba(255, 255, 255, 0.18);
+    transform: scale(1.08) rotate(-6deg);
+    box-shadow:
+      0 0 0 2px rgba(255, 255, 255, 0.6),
+      0 0 22px rgba(255, 255, 255, 0.55),
+      0 10px 22px rgba(0, 0, 0, 0.4);
   }
 }
 .leaf.env  { --tone: #2e7d4f; }
