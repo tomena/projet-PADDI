@@ -54,6 +54,9 @@ const sidebarTxt = {
     environment: "Environnement",
     burnedZonesMap: "Cartographie des zones brûlées",
     territorialAnalysis: "Analyse territoriale",
+    tabEnv: "Environnement",
+    tabEco: "Économie",
+    tabSocial: "Social",
 
     territorialSynthesis: "Synthèse territoriale",
 
@@ -110,6 +113,9 @@ const sidebarTxt = {
     environment: "Tontolo iainana",
     burnedZonesMap: "Sarintanin'ny faritra may",
     territorialAnalysis: "Famakafakana ny faritany",
+    tabEnv: "Tontolo iainana",
+    tabEco: "Toekarena",
+    tabSocial: "Ara-tsosialy",
     territorialSynthesis: "Famintinana ara-paritra",
     areaMonitoring: "Fanaraha-maso ny velaran-tany",
 
@@ -165,6 +171,9 @@ const sidebarTxt = {
     environment: "Environment",
     burnedZonesMap: "Burned Areas Mapping",
     territorialAnalysis: "Territorial Analysis",
+    tabEnv: "Environment",
+    tabEco: "Economy",
+    tabSocial: "Social",
     territorialSynthesis: "Territorial Synthesis",
     areaMonitoring: "Area Monitoring",
 
@@ -220,6 +229,9 @@ const sidebarTxt = {
     environment: "Umwelt",
     burnedZonesMap: "Kartierung verbrannter Flächen",
     territorialAnalysis: "Territoriale Analyse",
+    tabEnv: "Umwelt",
+    tabEco: "Wirtschaft",
+    tabSocial: "Soziales",
     territorialSynthesis: "Territoriale Synthese",
     areaMonitoring: "Flächenüberwachung",
 
@@ -245,17 +257,19 @@ type Cle = keyof typeof sidebarTxt.fr;
 /* =====================================================================
    STRUCTURE DU MENU
    Pour ajouter une page : ajouter une ligne lien(...) dans le bon module.
+   Un groupe peut aussi être une page : on lui donne alors un `chemin`
+   (cliquer dessus ouvre cette page et déplie ses sous-pages).
    ===================================================================== */
 
 type Lien = { type: "lien"; cle: string; icone: LucideIcon; label: Cle; chemin: string };
-type Groupe = { type: "groupe"; cle: string; icone: LucideIcon; label: Cle; enfants: Entree[] };
+type Groupe = { type: "groupe"; cle: string; icone: LucideIcon; label: Cle; enfants: Entree[]; chemin?: string };
 type Entree = Lien | Groupe;
 
 const lien = (cle: string, icone: LucideIcon, label: Cle, chemin: string): Lien => ({
   type: "lien", cle, icone, label, chemin,
 });
-const groupe = (cle: string, icone: LucideIcon, label: Cle, enfants: Entree[]): Groupe => ({
-  type: "groupe", cle, icone, label, enfants,
+const groupe = (cle: string, icone: LucideIcon, label: Cle, enfants: Entree[], chemin?: string): Groupe => ({
+  type: "groupe", cle, icone, label, enfants, chemin,
 });
 
 const MENUS: Record<string, Entree[]> = {
@@ -287,7 +301,13 @@ const MENUS: Record<string, Entree[]> = {
     lien("zones-brulees", MapPinned, "burnedZonesMap", "zones-brulees"),
     lien("deforestation", Trees, "deforestation", "deforestation"),
     lien("pression", ShieldAlert, "pressureZones", "pression"),
-    lien("territoire", Mountain, "territorialAnalysis", "analyse-territoriale"),
+    // Analyse territoriale : s'ouvre directement sur l'onglet Environnement,
+    // avec trois sous-pages qui partagent la même carte et les mêmes filtres.
+    groupe("territoire", Mountain, "territorialAnalysis", [
+      lien("terr-env", Trees, "tabEnv", "analyse-territoriale/environnement"),
+      lien("terr-eco", TrendingUp, "tabEco", "analyse-territoriale/economie"),
+      lien("terr-soc", Users, "tabSocial", "analyse-territoriale/social"),
+    ], "analyse-territoriale"),
     lien("environnement", Globe2, "environment", "analyse-environnement"),
   ],
 
@@ -308,7 +328,7 @@ const MENUS: Record<string, Entree[]> = {
 function moduleDuChemin(pathname: string): string | null {
   const nom = pathname.replace(/^\/dashboard\/?/, "").replace(/\/$/, "");
   const contient = (liste: Entree[]): boolean =>
-    liste.some((e) => (e.type === "lien" ? e.chemin === nom : contient(e.enfants)));
+    liste.some((e) => (e.type === "lien" ? e.chemin === nom : e.chemin === nom || contient(e.enfants)));
   for (const [m, liste] of Object.entries(MENUS)) if (contient(liste)) return m;
   return null;
 }
@@ -432,12 +452,15 @@ export default function Sidebar() {
   }, [mobile, tiroir]);
 
   // Ouvre automatiquement les groupes qui contiennent la page affichée
+  // (et le groupe lui-même s'il est lui-même une page active)
   useEffect(() => {
     const aOuvrir: string[] = [];
     const parcourir = (liste: Entree[], parents: string[]) => {
       liste.forEach((e) => {
-        if (e.type === "groupe") parcourir(e.enfants, [...parents, e.cle]);
-        else if (estActif(e.chemin)) aOuvrir.push(...parents);
+        if (e.type === "groupe") {
+          if (e.chemin && estActif(e.chemin)) aOuvrir.push(...parents, e.cle);
+          parcourir(e.enfants, [...parents, e.cle]);
+        } else if (estActif(e.chemin)) aOuvrir.push(...parents);
       });
     };
     parcourir(entrees, []);
@@ -505,17 +528,28 @@ export default function Sidebar() {
 
   const basculerReduit = () => definirReduit(!reduit);
 
-  const basculerGroupe = (cle: string) => {
-    if (reduit) {
-      definirReduit(false);
-      setOuverts((o) => ({ ...o, [cle]: true }));
+  // Clic sur un groupe :
+  //  - groupe-page pas encore affiché : ouvre sa page et déplie ses sous-pages
+  //  - sinon : simple déplier / replier
+  const basculerGroupe = (g: Groupe) => {
+    if (g.chemin && !estActif(g.chemin)) {
+      aller(g.chemin);
+      setOuverts((o) => ({ ...o, [g.cle]: true }));
+      if (reduit) definirReduit(false);
       return;
     }
-    setOuverts((o) => ({ ...o, [cle]: !o[cle] }));
+    if (reduit) {
+      definirReduit(false);
+      setOuverts((o) => ({ ...o, [g.cle]: true }));
+      return;
+    }
+    setOuverts((o) => ({ ...o, [g.cle]: !o[g.cle] }));
   };
 
   const contientActif = (e: Entree): boolean =>
-    e.type === "lien" ? estActif(e.chemin) : e.enfants.some(contientActif);
+    e.type === "lien"
+      ? estActif(e.chemin)
+      : (e.chemin ? estActif(e.chemin) : false) || e.enfants.some(contientActif);
 
   const rendre = (e: Entree, niveau: number) => {
     const Icone = e.icone;
@@ -548,8 +582,9 @@ export default function Sidebar() {
           title={reduit ? label : undefined}
           aria-label={reduit ? label : undefined}
           aria-expanded={reduit ? undefined : ouvert}
+          aria-current={e.chemin && estActif(e.chemin) ? "page" : undefined}
           className={`sb-item sb-groupe niveau${niveau} ${contientActif(e) ? "parent" : ""}`}
-          onClick={() => basculerGroupe(e.cle)}
+          onClick={() => basculerGroupe(e)}
         >
           <Icone size={taille} />
           {!reduit && (
