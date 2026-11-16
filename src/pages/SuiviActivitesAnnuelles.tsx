@@ -5,7 +5,7 @@ import UpdateActivitesModal from "../components/UpdateActivitesModal";
 import VueTousAvancements from "./VueTousAvancements"; // adaptez le chemin si besoin
 import {
   CalendarDays, RotateCcw, RefreshCw, CheckCircle, ListChecks, Clock, XCircle,
-  TreePine, Landmark, Wheat, HardHat, Building2, Users, Trees, ClipboardCheck, FileText, FileSpreadsheet, LayoutGrid,
+  TreePine, Landmark, Wheat, HardHat, Building2, Users, Trees, ClipboardCheck, FileText, FileSpreadsheet, ArrowLeft,
 } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
 
@@ -510,7 +510,8 @@ export default function SuiviActivitesAnnuelles() {
   const [showUpdate, setShowUpdate] = useState(false);
   const [userName, setUserName] = useState("");
   const [token, setToken] = useState("");
-  const [vueGlobale, setVueGlobale] = useState(false);
+  // true = Vue d'ensemble (page d'accueil du module) ; false = suivi détaillé
+  const [vueGlobale, setVueGlobale] = useState(true);
 
   const handleReset = () => { setAnnee(2026); setMois("Tous"); setUc("Tous"); };
 
@@ -610,8 +611,9 @@ export default function SuiviActivitesAnnuelles() {
   const sub: React.CSSProperties = { fontSize: 11, color: "var(--text-3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
   const lab: React.CSSProperties = { display: "block", fontSize: 10, fontWeight: 800, letterSpacing: 0.5, color: "#16a34a" };
 
-  /* ============ VUE « TOUS LES AVANCEMENTS » ============
-     Placé après tous les hooks : l'ordre des hooks reste donc identique à chaque rendu. */
+  /* ============ VUE D'ENSEMBLE (page d'accueil du module) ============
+     Placé après tous les hooks : l'ordre des hooks reste donc identique à chaque rendu.
+     Le bouton « Détail » ouvre le suivi détaillé avec l'année et le mois choisis. */
   if (vueGlobale) {
     return (
       <VueTousAvancements
@@ -619,9 +621,10 @@ export default function SuiviActivitesAnnuelles() {
         annee={annee}
         mois={mois}
         moisLabel={t.months[mois] ?? mois}
-        onBack={() => setVueGlobale(false)}
+        onDetail={(a, m) => { setAnnee(a); setMois(m); setVueGlobale(false); }}
         t={t}
         fmtPct={fmtPct}
+        lang={lang as string}
       />
     );
   }
@@ -649,8 +652,8 @@ export default function SuiviActivitesAnnuelles() {
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{dateAffichee}</div>
               </div>
             </div>
-            <button type="button" className="sa-btn sa-btn-primary sa-viewall" onClick={() => setVueGlobale(true)}>
-              <LayoutGrid size={16} strokeWidth={1.8} /><span>{t.viewAll}</span>
+            <button type="button" className="sa-btn sa-btn-ghost sa-viewall" onClick={() => setVueGlobale(true)}>
+              <ArrowLeft size={16} strokeWidth={1.8} /><span>{t.back}</span>
             </button>
             <button type="button" className="sa-export" onClick={handleExportExcel} title={`${t.exportTitle} ${annee}`} aria-label={`${t.exportTitle} ${annee}`}>
               <FileSpreadsheet size={20} strokeWidth={1.8} /><span>{t.exportTitle}</span><span className="sa-export-year">{annee}</span>
