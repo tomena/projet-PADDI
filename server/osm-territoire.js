@@ -15,8 +15,9 @@
 const ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
-const DELAI_MS = 25000;          // délai maximum par requête Overpass
+const DELAI_MS = 12000;          // délai maximum par requête Overpass
 const TTL_MS = 24 * 3600 * 1000; // durée du cache serveur : 24 h
 const CACHE_MAX = 100;           // nombre maximum de zones en cache
 const RINGS_MAX = 20;            // nombre maximum de polygones d'une même zone
@@ -110,29 +111,35 @@ function requeteRoutes(rings) {
   return `[out:json][timeout:25];(${blocs.join("")});out geom;`;
 }
 
+const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
+
 async function overpass(requete) {
   let derniere = "Overpass indisponible";
-  for (const url of ENDPOINTS) {
-    const ctl = new AbortController();
-    const minuteur = setTimeout(() => ctl.abort(), DELAI_MS);
-    try {
-      const r = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: "data=" + encodeURIComponent(requete),
-        signal: ctl.signal,
-      });
-      if (!r.ok) {
-        derniere = `HTTP ${r.status}`;
-        continue;
+  for (let tour = 0; tour < 2; tour++) {
+    for (const url of ENDPOINTS) {
+      const ctl = new AbortController();
+      const minuteur = setTimeout(() => ctl.abort(), DELAI_MS);
+      try {
+        const r = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: "data=" + encodeURIComponent(requete),
+          signal: ctl.signal,
+        });
+        if (r.status === 429 || r.status === 504) {
+          derniere = `HTTP ${r.status}`;
+          continue;
+        }
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const j = await r.json();
+        return Array.isArray(j.elements) ? j.elements : [];
+      } catch (e) {
+        derniere = e.name === "AbortError" ? "délai dépassé" : e.message;
+      } finally {
+        clearTimeout(minuteur);
       }
-      const j = await r.json();
-      return Array.isArray(j.elements) ? j.elements : [];
-    } catch (e) {
-      derniere = e.name === "AbortError" ? "délai dépassé" : e.message;
-    } finally {
-      clearTimeout(minuteur);
     }
+    await pause(3000);
   }
   throw new Error(derniere);
 }
