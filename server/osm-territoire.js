@@ -219,7 +219,7 @@ function calcul(rings, elements, ways, avecRoutes) {
 
 /* ----------------------------- handler ----------------------------- */
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ erreur: "methode" });
 
   let corps = req.body;
