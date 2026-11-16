@@ -60,8 +60,7 @@ export default function App() {
         <Route index element={<Dashboard data={data} />} />
       
         {/* Intervention de PADDI+ */}
-        <Route path="zones-brulees" element={<ZonesBrulees />} />
-        <Route path="zones-intervention" element={<ZonesIntervention />} />
+        <Route path="zones-brulees" element={<ZonesIntervention />} />
         <Route path="analyse-feux" element={<AnalyseFeux />} />
         <Route path="deforestation" element={<Deforestation />} />
       
