@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft, CalendarDays, ListChecks, CheckCircle, Clock, XCircle,
+  ArrowRight, CalendarDays, ListChecks, CheckCircle, Clock, XCircle,
   TrendingDown, TrendingUp, Minus, AlertTriangle, X, Info,
 } from "lucide-react";
 import { PieChart, Pie, Cell } from "recharts";
@@ -25,6 +25,7 @@ const AXES_CODES: [string, string][] = [
 const L: Record<string, any> = {
   fr: {
     pageTitle: "Vue d'ensemble d'avancement",
+    detail: "Détail",
     year: "ANNÉE", month: "MOIS", analysis: "ANALYSE DES RÉSULTATS", noData: "Aucune donnée pour cette période.",
     ref: "Moyenne (Tous)", components: "Composantes", axesWeak: "Axes à surveiller",
     late: "En retard", critical: "Retard important", avg: "Dans la moyenne", ahead: "En avance", global: "Global",
@@ -38,6 +39,7 @@ const L: Record<string, any> = {
   },
   en: {
     pageTitle: "Progress overview",
+    detail: "Details",
     year: "YEAR", month: "MONTH", analysis: "RESULTS ANALYSIS", noData: "No data for this period.",
     ref: "Average (All)", components: "Components", axesWeak: "Axes to monitor",
     late: "Behind", critical: "Seriously behind", avg: "On average", ahead: "Ahead", global: "Overall",
@@ -51,6 +53,7 @@ const L: Record<string, any> = {
   },
   de: {
     pageTitle: "Fortschrittsübersicht",
+    detail: "Details",
     year: "JAHR", month: "MONAT", analysis: "ERGEBNISANALYSE", noData: "Keine Daten für diesen Zeitraum.",
     ref: "Durchschnitt (Alle)", components: "Komponenten", axesWeak: "Zu überwachende Achsen",
     late: "Im Rückstand", critical: "Stark im Rückstand", avg: "Im Durchschnitt", ahead: "Voraus", global: "Gesamt",
@@ -64,6 +67,7 @@ const L: Record<string, any> = {
   },
   mg: {
     pageTitle: "Topimaso ankapobeny momba ny fandrosoana",
+    detail: "Antsipiriany",
     year: "TAONA", month: "VOLANA", analysis: "FAMPIASANA NY ZAVATRA VITA", noData: "Tsy misy angon-drakitra amin'ity vanim-potoana ity.",
     ref: "Salan'isa (Rehetra)", components: "Singa", axesWeak: "Axe tokony arahi-maso",
     late: "Tara", critical: "Tara be", avg: "Salan'isa", ahead: "Mialoha", global: "Ankapobeny",
@@ -106,6 +110,11 @@ const CSS = `
 .vt-back{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 16px;border-radius:999px;border:1px solid var(--border);
   background:var(--surface);color:var(--text-2);font-size:12px;font-weight:700;cursor:pointer}
 .vt-back:hover{background:var(--surface-2)}
+.vt-detail{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:999px;border:none;
+  background:#16a34a;color:#fff;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;
+  box-shadow:0 6px 16px -6px rgba(22,163,74,.6);transition:transform .15s ease,background .2s ease}
+.vt-detail:hover{background:#15803d}.vt-detail:active{transform:scale(.97)}
+.vt-detail:focus-visible{outline:2px solid rgba(22,163,74,.6);outline-offset:2px}
 .vt-title{font-size:clamp(18px,1.6vw + 8px,28px);font-weight:900;color:var(--text);line-height:1.15}
 .vt-filter{display:flex;align-items:center;gap:10px;padding:6px 14px;border-radius:14px;background:var(--surface);border:1px solid var(--border);min-width:130px}
 .vt-filter:focus-within{outline:2px solid rgba(22,163,74,.45)}
@@ -331,13 +340,14 @@ interface Props {
   annee: number;
   mois: string;
   moisLabel?: string;
-  onBack: () => void;
+  /** Ouvre le suivi détaillé avec l'année et le mois choisis ici */
+  onDetail: (annee: number, mois: string) => void;
   t: any;
   fmtPct: (v: number) => string;
   lang?: string;
 }
 
-export default function VueTousAvancements({ data, annee: anneeInit, mois: moisInit, onBack, t, fmtPct, lang }: Props) {
+export default function VueTousAvancements({ data, annee: anneeInit, mois: moisInit, onDetail, t, fmtPct, lang }: Props) {
   const tx = L[lang ?? "fr"] ?? L.fr;
 
   const [annee, setAnnee] = useState<number>(anneeInit);
@@ -401,13 +411,13 @@ export default function VueTousAvancements({ data, annee: anneeInit, mois: moisI
     <div className="vt-page">
       <style>{CSS}</style>
       <div className="vt-wrap">
-        {/* ===== En-tête + filtres à droite ===== */}
+        {/* ===== En-tête + bouton Détail + filtres à droite ===== */}
         <div className="vt-head">
           <div className="vt-head-left">
-            <button type="button" className="vt-back" onClick={onBack}>
-              <ArrowLeft size={16} strokeWidth={1.8} /><span>{t.back}</span>
-            </button>
             <div className="vt-title">{tx.pageTitle}</div>
+            <button type="button" className="vt-detail" onClick={() => onDetail(annee, moisValide)}>
+              <span>{tx.detail}</span><ArrowRight size={16} strokeWidth={1.8} />
+            </button>
           </div>
           <div className="vt-head-right">
             <div className="vt-filter">
