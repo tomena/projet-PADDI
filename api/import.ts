@@ -3,6 +3,7 @@ import updateGeojson from "../server/update-geojson.js";
 import importCouts from "../server/import-couts.js";
 import importDecaissement from "../server/import-decaissement.js";
 import importIndicateurs from "../server/import-indicateurs.js";
+import osmTerritoire from "../server/osm-territoire.js";
 
 type Handler = (req: any, res: any) => unknown;
 
@@ -12,6 +13,7 @@ const types: Record<string, Handler> = {
   couts: importCouts,
   decaissement: importDecaissement,
   indicateurs: importIndicateurs,
+  osm: osmTerritoire,
 };
 
 export default function handler(req: any, res: any) {
