@@ -19,6 +19,10 @@ import "leaflet/dist/leaflet.css";
 import { ChevronRight, RotateCcw, PenTool, Check, X, Trash2, Download } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { TEXTS, ORI, LANGS, LOCALE, fill, type Lang, type Dict, type Lvl, type Theme, type OriKey } from "./analyseTexts";
+import { useLocation } from "react-router-dom";
+import PanneauIndicateurs from "./PanneauIndicateurs";
+
+type Onglet = "environnement" | "economie" | "social";
 
 /* ===================== CONFIGURATION ===================== */
 
@@ -1390,11 +1394,13 @@ class Garde extends Component<{ children: ReactNode; t: Dict }, { err: Error | n
 /** Langue lue dans le contexte, comme Home.tsx. Repli sur le français si la valeur est inconnue. */
 export default function AnalyseTerritoriale() {
   const { lang: rawLang } = useLanguage();
+  const { pathname } = useLocation();
   const lang: Lang = (LANGS as string[]).includes(rawLang as string) ? (rawLang as Lang) : "fr";
   const t = TEXTS[lang];
+  const onglet: Onglet = /\/economie\/?$/.test(pathname) ? "economie" : /\/social\/?$/.test(pathname) ? "social" : "environnement";
   return (
     <Garde t={t}>
-      <Coeur lang={lang} t={t} />
+      <Coeur lang={lang} t={t} onglet={onglet} />
     </Garde>
   );
 }
