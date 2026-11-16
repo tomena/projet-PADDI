@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { TERR_TEXTS, type Lang } from "./territoireTexts";
-import OsmIndicateurs from "./OsmIndicateurs";
+import OsmIndicateurs from "../components/OsmIndicateurs";
 
 export type ZoneSel = {
   niveau: "ADM1" | "ADM2" | "ADM3" | "parcelle" | null;
