@@ -1,13 +1,13 @@
 /**
- * ZonesIntervention.tsx — localisation des zones d'intervention des projets
- *
- * Disposition : à gauche, les informations du territoire ; à droite, la carte.
- * Dépendances : leaflet, @types/leaflet, lucide-react.
+ * ZonesIntervention.tsx — zones d'intervention des projets
+ * Thème sombre automatique, 4 langues (fr, mg, en, de), étiquettes selon la hiérarchie.
+ * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Search, X, Trees, Sprout, Leaf, MapPin } from "lucide-react";
+import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
 
 /* ===================== DONNÉES DES PROJETS ===================== */
 
@@ -19,9 +19,8 @@ type Region = { nom: string; districts: District[] };
 type Projet = { id: string; nom: string; alias: string[]; regions: Region[] };
 
 /*
- * Activité :  { type: "reboisement", titre: "Plantation de filao", annee: 2025, surface_ha: 120 }
- * Objectif :  objectif_ha: 500   (superficie objectif de la commune, en ha)
- * Les superficies de commune sont calculées à partir des limites géographiques.
+ * Activité  : { type: "reboisement", titre: "Plantation de filao", annee: 2025, surface_ha: 120 }
+ * Objectif  : objectif_ha: 500  (superficie cible de la commune, en ha)
  */
 const PROJETS: Projet[] = [
   {
@@ -80,6 +79,189 @@ const LIGNES: Ligne[] = PROJETS.flatMap((projet) =>
   })
 );
 
+/* Ensembles d'intervention, indépendants de la sélection : la carte les colore toujours. */
+const SURB_REG = new Set(LIGNES.map((l) => cle(l.region.nom)));
+const SURB_DIS = new Set(
+  LIGNES.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
+);
+const SURB_COM = new Set(
+  LIGNES.filter((l) => l.commune).map(
+    (l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}|${cle(l.commune!.nom)}`
+  )
+);
+
+/* ===================== TEXTES (fr, mg, en, de) ===================== */
+
+const FR = {
+  titre: "Zones d'intervention des projets",
+  sousTitre: "Localisation des régions, districts et communes où interviennent les projets",
+  recherche: "Projet, région, district ou commune (ex. PADDI+, Boeny, Marovoay)",
+  rechercheAria: "Rechercher une zone d'intervention",
+  effacer: "Effacer",
+  vueMada: "Vue Madagascar",
+  vueNiveau: "Vue d'ensemble",
+  vueTitre: "Zones d'intervention",
+  vueTexte: "Recherchez un projet, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
+  regions: "Régions",
+  districts: "Districts",
+  communes: "Communes",
+  parCommune: "Par commune",
+  colCommune: "Commune",
+  colResto: "Restauration",
+  colReboisement: "Reboisement",
+  colAutres: "Autres",
+  colSuperficie: "Superficie (ha)",
+  colObjectif: "Objectif (ha)",
+  total: "Total",
+  activites: "Activités environnementales",
+  aucuneActivite: "Aucune activité renseignée",
+  zonesInterv: "Zones d'intervention",
+  communesNon: "Communes non renseignées",
+  districtsNon: "Districts non renseignés",
+  types: { restauration: "Restauration", reboisement: "Reboisement", autre: "Autres projets environnementaux" },
+  niveaux: { projet: "Projet", region: "Région", district: "District", commune: "Commune" },
+  projetCtx: "Projet d'intervention",
+  regionCtx: "Région",
+  legRegion: "Région",
+  legDistrict: "District",
+  legCommune: "Commune",
+  legSelection: "Sélection",
+  carteAria: "Carte des zones d'intervention",
+  carteTitre: "Madagascar : zones d'intervention",
+  projetsConcernes: "Projets concernés",
+  note: "Limites : geoBoundaries (ADM1 à ADM3). Superficies calculées à partir des contours, donc approximatives.",
+  erreur: "Impossible de charger les limites administratives.",
+};
+
+type Dict = typeof FR;
+
+const MG: Dict = {
+  titre: "Faritra fanatanterahan'ny tetikasa",
+  sousTitre: "Fitoerana ny faritra, distrika sy kaominina misy ny tetikasa",
+  recherche: "Tetikasa, faritra, distrika na kaominina (ohatra: PADDI+, Boeny, Marovoay)",
+  rechercheAria: "Hitady faritra fanatanterahana",
+  effacer: "Esory",
+  vueMada: "Madagasikara manontolo",
+  vueNiveau: "Fijerena ankapobeny",
+  vueTitre: "Faritra fanatanterahana",
+  vueTexte: "Hitady tetikasa, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
+  regions: "Faritra",
+  districts: "Distrika",
+  communes: "Kaominina",
+  parCommune: "Isaky ny kaominina",
+  colCommune: "Kaominina",
+  colResto: "Fanarenana",
+  colReboisement: "Fambolena ala",
+  colAutres: "Hafa",
+  colSuperficie: "Habetsahana (ha)",
+  colObjectif: "Tanjona (ha)",
+  total: "Totaly",
+  activites: "Asa ara-tontolo iainana",
+  aucuneActivite: "Tsy misy asa voarakitra",
+  zonesInterv: "Faritra fanatanterahana",
+  communesNon: "Kaominina tsy voarakitra",
+  districtsNon: "Distrika tsy voarakitra",
+  types: { restauration: "Fanarenana", reboisement: "Fambolena ala", autre: "Tetikasa hafa momba ny tontolo iainana" },
+  niveaux: { projet: "Tetikasa", region: "Faritra", district: "Distrika", commune: "Kaominina" },
+  projetCtx: "Tetikasa fanatanterahana",
+  regionCtx: "Faritra",
+  legRegion: "Faritra",
+  legDistrict: "Distrika",
+  legCommune: "Kaominina",
+  legSelection: "Voafantina",
+  carteAria: "Sarintanin'ny faritra fanatanterahana",
+  carteTitre: "Madagasikara: faritra fanatanterahana",
+  projetsConcernes: "Tetikasa voakasika",
+  note: "Sisin-tany: geoBoundaries (ADM1 ka hatramin'ny ADM3). Ny habetsahana dia tombanana avy amin'ny sisin-tany, ka mety tsy marina tanteraka.",
+  erreur: "Tsy afaka naka ny sisin-tany administratifa.",
+};
+
+const EN: Dict = {
+  titre: "Project intervention zones",
+  sousTitre: "Location of the regions, districts and communes where the projects operate",
+  recherche: "Project, region, district or commune (e.g. PADDI+, Boeny, Marovoay)",
+  rechercheAria: "Search an intervention zone",
+  effacer: "Clear",
+  vueMada: "Madagascar view",
+  vueNiveau: "Overview",
+  vueTitre: "Intervention zones",
+  vueTexte: "Search for a project, region, district or commune, or click a project below.",
+  regions: "Regions",
+  districts: "Districts",
+  communes: "Communes",
+  parCommune: "By commune",
+  colCommune: "Commune",
+  colResto: "Restoration",
+  colReboisement: "Reforestation",
+  colAutres: "Other",
+  colSuperficie: "Area (ha)",
+  colObjectif: "Target (ha)",
+  total: "Total",
+  activites: "Environmental activities",
+  aucuneActivite: "No activity recorded",
+  zonesInterv: "Intervention zones",
+  communesNon: "Communes not recorded",
+  districtsNon: "Districts not recorded",
+  types: { restauration: "Restoration", reboisement: "Reforestation", autre: "Other environmental projects" },
+  niveaux: { projet: "Project", region: "Region", district: "District", commune: "Commune" },
+  projetCtx: "Intervention project",
+  regionCtx: "Region",
+  legRegion: "Region",
+  legDistrict: "District",
+  legCommune: "Commune",
+  legSelection: "Selection",
+  carteAria: "Intervention zones map",
+  carteTitre: "Madagascar: intervention zones",
+  projetsConcernes: "Projects involved",
+  note: "Boundaries: geoBoundaries (ADM1 to ADM3). Areas are computed from the outlines, so they are approximate.",
+  erreur: "Unable to load the administrative boundaries.",
+};
+
+const DE: Dict = {
+  titre: "Interventionsgebiete der Projekte",
+  sousTitre: "Lage der Regionen, Distrikte und Gemeinden, in denen die Projekte tätig sind",
+  recherche: "Projekt, Region, Distrikt oder Gemeinde (z. B. PADDI+, Boeny, Marovoay)",
+  rechercheAria: "Interventionsgebiet suchen",
+  effacer: "Leeren",
+  vueMada: "Ansicht Madagaskar",
+  vueNiveau: "Übersicht",
+  vueTitre: "Interventionsgebiete",
+  vueTexte: "Suchen Sie ein Projekt, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
+  regions: "Regionen",
+  districts: "Distrikte",
+  communes: "Gemeinden",
+  parCommune: "Nach Gemeinde",
+  colCommune: "Gemeinde",
+  colResto: "Wiederherstellung",
+  colReboisement: "Aufforstung",
+  colAutres: "Andere",
+  colSuperficie: "Fläche (ha)",
+  colObjectif: "Ziel (ha)",
+  total: "Gesamt",
+  activites: "Umweltaktivitäten",
+  aucuneActivite: "Keine Aktivität erfasst",
+  zonesInterv: "Interventionsgebiete",
+  communesNon: "Gemeinden nicht erfasst",
+  districtsNon: "Distrikte nicht erfasst",
+  types: { restauration: "Wiederherstellung", reboisement: "Aufforstung", autre: "Andere Umweltprojekte" },
+  niveaux: { projet: "Projekt", region: "Region", district: "Distrikt", commune: "Gemeinde" },
+  projetCtx: "Interventionsprojekt",
+  regionCtx: "Region",
+  legRegion: "Region",
+  legDistrict: "Distrikt",
+  legCommune: "Gemeinde",
+  legSelection: "Auswahl",
+  carteAria: "Karte der Interventionsgebiete",
+  carteTitre: "Madagaskar: Interventionsgebiete",
+  projetsConcernes: "Beteiligte Projekte",
+  note: "Grenzen: geoBoundaries (ADM1 bis ADM3). Flächen werden aus den Umrissen berechnet und sind daher ungefähr.",
+  erreur: "Die Verwaltungsgrenzen konnten nicht geladen werden.",
+};
+
+type Lang = "fr" | "mg" | "en" | "de";
+const T: Record<Lang, Dict> = { fr: FR, mg: MG, en: EN, de: DE };
+const LOCALE: Record<Lang, string> = { fr: "fr-FR", mg: "fr-FR", en: "en-US", de: "de-DE" };
+
 /* ===================== OUTILS ===================== */
 
 const cle = (s: string) =>
@@ -91,25 +273,20 @@ type Sel = {
   niveau: Niveau;
   label: string;
   cle: string;
-  contexte: string;
   recherche: string;
   projetId?: string;
   regionCle?: string;
   districtCle?: string;
+  regionNom?: string;
+  districtNom?: string;
 };
 
-const NIVEAU_LABEL: Record<Niveau, string> = {
-  projet: "Projet",
-  region: "Région",
-  district: "District",
-  commune: "Commune",
-};
 const RANG: Record<Niveau, number> = { projet: 0, region: 1, district: 2, commune: 3 };
 
-const TYPES: Record<TypeActivite, { label: string; couleur: string; icone: typeof Leaf }> = {
-  restauration: { label: "Restauration", couleur: "#65a30d", icone: Sprout },
-  reboisement: { label: "Reboisement", couleur: "#15803d", icone: Trees },
-  autre: { label: "Autres projets environnementaux", couleur: "#0891b2", icone: Leaf },
+const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> = {
+  restauration: { couleur: "#65a30d", icone: Sprout },
+  reboisement: { couleur: "#15803d", icone: Trees },
+  autre: { couleur: "#0891b2", icone: Leaf },
 };
 
 const SUGGESTIONS: Sel[] = (() => {
@@ -123,14 +300,13 @@ const SUGGESTIONS: Sel[] = (() => {
       niveau: "projet",
       label: p.nom,
       cle: cle(p.id),
-      contexte: "Projet d'intervention",
       recherche: [p.nom, ...p.alias].map(cle).join(" "),
       projetId: p.id,
     })
   );
   LIGNES.forEach(({ region, district, commune }) => {
     const rk = cle(region.nom);
-    ajouter({ niveau: "region", label: region.nom, cle: rk, regionCle: rk, contexte: "Région", recherche: rk });
+    ajouter({ niveau: "region", label: region.nom, cle: rk, regionCle: rk, recherche: rk, regionNom: region.nom });
     if (district) {
       const dk = cle(district.nom);
       ajouter({
@@ -138,8 +314,9 @@ const SUGGESTIONS: Sel[] = (() => {
         label: district.nom,
         cle: dk,
         regionCle: rk,
-        contexte: `Région ${region.nom}`,
         recherche: dk,
+        regionNom: region.nom,
+        districtNom: district.nom,
       });
       if (commune) {
         const ck = cle(commune.nom);
@@ -149,8 +326,9 @@ const SUGGESTIONS: Sel[] = (() => {
           cle: ck,
           regionCle: rk,
           districtCle: dk,
-          contexte: `${region.nom} · ${district.nom}`,
           recherche: ck,
+          regionNom: region.nom,
+          districtNom: district.nom,
         });
       }
     }
@@ -158,15 +336,23 @@ const SUGGESTIONS: Sel[] = (() => {
   return [...vues.values()];
 })();
 
-function trouver(niveau: Niveau, k: string, regionK?: string, districtK?: string) {
-  return SUGGESTIONS.find(
+const trouver = (niveau: Niveau, k: string, regionK?: string, districtK?: string) =>
+  SUGGESTIONS.find(
     (s) =>
       s.niveau === niveau &&
       s.cle === k &&
       (regionK === undefined || s.regionCle === regionK) &&
       (districtK === undefined || s.districtCle === districtK)
   );
-}
+
+const contexteDe = (s: Sel, t: Dict) =>
+  s.niveau === "projet"
+    ? t.projetCtx
+    : s.niveau === "region"
+    ? t.regionCtx
+    : s.niveau === "district"
+    ? `${t.regionCtx} ${s.regionNom}`
+    : `${s.regionNom} · ${s.districtNom}`;
 
 function correspond(l: Ligne, s: Sel): boolean {
   const rk = cle(l.region.nom);
@@ -186,6 +372,29 @@ function correspond(l: Ligne, s: Sel): boolean {
         cle(l.commune.nom) === s.cle
       );
   }
+}
+
+/** Thème sombre : suit la classe ou l'attribut data-theme de l'application, sinon la préférence système. */
+function useThemeSombre() {
+  const [sombre, setSombre] = useState(false);
+  useEffect(() => {
+    const calc = () => {
+      const el = document.documentElement;
+      const attr = el.getAttribute("data-theme");
+      const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+      setSombre(attr ? attr === "dark" : el.classList.contains("dark") || !!mq?.matches);
+    };
+    calc();
+    const mo = new MutationObserver(calc);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
+    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
+    mq?.addEventListener?.("change", calc);
+    return () => {
+      mo.disconnect();
+      mq?.removeEventListener?.("change", calc);
+    };
+  }, []);
+  return sombre;
 }
 
 /* ===================== GÉOMÉTRIE ET LIMITES ===================== */
@@ -265,13 +474,12 @@ async function charger(niv: Niv): Promise<Feat[]> {
     `https://raw.githubusercontent.com/${GH}/${REV}/${f}`,
     `https://cdn.jsdelivr.net/gh/${GH}@${REV}/${f}`,
   ];
-  let derniere: unknown = null;
   for (const u of urls) {
     try {
       const r = await fetch(u);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const texte = await r.text();
-      if (texte.startsWith("version https://git-lfs")) throw new Error("pointeur Git LFS non résolu");
+      if (texte.startsWith("version https://git-lfs")) throw new Error("LFS");
       const j = JSON.parse(texte);
       const feats = (j.features ?? []).filter(
         (x: Feat) => x?.geometry && /Polygon/.test(x.geometry.type)
@@ -280,53 +488,53 @@ async function charger(niv: Niv): Promise<Feat[]> {
         CACHE[niv] = feats;
         return feats;
       }
-    } catch (e) {
-      derniere = e;
+    } catch {
+      /* source suivante */
     }
   }
-  throw new Error(`Impossible de charger les limites ${niv} (${String(derniere)})`);
+  throw new Error(niv);
 }
 
 /* ===================== STYLES DE CARTE ===================== */
 
+type Etat = "hors" | "inter" | "choisie";
 type NivZone = "region" | "district" | "commune";
 
-const STYLE: Record<NivZone, { hors: L.PathOptions; inter: L.PathOptions; choisie: L.PathOptions }> = {
+const STYLE: Record<NivZone, Record<Etat, L.PathOptions>> = {
   region: {
-    hors: { color: "#cbd5e1", weight: 1, fillColor: "#e2e8f0", fillOpacity: 0.15 },
-    inter: { color: "#ff6a00", weight: 3, fillColor: "#ff6a00", fillOpacity: 0.1 },
+    hors: { color: "#94a3b8", weight: 1, fillColor: "#94a3b8", fillOpacity: 0.06 },
+    inter: { color: "#ff6a00", weight: 3, fillColor: "#ff6a00", fillOpacity: 0.12 },
     choisie: { color: "#dc2626", weight: 4, fillColor: "#ff6a00", fillOpacity: 0.3 },
   },
   district: {
-    hors: { color: "#cbd5e1", weight: 0.8, fillColor: "#f1f5f9", fillOpacity: 0.1 },
-    inter: { color: "#7c3aed", weight: 2, fillColor: "#a78bfa", fillOpacity: 0.35 },
+    hors: { color: "#94a3b8", weight: 0.8, fillColor: "#94a3b8", fillOpacity: 0.03 },
+    inter: { color: "#7c3aed", weight: 2, fillColor: "#a78bfa", fillOpacity: 0.3 },
     choisie: { color: "#dc2626", weight: 3, fillColor: "#7c3aed", fillOpacity: 0.5 },
   },
   commune: {
-    hors: { color: "#cbd5e1", weight: 0.6, fillColor: "#f8fafc", fillOpacity: 0.05 },
+    hors: { color: "#94a3b8", weight: 0.6, fillColor: "#94a3b8", fillOpacity: 0.02 },
     inter: { color: "#0f766e", weight: 1.5, fillColor: "#14b8a6", fillOpacity: 0.45 },
     choisie: { color: "#dc2626", weight: 3, fillColor: "#0d9488", fillOpacity: 0.6 },
   },
 };
 
-/** Ajoute une zone à la carte, avec étiquette permanente si elle est d'intervention ou choisie. */
 function dessiner(
   g: L.LayerGroup,
   f: Feat,
   niv: NivZone,
-  dans: boolean,
-  choisie: boolean,
+  etat: Etat,
+  etiquette: boolean,
   onClick?: () => void
 ) {
   const nom = nomFeat(f);
-  const st = STYLE[niv];
-  const couc = L.geoJSON(f as any, { style: choisie ? st.choisie : dans ? st.inter : st.hors });
-  if (dans || choisie) {
-    couc.bindTooltip(nom, { permanent: true, direction: "center", className: `zi-label zi-label-${niv}` });
-  } else {
-    couc.bindTooltip(nom, { sticky: true });
-  }
-  if (dans && onClick) couc.on("click", onClick);
+  const couc = L.geoJSON(f as any, { style: STYLE[niv][etat] });
+  couc.bindTooltip(
+    nom,
+    etiquette
+      ? { permanent: true, direction: "center", className: `zi-label zi-label-${niv}` }
+      : { sticky: true, className: "zi-hover" }
+  );
+  if (onClick && etat !== "hors") couc.on("click", onClick);
   couc.addTo(g);
 }
 
@@ -335,14 +543,20 @@ type ActiviteLocalisee = Activite & { region: string; district: string; commune:
 /* ===================== COMPOSANT ===================== */
 
 export default function ZonesIntervention() {
+  const { lang: brut } = useLanguage();
+  const lang: Lang = (["fr", "mg", "en", "de"] as string[]).includes(brut as string) ? (brut as Lang) : "fr";
+  const t = T[lang];
+  const sombre = useThemeSombre();
+
   const elMap = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const couche = useRef<L.LayerGroup | null>(null);
+  const fond = useRef<L.TileLayer | null>(null);
 
   const [regions, setRegions] = useState<Feat[]>([]);
   const [districts, setDistricts] = useState<Feat[]>([]);
   const [communes, setCommunes] = useState<Feat[]>([]);
-  const [erreur, setErreur] = useState("");
+  const [erreur, setErreur] = useState(false);
   const [requete, setRequete] = useState("");
   const [ouvert, setOuvert] = useState(false);
   const [sel, setSel] = useState<Sel | null>(null);
@@ -352,9 +566,6 @@ export default function ZonesIntervention() {
     const m = L.map(elMap.current!, { zoomControl: false }).fitBounds(MADA);
     L.control.zoom({ position: "bottomright" }).addTo(m);
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "&copy; OpenStreetMap",
-    }).addTo(m);
     couche.current = L.layerGroup().addTo(m);
     map.current = m;
     const ro = new ResizeObserver(() => m.invalidateSize());
@@ -366,11 +577,28 @@ export default function ZonesIntervention() {
     };
   }, []);
 
+  /* fond de carte selon le thème */
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    fond.current?.remove();
+    fond.current = sombre
+      ? L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+          attribution: "&copy; OpenStreetMap, &copy; CARTO",
+          maxZoom: 19,
+        })
+      : L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap",
+          maxZoom: 19,
+        });
+    fond.current.addTo(m).bringToBack();
+  }, [sombre]);
+
   /* ----- chargement des limites ----- */
   useEffect(() => {
-    charger("ADM1").then(setRegions).catch((e) => setErreur(e.message));
-    charger("ADM2").then(setDistricts).catch((e) => setErreur(e.message));
-    charger("ADM3").then(setCommunes).catch((e) => setErreur(e.message));
+    charger("ADM1").then(setRegions).catch(() => setErreur(true));
+    charger("ADM2").then(setDistricts).catch(() => setErreur(true));
+    charger("ADM3").then(setCommunes).catch(() => setErreur(true));
   }, []);
 
   /* ----- actions ----- */
@@ -394,7 +622,7 @@ export default function ZonesIntervention() {
     const q = cle(requete);
     if (!q) return [];
     return SUGGESTIONS.filter((s) => s.recherche.includes(q))
-      .sort((a, b) => RANG[a.niveau] - RANG[b.niveau] || a.label.localeCompare(b.label, "fr"))
+      .sort((a, b) => RANG[a.niveau] - RANG[b.niveau] || a.label.localeCompare(b.label))
       .slice(0, 8);
   }, [requete]);
 
@@ -403,36 +631,9 @@ export default function ZonesIntervention() {
   const actives = useMemo(() => (sel ? lignes : LIGNES), [sel, lignes]);
 
   const regionActive = sel ? (sel.niveau === "region" ? sel.cle : sel.regionCle ?? null) : null;
-  const districtActive = sel
-    ? sel.niveau === "district"
-      ? sel.cle
-      : sel.niveau === "commune"
-      ? sel.districtCle ?? null
-      : null
-    : null;
+  const districtActive =
+    sel?.niveau === "district" ? sel.cle : sel?.niveau === "commune" ? sel.districtCle ?? null : null;
   const communeActive = sel?.niveau === "commune" ? sel.cle : null;
-
-  const surbRegions = useMemo(() => new Set(actives.map((l) => cle(l.region.nom))), [actives]);
-  const surbDistricts = useMemo(
-    () =>
-      new Set(
-        actives.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
-      ),
-    [actives]
-  );
-  const surbCommunes = useMemo(
-    () =>
-      new Set(
-        actives
-          .filter((l) => l.commune)
-          .map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}|${cle(l.commune!.nom)}`)
-      ),
-    [actives]
-  );
-  const regionsDetaillees = useMemo(
-    () => (regionActive ? new Set([regionActive]) : surbRegions),
-    [regionActive, surbRegions]
-  );
 
   const regionFeat = useMemo(
     () => (regionActive ? regions.find((f) => cle(nomFeat(f)) === regionActive) : undefined),
@@ -449,7 +650,6 @@ export default function ZonesIntervention() {
     return communes.find((c) => cle(nomFeat(c)) === communeActive && estDans(c, districtFeat));
   }, [communeActive, districtFeat, communes]);
 
-  /* Superficie de chaque commune, retrouvée par son nom */
   const communeParNom = useMemo(() => {
     const m = new Map<string, Feat>();
     communes.forEach((c) => {
@@ -459,60 +659,69 @@ export default function ZonesIntervention() {
     return m;
   }, [communes]);
 
-  /* ----- dessin de la carte ----- */
+  /* ----- dessin : étiquettes selon la hiérarchie ----- */
   useEffect(() => {
     const g = couche.current;
     if (!g) return;
     g.clearLayers();
 
+    const n = sel?.niveau ?? "vue";
+    // Régions : étiquettes au niveau région (et vue d'ensemble / projet)
+    const etiqRegion = n === "vue" || n === "projet" || n === "region";
+    // Districts : étiquettes seulement au niveau district
+    const etiqDistrict = n === "district";
+    // Communes : étiquettes seulement au niveau commune
+    const etiqCommune = n === "commune";
+
     regions.forEach((f) => {
       const k = cle(nomFeat(f));
-      const dans = surbRegions.has(k);
-      dessiner(g, f, "region", dans, regionActive === k, () => choisirZone("region", k));
+      const inter = SURB_REG.has(k);
+      const etat: Etat = n === "region" && regionActive === k ? "choisie" : inter ? "inter" : "hors";
+      dessiner(g, f, "region", etat, etiqRegion && inter, () => {
+        if (!inter) return;
+        if (n === "region" && regionActive === k) effacer();
+        else choisirZone("region", k);
+      });
     });
 
-    regions
-      .filter((f) => regionsDetaillees.has(cle(nomFeat(f))))
-      .forEach((rf) => {
-        const rk = cle(nomFeat(rf));
-        districts
-          .filter((d) => estDans(d, rf))
-          .forEach((d) => {
-            const k = cle(nomFeat(d));
-            const dans = surbDistricts.has(`${rk}|${k}`);
-            dessiner(
-              g,
-              d,
-              "district",
-              dans,
-              districtActive === k && regionActive === rk,
-              () => choisirZone("district", k, rk)
-            );
+    if ((n === "district" || n === "commune") && regionFeat && regionActive) {
+      districts
+        .filter((d) => estDans(d, regionFeat))
+        .forEach((d) => {
+          const dk = cle(nomFeat(d));
+          const inter = SURB_DIS.has(`${regionActive}|${dk}`);
+          const etat: Etat = n === "district" && districtActive === dk ? "choisie" : inter ? "inter" : "hors";
+          dessiner(g, d, "district", etat, etiqDistrict && inter, () => {
+            if (!inter) return;
+            if (n === "district" && districtActive === dk) choisirZone("region", regionActive);
+            else choisirZone("district", dk, regionActive);
           });
-      });
+        });
+    }
 
-    if (districtFeat && districtActive) {
-      const rk = regionActive ?? "";
+    if ((n === "district" || n === "commune") && districtFeat && districtActive && regionActive) {
       communes
         .filter((c) => estDans(c, districtFeat))
         .forEach((c) => {
-          const k = cle(nomFeat(c));
-          const dans = surbCommunes.has(`${rk}|${districtActive}|${k}`);
-          dessiner(
-            g,
-            c,
-            "commune",
-            dans,
-            communeActive === k,
-            () => choisirZone("commune", k, rk, districtActive)
-          );
+          const ck = cle(nomFeat(c));
+          const inter = SURB_COM.has(`${regionActive}|${districtActive}|${ck}`);
+          const etat: Etat = n === "commune" && communeActive === ck ? "choisie" : inter ? "inter" : "hors";
+          dessiner(g, c, "commune", etat, etiqCommune && inter, () => {
+            if (!inter) return;
+            if (n === "commune" && communeActive === ck) choisirZone("district", districtActive, regionActive);
+            else choisirZone("commune", ck, regionActive, districtActive);
+          });
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [regions, districts, communes, sel, regionActive, districtActive, communeActive,
-      surbRegions, surbDistricts, surbCommunes, regionsDetaillees, districtFeat]);
+  }, [regions, districts, communes, sel, regionActive, districtActive, communeActive, regionFeat, districtFeat]);
 
   /* ----- cadrage ----- */
+  const regionsProjet = useMemo(() => {
+    const ids = new Set(lignes.map((l) => cle(l.region.nom)));
+    return regions.filter((f) => ids.has(cle(nomFeat(f))));
+  }, [lignes, regions]);
+
   useEffect(() => {
     const m = map.current;
     if (!m) return;
@@ -521,23 +730,16 @@ export default function ZonesIntervention() {
       return;
     }
     let liste: Feat[] = [];
-    if (sel.niveau === "projet") {
-      liste = regions.filter((f) => surbRegions.has(cle(nomFeat(f))));
-    } else {
+    if (sel.niveau === "projet") liste = regionsProjet;
+    else {
       const cible =
         sel.niveau === "commune" ? communeFeat : sel.niveau === "district" ? districtFeat : regionFeat;
       if (cible) liste = [cible];
     }
     if (!liste.length) return;
-    const bounds = liste
-      .map((f) => L.geoJSON(f as any).getBounds())
-      .reduce((a, b) => a.extend(b));
-    m.flyToBounds(bounds, {
-      padding: [40, 40],
-      maxZoom: sel.niveau === "commune" ? 11 : 9,
-      duration: 0.9,
-    });
-  }, [sel, regions, surbRegions, regionFeat, districtFeat, communeFeat]);
+    const bounds = liste.map((f) => L.geoJSON(f as any).getBounds()).reduce((a, b) => a.extend(b));
+    m.flyToBounds(bounds, { padding: [40, 40], maxZoom: sel.niveau === "commune" ? 11 : 9, duration: 0.9 });
+  }, [sel, regionsProjet, regionFeat, districtFeat, communeFeat]);
 
   /* ----- données du panneau ----- */
   const lignesCommunes = useMemo(
@@ -577,7 +779,6 @@ export default function ZonesIntervention() {
   const nbDistricts = new Set(
     actives.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
   ).size;
-  const compteType = (t: TypeActivite) => activites.filter((a) => a.type === t).length;
 
   const surfaceDe = (l: LigneCommune) => {
     const f = communeParNom.get(cle(l.commune.nom));
@@ -585,24 +786,24 @@ export default function ZonesIntervention() {
   };
   const totaux = lignesCommunes.reduce(
     (acc, l) => {
-      const s = surfaceDe(l);
-      acc.surface += s ?? 0;
+      acc.surface += surfaceDe(l) ?? 0;
       acc.objectif += l.commune.objectif_ha ?? 0;
       return acc;
     },
     { surface: 0, objectif: 0 }
   );
-  const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
+  const fmt = (n: number) => Math.round(n).toLocaleString(LOCALE[lang]);
+  const compte = (t2: TypeActivite) => activites.filter((a) => a.type === t2).length;
 
   /* ----- rendu ----- */
   return (
-    <div className="zi">
+    <div className={`zi ${sombre ? "zi-dark" : ""}`}>
       <style>{CSS}</style>
 
       <header className="zi-head">
         <div>
-          <h1>Zones d'intervention des projets</h1>
-          <p>Localisation des régions, districts et communes où interviennent les projets</p>
+          <h1>{t.titre}</h1>
+          <p>{t.sousTitre}</p>
         </div>
 
         <div className="zi-search">
@@ -610,7 +811,7 @@ export default function ZonesIntervention() {
           <input
             type="search"
             value={requete}
-            placeholder="Projet, région, district ou commune (ex. PADDI+, Boeny, Marovoay)"
+            placeholder={t.recherche}
             onChange={(e) => {
               setRequete(e.target.value);
               setOuvert(true);
@@ -621,15 +822,14 @@ export default function ZonesIntervention() {
               if (e.key === "Enter" && suggestions[0]) choisir(suggestions[0]);
               if (e.key === "Escape") setOuvert(false);
             }}
-            aria-label="Rechercher une zone d'intervention"
+            aria-label={t.rechercheAria}
             aria-autocomplete="list"
           />
           {requete && (
-            <span className="zi-clear" onClick={effacer} role="button" tabIndex={0} aria-label="Effacer la recherche">
+            <span className="zi-clear" onClick={effacer} role="button" tabIndex={0} aria-label={t.effacer}>
               <X size={16} />
             </span>
           )}
-
           {ouvert && suggestions.length > 0 && (
             <ul className="zi-sug" role="listbox">
               {suggestions.map((s, i) => (
@@ -642,9 +842,9 @@ export default function ZonesIntervention() {
                     choisir(s);
                   }}
                 >
-                  <span className={`zi-badge ${s.niveau}`}>{NIVEAU_LABEL[s.niveau]}</span>
+                  <span className={`zi-badge ${s.niveau}`}>{t.niveaux[s.niveau]}</span>
                   <strong>{s.label}</strong>
-                  <small>{s.contexte}</small>
+                  <small>{contexteDe(s, t)}</small>
                 </li>
               ))}
             </ul>
@@ -652,27 +852,23 @@ export default function ZonesIntervention() {
         </div>
       </header>
 
-      {erreur && <div className="zi-erreur" role="alert">{erreur}</div>}
+      {erreur && <div className="zi-erreur" role="alert">{t.erreur}</div>}
 
       <div className="zi-body">
         <aside className="zi-panel">
-          {/* Carte du projet / territoire, avec les compteurs */}
           <section className="zi-card zi-hero">
             {sel ? (
               <>
-                <span className="zi-niveau">{NIVEAU_LABEL[sel.niveau]}</span>
+                <span className="zi-niveau">{t.niveaux[sel.niveau]}</span>
                 <h2>{sel.label}</h2>
-                <p className="zi-fil">{sel.contexte}</p>
+                <p className="zi-fil">{contexteDe(sel, t)}</p>
               </>
             ) : (
               <>
-                <span className="zi-niveau">Vue d'ensemble</span>
-                <h2>Zones d'intervention</h2>
-                <p className="zi-fil">
-                  Recherchez un projet, une région, un district ou une commune. Vous pouvez aussi
-                  cliquer sur un projet ci-dessous.
-                </p>
-                <div className="zi-projets">
+                <span className="zi-niveau">{t.vueNiveau}</span>
+                <h2>{t.vueTitre}</h2>
+                <p className="zi-fil">{t.vueTexte}</p>
+                <div className="zi-chips">
                   {PROJETS.map((p) => (
                     <span
                       key={p.id}
@@ -687,27 +883,25 @@ export default function ZonesIntervention() {
                 </div>
               </>
             )}
-
             <div className="zi-stats">
-              <div><b>{nbRegions}</b><span>Régions</span></div>
-              <div><b>{nbDistricts}</b><span>Districts</span></div>
-              <div><b>{lignesCommunes.length}</b><span>Communes</span></div>
+              <div><b>{nbRegions}</b><span>{t.regions}</span></div>
+              <div><b>{nbDistricts}</b><span>{t.districts}</span></div>
+              <div><b>{lignesCommunes.length}</b><span>{t.communes}</span></div>
             </div>
           </section>
 
-          {/* Par commune : pleine largeur */}
           <section className="zi-card">
-            <h3>Par commune</h3>
+            <h3>{t.parCommune}</h3>
             {lignesCommunes.length ? (
               <table className="zi-tbl">
                 <thead>
                   <tr>
-                    <th>Commune</th>
-                    <th>Restauration</th>
-                    <th>Reboisement</th>
-                    <th>Autres</th>
-                    <th>Superficie (ha)</th>
-                    <th>Objectif (ha)</th>
+                    <th>{t.colCommune}</th>
+                    <th>{t.colResto}</th>
+                    <th>{t.colReboisement}</th>
+                    <th>{t.colAutres}</th>
+                    <th>{t.colSuperficie}</th>
+                    <th>{t.colObjectif}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -738,33 +932,32 @@ export default function ZonesIntervention() {
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td>Total</td>
-                    <td>{activites.filter((a) => a.type === "restauration").length}</td>
-                    <td>{activites.filter((a) => a.type === "reboisement").length}</td>
-                    <td>{activites.filter((a) => a.type === "autre").length}</td>
+                    <td>{t.total}</td>
+                    <td>{compte("restauration")}</td>
+                    <td>{compte("reboisement")}</td>
+                    <td>{compte("autre")}</td>
                     <td>{fmt(totaux.surface)}</td>
                     <td>{totaux.objectif ? fmt(totaux.objectif) : "—"}</td>
                   </tr>
                 </tfoot>
               </table>
             ) : (
-              <p className="zi-vide">Communes non renseignées pour cette zone</p>
+              <p className="zi-vide">{t.communesNon}</p>
             )}
           </section>
 
-          {/* Deux cartes côte à côte */}
           <div className="zi-duo">
             <section className="zi-card">
-              <h3>Activités environnementales</h3>
-              {(Object.keys(TYPES) as TypeActivite[]).map((t) => {
-                const Icone = TYPES[t].icone;
-                const liste = activites.filter((a) => a.type === t);
+              <h3>{t.activites}</h3>
+              {(Object.keys(TYPE_ICONE) as TypeActivite[]).map((ty) => {
+                const Icone = TYPE_ICONE[ty].icone;
+                const liste = activites.filter((a) => a.type === ty);
                 return (
-                  <div className="zi-type" key={t}>
-                    <div className="zi-typeh" style={{ color: TYPES[t].couleur }}>
+                  <div className="zi-type" key={ty}>
+                    <div className="zi-typeh" style={{ color: TYPE_ICONE[ty].couleur }}>
                       <Icone size={16} aria-hidden />
-                      {TYPES[t].label}
-                      <span>{compteType(t)}</span>
+                      {t.types[ty]}
+                      <span>{compte(ty)}</span>
                     </div>
                     {liste.length ? (
                       <ul>
@@ -778,7 +971,7 @@ export default function ZonesIntervention() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="zi-vide">Aucune activité renseignée</p>
+                      <p className="zi-vide">{t.aucuneActivite}</p>
                     )}
                   </div>
                 );
@@ -786,12 +979,12 @@ export default function ZonesIntervention() {
             </section>
 
             <section className="zi-card">
-              <h3>Zones d'intervention</h3>
+              <h3>{t.zonesInterv}</h3>
               {[...arbre.entries()].map(([reg, dists]) => (
                 <div key={reg} className="zi-reg">
                   <h4>{reg}</h4>
                   {dists.size === 0 ? (
-                    <p className="zi-vide">Districts non renseignés</p>
+                    <p className="zi-vide">{t.districtsNon}</p>
                   ) : (
                     [...dists.entries()].map(([dis, coms]) => (
                       <div key={dis}>
@@ -810,7 +1003,7 @@ export default function ZonesIntervention() {
                               </span>
                             ))
                           ) : (
-                            <span className="zi-vide">Communes non renseignées</span>
+                            <span className="zi-vide">{t.communesNon}</span>
                           )}
                         </div>
                       </div>
@@ -822,23 +1015,29 @@ export default function ZonesIntervention() {
           </div>
 
           <p className="zi-note">
-            Limites administratives : geoBoundaries (ADM1 à ADM3). Superficies calculées
-            automatiquement à partir des limites, donc approximatives. Projets concernés :{" "}
-            {projetsVue.map((p) => p.nom).join(", ") || "—"}.
+            {t.note} {t.projetsConcernes} : {projetsVue.map((p) => p.nom).join(", ") || "—"}.
           </p>
         </aside>
 
-        <section className="zi-mcard" aria-label="Carte des zones d'intervention">
+        <section className="zi-mcard" aria-label={t.carteAria}>
           <div className="zi-mhead">
             <MapPin size={16} aria-hidden />
-            <span>{sel ? sel.label : "Madagascar : zones d'intervention"}</span>
+            <span>{sel ? sel.label : t.carteTitre}</span>
           </div>
-          <div ref={elMap} className="zi-map" />
+          <div className="zi-mbox">
+            <div ref={elMap} className="zi-map" />
+            {sel && (
+              <button type="button" className="zi-reset" onClick={effacer}>
+                <RotateCcw size={14} aria-hidden />
+                {t.vueMada}
+              </button>
+            )}
+          </div>
           <div className="zi-legende">
-            <span><i className="zi-lg-reg" />Région</span>
-            <span><i className="zi-lg-dis" />District</span>
-            <span><i className="zi-lg-com" />Commune</span>
-            <span><i className="zi-lg-sel" />Sélection</span>
+            <span><i className="zi-lg-reg" />{t.legRegion}</span>
+            <span><i className="zi-lg-dis" />{t.legDistrict}</span>
+            <span><i className="zi-lg-com" />{t.legCommune}</span>
+            <span><i className="zi-lg-sel" />{t.legSelection}</span>
           </div>
         </section>
       </div>
@@ -846,11 +1045,16 @@ export default function ZonesIntervention() {
   );
 }
 
-/* ===================== STYLES ===================== */
+/* ===================== STYLES (clair et sombre) ===================== */
 
 const CSS = `
-.zi{--bg:#f1efe8;--card:#fff;--line:#d8d4c8;--ink:#1c2822;--ink2:#4a5850;--ink3:#7a867f;--acc:#1f6f50;
+.zi{--bg:#f3f1ea;--card:#ffffff;--line:#dcd8cc;--ink:#1b2620;--ink2:#4b5a52;--ink3:#7d8a83;
+  --acc:#1f6f50;--acc-soft:#e3f0e9;--chip:#ffffff;--hover:#f3f1ea;--map:#e5e7eb;
+  --lbl-bg:rgba(255,255,255,.92);--lbl-ink:#1b2620;
   display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);color:var(--ink);font-family:inherit}
+.zi.zi-dark{--bg:#0d1411;--card:#15201b;--line:#2a3a33;--ink:#e7efe9;--ink2:#b3c2b9;--ink3:#8a9b92;
+  --acc:#5fc79a;--acc-soft:#1d3a2e;--chip:#1b2a24;--hover:#1d2b25;--map:#0d1411;
+  --lbl-bg:rgba(21,32,27,.92);--lbl-ink:#e7efe9}
 .zi *{box-sizing:border-box}
 .zi h1,.zi h2,.zi h3,.zi h4{margin:0;font-weight:600}
 .zi h1{font-size:22px}
@@ -858,77 +1062,90 @@ const CSS = `
 .zi h3{font-size:16px;margin-bottom:8px}
 .zi-head{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
 .zi-head p{margin:2px 0 0;font-size:13px;color:var(--ink3)}
-.zi-search{position:relative;display:flex;align-items:center;gap:8px;flex:1;max-width:640px;min-width:260px;padding:0 12px;height:44px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--ink3)}
-.zi-search:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px rgba(31,111,80,.15)}
+.zi-search{position:relative;display:flex;align-items:center;gap:8px;flex:1;max-width:640px;min-width:260px;padding:0 12px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--chip);color:var(--ink3)}
+.zi-search:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent)}
 .zi-search input{flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:var(--ink)}
+.zi-search input::placeholder{color:var(--ink3)}
 .zi-clear{cursor:pointer;display:grid;place-items:center;color:var(--ink3)}
-.zi-sug{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:2000;margin:0;padding:6px;list-style:none;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.15);max-height:360px;overflow-y:auto}
+.zi-sug{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:2000;margin:0;padding:6px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.25);max-height:360px;overflow-y:auto}
 .zi-sug li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 10px;border-radius:8px;cursor:pointer;align-items:center}
-.zi-sug li:hover{background:var(--bg)}
-.zi-sug strong{font-size:14px}
+.zi-sug li:hover{background:var(--hover)}
+.zi-sug strong{font-size:14px;color:var(--ink)}
 .zi-sug small{grid-column:2;font-size:12px;color:var(--ink3)}
-.zi-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:#e7f1ec;color:var(--acc);white-space:nowrap}
+.zi-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
 .zi-badge.projet{background:#fde68a;color:#78350f}
 .zi-badge.region{background:#ffedd5;color:#9a3412}
 .zi-badge.district{background:#ede9fe;color:#5b21b6}
 .zi-badge.commune{background:#ccfbf1;color:#115e59}
+.zi-dark .zi-badge.projet{background:#4a3a0f;color:#fde68a}
+.zi-dark .zi-badge.region{background:#4a2a12;color:#fdba74}
+.zi-dark .zi-badge.district{background:#2e2350;color:#c4b5fd}
+.zi-dark .zi-badge.commune{background:#123c37;color:#5eead4}
 .zi-erreur{padding:10px 20px;background:#fef2f2;color:#b91c1c;font-size:13px}
+.zi-dark .zi-erreur{background:#3b1717;color:#fca5a5}
 .zi-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,38%)}
 .zi-panel{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--line)}
 .zi-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
-.zi-hero{display:flex;flex-direction:column;gap:10px}
+.zi-hero{display:flex;flex-direction:column;gap:10px;background:linear-gradient(135deg,var(--card),var(--acc-soft))}
 .zi-niveau{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--acc)}
 .zi-fil{margin:0;font-size:13px;color:var(--ink2);line-height:1.5}
+.zi-chips{display:flex;flex-wrap:wrap;gap:6px}
+.zi-chip{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);cursor:pointer;color:var(--ink2)}
+.zi-chip:hover{background:var(--hover)}
+.zi-chip.has{border-color:var(--acc);color:var(--acc);font-weight:600}
 .zi-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
-.zi-stats div{background:var(--bg);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column}
-.zi-stats b{font-family:Georgia,serif;font-weight:500;font-size:28px;line-height:1.1}
+.zi-stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column}
+.zi-stats b{font-family:Georgia,serif;font-weight:500;font-size:28px;line-height:1.1;color:var(--acc)}
 .zi-stats span{font-size:12px;color:var(--ink3)}
 .zi-duo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
-.zi-type{margin-top:4px}
 .zi-typeh{display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;margin:12px 0 4px}
-.zi-typeh span{margin-left:auto;font-size:12px;background:var(--bg);color:var(--ink2);padding:1px 8px;border-radius:999px}
+.zi-typeh span{margin-left:auto;font-size:12px;background:var(--hover);color:var(--ink2);padding:1px 8px;border-radius:999px}
 .zi-type ul{margin:0;padding-left:18px;font-size:13px;line-height:1.55;color:var(--ink2)}
 .zi-type small{color:var(--ink3)}
 .zi-vide{font-size:13px;color:var(--ink3);margin:2px 0}
-.zi-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.zi-tbl{width:100%;border-collapse:collapse;font-size:13px;color:var(--ink)}
 .zi-tbl th{font-weight:500;font-size:12px;color:var(--ink3);text-align:right;padding-bottom:4px}
 .zi-tbl th:first-child,.zi-tbl td:first-child{text-align:left}
 .zi-tbl td{padding:6px 0;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
 .zi-tbl td small{display:block;color:var(--ink3);font-size:11.5px}
 .zi-tbl tfoot td{font-weight:700;border-top:2px solid var(--line)}
 .zi-row{cursor:pointer}
-.zi-row:hover td{background:var(--bg)}
+.zi-row:hover td{background:var(--hover)}
 .zi-reg{margin-top:10px}
 .zi-reg h4{font-size:14px;padding-bottom:4px;border-bottom:1px solid var(--line)}
 .zi-disn{font-size:13px;font-weight:600;margin:8px 0 4px;color:var(--ink2)}
-.zi-chips,.zi-projets{display:flex;flex-wrap:wrap;gap:6px}
-.zi-projets{margin-top:6px}
-.zi-chip{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:#fff;cursor:pointer;color:var(--ink2)}
-.zi-chip:hover{background:var(--bg)}
-.zi-chip.has{border-color:#0f766e;color:#0f766e;font-weight:600;background:#ccfbf1}
 .zi-note{font-size:12px;color:var(--ink3);line-height:1.5;margin:0 4px}
 .zi-mcard{margin:10px;display:flex;flex-direction:column;min-height:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.zi-mhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600}
-.zi-map{flex:1;min-height:420px;background:#e5e7eb}
+.zi-mhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
+.zi-mbox{position:relative;flex:1;min-height:420px}
+.zi-map{position:absolute;inset:0;background:var(--map)}
+.zi-reset{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:6px;align-items:center;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.zi-reset:hover{background:var(--hover)}
 .zi-legende{display:flex;gap:16px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
 .zi-legende i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 .zi-lg-reg{background:#ff6a00;opacity:.6;border:2px solid #ff6a00}
 .zi-lg-dis{background:#a78bfa;border:2px solid #7c3aed}
 .zi-lg-com{background:#14b8a6;border:1px solid #0f766e}
 .zi-lg-sel{background:#f97316;border:3px solid #dc2626}
-.zi-label{background:rgba(255,255,255,.92);border:0;border-radius:4px;font-size:11px;font-weight:600;padding:1px 5px;box-shadow:0 1px 3px rgba(0,0,0,.25);white-space:nowrap;color:#1c2822}
+.zi-label{background:var(--lbl-bg);color:var(--lbl-ink);border:0;border-radius:4px;font-size:11px;font-weight:600;padding:1px 6px;box-shadow:0 1px 3px rgba(0,0,0,.3);white-space:nowrap}
 .zi-label-region{color:#c2410c}
-.zi-label-district{color:#5b21b6}
-.zi-label-commune{color:#115e59}
-.leaflet-tooltip.zi-label::before{display:none}
-@media (max-width:1100px){
-  .zi-duo{grid-template-columns:1fr}
-}
+.zi-label-district{color:#6d28d9}
+.zi-label-commune{color:#0f766e}
+.zi-dark .zi-label-region{color:#fdba74}
+.zi-dark .zi-label-district{color:#c4b5fd}
+.zi-dark .zi-label-commune{color:#5eead4}
+.leaflet-tooltip.zi-label::before,.leaflet-tooltip.zi-hover::before{display:none}
+.leaflet-tooltip.zi-hover{background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:12px}
+.zi-dark .leaflet-control-zoom a,.zi-dark .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
+.zi-dark .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
+.zi-dark .leaflet-control-attribution{background:rgba(21,32,27,.8)!important;color:var(--ink3)!important}
+.zi-dark .leaflet-control-attribution a{color:var(--ink2)}
+@media (max-width:1100px){ .zi-duo{grid-template-columns:1fr} }
 @media (max-width:900px){
   .zi{height:auto;min-height:100dvh}
   .zi-body{grid-template-columns:1fr}
   .zi-panel{border-right:0;order:2;overflow:visible}
   .zi-mcard{order:1;margin:10px 10px 0}
-  .zi-map{min-height:50vh}
+  .zi-mbox{min-height:50vh}
 }
 `;
