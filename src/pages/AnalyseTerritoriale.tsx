@@ -1,8 +1,16 @@
 /**
- * AnalyseTerritoriale.tsx — version 2.1 (aide à la décision, multilingue)
+ * AnalyseTerritoriale.tsx — version 2.2 (aide à la décision, multilingue, 3 onglets)
  *
  * Langue : lue dans LanguageContext (mg, fr, en, de), comme Home.tsx.
  * Textes : analyseTexts.ts (même dossier).
+ *
+ * Onglets (lus dans l'URL, la carte et les filtres ne changent jamais) :
+ *   /dashboard/analyse-territoriale               -> Environnement (par défaut)
+ *   /dashboard/analyse-territoriale/environnement -> Environnement
+ *   /dashboard/analyse-territoriale/economie      -> Économie
+ *   /dashboard/analyse-territoriale/social        -> Social
+ * Route à déclarer avec « /* » : <Route path="analyse-territoriale/*" element={<AnalyseTerritoriale />} />
+ * Seul le panneau de gauche change (cartes environnementales ou indicateurs économie / social).
  *
  * Principes :
  *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées
@@ -10,25 +18,25 @@
  *  - Aucune recommandation n'est donnée sur une donnée qui n'a pas pu être obtenue.
  *  - Sources, dates et limites accessibles et exportables.
  *
- * Dépendances : leaflet, @types/leaflet, lucide-react.
- * Routes serveur attendues : POST /api/worldcover, POST /api/gfw-perte, GET /api/firms.
+ * Dépendances : leaflet, @types/leaflet, lucide-react, react-router-dom.
+ * Routes serveur attendues : POST /api/worldcover, POST /api/gfw-perte, GET /api/firms,
+ *                            POST /api/indicateurs (onglets Économie et Social).
  */
 import { Component, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { ChevronRight, RotateCcw, PenTool, Check, X, Trash2, Download } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { TEXTS, ORI, LANGS, LOCALE, fill, type Lang, type Dict, type Lvl, type Theme, type OriKey } from "./analyseTexts";
-import { useLocation } from "react-router-dom";
-import PanneauIndicateurs from "./PanneauIndicateurs";
-
-type Onglet = "environnement" | "economie" | "social";
+import PanneauIndicateurs from "./PanneauIndicateurs"; // adaptez le chemin si besoin
 
 /* ===================== CONFIGURATION ===================== */
 
 type LevelKey = "ADM1" | "ADM2" | "ADM3";
+type Onglet = "environnement" | "economie" | "social";
 
-const VERSION = "2.1";
+const VERSION = "2.2";
 const DELAI_MS = 20000;
 const DELAI_FEUX_MAJ_MS = 3 * 3600e3;
 const REV = "9469f09";
@@ -637,7 +645,7 @@ function telechargerJSON(nomFichier: string, contenu: unknown) {
 
 /* ===================== COMPOSANT COEUR ===================== */
 
-function Coeur({ lang, t }: { lang: Lang; t: Dict }) {
+function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   const N = useCallback((n: number, d = 0) => n.toLocaleString(LOCALE[lang], { maximumFractionDigits: d }), [lang]);
   const fmtArea = (km2: number) => (km2 < 10 ? `${N(km2 * 100, km2 < 0.1 ? 2 : 1)} ha` : `${N(km2)} km²`);
   const periodeDe = (a: number, b: number) => (a === b ? String(a) : fill(t.periode, { a, b }));
@@ -792,6 +800,8 @@ function Coeur({ lang, t }: { lang: Lang; t: Dict }) {
     if (dF && !adm3) loadLevel("ADM3").then(setAdm3).catch((e) => setLoadErr(errMsg(toErr(e), t)));
   }, [dF, adm3, t]);
   useEffect(() => { setShow(false); }, [selected]);
+  // Changer d'onglet ferme la fenêtre des orientations (elle ne concerne que l'environnement)
+  useEffect(() => { setShow(false); }, [onglet]);
 
   /* Annonce pour lecteurs d'écran */
   useEffect(() => {
@@ -1074,168 +1084,186 @@ function Coeur({ lang, t }: { lang: Lang; t: Dict }) {
                 )}
               </div>
 
-              <div className="at-duo">
-                <section className="at-card at-c">
-                  <div className="at-ch">
-                    <h3>{t.occ.titre}</h3>
-                    <select value={lcYear} onChange={(e) => setLcYear(+e.target.value)} aria-label={t.occ.annee} className="at-mini">
-                      {LC_YEARS.map((y) => <option key={y}>{y}</option>)}
-                    </select>
-                  </div>
-                  <p className="at-sub">{t.occ.sub}</p>
-                  {levels.map(({ f, s }, i) => f && (
-                    <div className="at-core" key={i}>
-                      <div className="at-corelab"><small>{[t.niveaux.region, t.niveaux.district, t.niveaux.commune, t.niveaux.parcelle][i]}</small><span title={nameOf(f)}>{nameOf(f)}</span></div>
-                      {s.res ? (
-                        <div className="at-stack" key={nameOf(f) + s.res.areaKm2}>
-                          {s.res.land.map((p) => <i key={p.k} style={{ width: `${p.pct}%`, background: p.col }} title={`${classeNom(p.k)} : ${N(p.pct, 1)} %`} />)}
+              {onglet === "environnement" ? (
+                <>
+                  <div className="at-duo">
+                    <section className="at-card at-c">
+                      <div className="at-ch">
+                        <h3>{t.occ.titre}</h3>
+                        <select value={lcYear} onChange={(e) => setLcYear(+e.target.value)} aria-label={t.occ.annee} className="at-mini">
+                          {LC_YEARS.map((y) => <option key={y}>{y}</option>)}
+                        </select>
+                      </div>
+                      <p className="at-sub">{t.occ.sub}</p>
+                      {levels.map(({ f, s }, i) => f && (
+                        <div className="at-core" key={i}>
+                          <div className="at-corelab"><small>{[t.niveaux.region, t.niveaux.district, t.niveaux.commune, t.niveaux.parcelle][i]}</small><span title={nameOf(f)}>{nameOf(f)}</span></div>
+                          {s.res ? (
+                            <div className="at-stack" key={nameOf(f) + s.res.areaKm2}>
+                              {s.res.land.map((p) => <i key={p.k} style={{ width: `${p.pct}%`, background: p.col }} title={`${classeNom(p.k)} : ${N(p.pct, 1)} %`} />)}
+                            </div>
+                          ) : <div className="at-stack at-pulse" />}
                         </div>
-                      ) : <div className="at-stack at-pulse" />}
-                    </div>
-                  ))}
-                  {res ? (
-                    <>
-                      <table className="at-tbl">
-                        <thead><tr><th scope="col">{t.occ.types}</th><th scope="col">{t.occ.part}</th><th scope="col">{t.occ.ha}</th></tr></thead>
-                        <tbody>
-                          {res.land.map((p) => (
-                            <tr key={p.k}>
-                              <td><i style={{ background: p.col }} />{classeNom(p.k)}</td>
-                              <td>{p.pct < 0.1 ? "< 0,1" : N(p.pct, 1)} %</td>
-                              <td>{N((p.pct / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
-                            </tr>
-                          ))}
-                          {res.cultWC != null && (
-                            <tr style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>
-                              <td><i style={{ background: ORANGE_WC }} />{t.occ.wcRow}</td>
-                              <td>{res.cultWC < 0.1 ? "< 0,1" : N(res.cultWC, 1)} %</td>
-                              <td>{N((res.cultWC / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
-                            </tr>
-                          )}
-                        </tbody>
-                      </table>
-                      {res.cloudPct > 0.5 && <p className="at-note">{fill(t.occ.nuages, { p: N(res.cloudPct, 1) })}</p>}
-                      <p className="at-note">{fill(t.occ.exploitable, { p: N(res.couverture, 0) })}</p>
-                      <p className="at-note">
-                        {fill(t.occ.cultIO, { p: N(res.cropPct, 1) })} · {res.cultWC != null
-                          ? <span style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>{fill(t.occ.wcLigne, { p: N(res.cultWC, 1) })}</span>
-                          : <>{t.occ.wcIndispo}{res.statuts.cultures ? ` (${errMsg(res.statuts.cultures, t)})` : ""}</>}
-                      </p>
-                    </>
-                  ) : <p className="at-load">{current.busy ? t.chargement : ""}</p>}
-                </section>
-
-                <section className="at-card at-c at-def">
-                  <div className="at-ch">
-                    <h3>{t.perte.titre}</h3>
-                    <div className="at-yrs">
-                      <select className="at-mini" value={dfFrom} aria-label={t.perte.de} onChange={(e) => { const v = +e.target.value; setDfFrom(v); if (v > dfTo) setDfTo(v); }}>{yearOptions}</select>
-                      <span>{t.perte.a}</span>
-                      <select className="at-mini" value={dfTo} aria-label={t.perte.fin} onChange={(e) => { const v = +e.target.value; setDfTo(v); if (v < dfFrom) setDfFrom(v); }}>{yearOptions}</select>
-                    </div>
-                  </div>
-                  {lossS.busy && <p className="at-load">{t.perte.attente}</p>}
-                  {lossS.err && <p className="at-alert" role="alert">{fill(t.perte.indispo, { e: errMsg(lossS.err, t) })}</p>}
-                  {lossStats && (
-                    <>
-                      <div className="at-big at-big-def">{N(Math.round(lossStats.total))}<small>{t.perte.unite}</small></div>
-                      <p className="at-sub">{fill(t.perte.desc, { p: periodeTxt, pct: N(lossStats.pct, lossStats.pct < 1 ? 2 : 1) })}</p>
-                      <div className="at-cols" role="img" aria-label={t.perte.titre}>
-                        {lossStats.years.map((a) => (
-                          <div key={a.annee} className="at-colw" title={`${a.annee} : ${N(Math.round(a.ha))} ${t.perte.unite}`}>
-                            <i style={{ height: `${Math.max(3, (a.ha / lossStats.max) * 100)}%`, background: a.annee === lossStats.peak.annee ? "#b0285f" : COULEUR_PERTE }} />
-                          </div>
-                        ))}
-                      </div>
-                      <div className="at-colsl"><span>{dfFrom}</span><span>{dfTo}</span></div>
-                      <dl className="at-mini-facts">
-                        <div><dt>{t.perte.pic}</dt><dd>{lossStats.peak.annee} · {N(Math.round(lossStats.peak.ha))} {t.perte.unite}</dd></div>
-                        <div><dt>{t.perte.moyenne}</dt><dd>{N(Math.round(lossStats.total / Math.max(1, lossStats.years.length)))} {t.perte.parAn}</dd></div>
-                        {lossStats.trend && (
-                          <div>
-                            <dt>{t.perte.tendance}</dt>
-                            <dd>{lossStats.trend === "hausse" ? t.perte.hausse : lossStats.trend === "baisse" ? t.perte.baisse : t.perte.stable}</dd>
-                          </div>
-                        )}
-                      </dl>
-                    </>
-                  )}
-                </section>
-
-                <section className="at-card at-c">
-                  <h3>{t.relief.titre}</h3>
-                  {res && res.slope ? (
-                    <>
-                      <div className="at-stack at-slope" key={nameOf(selected)}>
-                        {res.slope.map((p) => <i key={p.k} style={{ width: `${p.pct}%`, background: p.col }} title={`${t.pentes[p.k]} : ${N(p.pct, 1)} %`} />)}
-                      </div>
-                      <table className="at-tbl">
-                        <tbody>
-                          {res.slope.map((p) => <tr key={p.k}><td><i style={{ background: p.col }} />{t.pentes[p.k]}</td><td>{N(p.pct, 1)} %</td></tr>)}
-                        </tbody>
-                      </table>
-                      {res.elevMin != null && res.elevMax != null && (
+                      ))}
+                      {res ? (
                         <>
-                          <div className="at-strip" aria-hidden>
-                            <b className="at-range" style={{ left: `${(Math.max(0, res.elevMin) / 2900) * 100}%`, width: `${Math.max(1.5, ((res.elevMax - Math.max(0, res.elevMin)) / 2900) * 100)}%` }} />
-                            <u className="at-dot" style={{ left: `${((res.elevMean ?? 0) / 2900) * 100}%` }} />
+                          <table className="at-tbl">
+                            <thead><tr><th scope="col">{t.occ.types}</th><th scope="col">{t.occ.part}</th><th scope="col">{t.occ.ha}</th></tr></thead>
+                            <tbody>
+                              {res.land.map((p) => (
+                                <tr key={p.k}>
+                                  <td><i style={{ background: p.col }} />{classeNom(p.k)}</td>
+                                  <td>{p.pct < 0.1 ? "< 0,1" : N(p.pct, 1)} %</td>
+                                  <td>{N((p.pct / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
+                                </tr>
+                              ))}
+                              {res.cultWC != null && (
+                                <tr style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>
+                                  <td><i style={{ background: ORANGE_WC }} />{t.occ.wcRow}</td>
+                                  <td>{res.cultWC < 0.1 ? "< 0,1" : N(res.cultWC, 1)} %</td>
+                                  <td>{N((res.cultWC / 100) * res.areaKm2 * 100, res.areaKm2 < 1 ? 2 : 0)}</td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                          {res.cloudPct > 0.5 && <p className="at-note">{fill(t.occ.nuages, { p: N(res.cloudPct, 1) })}</p>}
+                          <p className="at-note">{fill(t.occ.exploitable, { p: N(res.couverture, 0) })}</p>
+                          <p className="at-note">
+                            {fill(t.occ.cultIO, { p: N(res.cropPct, 1) })} · {res.cultWC != null
+                              ? <span style={{ color: ORANGE_WC_TXT, fontWeight: 600 }}>{fill(t.occ.wcLigne, { p: N(res.cultWC, 1) })}</span>
+                              : <>{t.occ.wcIndispo}{res.statuts.cultures ? ` (${errMsg(res.statuts.cultures, t)})` : ""}</>}
+                          </p>
+                        </>
+                      ) : <p className="at-load">{current.busy ? t.chargement : ""}</p>}
+                    </section>
+
+                    <section className="at-card at-c at-def">
+                      <div className="at-ch">
+                        <h3>{t.perte.titre}</h3>
+                        <div className="at-yrs">
+                          <select className="at-mini" value={dfFrom} aria-label={t.perte.de} onChange={(e) => { const v = +e.target.value; setDfFrom(v); if (v > dfTo) setDfTo(v); }}>{yearOptions}</select>
+                          <span>{t.perte.a}</span>
+                          <select className="at-mini" value={dfTo} aria-label={t.perte.fin} onChange={(e) => { const v = +e.target.value; setDfTo(v); if (v < dfFrom) setDfFrom(v); }}>{yearOptions}</select>
+                        </div>
+                      </div>
+                      {lossS.busy && <p className="at-load">{t.perte.attente}</p>}
+                      {lossS.err && <p className="at-alert" role="alert">{fill(t.perte.indispo, { e: errMsg(lossS.err, t) })}</p>}
+                      {lossStats && (
+                        <>
+                          <div className="at-big at-big-def">{N(Math.round(lossStats.total))}<small>{t.perte.unite}</small></div>
+                          <p className="at-sub">{fill(t.perte.desc, { p: periodeTxt, pct: N(lossStats.pct, lossStats.pct < 1 ? 2 : 1) })}</p>
+                          <div className="at-cols" role="img" aria-label={t.perte.titre}>
+                            {lossStats.years.map((a) => (
+                              <div key={a.annee} className="at-colw" title={`${a.annee} : ${N(Math.round(a.ha))} ${t.perte.unite}`}>
+                                <i style={{ height: `${Math.max(3, (a.ha / lossStats.max) * 100)}%`, background: a.annee === lossStats.peak.annee ? "#b0285f" : COULEUR_PERTE }} />
+                              </div>
+                            ))}
                           </div>
-                          <div className="at-stripl"><span>0 m</span><span>{N(res.elevMin)} – {N(res.elevMax)} m</span><span>2 900 m</span></div>
+                          <div className="at-colsl"><span>{dfFrom}</span><span>{dfTo}</span></div>
+                          <dl className="at-mini-facts">
+                            <div><dt>{t.perte.pic}</dt><dd>{lossStats.peak.annee} · {N(Math.round(lossStats.peak.ha))} {t.perte.unite}</dd></div>
+                            <div><dt>{t.perte.moyenne}</dt><dd>{N(Math.round(lossStats.total / Math.max(1, lossStats.years.length)))} {t.perte.parAn}</dd></div>
+                            {lossStats.trend && (
+                              <div>
+                                <dt>{t.perte.tendance}</dt>
+                                <dd>{lossStats.trend === "hausse" ? t.perte.hausse : lossStats.trend === "baisse" ? t.perte.baisse : t.perte.stable}</dd>
+                              </div>
+                            )}
+                          </dl>
                         </>
                       )}
-                      <p className="at-note">
-                        {res.resolution.small
-                          ? t.relief.petit
-                          : fill(t.relief.grand, { m: N(res.resolution.pixelM), km: N(res.resolution.stepKm, 1) })}.
-                      </p>
-                    </>
-                  ) : res ? (
-                    <p className="at-alert" role="alert">{t.relief.indispo}{res.statuts.relief ? ` (${errMsg(res.statuts.relief, t)})` : ""}. {t.relief.masque}</p>
-                  ) : <p className="at-load">{current.busy ? t.chargement : ""}</p>}
-                </section>
+                    </section>
 
-                <section className="at-card at-c at-feu">
-                  <div className="at-ch">
-                    <h3>{t.feux.titre}</h3>
-                    <select className="at-mini" value={conf} onChange={(e) => setConf(e.target.value as "l" | "n" | "h")} aria-label={t.feux.fiabiliteAria}>
-                      <option value="l">{t.feux.confToutes}</option><option value="n">{t.feux.confNominale}</option><option value="h">{t.feux.confElevee}</option>
-                    </select>
-                  </div>
-                  {fErr && !feuxBruts.length ? (
-                    <p className="at-alert" role="alert">{fill(t.feux.indispo, { e: errMsg(fErr, t) })} <button type="button" className="at-link" onClick={chargerFeux}>{t.feux.reessayer}</button></p>
-                  ) : (
-                    <>
-                      {feuxPerimes && <p className="at-alert" role="alert">{fill(t.feux.perime, { h: heureMaj })} <button type="button" className="at-link" onClick={chargerFeux}>{t.feux.actualiser}</button></p>}
-                      {fErr && feuxBruts.length > 0 && <p className="at-note">{t.feux.echecMaj}</p>}
-                      <div className="at-feu-top">
-                        <div className="at-big at-big-feu">{fLoad && !feuxBruts.length ? "…" : N(feuxAff.length)}</div>
-                        <div className="at-seg" role="group" aria-label={t.feux.periodeAria}>
-                          {([24, 48, 72] as const).map((h) => <button key={h} type="button" aria-pressed={fPeriod === h} onClick={() => setFPeriod(h)}>{h} h</button>)}
-                        </div>
-                      </div>
-                      <p className="at-sub">{fill(t.feux.sub, { h: fPeriod })}</p>
-                      <div className="at-cols" role="img" aria-label={t.feux.binAria}>
-                        {[...chrono].map((n, i) => ({ n, i })).reverse().map(({ n, i }) => (
-                          <div key={i} className="at-colw" title={fill(t.feux.binTitre, { n: N(n), a: i * 6, b: i * 6 + 6 })}>
-                            <i style={{ height: `${Math.max(4, (n / maxChrono) * 100)}%`, background: couleurAge(i * 6 + 3), opacity: i * 6 < fPeriod ? 1 : 0.22 }} />
+                    <section className="at-card at-c">
+                      <h3>{t.relief.titre}</h3>
+                      {res && res.slope ? (
+                        <>
+                          <div className="at-stack at-slope" key={nameOf(selected)}>
+                            {res.slope.map((p) => <i key={p.k} style={{ width: `${p.pct}%`, background: p.col }} title={`${t.pentes[p.k]} : ${N(p.pct, 1)} %`} />)}
                           </div>
-                        ))}
-                      </div>
-                      <div className="at-colsl"><span>{t.feux.ilya72}</span><span>{t.feux.maintenant}</span></div>
-                      <table className="at-tbl">
-                        <tbody>
-                          <tr><td><i style={{ background: "rgb(200,15,15)" }} />{t.feux.h24}</td><td>{N(n24)}</td></tr>
-                          <tr><td><i style={{ background: "#f97316" }} />{t.feux.h2448}</td><td>{N(n48 - n24)}</td></tr>
-                          <tr><td><i style={{ background: "#facc15" }} />{t.feux.h4872}</td><td>{N(n72 - n48)}</td></tr>
-                        </tbody>
-                      </table>
-                      <p className="at-note">{fill(t.feux.maj, { h: heureMaj })}</p>
-                    </>
-                  )}
-                </section>
-              </div>
+                          <table className="at-tbl">
+                            <tbody>
+                              {res.slope.map((p) => <tr key={p.k}><td><i style={{ background: p.col }} />{t.pentes[p.k]}</td><td>{N(p.pct, 1)} %</td></tr>)}
+                            </tbody>
+                          </table>
+                          {res.elevMin != null && res.elevMax != null && (
+                            <>
+                              <div className="at-strip" aria-hidden>
+                                <b className="at-range" style={{ left: `${(Math.max(0, res.elevMin) / 2900) * 100}%`, width: `${Math.max(1.5, ((res.elevMax - Math.max(0, res.elevMin)) / 2900) * 100)}%` }} />
+                                <u className="at-dot" style={{ left: `${((res.elevMean ?? 0) / 2900) * 100}%` }} />
+                              </div>
+                              <div className="at-stripl"><span>0 m</span><span>{N(res.elevMin)} – {N(res.elevMax)} m</span><span>2 900 m</span></div>
+                            </>
+                          )}
+                          <p className="at-note">
+                            {res.resolution.small
+                              ? t.relief.petit
+                              : fill(t.relief.grand, { m: N(res.resolution.pixelM), km: N(res.resolution.stepKm, 1) })}.
+                          </p>
+                        </>
+                      ) : res ? (
+                        <p className="at-alert" role="alert">{t.relief.indispo}{res.statuts.relief ? ` (${errMsg(res.statuts.relief, t)})` : ""}. {t.relief.masque}</p>
+                      ) : <p className="at-load">{current.busy ? t.chargement : ""}</p>}
+                    </section>
 
-              <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>{t.voirOrient}</button>
+                    <section className="at-card at-c at-feu">
+                      <div className="at-ch">
+                        <h3>{t.feux.titre}</h3>
+                        <select className="at-mini" value={conf} onChange={(e) => setConf(e.target.value as "l" | "n" | "h")} aria-label={t.feux.fiabiliteAria}>
+                          <option value="l">{t.feux.confToutes}</option><option value="n">{t.feux.confNominale}</option><option value="h">{t.feux.confElevee}</option>
+                        </select>
+                      </div>
+                      {fErr && !feuxBruts.length ? (
+                        <p className="at-alert" role="alert">{fill(t.feux.indispo, { e: errMsg(fErr, t) })} <button type="button" className="at-link" onClick={chargerFeux}>{t.feux.reessayer}</button></p>
+                      ) : (
+                        <>
+                          {feuxPerimes && <p className="at-alert" role="alert">{fill(t.feux.perime, { h: heureMaj })} <button type="button" className="at-link" onClick={chargerFeux}>{t.feux.actualiser}</button></p>}
+                          {fErr && feuxBruts.length > 0 && <p className="at-note">{t.feux.echecMaj}</p>}
+                          <div className="at-feu-top">
+                            <div className="at-big at-big-feu">{fLoad && !feuxBruts.length ? "…" : N(feuxAff.length)}</div>
+                            <div className="at-seg" role="group" aria-label={t.feux.periodeAria}>
+                              {([24, 48, 72] as const).map((h) => <button key={h} type="button" aria-pressed={fPeriod === h} onClick={() => setFPeriod(h)}>{h} h</button>)}
+                            </div>
+                          </div>
+                          <p className="at-sub">{fill(t.feux.sub, { h: fPeriod })}</p>
+                          <div className="at-cols" role="img" aria-label={t.feux.binAria}>
+                            {[...chrono].map((n, i) => ({ n, i })).reverse().map(({ n, i }) => (
+                              <div key={i} className="at-colw" title={fill(t.feux.binTitre, { n: N(n), a: i * 6, b: i * 6 + 6 })}>
+                                <i style={{ height: `${Math.max(4, (n / maxChrono) * 100)}%`, background: couleurAge(i * 6 + 3), opacity: i * 6 < fPeriod ? 1 : 0.22 }} />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="at-colsl"><span>{t.feux.ilya72}</span><span>{t.feux.maintenant}</span></div>
+                          <table className="at-tbl">
+                            <tbody>
+                              <tr><td><i style={{ background: "rgb(200,15,15)" }} />{t.feux.h24}</td><td>{N(n24)}</td></tr>
+                              <tr><td><i style={{ background: "#f97316" }} />{t.feux.h2448}</td><td>{N(n48 - n24)}</td></tr>
+                              <tr><td><i style={{ background: "#facc15" }} />{t.feux.h4872}</td><td>{N(n72 - n48)}</td></tr>
+                            </tbody>
+                          </table>
+                          <p className="at-note">{fill(t.feux.maj, { h: heureMaj })}</p>
+                        </>
+                      )}
+                    </section>
+                  </div>
+
+                  <button type="button" className="at-go" disabled={!res} onClick={openAnalysis}>{t.voirOrient}</button>
+                </>
+              ) : (
+                /* Onglets Économie et Social : seules ces cartes changent, la carte et les filtres restent identiques */
+                <PanneauIndicateurs
+                  theme={onglet}
+                  lang={lang}
+                  zone={{
+                    niveau: parcel ? "parcelle" : cF ? "ADM3" : dF ? "ADM2" : rF ? "ADM1" : null,
+                    nom: nameOf(selected),
+                    region: rF ? nameOf(rF) : null,
+                    district: dF ? nameOf(dF) : null,
+                    commune: cF ? nameOf(cF) : null,
+                    geometry: null,
+                  }}
+                />
+              )}
             </>
           )}
         </aside>
@@ -1281,7 +1309,7 @@ function Coeur({ lang, t }: { lang: Lang; t: Dict }) {
         </section>
       </div>
 
-      {show && res && selected && (
+      {show && onglet === "environnement" && res && selected && (
         <div className="at-ov" onMouseDown={(e) => { if (e.target === e.currentTarget) setShow(false); }}>
           <div className="at-modal" role="dialog" aria-modal="true" aria-labelledby="at-m-titre" ref={modalRef}>
             <header className="at-mh">
@@ -1391,7 +1419,10 @@ class Garde extends Component<{ children: ReactNode; t: Dict }, { err: Error | n
   }
 }
 
-/** Langue lue dans le contexte, comme Home.tsx. Repli sur le français si la valeur est inconnue. */
+/**
+ * Langue lue dans le contexte, comme Home.tsx. Repli sur le français si la valeur est inconnue.
+ * L'onglet (Environnement / Économie / Social) est lu dans l'URL : la carte n'est jamais rechargée.
+ */
 export default function AnalyseTerritoriale() {
   const { lang: rawLang } = useLanguage();
   const { pathname } = useLocation();
