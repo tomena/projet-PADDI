@@ -72,7 +72,7 @@ export default function PanneauIndicateurs({
 
     const ctl = new AbortController();
     setEtat({ groupes: null, busy: true, err: null });
-    fetch("/api/indicateurs", {
+    fetch("/api/import?type=indicateurs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
