@@ -17,12 +17,12 @@ const ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
-const DELAI_MS = 12000;          // délai maximum par requête Overpass
+const DELAI_MS = 4000;         // délai maximum par requête Overpass
 const TTL_MS = 24 * 3600 * 1000; // durée du cache serveur : 24 h
 const CACHE_MAX = 100;           // nombre maximum de zones en cache
 const RINGS_MAX = 20;            // nombre maximum de polygones d'une même zone
 const POINTS_MAX = 150;          // sommets maximum envoyés à Overpass par anneau
-const AIRE_ROUTES_MAX_KM2 = 2500; // au-delà, les routes ne sont pas demandées (trop lourd)
+const AIRE_ROUTES_MAX_KM2 = 0; // au-delà, les routes ne sont pas demandées (trop lourd)
 
 const SANTE = ["hospital", "clinic", "doctors", "health_post", "health_centre"];
 const PHARMA = ["pharmacy"];
@@ -115,31 +115,27 @@ const pause = (ms) => new Promise((ok) => setTimeout(ok, ms));
 
 async function overpass(requete) {
   let derniere = "Overpass indisponible";
-  for (let tour = 0; tour < 2; tour++) {
-    for (const url of ENDPOINTS) {
-      const ctl = new AbortController();
-      const minuteur = setTimeout(() => ctl.abort(), DELAI_MS);
-      try {
-        const r = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: "data=" + encodeURIComponent(requete),
-          signal: ctl.signal,
-        });
-        if (r.status === 429 || r.status === 504) {
-          derniere = `HTTP ${r.status}`;
-          continue;
-        }
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        const j = await r.json();
-        return Array.isArray(j.elements) ? j.elements : [];
-      } catch (e) {
-        derniere = e.name === "AbortError" ? "délai dépassé" : e.message;
-      } finally {
-        clearTimeout(minuteur);
+  for (const url of ENDPOINTS) {
+    const ctl = new AbortController();
+    const minuteur = setTimeout(() => ctl.abort(), DELAI_MS);
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "data=" + encodeURIComponent(requete),
+        signal: ctl.signal,
+      });
+      if (!r.ok) {
+        derniere = `HTTP ${r.status}`;
+        continue;
       }
+      const j = await r.json();
+      return Array.isArray(j.elements) ? j.elements : [];
+    } catch (e) {
+      derniere = e.name === "AbortError" ? "délai dépassé" : e.message;
+    } finally {
+      clearTimeout(minuteur);
     }
-    await pause(3000);
   }
   throw new Error(derniere);
 }
