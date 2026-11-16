@@ -9,6 +9,12 @@ import "leaflet/dist/leaflet.css";
 import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 
+/* ===================== OUTIL DE COMPARAISON ===================== */
+/* Doit être déclaré AVANT les constantes qui l'utilisent (SURB_*). */
+
+const cle = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
 /* ===================== DONNÉES DES PROJETS ===================== */
 
 type TypeActivite = "restauration" | "reboisement" | "autre";
@@ -79,7 +85,7 @@ const LIGNES: Ligne[] = PROJETS.flatMap((projet) =>
   })
 );
 
-/* Ensembles d'intervention, indépendants de la sélection : la carte les colore toujours. */
+/* Ensembles d'intervention, indépendants de la sélection. */
 const SURB_REG = new Set(LIGNES.map((l) => cle(l.region.nom)));
 const SURB_DIS = new Set(
   LIGNES.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
@@ -264,9 +270,6 @@ const LOCALE: Record<Lang, string> = { fr: "fr-FR", mg: "fr-FR", en: "en-US", de
 
 /* ===================== OUTILS ===================== */
 
-const cle = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
-
 type Niveau = "projet" | "region" | "district" | "commune";
 
 type Sel = {
@@ -374,20 +377,19 @@ function correspond(l: Ligne, s: Sel): boolean {
   }
 }
 
-/** Thème sombre : suit la classe ou l'attribut data-theme de l'application, sinon la préférence système. */
+/** Thème sombre : suit data-theme ou la classe "dark" de l'application, sinon la préférence système. */
 function useThemeSombre() {
   const [sombre, setSombre] = useState(false);
   useEffect(() => {
+    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
     const calc = () => {
       const el = document.documentElement;
       const attr = el.getAttribute("data-theme");
-      const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
       setSombre(attr ? attr === "dark" : el.classList.contains("dark") || !!mq?.matches);
     };
     calc();
     const mo = new MutationObserver(calc);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-theme"] });
-    const mq = window.matchMedia?.("(prefers-color-scheme: dark)");
     mq?.addEventListener?.("change", calc);
     return () => {
       mo.disconnect();
@@ -561,46 +563,6 @@ export default function ZonesIntervention() {
   const [ouvert, setOuvert] = useState(false);
   const [sel, setSel] = useState<Sel | null>(null);
 
-  /* ----- carte ----- */
-  useEffect(() => {
-    const m = L.map(elMap.current!, { zoomControl: false }).fitBounds(MADA);
-    L.control.zoom({ position: "bottomright" }).addTo(m);
-    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
-    couche.current = L.layerGroup().addTo(m);
-    map.current = m;
-    const ro = new ResizeObserver(() => m.invalidateSize());
-    ro.observe(elMap.current!);
-    return () => {
-      ro.disconnect();
-      m.remove();
-      map.current = null;
-    };
-  }, []);
-
-  /* fond de carte selon le thème */
-  useEffect(() => {
-    const m = map.current;
-    if (!m) return;
-    fond.current?.remove();
-    fond.current = sombre
-      ? L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-          attribution: "&copy; OpenStreetMap, &copy; CARTO",
-          maxZoom: 19,
-        })
-      : L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "&copy; OpenStreetMap",
-          maxZoom: 19,
-        });
-    fond.current.addTo(m).bringToBack();
-  }, [sombre]);
-
-  /* ----- chargement des limites ----- */
-  useEffect(() => {
-    charger("ADM1").then(setRegions).catch(() => setErreur(true));
-    charger("ADM2").then(setDistricts).catch(() => setErreur(true));
-    charger("ADM3").then(setCommunes).catch(() => setErreur(true));
-  }, []);
-
   /* ----- actions ----- */
   const choisir = (s: Sel) => {
     setSel(s);
@@ -650,6 +612,11 @@ export default function ZonesIntervention() {
     return communes.find((c) => cle(nomFeat(c)) === communeActive && estDans(c, districtFeat));
   }, [communeActive, districtFeat, communes]);
 
+  const regionsProjet = useMemo(() => {
+    const ids = new Set(lignes.map((l) => cle(l.region.nom)));
+    return regions.filter((f) => ids.has(cle(nomFeat(f))));
+  }, [lignes, regions]);
+
   const communeParNom = useMemo(() => {
     const m = new Map<string, Feat>();
     communes.forEach((c) => {
@@ -659,6 +626,46 @@ export default function ZonesIntervention() {
     return m;
   }, [communes]);
 
+  /* ----- carte : création ----- */
+  useEffect(() => {
+    const m = L.map(elMap.current!, { zoomControl: false }).fitBounds(MADA);
+    L.control.zoom({ position: "bottomright" }).addTo(m);
+    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
+    couche.current = L.layerGroup().addTo(m);
+    map.current = m;
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(elMap.current!);
+    return () => {
+      ro.disconnect();
+      m.remove();
+      map.current = null;
+    };
+  }, []);
+
+  /* ----- fond de carte selon le thème ----- */
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    fond.current?.remove();
+    fond.current = sombre
+      ? L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+          attribution: "&copy; OpenStreetMap, &copy; CARTO",
+          maxZoom: 19,
+        })
+      : L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap",
+          maxZoom: 19,
+        });
+    fond.current.addTo(m).bringToBack();
+  }, [sombre]);
+
+  /* ----- chargement des limites ----- */
+  useEffect(() => {
+    charger("ADM1").then(setRegions).catch(() => setErreur(true));
+    charger("ADM2").then(setDistricts).catch(() => setErreur(true));
+    charger("ADM3").then(setCommunes).catch(() => setErreur(true));
+  }, []);
+
   /* ----- dessin : étiquettes selon la hiérarchie ----- */
   useEffect(() => {
     const g = couche.current;
@@ -666,11 +673,8 @@ export default function ZonesIntervention() {
     g.clearLayers();
 
     const n = sel?.niveau ?? "vue";
-    // Régions : étiquettes au niveau région (et vue d'ensemble / projet)
     const etiqRegion = n === "vue" || n === "projet" || n === "region";
-    // Districts : étiquettes seulement au niveau district
     const etiqDistrict = n === "district";
-    // Communes : étiquettes seulement au niveau commune
     const etiqCommune = n === "commune";
 
     regions.forEach((f) => {
@@ -717,11 +721,6 @@ export default function ZonesIntervention() {
   }, [regions, districts, communes, sel, regionActive, districtActive, communeActive, regionFeat, districtFeat]);
 
   /* ----- cadrage ----- */
-  const regionsProjet = useMemo(() => {
-    const ids = new Set(lignes.map((l) => cle(l.region.nom)));
-    return regions.filter((f) => ids.has(cle(nomFeat(f))));
-  }, [lignes, regions]);
-
   useEffect(() => {
     const m = map.current;
     if (!m) return;
@@ -793,7 +792,7 @@ export default function ZonesIntervention() {
     { surface: 0, objectif: 0 }
   );
   const fmt = (n: number) => Math.round(n).toLocaleString(LOCALE[lang]);
-  const compte = (t2: TypeActivite) => activites.filter((a) => a.type === t2).length;
+  const compte = (ty: TypeActivite) => activites.filter((a) => a.type === ty).length;
 
   /* ----- rendu ----- */
   return (
@@ -1136,8 +1135,8 @@ const CSS = `
 .zi-dark .zi-label-commune{color:#5eead4}
 .leaflet-tooltip.zi-label::before,.leaflet-tooltip.zi-hover::before{display:none}
 .leaflet-tooltip.zi-hover{background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:12px}
-.zi-dark .leaflet-control-zoom a,.zi-dark .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi-dark .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
+.zi-dark .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi-dark .leaflet-control-attribution{background:rgba(21,32,27,.8)!important;color:var(--ink3)!important}
 .zi-dark .leaflet-control-attribution a{color:var(--ink2)}
 @media (max-width:1100px){ .zi-duo{grid-template-columns:1fr} }
