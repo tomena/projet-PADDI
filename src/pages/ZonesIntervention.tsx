@@ -255,6 +255,7 @@ async function charger(niv: Niv): Promise<Feat[]> {
   if (CACHE[niv]) return CACHE[niv]!;
   const f = `releaseData/gbOpen/MDG/${niv}/geoBoundaries-MDG-${niv}_simplified.geojson`;
   const urls = [
+    `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`, // sert les fichiers Git LFS
     `https://raw.githubusercontent.com/${GH}/${REV}/${f}`,
     `https://cdn.jsdelivr.net/gh/${GH}@${REV}/${f}`,
   ];
@@ -263,7 +264,11 @@ async function charger(niv: Niv): Promise<Feat[]> {
     try {
       const r = await fetch(u);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const j = await r.json();
+      const texte = await r.text();
+      if (texte.startsWith("version https://git-lfs")) {
+        throw new Error("pointeur Git LFS non résolu");
+      }
+      const j = JSON.parse(texte);
       const feats = (j.features ?? []).filter(
         (x: Feat) => x?.geometry && /Polygon/.test(x.geometry.type)
       ) as Feat[];
