@@ -301,13 +301,12 @@ const MENUS: Record<string, Entree[]> = {
     lien("zones-brulees", MapPinned, "burnedZonesMap", "zones-brulees"),
     lien("deforestation", Trees, "deforestation", "deforestation"),
     lien("pression", ShieldAlert, "pressureZones", "pression"),
-    // Analyse territoriale : s'ouvre directement sur l'onglet Environnement,
-    // avec trois sous-pages qui partagent la même carte et les mêmes filtres.
+    
     groupe("territoire", Mountain, "territorialAnalysis", [
       lien("terr-env", Trees, "tabEnv", "analyse-territoriale/environnement"),
       lien("terr-eco", TrendingUp, "tabEco", "analyse-territoriale/economie"),
       lien("terr-soc", Users, "tabSocial", "analyse-territoriale/social"),
-    ], "analyse-territoriale"),
+    ], "analyse-territoriale/environnement"),
     lien("environnement", Globe2, "environment", "analyse-environnement"),
   ],
 
