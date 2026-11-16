@@ -20,14 +20,5 @@ export default function handler(req: any, res: any) {
   const t = Array.isArray(req.query.type) ? req.query.type[0] : req.query.type;
   const fn = t ? types[t] : undefined;
   if (!fn) return res.status(404).json({ error: "Type d'import inconnu." });
-
-  // Les types d'écriture exigent un jeton ; « osm » reste public (lecture seule)
-  if (t !== "osm") {
-    const secret = process.env.IMPORT_SECRET;
-    if (!secret || req.headers["x-import-token"] !== secret) {
-      return res.status(401).json({ error: "Non autorisé." });
-    }
-  }
-
   return fn(req, res);
 }
