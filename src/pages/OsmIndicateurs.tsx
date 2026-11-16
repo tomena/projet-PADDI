@@ -173,9 +173,9 @@ export default function OsmIndicateurs({ theme, lang, geometry }: Props) {
       setEtat({ data: hit, busy: false, err: null });
       return;
     }
-    const ctl = new AbortController();
+  const ctl = new AbortController();
     setEtat({ data: null, busy: true, err: null });
-    fetch("/api/osm-territoire", {
+    fetch("/api/import?type=osm", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ geometry }),
