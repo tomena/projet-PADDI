@@ -1271,7 +1271,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
                     region: rF ? nameOf(rF) : null,
                     district: dF ? nameOf(dF) : null,
                     commune: cF ? nameOf(cF) : null,
-                    geometry: null,
+                    geometry: selected.geometry
                   }}
                 />
               )}
