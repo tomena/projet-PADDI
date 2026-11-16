@@ -26,6 +26,7 @@ import ZonesBrulees from "./pages/ZonesBrulees";
 import Bibliotheque from "./pages/Bibliotheque";
 import AnalyseTerritoriale from "./pages/AnalyseTerritoriale";
 import { FireAlertProvider } from "./context/FireAlertContext";
+import ZonesIntervention from "./pages/ZonesIntervention";
 
 import EconomieDiagnostic from "./pages/EconomieDiagnostic";
 import EconomieSimulateur from "./pages/EconomieSimulateur";
@@ -59,7 +60,8 @@ export default function App() {
         <Route index element={<Dashboard data={data} />} />
       
         {/* Intervention de PADDI+ */}
-        <Route path="zones-brulees" element={<ZonesBrulees />}/>
+        <Route path="zones-brulees" element={<ZonesBrulees />} />
+        <Route path="zones-intervention" element={<ZonesIntervention />} />
         <Route path="analyse-feux" element={<AnalyseFeux />} />
         <Route path="deforestation" element={<Deforestation />} />
       
