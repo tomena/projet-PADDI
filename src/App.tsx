@@ -69,7 +69,7 @@ export default function App() {
           path="analyse-environnement"
           element={<AnalyseEnvironnement />}
         />
-        <Route path="analyse-territoriale" element={<AnalyseTerritoriale />} />
+        <Route path="analyse-territoriale/*" element={<AnalyseTerritoriale />} />
 
         {/* Données */}
         <Route
