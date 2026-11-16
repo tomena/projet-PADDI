@@ -689,10 +689,16 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   const selected = parcel || admin;
   const hi = parcel ? CYAN : LAURITE;
 
-  const rRes = useAnalysis(rF, lcYear), dRes = useAnalysis(dF, lcYear), cRes = useAnalysis(cF, lcYear), pRes = useAnalysis(parcel, lcYear);
+    // Les calculs environnementaux ne tournent que sur l'onglet Environnement.
+  // La sélection géographique, elle, reste identique sur les trois onglets.
+  const env = onglet === "environnement";
+  const rRes = useAnalysis(env ? rF : null, lcYear);
+  const dRes = useAnalysis(env ? dF : null, lcYear);
+  const cRes = useAnalysis(env ? cF : null, lcYear);
+  const pRes = useAnalysis(env ? parcel : null, lcYear);
   const current = parcel ? pRes : cF ? cRes : dF ? dRes : rRes;
   const res = current.res;
-  const lossS = useLoss(selected);
+  const lossS = useLoss(env ? selected : null);
   const zoneKm2 = useMemo(() => (selected ? areaKm2(selected) : 0), [selected]);
 
   const list = !rF ? regs : !dF ? dists : coms;
@@ -1065,22 +1071,27 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
               <div className="at-card at-hero">
                 <h2>{nameOf(selected)}</h2>
                 <div className="at-lvl">{lvlText}</div>
-                <dl className="at-facts">
-                  <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
-                  <div><dd>{res?.elevMean != null ? N(res.elevMean) : res ? t.modal.na : "…"}</dd><dt>{t.altitude}</dt></div>
-                  <div><dd>{res?.rain != null ? N(res.rain) : res ? t.modal.na : "…"}</dd><dt>{fill(t.pluieAn, { a: RAIN_FIRST, b: RAIN_LAST })}</dt></div>
-                </dl>
-                {res && <p className="at-note">{t.bassin} : {res.bassin || t.bassinNon}</p>}
-                {res && (
-                  <p className={`at-badge ${res.fiable}`}>
-                    {t.fiable[res.fiable]}
-                    {statutsManquants.length > 0 && <> · {t.manquantes} : {statutsManquants.join(", ")}</>}
-                  </p>
-                )}
-                {current.err && (
-                  <p className="at-alert" role="alert">
-                    {t.analyseKo} : {errMsg(current.err, t)}. <button type="button" className="at-link" onClick={() => setRi((v) => v)}>{t.reessayer}</button>
-                  </p>
+
+                {onglet === "environnement" && (
+                  <>
+                    <dl className="at-facts">
+                      <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
+                      <div><dd>{res?.elevMean != null ? N(res.elevMean) : res ? t.modal.na : "…"}</dd><dt>{t.altitude}</dt></div>
+                      <div><dd>{res?.rain != null ? N(res.rain) : res ? t.modal.na : "…"}</dd><dt>{fill(t.pluieAn, { a: RAIN_FIRST, b: RAIN_LAST })}</dt></div>
+                    </dl>
+                    {res && <p className="at-note">{t.bassin} : {res.bassin || t.bassinNon}</p>}
+                    {res && (
+                      <p className={`at-badge ${res.fiable}`}>
+                        {t.fiable[res.fiable]}
+                        {statutsManquants.length > 0 && <> · {t.manquantes} : {statutsManquants.join(", ")}</>}
+                      </p>
+                    )}
+                    {current.err && (
+                      <p className="at-alert" role="alert">
+                        {t.analyseKo} : {errMsg(current.err, t)}. <button type="button" className="at-link" onClick={() => setRi((v) => v)}>{t.reessayer}</button>
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
 
