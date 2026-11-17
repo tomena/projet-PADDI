@@ -2,10 +2,14 @@
  * ZonesUpdateModal.tsx — fenêtre de mise à jour des zones d'intervention.
  * Ouverte uniquement après connexion (LoginModal), comme UpdateIndicateursModal dans le Dashboard.
  * Permet : ajouter un projet, ajouter / supprimer une zone, modifier la superficie MBV, enregistrer.
+ * Les listes Région > District > Commune sont en cascade, basées sur les limites de Madagascar
+ * (geoBoundaries ADM1 à ADM3, via ../lib/limitesAdmin).
  * Enregistrement : PUT saveUrl, avec l'en-tête Authorization: Bearer <jeton>.
+ * À placer dans : src/components/ZonesUpdateModal.tsx
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { X, Plus, Trash2, Save } from "lucide-react";
+import { charger, cle, estDans, nomFeat, type Feat } from "../lib/limitesAdmin";
 
 type TypeProjet = "environnement" | "developpement";
 export type ProjetMeta = { id: string; nom: string; alias: string[]; type: TypeProjet };
@@ -29,9 +33,6 @@ type Props = {
   onClose: () => void;
   onSaved: () => void;
 };
-
-const cle = (s: string) =>
-  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
 const cleZone = (l: LigneZone) =>
   [cle(l.region), l.district ? cle(l.district) : "", l.commune ? cle(l.commune) : ""].join("|");
@@ -80,6 +81,51 @@ const SECTION: React.CSSProperties = {
   background: "var(--surface-2)",
 };
 
+/* Liste déroulante ; saisie libre si les limites n'ont pas pu être chargées */
+function Choix({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled,
+  libre,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  placeholder: string;
+  disabled?: boolean;
+  libre?: boolean;
+}) {
+  if (libre)
+    return (
+      <input
+        style={CHAMP}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+      />
+    );
+  return (
+    <select
+      style={{ ...CHAMP, opacity: disabled ? 0.55 : 1 }}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      disabled={disabled}
+    >
+      <option value="">{placeholder}</option>
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+const uniques = (feats: Feat[]) =>
+  [...new Set(feats.map(nomFeat))].sort((a, b) => a.localeCompare(b));
+
 export default function ZonesUpdateModal({
   projets: projetsInit,
   lignes: lignesInit,
@@ -97,12 +143,56 @@ export default function ZonesUpdateModal({
   const [msg, setMsg] = useState<{ ok: boolean; texte: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
+  /* ----- limites administratives de Madagascar ----- */
+  const [regionsF, setRegionsF] = useState<Feat[]>([]);
+  const [districtsF, setDistrictsF] = useState<Feat[]>([]);
+  const [communesF, setCommunesF] = useState<Feat[]>([]);
+  const [limitesOk, setLimitesOk] = useState(false);
+  const [limitesErreur, setLimitesErreur] = useState(false);
+
+  useEffect(() => {
+    let actif = true;
+    Promise.all([charger("ADM1"), charger("ADM2"), charger("ADM3")])
+      .then(([r, d, c]) => {
+        if (!actif) return;
+        setRegionsF(r);
+        setDistrictsF(d);
+        setCommunesF(c);
+        setLimitesOk(true);
+      })
+      .catch(() => {
+        if (actif) setLimitesErreur(true);
+      });
+    return () => {
+      actif = false;
+    };
+  }, []);
+
+  /* Toutes les régions de Madagascar */
+  const nomsRegions = useMemo(() => uniques(regionsF), [regionsF]);
+
+  /* Région choisie, puis uniquement ses districts, puis uniquement les communes du district */
+  const regionFeat = useMemo(
+    () => regionsF.find((f) => cle(nomFeat(f)) === cle(nz.region)),
+    [regionsF, nz.region]
+  );
+  const districtsRegion = useMemo(
+    () => (regionFeat ? districtsF.filter((d) => estDans(d, regionFeat)) : []),
+    [regionFeat, districtsF]
+  );
+  const districtFeat = useMemo(
+    () => districtsRegion.find((d) => cle(nomFeat(d)) === cle(nz.district)),
+    [districtsRegion, nz.district]
+  );
+  const communesDistrict = useMemo(
+    () => (districtFeat ? communesF.filter((c) => estDans(c, districtFeat)) : []),
+    [districtFeat, communesF]
+  );
+  const nomsDistricts = useMemo(() => uniques(districtsRegion), [districtsRegion]);
+  const nomsCommunes = useMemo(() => uniques(communesDistrict), [communesDistrict]);
+
   const projet = projets.find((p) => p.id === projetId);
   const lignesProjet = lignes.filter((l) => l.projetId === projetId);
-  const regionsConnues = useMemo(
-    () => [...new Set(lignes.map((l) => l.region))].sort((a, b) => a.localeCompare(b)),
-    [lignes]
-  );
 
   const erreur = (texte: string) => setMsg({ ok: false, texte });
   const info = (texte: string) => setMsg({ ok: true, texte });
@@ -332,20 +422,36 @@ export default function ZonesUpdateModal({
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 110px auto", gap: 6, alignItems: "end" }}>
                   <div>
                     <label style={{ fontSize: 11, color: "var(--text-3)" }}>Région *</label>
-                    <input list="zi-regions" style={CHAMP} value={nz.region} onChange={(e) => setNz({ ...nz, region: e.target.value })} placeholder="ex. Boeny" />
-                    <datalist id="zi-regions">
-                      {regionsConnues.map((r) => (
-                        <option key={r} value={r} />
-                      ))}
-                    </datalist>
+                    <Choix
+                      value={nz.region}
+                      options={nomsRegions}
+                      placeholder={limitesOk || limitesErreur ? "Choisir une région" : "Chargement…"}
+                      libre={limitesErreur}
+                      disabled={!limitesOk}
+                      onChange={(v) => setNz({ ...nz, region: v, district: "", commune: "" })}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: 11, color: "var(--text-3)" }}>District</label>
-                    <input style={CHAMP} value={nz.district} onChange={(e) => setNz({ ...nz, district: e.target.value })} placeholder="ex. Marovoay" />
+                    <Choix
+                      value={nz.district}
+                      options={nomsDistricts}
+                      placeholder="Toute la région"
+                      libre={limitesErreur}
+                      disabled={!nz.region}
+                      onChange={(v) => setNz({ ...nz, district: v, commune: "" })}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: 11, color: "var(--text-3)" }}>Commune</label>
-                    <input style={CHAMP} value={nz.commune} onChange={(e) => setNz({ ...nz, commune: e.target.value })} placeholder="ex. Marosakoa" />
+                    <Choix
+                      value={nz.commune}
+                      options={nomsCommunes}
+                      placeholder="Tout le district"
+                      libre={limitesErreur}
+                      disabled={!nz.district}
+                      onChange={(v) => setNz({ ...nz, commune: v })}
+                    />
                   </div>
                   <div>
                     <label style={{ fontSize: 11, color: "var(--text-3)" }}>MBV (ha)</label>
@@ -357,7 +463,8 @@ export default function ZonesUpdateModal({
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>
                   Laissez District et Commune vides pour une zone au niveau de la région seulement.
-                  Écrivez les noms comme dans les données géographiques (ex. « Boeny », « Vakinankaratra »).
+                  Les listes sont liées : le district dépend de la région, et la commune dépend du district.
+                  {limitesErreur && " Les limites n'ont pas pu être chargées : saisissez les noms à la main."}
                 </div>
 
                 {lignesProjet.length === 0 ? (
