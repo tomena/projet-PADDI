@@ -1,5 +1,7 @@
 /**
  * ZonesIntervention.tsx — zones d'intervention des projets
+ * Les données (projets, régions, districts, communes, activités, MBV) sont lues depuis
+ * public/data/zones_intervention.geojson : il suffit de modifier ce fichier pour mettre à jour la page.
  * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
  * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
  * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext, ../lib/fireGeo
@@ -12,118 +14,57 @@ import { useLanguage } from "../context/LanguageContext";
 import { DATA, PROP, useGeo, toZones } from "../lib/fireGeo";
 
 /* ===================== OUTIL DE COMPARAISON ===================== */
-/* Doit être déclaré AVANT les constantes qui l'utilisent. */
 
 const cle = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/* ===================== DONNÉES DES PROJETS ===================== */
+/* ===================== TYPES ET DONNÉES ===================== */
+
+/* Fichier des données : à placer dans public/data/ */
+const DATA_URL = "/data/zones_intervention.geojson";
 
 type TypeActivite = "restauration" | "reboisement" | "autre";
 type Activite = { type: TypeActivite; titre: string; annee?: number; surface_ha?: number };
-/* mbv_ha : superficie du micro-bassin versant (MBV) de la commune, en ha */
-type Commune = { nom: string; activites: Activite[]; mbv_ha?: number };
-type District = { nom: string; communes: Commune[] };
-type Region = { nom: string; districts: District[] };
 type TypeProjet = "environnement" | "developpement";
-type Projet = { id: string; nom: string; alias: string[]; type: TypeProjet; regions: Region[] };
+type ProjetMeta = { id: string; nom: string; alias: string[]; type: TypeProjet };
 
-/* Crée une liste de communes sans activité ni MBV renseignés */
-const communesVides = (...noms: string[]): Commune[] => noms.map((nom) => ({ nom, activites: [] }));
+/* Une ligne = une zone d'intervention (commune, district ou région) d'un projet */
+type Ligne = {
+  projetId: string;
+  projet: string;
+  type: TypeProjet;
+  region: string;
+  district?: string;
+  commune?: string;
+  activites: Activite[];
+  mbv_ha?: number;
+};
 
-/*
- * Activité  : { type: "reboisement", titre: "Plantation de filao", annee: 2025, surface_ha: 120 }
- * MBV       : mbv_ha: 850  (superficie du micro-bassin versant de la commune, en ha)
- * Nom de région : orthographe officielle (geoBoundaries) : « Vakinankaratra ».
- */
-const PROJETS: Projet[] = [
-  {
-    id: "paddi",
-    nom: "PADDI+",
-    alias: ["paddi", "paddi+", "paddi plus"],
-    type: "environnement",
-    regions: [
-      {
-        nom: "Boeny",
-        districts: [
-          {
-            nom: "Ambato Boeni",
-            communes: communesVides("Ankijabe", "Andranofasika", "Ambondromamy", "Tsaramandroso"),
-          },
-          {
-            nom: "Marovoay",
-            communes: communesVides("Ankazomborona", "Marosakoa"),
-          },
-        ],
-      },
-      {
-        nom: "Diana",
-        districts: [
-          {
-            nom: "Antsiranana II",
-            communes: communesVides(
-              "Anivorano-Nord",
-              "Antsoha",
-              "Ankarongana",
-              "Joffre Ville",
-              "Sakaramy",
-              "Mangaoka",
-              "Antsahampano",
-            ),
-          },
-          {
-            nom: "Ambilobe",
-            communes: communesVides("Antsaravibe", "Tanambao Marivorahona"),
-          },
-        ],
-      },
-      {
-        nom: "Vakinankaratra",
-        districts: [{ nom: "Antanifotsy", communes: [] }],
-      },
-      {
-        nom: "Amoron'i Mania",
-        districts: [
-          { nom: "Fandriana", communes: [] },
-          { nom: "Ambositra", communes: [] },
-        ],
-      },
-      {
-        nom: "Atsimo Atsinanana",
-        districts: [
-          { nom: "Befotaka", communes: [] },
-          { nom: "Midongy Atsimo", communes: [] },
-          { nom: "Vangaindrano", communes: [] },
-        ],
-      },
-      {
-        nom: "Anosy",
-        districts: [{ nom: "Taolagnaro", communes: [] }],
-      },
-    ],
-  },
-  { id: "plae", nom: "PLAE", alias: ["plae"], type: "environnement", regions: [] },
-  { id: "soilwaters", nom: "SoilWaters", alias: ["soilwaters", "soil waters"], type: "environnement", regions: [] },
-  { id: "prodecid", nom: "PRODECID", alias: ["prodecid"], type: "developpement", regions: [] },
-];
+type Donnees = { projets: ProjetMeta[]; lignes: Ligne[] };
 
-type Ligne = { projet: Projet; region: Region; district?: District; commune?: Commune };
-type LigneCommune = Ligne & { district: District; commune: Commune };
+const LIGNES_VIDES: Ligne[] = [];
 
-const LIGNES: Ligne[] = PROJETS.flatMap((projet) =>
-  projet.regions.flatMap((region) => {
-    if (!region.districts.length) return [{ projet, region }];
-    return region.districts.flatMap((district) =>
-      district.communes.length
-        ? district.communes.map((commune) => ({ projet, region, district, commune }))
-        : [{ projet, region, district }]
-    );
-  })
-);
+/* Transforme le GeoJSON en données utilisables par la page */
+const construireDonnees = (geo: any): Donnees => ({
+  projets: (geo.projets ?? []) as ProjetMeta[],
+  lignes: ((geo.features ?? []) as any[]).map((f): Ligne => {
+    const p = f.properties ?? {};
+    return {
+      projetId: String(p.projet_id),
+      projet: String(p.projet),
+      type: p.type as TypeProjet,
+      region: String(p.region),
+      district: p.district || undefined,
+      commune: p.commune || undefined,
+      activites: (p.activites ?? []) as Activite[],
+      mbv_ha: p.mbv_ha ?? undefined,
+    };
+  }),
+});
 
 /* Clé d'une ligne : région|district|commune (vides si absents) */
 const cleLigne = (l: Ligne) =>
-  [cle(l.region.nom), l.district ? cle(l.district.nom) : "", l.commune ? cle(l.commune.nom) : ""].join("|");
+  [cle(l.region), l.district ? cle(l.district) : "", l.commune ? cle(l.commune) : ""].join("|");
 
 /* ===================== FONDS DE CARTE (sans clé API) ===================== */
 
@@ -158,6 +99,7 @@ const FR = {
   vueMada: "Vue Madagascar",
   vueTitre: "Zones d'intervention",
   vueTexte: "Recherchez un projet, une catégorie, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
+  chargement: "Chargement des données…",
   aucunResultat: "Aucun résultat pour cette recherche.",
   regions: "Régions",
   districts: "Districts",
@@ -194,6 +136,7 @@ const FR = {
   fondOsm: "OpenStreetMap",
   note: "Limites : geoBoundaries (ADM1 à ADM3). Superficies calculées à partir des contours, donc approximatives.",
   erreur: "Impossible de charger les limites administratives.",
+  erreurDonnees: "Impossible de charger les données des zones d'intervention.",
 };
 
 type Dict = typeof FR;
@@ -208,6 +151,7 @@ const MG: Dict = {
   vueMada: "Madagasikara manontolo",
   vueTitre: "Faritra fanatanterahana",
   vueTexte: "Hitady tetikasa, sokajy, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
+  chargement: "Mampidina ny angon-drakitra…",
   aucunResultat: "Tsy misy valiny ho an'ity fikarohana ity.",
   regions: "Faritra",
   districts: "Distrika",
@@ -244,6 +188,7 @@ const MG: Dict = {
   fondOsm: "OpenStreetMap",
   note: "Sisin-tany: geoBoundaries (ADM1 ka hatramin'ny ADM3). Ny habetsahana dia tombanana avy amin'ny sisin-tany, ka mety tsy marina tanteraka.",
   erreur: "Tsy afaka naka ny sisin-tany administratifa.",
+  erreurDonnees: "Tsy afaka naka ny angon-drakitra momba ny faritra fanatanterahana.",
 };
 
 const EN: Dict = {
@@ -256,6 +201,7 @@ const EN: Dict = {
   vueMada: "Madagascar view",
   vueTitre: "Intervention zones",
   vueTexte: "Search for a project, category, region, district or commune, or click a project below.",
+  chargement: "Loading data…",
   aucunResultat: "No result for this search.",
   regions: "Regions",
   districts: "Districts",
@@ -292,6 +238,7 @@ const EN: Dict = {
   fondOsm: "OpenStreetMap",
   note: "Boundaries: geoBoundaries (ADM1 to ADM3). Areas are computed from the outlines, so they are approximate.",
   erreur: "Unable to load the administrative boundaries.",
+  erreurDonnees: "Unable to load the intervention zone data.",
 };
 
 const DE: Dict = {
@@ -304,6 +251,7 @@ const DE: Dict = {
   vueMada: "Ansicht Madagaskar",
   vueTitre: "Interventionsgebiete",
   vueTexte: "Suchen Sie ein Projekt, eine Kategorie, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
+  chargement: "Daten werden geladen…",
   aucunResultat: "Kein Ergebnis für diese Suche.",
   regions: "Regionen",
   districts: "Distrikte",
@@ -340,13 +288,14 @@ const DE: Dict = {
   fondOsm: "OpenStreetMap",
   note: "Grenzen: geoBoundaries (ADM1 bis ADM3). Flächen werden aus den Umrissen berechnet und sind daher ungefähr.",
   erreur: "Die Verwaltungsgrenzen konnten nicht geladen werden.",
+  erreurDonnees: "Die Daten der Interventionsgebiete konnten nicht geladen werden.",
 };
 
 type Lang = "fr" | "mg" | "en" | "de";
 const T: Record<Lang, Dict> = { fr: FR, mg: MG, en: EN, de: DE };
 const LOCALE: Record<Lang, string> = { fr: "fr-FR", mg: "fr-FR", en: "en-US", de: "de-DE" };
 
-/* ===================== OUTILS ===================== */
+/* ===================== RECHERCHE ===================== */
 
 type Niveau = "projet" | "categorie" | "region" | "district" | "commune";
 
@@ -377,13 +326,13 @@ const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> 
 
 const idSug = (s: Sel) => [s.niveau, s.regionCle, s.districtCle, s.cle].join("|");
 
-const SUGGESTIONS: Sel[] = (() => {
+/* Suggestions : catégories, projets, puis régions, districts et communes présents dans les données */
+const construireSuggestions = (d: Donnees): Sel[] => {
   const vues = new Map<string, Sel>();
   const ajouter = (s: Sel) => {
     const k = idSug(s);
     if (!vues.has(k)) vues.set(k, s);
   };
-  /* Catégories : « environnement » et « développement » affichent tous les projets de ce type */
   ajouter({
     niveau: "categorie",
     label: "Projets environnementaux",
@@ -400,7 +349,7 @@ const SUGGESTIONS: Sel[] = (() => {
     categorie: "developpement",
     mots: ["developpement", "developpementrural", "rural"],
   });
-  PROJETS.forEach((p) =>
+  d.projets.forEach((p) =>
     ajouter({
       niveau: "projet",
       label: p.nom,
@@ -409,46 +358,37 @@ const SUGGESTIONS: Sel[] = (() => {
       projetId: p.id,
     })
   );
-  LIGNES.forEach(({ region, district, commune }) => {
-    const rk = cle(region.nom);
-    ajouter({ niveau: "region", label: region.nom, cle: rk, regionCle: rk, recherche: rk, regionNom: region.nom });
-    if (district) {
-      const dk = cle(district.nom);
+  d.lignes.forEach((l) => {
+    const rk = cle(l.region);
+    ajouter({ niveau: "region", label: l.region, cle: rk, regionCle: rk, recherche: rk, regionNom: l.region });
+    if (l.district) {
+      const dk = cle(l.district);
       ajouter({
         niveau: "district",
-        label: district.nom,
+        label: l.district,
         cle: dk,
         regionCle: rk,
         recherche: dk,
-        regionNom: region.nom,
-        districtNom: district.nom,
+        regionNom: l.region,
+        districtNom: l.district,
       });
-      if (commune) {
-        const ck = cle(commune.nom);
+      if (l.commune) {
+        const ck = cle(l.commune);
         ajouter({
           niveau: "commune",
-          label: commune.nom,
+          label: l.commune,
           cle: ck,
           regionCle: rk,
           districtCle: dk,
           recherche: ck,
-          regionNom: region.nom,
-          districtNom: district.nom,
+          regionNom: l.region,
+          districtNom: l.district,
         });
       }
     }
   });
   return [...vues.values()];
-})();
-
-const trouver = (niveau: Niveau, k: string, regionK?: string, districtK?: string) =>
-  SUGGESTIONS.find(
-    (s) =>
-      s.niveau === niveau &&
-      s.cle === k &&
-      (regionK === undefined || s.regionCle === regionK) &&
-      (districtK === undefined || s.districtCle === districtK)
-  );
+};
 
 const contexteDe = (s: Sel, t: Dict) =>
   s.niveau === "projet"
@@ -463,30 +403,26 @@ const contexteDe = (s: Sel, t: Dict) =>
 
 /* Libellé traduit d'une suggestion (les catégories changent de langue, les noms propres non) */
 const libelleDe = (s: Sel, t: Dict) =>
-  s.niveau === "categorie"
-    ? s.categorie === "environnement"
-      ? t.catEnv
-      : t.catDev
-    : s.label;
+  s.niveau === "categorie" ? (s.categorie === "environnement" ? t.catEnv : t.catDev) : s.label;
 
 function correspond(l: Ligne, s: Sel): boolean {
-  const rk = cle(l.region.nom);
+  const rk = cle(l.region);
   switch (s.niveau) {
     case "categorie":
-      return l.projet.type === s.categorie;
+      return l.type === s.categorie;
     case "projet":
-      return l.projet.id === s.projetId;
+      return l.projetId === s.projetId;
     case "region":
       return rk === s.cle;
     case "district":
-      return rk === s.regionCle && !!l.district && cle(l.district.nom) === s.cle;
+      return rk === s.regionCle && !!l.district && cle(l.district) === s.cle;
     case "commune":
       return (
         rk === s.regionCle &&
         !!l.district &&
-        cle(l.district.nom) === s.districtCle &&
+        cle(l.district) === s.districtCle &&
         !!l.commune &&
-        cle(l.commune.nom) === s.cle
+        cle(l.commune) === s.cle
       );
   }
 }
@@ -635,6 +571,8 @@ function dessiner(
 
 type ActiviteLocalisee = Activite & { region: string; district: string; commune: string };
 
+const DONNEES_VIDES: Donnees = { projets: [], lignes: LIGNES_VIDES };
+
 /* ===================== COMPOSANT ===================== */
 
 export default function ZonesIntervention() {
@@ -647,6 +585,8 @@ export default function ZonesIntervention() {
   const couche = useRef<L.LayerGroup | null>(null);
   const fond = useRef<L.TileLayer | null>(null);
 
+  const [donnees, setDonnees] = useState<Donnees | null>(null);
+  const [erreurDonnees, setErreurDonnees] = useState(false);
   const [regions, setRegions] = useState<Feat[]>([]);
   const [districts, setDistricts] = useState<Feat[]>([]);
   const [communes, setCommunes] = useState<Feat[]>([]);
@@ -657,6 +597,30 @@ export default function ZonesIntervention() {
   const [vide, setVide] = useState(false);
   const [typeFond, setTypeFond] = useState<Fond>("topo");
   const [masques, setMasques] = useState<Set<string>>(new Set());
+
+  /* ----- données (fichier GeoJSON) ----- */
+  useEffect(() => {
+    fetch(DATA_URL)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((geo) => setDonnees(construireDonnees(geo)))
+      .catch(() => setErreurDonnees(true));
+  }, []);
+
+  const PROJETS = donnees?.projets ?? [];
+  const LIGNES = donnees?.lignes ?? LIGNES_VIDES;
+  const SUGG = useMemo(() => construireSuggestions(donnees ?? DONNEES_VIDES), [donnees]);
+
+  const trouver = (niveau: Niveau, k: string, regionK?: string, districtK?: string) =>
+    SUGG.find(
+      (s) =>
+        s.niveau === niveau &&
+        s.cle === k &&
+        (regionK === undefined || s.regionCle === regionK) &&
+        (districtK === undefined || s.districtCle === districtK)
+    );
 
   /* ----- aires protégées (mêmes données que la page feux) ----- */
   const [airesF] = useGeo(DATA.aires);
@@ -692,13 +656,13 @@ export default function ZonesIntervention() {
       return;
     }
     const q = cle(v);
-    const exact = SUGGESTIONS.find((s) => cle(s.label) === q || (s.mots ?? []).includes(q));
+    const exact = SUGG.find((s) => cle(s.label) === q || (s.mots ?? []).includes(q));
     if (exact) {
       setSel(exact);
       setVide(false);
       return;
     }
-    const trouve = SUGGESTIONS.some((s) => s.recherche.includes(q));
+    const trouve = SUGG.some((s) => s.recherche.includes(q));
     setSel(null);
     setVide(!trouve);
   };
@@ -707,39 +671,42 @@ export default function ZonesIntervention() {
   const suggestions = useMemo(() => {
     const q = cle(requete);
     if (!q) return [];
-    return SUGGESTIONS.filter((s) => s.recherche.includes(q) && !masques.has(idSug(s)))
+    return SUGG.filter((s) => s.recherche.includes(q) && !masques.has(idSug(s)))
       .sort((a, b) => RANG[a.niveau] - RANG[b.niveau] || a.label.localeCompare(b.label))
       .slice(0, 8);
-  }, [requete, masques]);
+  }, [requete, masques, SUGG]);
 
   /* ----- périmètre ----- */
-  const lignes = useMemo(() => (sel ? LIGNES.filter((l) => correspond(l, sel)) : []), [sel]);
-  const actives = useMemo<Ligne[]>(() => (vide ? [] : sel ? lignes : LIGNES), [vide, sel, lignes]);
+  const lignes = useMemo(() => (sel ? LIGNES.filter((l) => correspond(l, sel)) : []), [sel, LIGNES]);
+  const actives = useMemo<Ligne[]>(
+    () => (vide ? [] : sel ? lignes : LIGNES),
+    [vide, sel, lignes, LIGNES]
+  );
 
   /* ----- correspondance géographique : chaque district et commune est trouvé À L'INTÉRIEUR
          de sa région et de son district, pour éviter les homonymes ailleurs dans le pays ----- */
   const { featDis, featCom, ligneDis, ligneCom } = useMemo(() => {
     const featDis = new Map<string, Feat>();
     const featCom = new Map<string, Feat>();
-    const ligneDis = new Map<Feat, Ligne>();
+    const ligneDis = new Map<Feat, { region: string; district: string }>();
     const ligneCom = new Map<Feat, Ligne>();
 
     LIGNES.forEach((l) => {
       if (!l.district) return;
-      const rF = regions.find((r) => cle(nomFeat(r)) === cle(l.region.nom));
-      const dk = cle(l.district.nom);
+      const rF = regions.find((r) => cle(nomFeat(r)) === cle(l.region));
+      const dk = cle(l.district);
       const candD = districts.filter((d) => cle(nomFeat(d)) === dk);
       const dF = rF ? candD.find((d) => estDans(d, rF)) : candD[0];
       if (!dF) return;
 
-      const kD = `${cle(l.region.nom)}|${dk}|`;
+      const kD = `${cle(l.region)}|${dk}|`;
       if (!featDis.has(kD)) {
         featDis.set(kD, dF);
-        ligneDis.set(dF, { projet: l.projet, region: l.region, district: l.district });
+        ligneDis.set(dF, { region: l.region, district: l.district });
       }
 
       if (!l.commune) return;
-      const ck = cle(l.commune.nom);
+      const ck = cle(l.commune);
       const cF = communes.find((c) => cle(nomFeat(c)) === ck && estDans(c, dF));
       if (cF) {
         featCom.set(cleLigne(l), cF);
@@ -747,15 +714,15 @@ export default function ZonesIntervention() {
       }
     });
     return { featDis, featCom, ligneDis, ligneCom };
-  }, [regions, districts, communes]);
+  }, [regions, districts, communes, LIGNES]);
 
   /* Zones à dessiner : uniquement celles des lignes de la sélection en cours */
-  const actRegKeys = useMemo(() => new Set(actives.map((l) => cle(l.region.nom))), [actives]);
+  const actRegKeys = useMemo(() => new Set(actives.map((l) => cle(l.region))), [actives]);
   const actDisSet = useMemo(() => {
     const s = new Set<Feat>();
     actives.forEach((l) => {
       if (!l.district) return;
-      const f = featDis.get(`${cle(l.region.nom)}|${cle(l.district.nom)}|`);
+      const f = featDis.get(`${cle(l.region)}|${cle(l.district)}|`);
       if (f) s.add(f);
     });
     return s;
@@ -792,7 +759,7 @@ export default function ZonesIntervention() {
   }, [sel, featCom]);
 
   const regionsProjet = useMemo(() => {
-    const ids = new Set(lignes.map((l) => cle(l.region.nom)));
+    const ids = new Set(lignes.map((l) => cle(l.region)));
     return regions.filter((f) => ids.has(cle(nomFeat(f))));
   }, [lignes, regions]);
 
@@ -877,8 +844,8 @@ export default function ZonesIntervention() {
           if (!inter) return;
           const l = ligneDis.get(d);
           if (!l) return;
-          if (n === "district" && districtFeat === d) choisirZone("region", cle(l.region.nom));
-          else choisirZone("district", cle(l.district!.nom), cle(l.region.nom));
+          if (n === "district" && districtFeat === d) choisirZone("region", cle(l.region));
+          else choisirZone("district", cle(l.district), cle(l.region));
         });
       });
 
@@ -889,8 +856,8 @@ export default function ZonesIntervention() {
         const l = ligneCom.get(c);
         if (!l || !l.district || !l.commune) return;
         if (n === "commune" && communeFeat === c)
-          choisirZone("district", cle(l.district.nom), cle(l.region.nom));
-        else choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom));
+          choisirZone("district", cle(l.district), cle(l.region));
+        else choisirZone("commune", cle(l.commune), cle(l.region), cle(l.district));
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -917,25 +884,22 @@ export default function ZonesIntervention() {
   }, [sel, regionsProjet, regionFeat, districtFeat, communeFeat]);
 
   /* ----- données du panneau ----- */
-  const lignesCommunes = useMemo(
-    () => actives.filter((l): l is LigneCommune => !!l.commune && !!l.district),
-    [actives]
-  );
+  const lignesCommunes = useMemo(() => actives.filter((l) => !!l.commune && !!l.district), [actives]);
   const activites = useMemo<ActiviteLocalisee[]>(
     () =>
       lignesCommunes.flatMap((l) =>
-        l.commune.activites.map((a) => ({
+        l.activites.map((a) => ({
           ...a,
-          region: l.region.nom,
-          district: l.district.nom,
-          commune: l.commune.nom,
+          region: l.region,
+          district: l.district ?? "",
+          commune: l.commune ?? "",
         }))
       ),
     [lignesCommunes]
   );
   const projetsVue = useMemo(
-    () => PROJETS.filter((p) => actives.some((l) => l.projet.id === p.id)),
-    [actives]
+    () => PROJETS.filter((p) => actives.some((l) => l.projetId === p.id)),
+    [actives, PROJETS]
   );
 
   /* La carte « Activités environnementales » n'apparaît que pour un projet environnemental choisi */
@@ -946,7 +910,7 @@ export default function ZonesIntervention() {
     const vues = new Set<string>();
     const out: Ligne[] = [];
     actives.forEach((l) => {
-      const k = `${l.region.nom}|${l.district?.nom ?? ""}|${l.commune?.nom ?? ""}`;
+      const k = `${l.region}|${l.district ?? ""}|${l.commune ?? ""}`;
       if (!vues.has(k)) {
         vues.add(k);
         out.push(l);
@@ -959,11 +923,11 @@ export default function ZonesIntervention() {
   const arbre = useMemo<Noeud[]>(() => {
     const regs = new Map<string, Map<string, string[]>>();
     lignesTableau.forEach((l) => {
-      if (!regs.has(l.region.nom)) regs.set(l.region.nom, new Map());
+      if (!regs.has(l.region)) regs.set(l.region, new Map());
       if (!l.district) return;
-      const dis = regs.get(l.region.nom)!;
-      if (!dis.has(l.district.nom)) dis.set(l.district.nom, []);
-      if (l.commune) dis.get(l.district.nom)!.push(l.commune.nom);
+      const dis = regs.get(l.region)!;
+      if (!dis.has(l.district)) dis.set(l.district, []);
+      if (l.commune) dis.get(l.district)!.push(l.commune);
     });
     return [...regs.entries()].map(([nom, dis]) => ({
       nom,
@@ -974,13 +938,13 @@ export default function ZonesIntervention() {
   /* Nom de la région affiché à droite du titre */
   const regionAff = !vide && sel ? (sel.niveau === "region" ? sel.label : sel.regionNom ?? null) : null;
 
-  const nbRegions = new Set(actives.map((l) => cle(l.region.nom))).size;
+  const nbRegions = new Set(actives.map((l) => cle(l.region))).size;
   const nbDistricts = new Set(
-    actives.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
+    actives.filter((l) => l.district).map((l) => `${cle(l.region)}|${cle(l.district!)}`)
   ).size;
 
   /* Superficie de la commune, prise dans la géométrie trouvée pour sa ligne */
-  const surfaceDe = (l: LigneCommune) => {
+  const surfaceDe = (l: Ligne) => {
     const f = featCom.get(cleLigne(l));
     return f ? surfaceHa(f) : null;
   };
@@ -993,8 +957,8 @@ export default function ZonesIntervention() {
     (acc, l) => {
       const sup = surfaceDe(l);
       acc.surface += sup ?? 0;
-      if (l.commune.mbv_ha != null) {
-        acc.mbv += l.commune.mbv_ha;
+      if (l.mbv_ha != null) {
+        acc.mbv += l.mbv_ha;
         acc.supAvecMbv += sup ?? 0;
       }
       return acc;
@@ -1103,6 +1067,7 @@ export default function ZonesIntervention() {
         </div>
       </header>
 
+      {erreurDonnees && <div className="zi-erreur" role="alert">{t.erreurDonnees}</div>}
       {erreur && <div className="zi-erreur" role="alert">{t.erreur}</div>}
 
       <div className="zi-body">
@@ -1118,7 +1083,7 @@ export default function ZonesIntervention() {
                 <p className="zi-fil">{contexteDe(sel, t)}</p>
               </>
             ) : (
-              <p className="zi-fil">{t.vueTexte}</p>
+              <p className="zi-fil">{donnees ? t.vueTexte : t.chargement}</p>
             )}
             {!sel && !vide && (
               <div className="zi-chips">
@@ -1231,18 +1196,18 @@ export default function ZonesIntervention() {
                     <tbody>
                       {lignesCommunes.map((l, i) => {
                         const s = surfaceDe(l);
-                        const mbv = l.commune.mbv_ha;
+                        const mbv = l.mbv_ha;
                         /* Trait plus épais avant la première commune d'une nouvelle région */
-                        const nouvelleRegion = i > 0 && lignesCommunes[i - 1].region.nom !== l.region.nom;
+                        const nouvelleRegion = i > 0 && lignesCommunes[i - 1].region !== l.region;
                         return (
                           <tr
-                            key={`${l.region.nom}-${l.district.nom}-${l.commune.nom}`}
+                            key={`${l.region}-${l.district}-${l.commune}`}
                             className={`zi-row${nouvelleRegion ? " zi-sep" : ""}`}
                             onClick={() =>
-                              choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom))
+                              choisirZone("commune", cle(l.commune!), cle(l.region), cle(l.district!))
                             }
                           >
-                            <td>{l.commune.nom}</td>
+                            <td>{l.commune}</td>
                             <td>{s != null ? fmt(s) : "—"}</td>
                             <td>{mbv != null ? fmt(mbv) : "—"}</td>
                             <td>{fmtPct(pourcentage(s, mbv))}</td>
