@@ -66,10 +66,29 @@ const PROJETS: Projet[] = [
           { nom: "Ambilobe", communes: [] },
         ],
       },
-      { nom: "Vakinankaratra", districts: [] },
-      { nom: "Amoron'i Mania", districts: [] },
-      { nom: "Atsimo Atsinanana", districts: [] },
-      { nom: "Anosy", districts: [] },
+      {
+        nom: "Vakinankaratra",
+        districts: [{ nom: "Antanifotsy", communes: [] }],
+      },
+      {
+        nom: "Amoron'i Mania",
+        districts: [
+          { nom: "Fandriana", communes: [] },
+          { nom: "Ambositra", communes: [] },
+        ],
+      },
+      {
+        nom: "Atsimo Atsinanana",
+        districts: [
+          { nom: "Befotaka", communes: [] },
+          { nom: "Midongy", communes: [] },
+          { nom: "Vangaindrano", communes: [] },
+        ],
+      },
+      {
+        nom: "Anosy",
+        districts: [{ nom: "Taolagnaro", communes: [] }],
+      },
     ],
   },
 ];
@@ -130,6 +149,7 @@ const FR = {
   recherche: "Projet, région, district ou commune (ex. PADDI+, Boeny, Marovoay)",
   rechercheAria: "Rechercher une zone d'intervention",
   effacer: "Effacer",
+  retirer: "Retirer de la liste",
   vueMada: "Vue Madagascar",
   vueTitre: "Zones d'intervention",
   vueTexte: "Recherchez un projet, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
@@ -177,6 +197,7 @@ const MG: Dict = {
   recherche: "Tetikasa, faritra, distrika na kaominina (ohatra: PADDI+, Boeny, Marovoay)",
   rechercheAria: "Hitady faritra fanatanterahana",
   effacer: "Esory",
+  retirer: "Esorina amin'ny lisitra",
   vueMada: "Madagasikara manontolo",
   vueTitre: "Faritra fanatanterahana",
   vueTexte: "Hitady tetikasa, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
@@ -222,6 +243,7 @@ const EN: Dict = {
   recherche: "Project, region, district or commune (e.g. PADDI+, Boeny, Marovoay)",
   rechercheAria: "Search an intervention zone",
   effacer: "Clear",
+  retirer: "Remove from list",
   vueMada: "Madagascar view",
   vueTitre: "Intervention zones",
   vueTexte: "Search for a project, region, district or commune, or click a project below.",
@@ -267,6 +289,7 @@ const DE: Dict = {
   recherche: "Projekt, Region, Distrikt oder Gemeinde (z. B. PADDI+, Boeny, Marovoay)",
   rechercheAria: "Interventionsgebiet suchen",
   effacer: "Leeren",
+  retirer: "Aus der Liste entfernen",
   vueMada: "Ansicht Madagaskar",
   vueTitre: "Interventionsgebiete",
   vueTexte: "Suchen Sie ein Projekt, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
@@ -326,6 +349,9 @@ type Sel = {
   districtNom?: string;
 };
 
+/* Arborescence pour le panneau « Zones d'intervention » */
+type Noeud = { nom: string; districts: { nom: string; communes: string[] }[] };
+
 const RANG: Record<Niveau, number> = { projet: 0, region: 1, district: 2, commune: 3 };
 
 const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> = {
@@ -334,10 +360,12 @@ const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> 
   autre: { couleur: "#0891b2", icone: Leaf },
 };
 
+const idSug = (s: Sel) => [s.niveau, s.regionCle, s.districtCle, s.cle].join("|");
+
 const SUGGESTIONS: Sel[] = (() => {
   const vues = new Map<string, Sel>();
   const ajouter = (s: Sel) => {
-    const k = [s.niveau, s.regionCle, s.districtCle, s.cle].join("|");
+    const k = idSug(s);
     if (!vues.has(k)) vues.set(k, s);
   };
   PROJETS.forEach((p) =>
@@ -583,6 +611,7 @@ export default function ZonesIntervention() {
   const [ouvert, setOuvert] = useState(false);
   const [sel, setSel] = useState<Sel | null>(null);
   const [typeFond, setTypeFond] = useState<Fond>("topo");
+  const [masques, setMasques] = useState<Set<string>>(new Set());
 
   /* ----- aires protégées (mêmes données que la page feux) ----- */
   const [airesF] = useGeo(DATA.aires);
@@ -598,20 +627,21 @@ export default function ZonesIntervention() {
     setSel(null);
     setRequete("");
     setOuvert(false);
+    setMasques(new Set());
   };
   const choisirZone = (niveau: Niveau, k: string, rk?: string, dk?: string) => {
     const s = trouver(niveau, k, rk, dk);
     if (s) choisir(s);
   };
 
-  /* ----- suggestions ----- */
+  /* ----- suggestions (sans celles que l'on a retirées avec la croix) ----- */
   const suggestions = useMemo(() => {
     const q = cle(requete);
     if (!q) return [];
-    return SUGGESTIONS.filter((s) => s.recherche.includes(q))
+    return SUGGESTIONS.filter((s) => s.recherche.includes(q) && !masques.has(idSug(s)))
       .sort((a, b) => RANG[a.niveau] - RANG[b.niveau] || a.label.localeCompare(b.label))
       .slice(0, 8);
-  }, [requete]);
+  }, [requete, masques]);
 
   /* ----- périmètre ----- */
   const lignes = useMemo(() => (sel ? LIGNES.filter((l) => correspond(l, sel)) : []), [sel]);
@@ -803,7 +833,7 @@ export default function ZonesIntervention() {
     [actives]
   );
 
-  /* Lignes du tableau District / Commune, sans doublon */
+  /* Lignes sans doublon */
   const lignesTableau = useMemo(() => {
     const vues = new Set<string>();
     const out: Ligne[] = [];
@@ -817,7 +847,23 @@ export default function ZonesIntervention() {
     return out;
   }, [actives]);
 
-  /* Nom de la région affiché à droite du titre ; si aucune région n'est choisie, la colonne Région apparaît */
+  /* Arborescence Région > District > Commune */
+  const arbre = useMemo<Noeud[]>(() => {
+    const regs = new Map<string, Map<string, string[]>>();
+    lignesTableau.forEach((l) => {
+      if (!regs.has(l.region.nom)) regs.set(l.region.nom, new Map());
+      if (!l.district) return;
+      const dis = regs.get(l.region.nom)!;
+      if (!dis.has(l.district.nom)) dis.set(l.district.nom, []);
+      if (l.commune) dis.get(l.district.nom)!.push(l.commune.nom);
+    });
+    return [...regs.entries()].map(([nom, dis]) => ({
+      nom,
+      districts: [...dis.entries()].map(([dn, communesN]) => ({ nom: dn, communes: communesN })),
+    }));
+  }, [lignesTableau]);
+
+  /* Nom de la région affiché à droite du titre ; sans région choisie, les régions apparaissent dans l'arbre */
   const regionAff = sel ? (sel.niveau === "region" ? sel.label : sel.regionNom ?? null) : null;
 
   const nbRegions = new Set(actives.map((l) => cle(l.region.nom))).size;
@@ -840,6 +886,38 @@ export default function ZonesIntervention() {
   const fmt = (n: number) => Math.round(n).toLocaleString(LOCALE[lang]);
   const compte = (ty: TypeActivite) => activites.filter((a) => a.type === ty).length;
 
+  /* Liste des districts (et de leurs communes) d'une région */
+  const rendreDistricts = (r: Noeud) => (
+    <ul>
+      {r.districts.map((d) => (
+        <li key={d.nom}>
+          <button
+            type="button"
+            className="zi-node zi-n-dis"
+            onClick={() => choisirZone("district", cle(d.nom), cle(r.nom))}
+          >
+            {d.nom}
+          </button>
+          {d.communes.length > 0 && (
+            <ul>
+              {d.communes.map((c) => (
+                <li key={c}>
+                  <button
+                    type="button"
+                    className="zi-node zi-n-com"
+                    onClick={() => choisirZone("commune", cle(c), cle(r.nom), cle(d.nom))}
+                  >
+                    {c}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+
   /* ----- rendu ----- */
   return (
     <div className="zi">
@@ -859,6 +937,7 @@ export default function ZonesIntervention() {
             placeholder={t.recherche}
             onChange={(e) => {
               setRequete(e.target.value);
+              if (!e.target.value) setMasques(new Set());
               setOuvert(true);
             }}
             onFocus={() => setOuvert(true)}
@@ -877,9 +956,9 @@ export default function ZonesIntervention() {
           )}
           {ouvert && suggestions.length > 0 && (
             <ul className="zi-sug" role="listbox">
-              {suggestions.map((s, i) => (
+              {suggestions.map((s) => (
                 <li
-                  key={i}
+                  key={idSug(s)}
                   role="option"
                   aria-selected={false}
                   onMouseDown={(e) => {
@@ -890,6 +969,19 @@ export default function ZonesIntervention() {
                   <span className={`zi-badge ${s.niveau}`}>{t.niveaux[s.niveau]}</span>
                   <strong>{s.label}</strong>
                   <small>{contexteDe(s, t)}</small>
+                  <button
+                    type="button"
+                    className="zi-sug-x"
+                    aria-label={t.retirer}
+                    title={t.retirer}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setMasques((prev) => new Set(prev).add(idSug(s)));
+                    }}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -1000,10 +1092,7 @@ export default function ZonesIntervention() {
                               choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom))
                             }
                           >
-                            <td>
-                              {l.commune.nom}
-                              <small>{l.district.nom}, {l.region.nom}</small>
-                            </td>
+                            <td>{l.commune.nom}</td>
                             <td>{acts.filter((a) => a.type === "restauration").length}</td>
                             <td>{acts.filter((a) => a.type === "reboisement").length}</td>
                             <td>{acts.filter((a) => a.type === "autre").length}</td>
@@ -1036,34 +1125,27 @@ export default function ZonesIntervention() {
                 {regionAff && <span className="zi-regname">{regionAff}</span>}
               </div>
               <div className="zi-scroll">
-                {lignesTableau.length ? (
-                  <table className="zi-tbl zi-names">
-                    <thead>
-                      <tr>
-                        {!regionAff && <th>{t.niveaux.region}</th>}
-                        <th>{t.niveaux.district}</th>
-                        <th>{t.niveaux.commune}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {lignesTableau.map((l) => (
-                        <tr
-                          key={`${l.region.nom}|${l.district?.nom ?? ""}|${l.commune?.nom ?? ""}`}
-                          className="zi-row"
-                          onClick={() => {
-                            if (l.commune && l.district)
-                              choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom));
-                            else if (l.district) choisirZone("district", cle(l.district.nom), cle(l.region.nom));
-                            else choisirZone("region", cle(l.region.nom));
-                          }}
-                        >
-                          {!regionAff && <td>{l.region.nom}</td>}
-                          <td>{l.district?.nom ?? "—"}</td>
-                          <td>{l.commune?.nom ?? "—"}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {arbre.length ? (
+                  <div className="zi-tree">
+                    {regionAff ? (
+                      arbre.map((r) => <div key={r.nom}>{rendreDistricts(r)}</div>)
+                    ) : (
+                      <ul>
+                        {arbre.map((r) => (
+                          <li key={r.nom}>
+                            <button
+                              type="button"
+                              className="zi-node zi-n-reg"
+                              onClick={() => choisirZone("region", cle(r.nom))}
+                            >
+                              {r.nom}
+                            </button>
+                            {rendreDistricts(r)}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
                 ) : (
                   <p className="zi-vide">{t.districtsNon}</p>
                 )}
@@ -1138,10 +1220,12 @@ const CSS = `
 .zi-search input::placeholder{color:var(--ink3)}
 .zi-clear{cursor:pointer;display:grid;place-items:center;color:var(--ink3)}
 .zi-sug{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:2000;margin:0;padding:6px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.2);max-height:360px;overflow-y:auto}
-.zi-sug li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 10px;border-radius:8px;cursor:pointer;align-items:center}
+.zi-sug li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:8px 8px 8px 10px;border-radius:8px;cursor:pointer;align-items:center}
 .zi-sug li:hover{background:var(--hover)}
 .zi-sug strong{font-size:14px;color:var(--ink)}
 .zi-sug small{grid-column:2;font-size:12px;color:var(--ink3)}
+.zi-sug-x{grid-column:3;grid-row:1 / span 2;display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:none;color:var(--ink3);cursor:pointer}
+.zi-sug-x:hover{background:var(--line);color:var(--ink)}
 .zi-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
 .zi-badge.projet{background:#fde68a;color:#78350f}
 .zi-badge.region{background:#ffedd5;color:#9a3412}
@@ -1179,15 +1263,25 @@ const CSS = `
 .zi-regname{font-size:13px;font-weight:600;color:var(--acc);text-align:right}
 .zi-scroll{flex:1;min-height:0;overflow:auto}
 
+/* Tableau Par commune : colonnes séparées par un filet vertical */
 .zi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--ink)}
-.zi-tbl th{font-weight:500;font-size:11.5px;color:var(--ink3);text-align:right;padding-bottom:4px;position:sticky;top:0;background:var(--card)}
+.zi-tbl th{font-weight:500;font-size:11.5px;color:var(--ink3);text-align:right;padding:4px 6px;position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line)}
+.zi-tbl td{padding:5px 6px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.zi-tbl th+th,.zi-tbl td+td{border-left:1px solid var(--line)}
 .zi-tbl th:first-child,.zi-tbl td:first-child{text-align:left}
-.zi-tbl td{padding:5px 0;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
-.zi-tbl td small{display:block;color:var(--ink3);font-size:11px}
 .zi-tbl tfoot td{font-weight:700;border-top:2px solid var(--line)}
-.zi-tbl.zi-names th,.zi-tbl.zi-names td{text-align:left}
 .zi-row{cursor:pointer}
 .zi-row:hover td{background:var(--hover)}
+
+/* Arborescence Région > District > Commune */
+.zi-tree ul{list-style:none;margin:0;padding:0 0 0 14px;border-left:1px solid var(--line)}
+.zi-tree>ul{border-left:0;padding-left:0}
+.zi-tree li{margin:2px 0}
+.zi-node{display:block;width:100%;background:none;border:0;padding:3px 6px;font:inherit;font-size:12.5px;color:var(--ink);text-align:left;border-radius:6px;cursor:pointer}
+.zi-node:hover{background:var(--hover)}
+.zi-n-reg{font-weight:700;font-size:13.5px;color:var(--acc)}
+.zi-n-dis{font-weight:600}
+.zi-n-com{color:var(--ink2)}
 
 /* Carte */
 .zi-mcard{margin:10px;display:flex;flex-direction:column;min-height:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
