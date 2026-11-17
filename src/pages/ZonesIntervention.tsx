@@ -12,7 +12,7 @@ import { useLanguage } from "../context/LanguageContext";
 import { DATA, PROP, useGeo, toZones } from "../lib/fireGeo";
 
 /* ===================== OUTIL DE COMPARAISON ===================== */
-/* Doit être déclaré AVANT les constantes qui l'utilisent (SURB_*). */
+/* Doit être déclaré AVANT les constantes qui l'utilisent. */
 
 const cle = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -124,9 +124,6 @@ const LIGNES: Ligne[] = PROJETS.flatMap((projet) =>
 /* Clé d'une ligne : région|district|commune (vides si absents) */
 const cleLigne = (l: Ligne) =>
   [cle(l.region.nom), l.district ? cle(l.district.nom) : "", l.commune ? cle(l.commune.nom) : ""].join("|");
-
-/* Régions d'intervention (noms uniques dans geoBoundaries) */
-const SURB_REG = new Set(LIGNES.map((l) => cle(l.region.nom)));
 
 /* ===================== FONDS DE CARTE (sans clé API) ===================== */
 
@@ -752,8 +749,26 @@ export default function ZonesIntervention() {
     return { featDis, featCom, ligneDis, ligneCom };
   }, [regions, districts, communes]);
 
-  const interDisSet = useMemo(() => new Set(featDis.values()), [featDis]);
-  const interComSet = useMemo(() => new Set(featCom.values()), [featCom]);
+  /* Zones à dessiner : uniquement celles des lignes de la sélection en cours */
+  const actRegKeys = useMemo(() => new Set(actives.map((l) => cle(l.region.nom))), [actives]);
+  const actDisSet = useMemo(() => {
+    const s = new Set<Feat>();
+    actives.forEach((l) => {
+      if (!l.district) return;
+      const f = featDis.get(`${cle(l.region.nom)}|${cle(l.district.nom)}|`);
+      if (f) s.add(f);
+    });
+    return s;
+  }, [actives, featDis]);
+  const actComSet = useMemo(() => {
+    const s = new Set<Feat>();
+    actives.forEach((l) => {
+      if (!l.commune) return;
+      const f = featCom.get(cleLigne(l));
+      if (f) s.add(f);
+    });
+    return s;
+  }, [actives, featCom]);
 
   /* Région, district et commune actuellement choisis (géométries) */
   const regionCle = sel && (sel.niveau === "region" ? sel.cle : sel.regionCle ?? null);
@@ -815,7 +830,7 @@ export default function ZonesIntervention() {
     charger("ADM3").then(setCommunes).catch(() => setErreur(true));
   }, []);
 
-  /* ----- dessin : aires protégées, régions, districts, communes d'intervention ----- */
+  /* ----- dessin : aires protégées, puis régions, districts et communes de la sélection ----- */
   useEffect(() => {
     const g = couche.current;
     if (!g) return;
@@ -832,18 +847,18 @@ export default function ZonesIntervention() {
         .addTo(g);
     });
 
-    /* Recherche sans résultat : aucune zone d'intervention n'est affichée */
-    if (vide) return;
+    /* Recherche sans résultat, ou projet sans zone renseignée : aucune limite administrative */
+    if (vide || (sel && actives.length === 0)) return;
 
     const n = sel?.niveau ?? "vue";
     const etiqRegion = n === "vue" || n === "projet" || n === "categorie" || n === "region";
     const etiqDistrict = n === "projet" || n === "categorie" || n === "region" || n === "district";
     const etiqCommune = n === "district" || n === "commune";
 
-    /* Régions */
+    /* Régions de la sélection */
     regions.forEach((f) => {
       const k = cle(nomFeat(f));
-      const inter = SURB_REG.has(k);
+      const inter = actRegKeys.has(k);
       const etat: Etat = n === "region" && regionFeat === f ? "choisie" : inter ? "inter" : "hors";
       dessiner(g, f, "region", etat, etiqRegion && inter, () => {
         if (!inter) return;
@@ -852,11 +867,11 @@ export default function ZonesIntervention() {
       });
     });
 
-    /* Districts d'intervention, et tous ceux de la région sélectionnée */
+    /* Districts de la sélection, et tous ceux de la région sélectionnée */
     districts
-      .filter((d) => interDisSet.has(d) || (regionFeat && estDans(d, regionFeat)))
+      .filter((d) => actDisSet.has(d) || (regionFeat && estDans(d, regionFeat)))
       .forEach((d) => {
-        const inter = interDisSet.has(d);
+        const inter = actDisSet.has(d);
         const etat: Etat = n === "district" && districtFeat === d ? "choisie" : inter ? "inter" : "hors";
         dessiner(g, d, "district", etat, etiqDistrict && inter, () => {
           if (!inter) return;
@@ -867,8 +882,8 @@ export default function ZonesIntervention() {
         });
       });
 
-    /* Communes d'intervention uniquement (aucune autre commune, même homonyme ailleurs) */
-    interComSet.forEach((c) => {
+    /* Communes de la sélection uniquement (aucune autre commune, même homonyme ailleurs) */
+    actComSet.forEach((c) => {
       const etat: Etat = n === "commune" && communeFeat === c ? "choisie" : "inter";
       dessiner(g, c, "commune", etat, etiqCommune, () => {
         const l = ligneCom.get(c);
@@ -879,7 +894,7 @@ export default function ZonesIntervention() {
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, sel, vide, regionFeat, districtFeat, communeFeat, interDisSet, interComSet, ligneDis, ligneCom]);
+  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
