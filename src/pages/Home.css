@@ -1,6 +1,6 @@
 /* =====================================================
    PRINCIPE : tout l'accueil tient dans l'écran (100dvh).
-   - Téléphone : titre / arbre / texte / boutons empilés.
+   - Téléphone : titre / arbre / texte / boutons empilés, la page défile.
    - Tablette et petit paysage : texte à gauche, arbre à droite.
    - Grand écran : l'arbre remplit l'écran, texte et boutons par-dessus.
    ===================================================== */
@@ -278,6 +278,32 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 /* =====================================================
+   TÉLÉPHONE (portrait) : la page défile, l'arbre garde une hauteur fixe
+   ===================================================== */
+@media (max-width: 819px) {
+  .home-page {
+    height: 100vh;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;               /* la page peut défiler */
+    -webkit-overflow-scrolling: touch;
+  }
+  .stage {
+    height: auto;
+    min-height: 100%;
+    grid-template-rows: auto auto auto auto;   /* plus de ligne « 1fr » qui s'écrase */
+  }
+  .tree-viewport {
+    height: clamp(300px, 55dvh, 520px);        /* hauteur définie : l'arbre reste visible */
+    min-height: 300px;
+  }
+  .info-card {
+    overflow: visible;
+    font-size: 0.9rem;
+  }
+}
+
+/* =====================================================
    TABLETTE / PAYSAGE : texte à gauche, arbre à droite, même écran
    ===================================================== */
 @media (min-width: 820px) {
@@ -375,5 +401,17 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   .home-bg {
     -webkit-mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
     mask-image: linear-gradient(to right, transparent, #000 6%, #000 94%, transparent);
+  }
+}
+
+/* =====================================================
+   PAYSAGE COURT / TABLETTE (820 à 1023 px, ou écran bas) :
+   le texte défile dans sa carte au lieu d'être coupé
+   ===================================================== */
+@media (min-width: 820px) and (max-width: 1023px),
+       (min-width: 820px) and (max-height: 599px) {
+  .info-card {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 }
