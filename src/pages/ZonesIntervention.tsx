@@ -522,21 +522,22 @@ async function charger(niv: Niv): Promise<Feat[]> {
 type Etat = "hors" | "inter" | "choisie";
 type NivZone = "region" | "district" | "commune";
 
+/* Épaisseurs de trait réduites pour des limites plus fines. */
 const STYLE: Record<NivZone, Record<Etat, L.PathOptions>> = {
   region: {
-    hors: { color: "#64748b", weight: 1, fillColor: "#94a3b8", fillOpacity: 0.05 },
-    inter: { color: "#ea580c", weight: 3, fillColor: "#ff6a00", fillOpacity: 0.14 },
-    choisie: { color: "#dc2626", weight: 4, fillColor: "#ff6a00", fillOpacity: 0.3 },
+    hors: { color: "#64748b", weight: 0.5, fillColor: "#94a3b8", fillOpacity: 0.05 },
+    inter: { color: "#ea580c", weight: 1.5, fillColor: "#ff6a00", fillOpacity: 0.14 },
+    choisie: { color: "#dc2626", weight: 2, fillColor: "#ff6a00", fillOpacity: 0.3 },
   },
   district: {
-    hors: { color: "#64748b", weight: 0.8, fillColor: "#94a3b8", fillOpacity: 0.03 },
-    inter: { color: "#7c3aed", weight: 2, fillColor: "#a78bfa", fillOpacity: 0.3 },
-    choisie: { color: "#dc2626", weight: 3, fillColor: "#7c3aed", fillOpacity: 0.5 },
+    hors: { color: "#64748b", weight: 0.4, fillColor: "#94a3b8", fillOpacity: 0.03 },
+    inter: { color: "#7c3aed", weight: 1, fillColor: "#a78bfa", fillOpacity: 0.3 },
+    choisie: { color: "#dc2626", weight: 1.5, fillColor: "#7c3aed", fillOpacity: 0.5 },
   },
   commune: {
-    hors: { color: "#64748b", weight: 0.6, fillColor: "#94a3b8", fillOpacity: 0.03 },
-    inter: { color: "#0f766e", weight: 1.5, fillColor: "#14b8a6", fillOpacity: 0.45 },
-    choisie: { color: "#dc2626", weight: 3, fillColor: "#0d9488", fillOpacity: 0.6 },
+    hors: { color: "#64748b", weight: 0.3, fillColor: "#94a3b8", fillOpacity: 0.03 },
+    inter: { color: "#0f766e", weight: 0.8, fillColor: "#14b8a6", fillOpacity: 0.45 },
+    choisie: { color: "#dc2626", weight: 1.5, fillColor: "#0d9488", fillOpacity: 0.6 },
   },
 };
 
@@ -703,7 +704,7 @@ export default function ZonesIntervention() {
       L.geoJSON(z.feature as any, {
         pane: "zi-ap",
         interactive: true,
-        style: { color: "#16a34a", weight: 2.5, fillColor: "#22c55e", fillOpacity: 0.1 },
+        style: { color: "#16a34a", weight: 1.2, fillColor: "#22c55e", fillOpacity: 0.1 },
       })
         .bindTooltip(String(z.nom), { sticky: true, className: "zi-hover" })
         .addTo(g);
@@ -802,7 +803,7 @@ export default function ZonesIntervention() {
     [actives]
   );
 
-  /* Lignes du tableau Région / District / Commune, sans doublon */
+  /* Lignes du tableau District / Commune, sans doublon */
   const lignesTableau = useMemo(() => {
     const vues = new Set<string>();
     const out: Ligne[] = [];
@@ -815,6 +816,9 @@ export default function ZonesIntervention() {
     });
     return out;
   }, [actives]);
+
+  /* Nom de la région affiché à droite du titre ; si aucune région n'est choisie, la colonne Région apparaît */
+  const regionAff = sel ? (sel.niveau === "region" ? sel.label : sel.regionNom ?? null) : null;
 
   const nbRegions = new Set(actives.map((l) => cle(l.region.nom))).size;
   const nbDistricts = new Set(
@@ -897,6 +901,7 @@ export default function ZonesIntervention() {
 
       <div className="zi-body">
         <aside className="zi-panel">
+          {/* 1. Carte d'accueil / sélection */}
           <section className="zi-card zi-hero">
             {sel ? (
               <>
@@ -905,23 +910,22 @@ export default function ZonesIntervention() {
                 <p className="zi-fil">{contexteDe(sel, t)}</p>
               </>
             ) : (
-              <>
-                <h2>{t.vueTitre}</h2>
-                <p className="zi-fil">{t.vueTexte}</p>
-                <div className="zi-chips">
-                  {PROJETS.map((p) => (
-                    <span
-                      key={p.id}
-                      className="zi-chip"
-                      role="button"
-                      tabIndex={0}
-                      onClick={() => choisirZone("projet", cle(p.id))}
-                    >
-                      {p.nom}
-                    </span>
-                  ))}
-                </div>
-              </>
+              <p className="zi-fil">{t.vueTexte}</p>
+            )}
+            {!sel && (
+              <div className="zi-chips">
+                {PROJETS.map((p) => (
+                  <span
+                    key={p.id}
+                    className="zi-chip"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => choisirZone("projet", cle(p.id))}
+                  >
+                    {p.nom}
+                  </span>
+                ))}
+              </div>
             )}
             <div className="zi-stats">
               <div><b>{nbRegions}</b><span>{t.regions}</span></div>
@@ -930,131 +934,142 @@ export default function ZonesIntervention() {
             </div>
           </section>
 
-          <section className="zi-card">
-            <h3>{t.parCommune}</h3>
-            {lignesCommunes.length ? (
-              <table className="zi-tbl">
-                <thead>
-                  <tr>
-                    <th>{t.colCommune}</th>
-                    <th>{t.colResto}</th>
-                    <th>{t.colReboisement}</th>
-                    <th>{t.colAutres}</th>
-                    <th>{t.colSuperficie}</th>
-                    <th>{t.colObjectif}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lignesCommunes.map((l) => {
-                    const acts = l.commune.activites;
-                    const s = surfaceDe(l);
-                    const o = l.commune.objectif_ha;
-                    return (
-                      <tr
-                        key={`${l.region.nom}-${l.district.nom}-${l.commune.nom}`}
-                        className="zi-row"
-                        onClick={() =>
-                          choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom))
-                        }
-                      >
-                        <td>
-                          {l.commune.nom}
-                          <small>{l.district.nom}, {l.region.nom}</small>
-                        </td>
-                        <td>{acts.filter((a) => a.type === "restauration").length}</td>
-                        <td>{acts.filter((a) => a.type === "reboisement").length}</td>
-                        <td>{acts.filter((a) => a.type === "autre").length}</td>
-                        <td>{s != null ? fmt(s) : "—"}</td>
-                        <td>{o != null ? fmt(o) : "—"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td>{t.total}</td>
-                    <td>{compte("restauration")}</td>
-                    <td>{compte("reboisement")}</td>
-                    <td>{compte("autre")}</td>
-                    <td>{fmt(totaux.surface)}</td>
-                    <td>{totaux.objectif ? fmt(totaux.objectif) : "—"}</td>
-                  </tr>
-                </tfoot>
-              </table>
-            ) : (
-              <p className="zi-vide">{t.communesNon}</p>
-            )}
-          </section>
-
+          {/* 2. Activités environnementales */}
           <section className="zi-card">
             <h3>{t.activites}</h3>
-            {(Object.keys(TYPE_ICONE) as TypeActivite[]).map((ty) => {
-              const Icone = TYPE_ICONE[ty].icone;
-              const liste = activites.filter((a) => a.type === ty);
-              return (
-                <div className="zi-type" key={ty}>
-                  <div className="zi-typeh" style={{ color: TYPE_ICONE[ty].couleur }}>
-                    <Icone size={16} aria-hidden />
-                    {t.types[ty]}
-                    <span>{compte(ty)}</span>
+            <div className="zi-acts">
+              {(Object.keys(TYPE_ICONE) as TypeActivite[]).map((ty) => {
+                const Icone = TYPE_ICONE[ty].icone;
+                const liste = activites.filter((a) => a.type === ty);
+                return (
+                  <div className="zi-type" key={ty}>
+                    <div className="zi-typeh" style={{ color: TYPE_ICONE[ty].couleur }}>
+                      <Icone size={16} aria-hidden />
+                      {t.types[ty]}
+                      <span>{compte(ty)}</span>
+                    </div>
+                    {liste.length ? (
+                      <ul>
+                        {liste.map((a, i) => (
+                          <li key={i}>
+                            <strong>{a.commune}</strong> · {a.titre}
+                            {a.surface_ha ? ` · ${a.surface_ha} ha` : ""}
+                            {a.annee ? ` · ${a.annee}` : ""}
+                            <small> ({a.district}, {a.region})</small>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="zi-vide">{t.aucuneActivite}</p>
+                    )}
                   </div>
-                  {liste.length ? (
-                    <ul>
-                      {liste.map((a, i) => (
-                        <li key={i}>
-                          <strong>{a.commune}</strong> · {a.titre}
-                          {a.surface_ha ? ` · ${a.surface_ha} ha` : ""}
-                          {a.annee ? ` · ${a.annee}` : ""}
-                          <small> ({a.district}, {a.region})</small>
-                        </li>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* 3. Par commune et Zones d'intervention, côte à côte */}
+          <div className="zi-duo">
+            <section className="zi-card zi-col">
+              <div className="zi-cardh">
+                <h3>{t.parCommune}</h3>
+              </div>
+              <div className="zi-scroll">
+                {lignesCommunes.length ? (
+                  <table className="zi-tbl">
+                    <thead>
+                      <tr>
+                        <th>{t.colCommune}</th>
+                        <th>{t.colResto}</th>
+                        <th>{t.colReboisement}</th>
+                        <th>{t.colAutres}</th>
+                        <th>{t.colSuperficie}</th>
+                        <th>{t.colObjectif}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesCommunes.map((l) => {
+                        const acts = l.commune.activites;
+                        const s = surfaceDe(l);
+                        const o = l.commune.objectif_ha;
+                        return (
+                          <tr
+                            key={`${l.region.nom}-${l.district.nom}-${l.commune.nom}`}
+                            className="zi-row"
+                            onClick={() =>
+                              choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom))
+                            }
+                          >
+                            <td>
+                              {l.commune.nom}
+                              <small>{l.district.nom}, {l.region.nom}</small>
+                            </td>
+                            <td>{acts.filter((a) => a.type === "restauration").length}</td>
+                            <td>{acts.filter((a) => a.type === "reboisement").length}</td>
+                            <td>{acts.filter((a) => a.type === "autre").length}</td>
+                            <td>{s != null ? fmt(s) : "—"}</td>
+                            <td>{o != null ? fmt(o) : "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td>{t.total}</td>
+                        <td>{compte("restauration")}</td>
+                        <td>{compte("reboisement")}</td>
+                        <td>{compte("autre")}</td>
+                        <td>{fmt(totaux.surface)}</td>
+                        <td>{totaux.objectif ? fmt(totaux.objectif) : "—"}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                ) : (
+                  <p className="zi-vide">{t.communesNon}</p>
+                )}
+              </div>
+            </section>
+
+            <section className="zi-card zi-col">
+              <div className="zi-cardh">
+                <h3>{t.zonesInterv}</h3>
+                {regionAff && <span className="zi-regname">{regionAff}</span>}
+              </div>
+              <div className="zi-scroll">
+                {lignesTableau.length ? (
+                  <table className="zi-tbl zi-names">
+                    <thead>
+                      <tr>
+                        {!regionAff && <th>{t.niveaux.region}</th>}
+                        <th>{t.niveaux.district}</th>
+                        <th>{t.niveaux.commune}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesTableau.map((l) => (
+                        <tr
+                          key={`${l.region.nom}|${l.district?.nom ?? ""}|${l.commune?.nom ?? ""}`}
+                          className="zi-row"
+                          onClick={() => {
+                            if (l.commune && l.district)
+                              choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom));
+                            else if (l.district) choisirZone("district", cle(l.district.nom), cle(l.region.nom));
+                            else choisirZone("region", cle(l.region.nom));
+                          }}
+                        >
+                          {!regionAff && <td>{l.region.nom}</td>}
+                          <td>{l.district?.nom ?? "—"}</td>
+                          <td>{l.commune?.nom ?? "—"}</td>
+                        </tr>
                       ))}
-                    </ul>
-                  ) : (
-                    <p className="zi-vide">{t.aucuneActivite}</p>
-                  )}
-                </div>
-              );
-            })}
-          </section>
-
-          <section className="zi-card">
-            <h3>{t.zonesInterv}</h3>
-            {lignesTableau.length ? (
-              <table className="zi-tbl zi-names">
-                <thead>
-                  <tr>
-                    <th>{t.niveaux.region}</th>
-                    <th>{t.niveaux.district}</th>
-                    <th>{t.niveaux.commune}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lignesTableau.map((l) => (
-                    <tr
-                      key={`${l.region.nom}|${l.district?.nom ?? ""}|${l.commune?.nom ?? ""}`}
-                      className="zi-row"
-                      onClick={() => {
-                        if (l.commune && l.district)
-                          choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom));
-                        else if (l.district) choisirZone("district", cle(l.district.nom), cle(l.region.nom));
-                        else choisirZone("region", cle(l.region.nom));
-                      }}
-                    >
-                      <td>{l.region.nom}</td>
-                      <td>{l.district?.nom ?? "—"}</td>
-                      <td>{l.commune?.nom ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="zi-vide">{t.districtsNon}</p>
-            )}
-          </section>
-
-          <p className="zi-note">
-            {t.note} {t.projetsConcernes} : {projetsVue.map((p) => p.nom).join(", ") || "—"}.
-          </p>
+                    </tbody>
+                  </table>
+                ) : (
+                  <p className="zi-vide">{t.districtsNon}</p>
+                )}
+              </div>
+            </section>
+          </div>
         </aside>
 
         <section className="zi-mcard" aria-label={t.carteAria}>
@@ -1092,6 +1107,9 @@ export default function ZonesIntervention() {
             <span><i className="zi-lg-ap" />{t.legAP}</span>
             <span><i className="zi-lg-sel" />{t.legSelection}</span>
           </div>
+          <p className="zi-note">
+            {t.note} {t.projetsConcernes} : {projetsVue.map((p) => p.nom).join(", ") || "—"}.
+          </p>
         </section>
       </div>
     </div>
@@ -1109,12 +1127,12 @@ const CSS = `
   display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);color:var(--ink);font-family:inherit}
 .zi *{box-sizing:border-box}
 .zi h1,.zi h2,.zi h3,.zi h4{margin:0;font-weight:600;color:var(--ink)}
-.zi h1{font-size:22px}
-.zi h2{font-family:Georgia,serif;font-weight:500;font-size:30px;line-height:1.1;margin:4px 0}
-.zi h3{font-size:16px;margin-bottom:8px}
-.zi-head{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;justify-content:space-between;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+.zi h1{font-size:20px}
+.zi h2{font-family:Georgia,serif;font-weight:500;font-size:26px;line-height:1.1;margin:2px 0}
+.zi h3{font-size:15px}
+.zi-head{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--line)}
 .zi-head p{margin:2px 0 0;font-size:13px;color:var(--ink3)}
-.zi-search{position:relative;display:flex;align-items:center;gap:8px;flex:1;max-width:640px;min-width:260px;padding:0 12px;height:44px;border:1px solid var(--line);border-radius:12px;background:var(--chip);color:var(--ink3)}
+.zi-search{position:relative;display:flex;align-items:center;gap:8px;flex:1;max-width:640px;min-width:260px;padding:0 12px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--chip);color:var(--ink3)}
 .zi-search:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent)}
 .zi-search input{flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:var(--ink)}
 .zi-search input::placeholder{color:var(--ink3)}
@@ -1129,53 +1147,68 @@ const CSS = `
 .zi-badge.region{background:#ffedd5;color:#9a3412}
 .zi-badge.district{background:#ede9fe;color:#5b21b6}
 .zi-badge.commune{background:#ccfbf1;color:#115e59}
-.zi-erreur{padding:10px 20px;background:rgba(220,38,38,.1);color:#dc2626;font-size:13px}
-.zi-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,38%)}
-.zi-panel{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--line)}
-.zi-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
-.zi-hero{display:flex;flex-direction:column;gap:10px;background:linear-gradient(135deg,var(--card),var(--acc-soft))}
+.zi-erreur{padding:8px 20px;background:rgba(220,38,38,.1);color:#dc2626;font-size:13px}
+
+/* Mise en page : panneau à gauche, carte à droite, le tout sur un seul écran */
+.zi-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+.zi-panel{min-height:0;overflow:auto;padding:12px;display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:10px;border-right:1px solid var(--line)}
+.zi-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
+.zi-hero{display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,var(--card),var(--acc-soft))}
 .zi-niveau{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--acc)}
 .zi-fil{margin:0;font-size:13px;color:var(--ink2);line-height:1.5}
 .zi-chips{display:flex;flex-wrap:wrap;gap:6px}
 .zi-chip{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);cursor:pointer;color:var(--ink2)}
 .zi-chip:hover{background:var(--hover)}
-.zi-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
-.zi-stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column}
-.zi-stats b{font-family:Georgia,serif;font-weight:500;font-size:28px;line-height:1.1;color:var(--acc)}
+.zi-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.zi-stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;display:flex;flex-direction:column}
+.zi-stats b{font-family:Georgia,serif;font-weight:500;font-size:24px;line-height:1.1;color:var(--acc)}
 .zi-stats span{font-size:12px;color:var(--ink3)}
-.zi-typeh{display:flex;align-items:center;gap:6px;font-weight:600;font-size:14px;margin:12px 0 4px}
+
+.zi-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-height:150px;overflow:auto}
+.zi-typeh{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;margin:0 0 4px}
 .zi-typeh span{margin-left:auto;font-size:12px;background:var(--hover);color:var(--ink2);padding:1px 8px;border-radius:999px}
-.zi-type ul{margin:0;padding-left:18px;font-size:13px;line-height:1.55;color:var(--ink2)}
+.zi-type ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.5;color:var(--ink2)}
 .zi-type small{color:var(--ink3)}
 .zi-vide{font-size:13px;color:var(--ink3);margin:2px 0}
-.zi-tbl{width:100%;border-collapse:collapse;font-size:13px;color:var(--ink)}
-.zi-tbl th{font-weight:500;font-size:12px;color:var(--ink3);text-align:right;padding-bottom:4px}
+
+/* Tableaux côte à côte, qui passent en colonne quand la place manque */
+.zi-duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:10px;min-height:0}
+.zi-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.zi-cardh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.zi-cardh h3{margin:0}
+.zi-regname{font-size:13px;font-weight:600;color:var(--acc);text-align:right}
+.zi-scroll{flex:1;min-height:0;overflow:auto}
+
+.zi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--ink)}
+.zi-tbl th{font-weight:500;font-size:11.5px;color:var(--ink3);text-align:right;padding-bottom:4px;position:sticky;top:0;background:var(--card)}
 .zi-tbl th:first-child,.zi-tbl td:first-child{text-align:left}
-.zi-tbl td{padding:6px 0;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
-.zi-tbl td small{display:block;color:var(--ink3);font-size:11.5px}
+.zi-tbl td{padding:5px 0;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.zi-tbl td small{display:block;color:var(--ink3);font-size:11px}
 .zi-tbl tfoot td{font-weight:700;border-top:2px solid var(--line)}
 .zi-tbl.zi-names th,.zi-tbl.zi-names td{text-align:left}
-.zi-tbl.zi-names th{padding-bottom:6px}
 .zi-row{cursor:pointer}
 .zi-row:hover td{background:var(--hover)}
-.zi-note{font-size:12px;color:var(--ink3);line-height:1.5;margin:0 4px}
+
+/* Carte */
 .zi-mcard{margin:10px;display:flex;flex-direction:column;min-height:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.zi-mhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
+.zi-mhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
 .zi-mtitre{display:flex;align-items:center;gap:8px}
 .zi-fondsel{display:flex;align-items:center;gap:6px;color:var(--ink3)}
 .zi-fondsel select{padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
-.zi-mbox{position:relative;flex:1;min-height:420px}
+.zi-mbox{position:relative;flex:1;min-height:0}
 .zi-map{position:absolute;inset:0;background:var(--map)}
 .zi-reset{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:6px;align-items:center;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 .zi-reset:hover{background:var(--hover)}
-.zi-legende{display:flex;gap:16px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
+.zi-legende{display:flex;gap:14px;flex-wrap:wrap;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
 .zi-legende i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
-.zi-lg-reg{background:#ff6a00;opacity:.6;border:2px solid #ff6a00}
-.zi-lg-dis{background:#a78bfa;border:2px solid #7c3aed}
+.zi-lg-reg{background:#ff6a00;opacity:.6;border:1.5px solid #ff6a00}
+.zi-lg-dis{background:#a78bfa;border:1.5px solid #7c3aed}
 .zi-lg-com{background:#14b8a6;border:1px solid #0f766e}
-.zi-lg-ap{background:#22c55e;opacity:.5;border:2px solid #16a34a}
-.zi-lg-sel{background:#f97316;border:3px solid #dc2626}
-/* Étiquettes sans cadre ni fond : contour de texte pour rester lisibles sur toutes les cartes */
+.zi-lg-ap{background:#22c55e;opacity:.5;border:1.5px solid #16a34a}
+.zi-lg-sel{background:#f97316;border:2px solid #dc2626}
+.zi-note{font-size:11.5px;color:var(--ink3);line-height:1.4;margin:0;padding:6px 14px 8px}
+
+/* Étiquettes et infobulles de carte */
 .leaflet-tooltip.zi-label{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;font-size:11px;font-weight:700;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff}
 .leaflet-tooltip.zi-label::before{display:none!important}
 .zi-label-region{color:#c2410c!important}
@@ -1186,11 +1219,16 @@ const CSS = `
 .zi .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:var(--ink3)!important}
+
+/* Petit écran : la page s'adapte et défile */
 @media (max-width:900px){
   .zi{height:auto;min-height:100dvh}
   .zi-body{grid-template-columns:1fr}
-  .zi-panel{border-right:0;order:2;overflow:visible}
+  .zi-panel{border-right:0;order:2;overflow:visible;display:flex;flex-direction:column}
   .zi-mcard{order:1;margin:10px 10px 0}
-  .zi-mbox{min-height:50vh}
+  .zi-mbox{min-height:50vh;flex:none}
+  .zi-scroll{overflow:visible}
+  .zi-acts{max-height:none;grid-template-columns:1fr}
+  .zi-duo{grid-template-columns:1fr}
 }
 `;
