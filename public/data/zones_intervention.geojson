@@ -3,161 +3,476 @@
   "name": "zones_intervention",
   "mise_a_jour": "2026-11-17",
   "projets": [
-    { "id": "paddi", "nom": "PADDI+", "alias": ["paddi", "paddi+", "paddi plus"], "type": "environnement" },
-    { "id": "plae", "nom": "PLAE", "alias": ["plae"], "type": "environnement" },
-    { "id": "soilwaters", "nom": "SoilWaters", "alias": ["soilwaters", "soil waters"], "type": "environnement" },
-    { "id": "prodecid", "nom": "PRODECID", "alias": ["prodecid"], "type": "developpement" }
+    {
+      "id": "paddi",
+      "nom": "PADDI+",
+      "alias": [
+        "paddi",
+        "paddi+",
+        "paddi plus"
+      ],
+      "type": "environnement"
+    },
+    {
+      "id": "plae",
+      "nom": "PLAE",
+      "alias": [
+        "plae"
+      ],
+      "type": "environnement"
+    },
+    {
+      "id": "soilwaters",
+      "nom": "SoilWaters",
+      "alias": [
+        "soilwaters",
+        "soil waters"
+      ],
+      "type": "environnement"
+    },
+    {
+      "id": "prodecid",
+      "nom": "PRODECID",
+      "alias": [
+        "prodecid"
+      ],
+      "type": "developpement"
+    }
   ],
   "features": [
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Boeny", "district": "Ambato Boeni", "commune": "Ankijabe", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": "Ambato Boeni",
+        "commune": "Ankijabe",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Boeny", "district": "Ambato Boeni", "commune": "Andranofasika", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": "Ambato Boeni",
+        "commune": "Andranofasika",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Boeny", "district": "Ambato Boeni", "commune": "Ambondromamy", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": "Ambato Boeni",
+        "commune": "Ambondromamy",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Boeny", "district": "Ambato Boeni", "commune": "Tsaramandroso", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": "Ambato Boeni",
+        "commune": "Tsaramandroso",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Boeny", "district": "Marovoay", "commune": "Ankazomborona", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": "Marovoay",
+        "commune": "Ankazomborona",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Boeny", "district": "Marovoay", "commune": "Marosakoa", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": "Marovoay",
+        "commune": "Marosakoa",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Antsiranana II", "commune": "Anivorano-Nord", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Antsiranana II",
+        "commune": "Anivorano-Nord",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Antsiranana II", "commune": "Antsoha", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Antsiranana II",
+        "commune": "Antsoha",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Antsiranana II", "commune": "Ankarongana", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Antsiranana II",
+        "commune": "Ankarongana",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Antsiranana II", "commune": "Joffre Ville", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Antsiranana II",
+        "commune": "Joffre Ville",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Antsiranana II", "commune": "Sakaramy", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Antsiranana II",
+        "commune": "Sakaramy",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Antsiranana II", "commune": "Mangaoka", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Antsiranana II",
+        "commune": "Mangaoka",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Antsiranana II", "commune": "Antsahampano", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Antsiranana II",
+        "commune": "Antsahampano",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Ambilobe", "commune": "Antsaravibe", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Ambilobe",
+        "commune": "Antsaravibe",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Diana", "district": "Ambilobe", "commune": "Tanambao Marivorahona", "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Diana",
+        "district": "Ambilobe",
+        "commune": "Tanambao Marivorahona",
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Vakinankaratra", "district": "Antanifotsy", "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Vakinankaratra",
+        "district": "Antanifotsy",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Amoron'i Mania", "district": "Fandriana", "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Amoron'i Mania", "district": "Ambositra", "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Ambositra",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Atsimo Atsinanana", "district": "Befotaka", "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo Atsinanana",
+        "district": "Befotaka",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Atsimo Atsinanana", "district": "Midongy Atsimo", "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo Atsinanana",
+        "district": "Midongy Atsimo",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Atsimo Atsinanana", "district": "Vangaindrano", "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo Atsinanana",
+        "district": "Vangaindrano",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "paddi", "projet": "PADDI+", "type": "environnement", "region": "Anosy", "district": "Taolagnaro", "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "plae", "projet": "PLAE", "type": "environnement", "region": "Boeny", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "plae",
+        "projet": "PLAE",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "plae", "projet": "PLAE", "type": "environnement", "region": "Amoron'i Mania", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "plae",
+        "projet": "PLAE",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "plae", "projet": "PLAE", "type": "environnement", "region": "Sofia", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "plae",
+        "projet": "PLAE",
+        "type": "environnement",
+        "region": "Sofia",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "plae", "projet": "PLAE", "type": "environnement", "region": "Diana", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "plae",
+        "projet": "PLAE",
+        "type": "environnement",
+        "region": "Diana",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "plae", "projet": "PLAE", "type": "environnement", "region": "Ihorombe", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "plae",
+        "projet": "PLAE",
+        "type": "environnement",
+        "region": "Ihorombe",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "plae", "projet": "PLAE", "type": "environnement", "region": "Haute Matsiatra", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "plae",
+        "projet": "PLAE",
+        "type": "environnement",
+        "region": "Haute Matsiatra",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "soilwaters", "projet": "SoilWaters", "type": "environnement", "region": "Boeny", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "soilwaters",
+        "projet": "SoilWaters",
+        "type": "environnement",
+        "region": "Boeny",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
     },
     {
       "type": "Feature",
       "geometry": null,
-      "properties": { "projet_id": "prodecid", "projet": "PRODECID", "type": "developpement", "region": "Boeny", "district": null, "commune": null, "mbv_ha": null, "activites": [] }
+      "properties": {
+        "projet_id": "prodecid",
+        "projet": "PRODECID",
+        "type": "developpement",
+        "region": "Boeny",
+        "district": null,
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo Atsinanana",
+        "district": "Vangaindrano",
+        "commune": "Manambondro",
+        "mbv_ha": null,
+        "activites": []
+      }
     }
   ]
 }
