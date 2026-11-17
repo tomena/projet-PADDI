@@ -6,7 +6,7 @@
  * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
  * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
  * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext, ../lib/fireGeo,
- *               ../components/LoginModal, ../components/ZonesUpdateModal
+ *               ../components/ZonesLoginModal, ../components/ZonesUpdateModal
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
@@ -107,6 +107,7 @@ const FR = {
   vueTexte: "Recherchez un projet, une catégorie, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
   chargement: "Chargement des données…",
   aucunResultat: "Aucun résultat pour cette recherche.",
+  projets: "Projets",
   regions: "Régions",
   districts: "Districts",
   communes: "Communes",
@@ -160,6 +161,7 @@ const MG: Dict = {
   vueTexte: "Hitady tetikasa, sokajy, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
   chargement: "Mampidina ny angon-drakitra…",
   aucunResultat: "Tsy misy valiny ho an'ity fikarohana ity.",
+  projets: "Tetikasa",
   regions: "Faritra",
   districts: "Distrika",
   communes: "Kaominina",
@@ -211,6 +213,7 @@ const EN: Dict = {
   vueTexte: "Search for a project, category, region, district or commune, or click a project below.",
   chargement: "Loading data…",
   aucunResultat: "No result for this search.",
+  projets: "Projects",
   regions: "Regions",
   districts: "Districts",
   communes: "Communes",
@@ -262,6 +265,7 @@ const DE: Dict = {
   vueTexte: "Suchen Sie ein Projekt, eine Kategorie, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
   chargement: "Daten werden geladen…",
   aucunResultat: "Kein Ergebnis für diese Suche.",
+  projets: "Projekte",
   regions: "Regionen",
   districts: "Distrikte",
   communes: "Gemeinden",
@@ -1096,7 +1100,7 @@ export default function ZonesIntervention() {
 
       <div className="zi-body">
         <aside className="zi-panel">
-          {/* 1. Carte d'accueil / sélection */}
+          {/* 1. Carte d'accueil / sélection, avec le nombre et la liste des projets concernés */}
           <section className="zi-card zi-hero">
             {vide ? (
               <p className="zi-fil">{t.aucunResultat}</p>
@@ -1109,6 +1113,7 @@ export default function ZonesIntervention() {
             ) : (
               <p className="zi-fil">{donnees ? t.vueTexte : t.chargement}</p>
             )}
+
             {!sel && !vide && (
               <div className="zi-chips">
                 {PROJETS.map((p) => (
@@ -1124,7 +1129,37 @@ export default function ZonesIntervention() {
                 ))}
               </div>
             )}
+
+            {sel && !vide && (
+              <div className="zi-projets">
+                <h4>
+                  {t.projetsConcernes} <span className="zi-compte">{projetsVue.length}</span>
+                </h4>
+                {projetsVue.length > 0 ? (
+                  <div className="zi-chips">
+                    {projetsVue.map((p) => (
+                      <span
+                        key={p.id}
+                        className={`zi-chip zi-chip-${p.type}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => choisirZone("projet", cle(p.id))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") choisirZone("projet", cle(p.id));
+                        }}
+                      >
+                        {p.nom}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="zi-vide">{t.aucunResultat}</p>
+                )}
+              </div>
+            )}
+
             <div className="zi-stats">
+              <div><b>{projetsVue.length}</b><span>{t.projets}</span></div>
               <div><b>{nbRegions}</b><span>{t.regions}</span></div>
               <div><b>{nbDistricts}</b><span>{t.districts}</span></div>
               <div><b>{lignesCommunes.length}</b><span>{t.communes}</span></div>
@@ -1291,9 +1326,7 @@ export default function ZonesIntervention() {
             <span><i className="zi-lg-ap" />{t.legAP}</span>
             <span><i className="zi-lg-sel" />{t.legSelection}</span>
           </div>
-          <p className="zi-note">
-            {t.note} {t.projetsConcernes} : {projetsVue.map((p) => p.nom).join(", ") || "—"}.
-          </p>
+          <p className="zi-note">{t.note}</p>
         </section>
       </div>
 
@@ -1341,6 +1374,7 @@ const CSS = `
 .zi h1{font-size:20px}
 .zi h2{font-family:Georgia,serif;font-weight:500;font-size:26px;line-height:1.1;margin:2px 0}
 .zi h3{font-size:15px}
+.zi h4{font-size:13px;margin:4px 0 6px;color:var(--ink2)}
 .zi-head{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--line)}
 .zi-head p{margin:2px 0 0;font-size:13px;color:var(--ink3)}
 .zi-search{position:relative;display:flex;align-items:center;gap:8px;flex:1;max-width:640px;min-width:260px;padding:0 12px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--chip);color:var(--ink3)}
@@ -1372,11 +1406,15 @@ const CSS = `
 .zi-hero{display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,var(--card),var(--acc-soft));flex:none}
 .zi-niveau{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--acc)}
 .zi-fil{margin:0;font-size:13px;color:var(--ink2);line-height:1.5}
+.zi-projets{display:flex;flex-direction:column;gap:2px;padding-top:6px;border-top:1px solid var(--line)}
+.zi-compte{display:inline-block;margin-left:4px;padding:0 8px;border-radius:999px;background:var(--acc);color:#fff;font-size:12px;font-weight:700}
 .zi-chips{display:flex;flex-wrap:wrap;gap:6px}
 .zi-chip{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);cursor:pointer;color:var(--ink2)}
 .zi-chip:hover{background:var(--hover)}
-.zi-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.zi-stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 12px;display:flex;flex-direction:column}
+.zi-chip-environnement{border-color:#65a30d}
+.zi-chip-developpement{border-color:#2563eb}
+.zi-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.zi-stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}
 .zi-stats b{font-family:Georgia,serif;font-weight:500;font-size:24px;line-height:1.1;color:var(--acc)}
 .zi-stats span{font-size:12px;color:var(--ink3)}
 
@@ -1459,5 +1497,6 @@ const CSS = `
   .zi-scroll{overflow:visible}
   .zi-acts{max-height:none;grid-template-columns:1fr}
   .zi-duo{grid-template-columns:1fr}
+  .zi-stats{grid-template-columns:repeat(2,1fr)}
 }
 `;
