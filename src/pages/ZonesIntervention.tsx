@@ -26,6 +26,9 @@ type District = { nom: string; communes: Commune[] };
 type Region = { nom: string; districts: District[] };
 type Projet = { id: string; nom: string; alias: string[]; regions: Region[] };
 
+/* Crée une liste de communes sans activité ni objectif renseignés */
+const communesVides = (...noms: string[]): Commune[] => noms.map((nom) => ({ nom, activites: [] }));
+
 /*
  * Activité  : { type: "reboisement", titre: "Plantation de filao", annee: 2025, surface_ha: 120 }
  * Objectif  : objectif_ha: 500  (superficie cible de la commune, en ha)
@@ -42,28 +45,37 @@ const PROJETS: Projet[] = [
         districts: [
           {
             nom: "Ambato Boeni",
-            communes: [
-              { nom: "Ankijabe", activites: [] },
-              { nom: "Andranofasika", activites: [] },
-              { nom: "Ambondromamy", activites: [] },
-              { nom: "Tsaramandroso", activites: [] },
-            ],
+            communes: communesVides("Ankijabe", "Andranofasika", "Ambondromamy", "Tsaramandroso"),
           },
           {
             nom: "Marovoay",
-            communes: [
-              { nom: "Ankazomborona", activites: [] },
-              { nom: "Marosakoa", activites: [] },
-              { nom: "Anosinalainolona", activites: [] },
-            ],
+            communes: communesVides("Ankazomborona", "Marosakoa"),
           },
         ],
       },
       {
         nom: "Diana",
         districts: [
-          { nom: "Antsiranana II", communes: [] },
-          { nom: "Ambilobe", communes: [] },
+          {
+            nom: "Antsiranana II",
+            communes: communesVides(
+              "Anivorano-Nord",
+              "Ambondrona",
+              "Andranofanjava",
+              "Bobakilandy",
+              "Joffre Ville",
+              "Sakaramy",
+              "Marosolava",
+              "Mangaoko",
+              "Antsalaka",
+              "Anketrakabe",
+              "Mahavanona"
+            ),
+          },
+          {
+            nom: "Ambilobe",
+            communes: communesVides("Antsaravibe", "Tanambao Marivorahona"),
+          },
         ],
       },
       {
@@ -153,6 +165,7 @@ const FR = {
   vueMada: "Vue Madagascar",
   vueTitre: "Zones d'intervention",
   vueTexte: "Recherchez un projet, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
+  aucunResultat: "Aucun résultat pour cette recherche.",
   regions: "Régions",
   districts: "Districts",
   communes: "Communes",
@@ -200,6 +213,7 @@ const MG: Dict = {
   vueMada: "Madagasikara manontolo",
   vueTitre: "Faritra fanatanterahana",
   vueTexte: "Hitady tetikasa, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
+  aucunResultat: "Tsy misy valiny ho an'ity fikarohana ity.",
   regions: "Faritra",
   districts: "Distrika",
   communes: "Kaominina",
@@ -245,6 +259,7 @@ const EN: Dict = {
   vueMada: "Madagascar view",
   vueTitre: "Intervention zones",
   vueTexte: "Search for a project, region, district or commune, or click a project below.",
+  aucunResultat: "No result for this search.",
   regions: "Regions",
   districts: "Districts",
   communes: "Communes",
@@ -290,6 +305,7 @@ const DE: Dict = {
   vueMada: "Ansicht Madagaskar",
   vueTitre: "Interventionsgebiete",
   vueTexte: "Suchen Sie ein Projekt, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
+  aucunResultat: "Kein Ergebnis für diese Suche.",
   regions: "Regionen",
   districts: "Distrikte",
   communes: "Gemeinden",
@@ -606,6 +622,7 @@ export default function ZonesIntervention() {
   const [requete, setRequete] = useState("");
   const [ouvert, setOuvert] = useState(false);
   const [sel, setSel] = useState<Sel | null>(null);
+  const [vide, setVide] = useState(false);
   const [typeFond, setTypeFond] = useState<Fond>("topo");
   const [masques, setMasques] = useState<Set<string>>(new Set());
 
@@ -616,11 +633,13 @@ export default function ZonesIntervention() {
   /* ----- actions ----- */
   const choisir = (s: Sel) => {
     setSel(s);
+    setVide(false);
     setRequete(s.label);
     setOuvert(false);
   };
   const effacer = () => {
     setSel(null);
+    setVide(false);
     setRequete("");
     setOuvert(false);
     setMasques(new Set());
@@ -630,18 +649,26 @@ export default function ZonesIntervention() {
     if (s) choisir(s);
   };
 
-  /* ----- saisie : le panneau suit la recherche dès que le texte correspond exactement à une zone ----- */
+  /* ----- saisie : le panneau suit la recherche ; sans résultat, tout reste vide ----- */
   const saisir = (v: string) => {
     setRequete(v);
     setOuvert(true);
     if (!v) {
       setSel(null);
+      setVide(false);
       setMasques(new Set());
       return;
     }
     const q = cle(v);
     const exact = SUGGESTIONS.find((s) => cle(s.label) === q);
-    if (exact) setSel(exact);
+    if (exact) {
+      setSel(exact);
+      setVide(false);
+      return;
+    }
+    const trouve = SUGGESTIONS.some((s) => s.recherche.includes(q));
+    setSel(null);
+    setVide(!trouve);
   };
 
   /* ----- suggestions (sans celles que l'on a retirées avec la croix) ----- */
@@ -655,7 +682,7 @@ export default function ZonesIntervention() {
 
   /* ----- périmètre ----- */
   const lignes = useMemo(() => (sel ? LIGNES.filter((l) => correspond(l, sel)) : []), [sel]);
-  const actives = useMemo(() => (sel ? lignes : LIGNES), [sel, lignes]);
+  const actives = useMemo<Ligne[]>(() => (vide ? [] : sel ? lignes : LIGNES), [vide, sel, lignes]);
 
   const regionActive = sel ? (sel.niveau === "region" ? sel.cle : sel.regionCle ?? null) : null;
   const districtActive =
@@ -681,15 +708,6 @@ export default function ZonesIntervention() {
     const ids = new Set(lignes.map((l) => cle(l.region.nom)));
     return regions.filter((f) => ids.has(cle(nomFeat(f))));
   }, [lignes, regions]);
-
-  const communeParNom = useMemo(() => {
-    const m = new Map<string, Feat>();
-    communes.forEach((c) => {
-      const k = cle(nomFeat(c));
-      if (!m.has(k)) m.set(k, c);
-    });
-    return m;
-  }, [communes]);
 
   /* ----- carte : création ----- */
   useEffect(() => {
@@ -731,14 +749,6 @@ export default function ZonesIntervention() {
     if (!g) return;
     g.clearLayers();
 
-    const n = sel?.niveau ?? "vue";
-    const etiqRegion = n === "vue" || n === "projet" || n === "region";
-    const etiqDistrict = n === "projet" || n === "region" || n === "district";
-    const etiqCommune = n === "district" || n === "commune";
-
-    const ligneDuDistrict = (dk: string) => LIGNES.find((l) => l.district && cle(l.district.nom) === dk);
-    const ligneDeCommune = (ck: string) => LIGNES.find((l) => l.commune && cle(l.commune.nom) === ck);
-
     /* Aires protégées : limites comme sur la page feux */
     apZ.forEach((z) => {
       L.geoJSON(z.feature as any, {
@@ -749,6 +759,17 @@ export default function ZonesIntervention() {
         .bindTooltip(String(z.nom), { sticky: true, className: "zi-hover" })
         .addTo(g);
     });
+
+    /* Recherche sans résultat : aucune zone d'intervention n'est affichée */
+    if (vide) return;
+
+    const n = sel?.niveau ?? "vue";
+    const etiqRegion = n === "vue" || n === "projet" || n === "region";
+    const etiqDistrict = n === "projet" || n === "region" || n === "district";
+    const etiqCommune = n === "district" || n === "commune";
+
+    const ligneDuDistrict = (dk: string) => LIGNES.find((l) => l.district && cle(l.district.nom) === dk);
+    const ligneDeCommune = (ck: string) => LIGNES.find((l) => l.commune && cle(l.commune.nom) === ck);
 
     /* Régions */
     regions.forEach((f) => {
@@ -799,7 +820,7 @@ export default function ZonesIntervention() {
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, communes, sel, regionActive, districtActive, communeActive, regionFeat, districtFeat]);
+  }, [apZ, regions, districts, communes, sel, vide, regionActive, districtActive, communeActive, regionFeat, districtFeat]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -874,15 +895,18 @@ export default function ZonesIntervention() {
   }, [lignesTableau]);
 
   /* Nom de la région affiché à droite du titre */
-  const regionAff = sel ? (sel.niveau === "region" ? sel.label : sel.regionNom ?? null) : null;
+  const regionAff = !vide && sel ? (sel.niveau === "region" ? sel.label : sel.regionNom ?? null) : null;
 
   const nbRegions = new Set(actives.map((l) => cle(l.region.nom))).size;
   const nbDistricts = new Set(
     actives.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
   ).size;
 
+  /* Superficie d'une commune : recherchée dans son district, pour éviter les homonymes */
   const surfaceDe = (l: LigneCommune) => {
-    const f = communeParNom.get(cle(l.commune.nom));
+    const dF = districts.find((d) => cle(nomFeat(d)) === cle(l.district.nom));
+    const cibles = communes.filter((c) => cle(nomFeat(c)) === cle(l.commune.nom));
+    const f = cibles.find((c) => (dF ? estDans(c, dF) : true)) ?? cibles[0];
     return f ? surfaceHa(f) : null;
   };
   const totaux = lignesCommunes.reduce(
@@ -997,7 +1021,9 @@ export default function ZonesIntervention() {
         <aside className="zi-panel">
           {/* 1. Carte d'accueil / sélection */}
           <section className="zi-card zi-hero">
-            {sel ? (
+            {vide ? (
+              <p className="zi-fil">{t.aucunResultat}</p>
+            ) : sel ? (
               <>
                 <span className="zi-niveau">{t.niveaux[sel.niveau]}</span>
                 <h2>{sel.label}</h2>
@@ -1006,7 +1032,7 @@ export default function ZonesIntervention() {
             ) : (
               <p className="zi-fil">{t.vueTexte}</p>
             )}
-            {!sel && (
+            {!sel && !vide && (
               <div className="zi-chips">
                 {PROJETS.map((p) => (
                   <span
@@ -1062,8 +1088,41 @@ export default function ZonesIntervention() {
             </div>
           </section>
 
-          {/* 3. Par commune et Zones d'intervention, côte à côte */}
+          {/* 3. Zones d'intervention et Par commune, côte à côte */}
           <div className="zi-duo">
+            <section className="zi-card zi-col">
+              <div className="zi-cardh">
+                <h3>{t.zonesInterv}</h3>
+                {regionAff && <span className="zi-regname">{regionAff}</span>}
+              </div>
+              <div className="zi-scroll">
+                {arbre.length ? (
+                  <div className="zi-regions">
+                    {regionAff
+                      ? arbre.flatMap((r) => r.districts.map((d) => (
+                          <div className="zi-reg" key={`${r.nom}|${d.nom}`}>
+                            {blocDistrict(r, d)}
+                          </div>
+                        )))
+                      : arbre.map((r) => (
+                          <div className="zi-reg" key={r.nom}>
+                            <button
+                              type="button"
+                              className="zi-node zi-n-reg"
+                              onClick={() => choisirZone("region", cle(r.nom))}
+                            >
+                              {r.nom}
+                            </button>
+                            {r.districts.map((d) => blocDistrict(r, d))}
+                          </div>
+                        ))}
+                  </div>
+                ) : (
+                  <p className="zi-vide">{t.districtsNon}</p>
+                )}
+              </div>
+            </section>
+
             <section className="zi-card zi-col">
               <div className="zi-cardh">
                 <h3>{t.parCommune}</h3>
@@ -1117,39 +1176,6 @@ export default function ZonesIntervention() {
                 )}
               </div>
             </section>
-
-            <section className="zi-card zi-col">
-              <div className="zi-cardh">
-                <h3>{t.zonesInterv}</h3>
-                {regionAff && <span className="zi-regname">{regionAff}</span>}
-              </div>
-              <div className="zi-scroll">
-                {arbre.length ? (
-                  <div className="zi-regions">
-                    {regionAff
-                      ? arbre.flatMap((r) => r.districts.map((d) => (
-                          <div className="zi-reg" key={`${r.nom}|${d.nom}`}>
-                            {blocDistrict(r, d)}
-                          </div>
-                        )))
-                      : arbre.map((r) => (
-                          <div className="zi-reg" key={r.nom}>
-                            <button
-                              type="button"
-                              className="zi-node zi-n-reg"
-                              onClick={() => choisirZone("region", cle(r.nom))}
-                            >
-                              {r.nom}
-                            </button>
-                            {r.districts.map((d) => blocDistrict(r, d))}
-                          </div>
-                        ))}
-                  </div>
-                ) : (
-                  <p className="zi-vide">{t.districtsNon}</p>
-                )}
-              </div>
-            </section>
           </div>
         </aside>
 
@@ -1157,7 +1183,7 @@ export default function ZonesIntervention() {
           <div className="zi-mhead">
             <span className="zi-mtitre">
               <MapPin size={16} aria-hidden />
-              <span>{sel ? sel.label : t.carteTitre}</span>
+              <span>{sel && !vide ? sel.label : t.carteTitre}</span>
             </span>
             <div className="zi-fondsel">
               <Globe2 size={14} aria-hidden />
@@ -1254,7 +1280,7 @@ const CSS = `
 .zi-type small{color:var(--ink3)}
 .zi-vide{font-size:13px;color:var(--ink3);margin:2px 0}
 
-/* Tableau et zones côte à côte ; en colonne sur petit écran */
+/* Zones d'intervention et tableau côte à côte ; en colonne sur petit écran */
 .zi-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;min-height:0}
 .zi-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .zi-cardh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
