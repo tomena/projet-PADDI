@@ -1,13 +1,13 @@
 /**
  * ZonesIntervention.tsx — zones d'intervention des projets
- * Thème sombre permanent, 4 langues (fr, mg, en, de).
- * Affiche les régions, districts et communes d'intervention, ainsi que les aires protégées.
+ * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
+ * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
  * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext, ../lib/fireGeo
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw } from "lucide-react";
+import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2 } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { DATA, PROP, useGeo, toZones } from "../lib/fireGeo";
 
@@ -29,7 +29,7 @@ type Projet = { id: string; nom: string; alias: string[]; regions: Region[] };
 /*
  * Activité  : { type: "reboisement", titre: "Plantation de filao", annee: 2025, surface_ha: 120 }
  * Objectif  : objectif_ha: 500  (superficie cible de la commune, en ha)
- * Nom de région : orthographe officielle (geoBoundaries) ; « Vakinankaratra » et non « Vakinakaratra ».
+ * Nom de région : orthographe officielle (geoBoundaries) : « Vakinankaratra ».
  */
 const PROJETS: Projet[] = [
   {
@@ -101,6 +101,27 @@ const SURB_COM = new Set(
 const NOMS_DIS = new Set(LIGNES.filter((l) => l.district).map((l) => cle(l.district!.nom)));
 const NOMS_COM = new Set(LIGNES.filter((l) => l.commune).map((l) => cle(l.commune!.nom)));
 
+/* ===================== FONDS DE CARTE (sans clé API) ===================== */
+
+type Fond = "topo" | "sat" | "osm";
+const FONDS: Record<Fond, { url: string; attr: string; maxZoom: number }> = {
+  topo: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    attr: "Tiles © Esri",
+    maxZoom: 18,
+  },
+  sat: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attr: "Tiles © Esri",
+    maxZoom: 18,
+  },
+  osm: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr: "© OpenStreetMap",
+    maxZoom: 19,
+  },
+};
+
 /* ===================== TEXTES (fr, mg, en, de) ===================== */
 
 const FR = {
@@ -110,7 +131,6 @@ const FR = {
   rechercheAria: "Rechercher une zone d'intervention",
   effacer: "Effacer",
   vueMada: "Vue Madagascar",
-  vueNiveau: "Vue d'ensemble",
   vueTitre: "Zones d'intervention",
   vueTexte: "Recherchez un projet, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
   regions: "Régions",
@@ -141,6 +161,10 @@ const FR = {
   carteAria: "Carte des zones d'intervention",
   carteTitre: "Madagascar : zones d'intervention",
   projetsConcernes: "Projets concernés",
+  fondAria: "Fond de carte",
+  fondTopo: "Topographie",
+  fondSat: "Satellite",
+  fondOsm: "OpenStreetMap",
   note: "Limites : geoBoundaries (ADM1 à ADM3). Superficies calculées à partir des contours, donc approximatives.",
   erreur: "Impossible de charger les limites administratives.",
 };
@@ -154,7 +178,6 @@ const MG: Dict = {
   rechercheAria: "Hitady faritra fanatanterahana",
   effacer: "Esory",
   vueMada: "Madagasikara manontolo",
-  vueNiveau: "Fijerena ankapobeny",
   vueTitre: "Faritra fanatanterahana",
   vueTexte: "Hitady tetikasa, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
   regions: "Faritra",
@@ -185,6 +208,10 @@ const MG: Dict = {
   carteAria: "Sarintanin'ny faritra fanatanterahana",
   carteTitre: "Madagasikara: faritra fanatanterahana",
   projetsConcernes: "Tetikasa voakasika",
+  fondAria: "Fototra sarintany",
+  fondTopo: "Topografia",
+  fondSat: "Zanabolana",
+  fondOsm: "OpenStreetMap",
   note: "Sisin-tany: geoBoundaries (ADM1 ka hatramin'ny ADM3). Ny habetsahana dia tombanana avy amin'ny sisin-tany, ka mety tsy marina tanteraka.",
   erreur: "Tsy afaka naka ny sisin-tany administratifa.",
 };
@@ -196,7 +223,6 @@ const EN: Dict = {
   rechercheAria: "Search an intervention zone",
   effacer: "Clear",
   vueMada: "Madagascar view",
-  vueNiveau: "Overview",
   vueTitre: "Intervention zones",
   vueTexte: "Search for a project, region, district or commune, or click a project below.",
   regions: "Regions",
@@ -227,6 +253,10 @@ const EN: Dict = {
   carteAria: "Intervention zones map",
   carteTitre: "Madagascar: intervention zones",
   projetsConcernes: "Projects involved",
+  fondAria: "Basemap",
+  fondTopo: "Topographic",
+  fondSat: "Satellite",
+  fondOsm: "OpenStreetMap",
   note: "Boundaries: geoBoundaries (ADM1 to ADM3). Areas are computed from the outlines, so they are approximate.",
   erreur: "Unable to load the administrative boundaries.",
 };
@@ -238,7 +268,6 @@ const DE: Dict = {
   rechercheAria: "Interventionsgebiet suchen",
   effacer: "Leeren",
   vueMada: "Ansicht Madagaskar",
-  vueNiveau: "Übersicht",
   vueTitre: "Interventionsgebiete",
   vueTexte: "Suchen Sie ein Projekt, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
   regions: "Regionen",
@@ -269,6 +298,10 @@ const DE: Dict = {
   carteAria: "Karte der Interventionsgebiete",
   carteTitre: "Madagaskar: Interventionsgebiete",
   projetsConcernes: "Beteiligte Projekte",
+  fondAria: "Kartengrundlage",
+  fondTopo: "Topografie",
+  fondSat: "Satellit",
+  fondOsm: "OpenStreetMap",
   note: "Grenzen: geoBoundaries (ADM1 bis ADM3). Flächen werden aus den Umrissen berechnet und sind daher ungefähr.",
   erreur: "Die Verwaltungsgrenzen konnten nicht geladen werden.",
 };
@@ -296,9 +329,9 @@ type Sel = {
 const RANG: Record<Niveau, number> = { projet: 0, region: 1, district: 2, commune: 3 };
 
 const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> = {
-  restauration: { couleur: "#a3e635", icone: Sprout },
-  reboisement: { couleur: "#4ade80", icone: Trees },
-  autre: { couleur: "#22d3ee", icone: Leaf },
+  restauration: { couleur: "#65a30d", icone: Sprout },
+  reboisement: { couleur: "#15803d", icone: Trees },
+  autre: { couleur: "#0891b2", icone: Leaf },
 };
 
 const SUGGESTIONS: Sel[] = (() => {
@@ -491,19 +524,19 @@ type NivZone = "region" | "district" | "commune";
 
 const STYLE: Record<NivZone, Record<Etat, L.PathOptions>> = {
   region: {
-    hors: { color: "#475569", weight: 1, fillColor: "#94a3b8", fillOpacity: 0.04 },
-    inter: { color: "#fb923c", weight: 3, fillColor: "#ff6a00", fillOpacity: 0.14 },
-    choisie: { color: "#f87171", weight: 4, fillColor: "#ff6a00", fillOpacity: 0.3 },
+    hors: { color: "#64748b", weight: 1, fillColor: "#94a3b8", fillOpacity: 0.05 },
+    inter: { color: "#ea580c", weight: 3, fillColor: "#ff6a00", fillOpacity: 0.14 },
+    choisie: { color: "#dc2626", weight: 4, fillColor: "#ff6a00", fillOpacity: 0.3 },
   },
   district: {
-    hors: { color: "#475569", weight: 0.8, fillColor: "#94a3b8", fillOpacity: 0.02 },
-    inter: { color: "#a78bfa", weight: 2, fillColor: "#7c3aed", fillOpacity: 0.3 },
-    choisie: { color: "#f87171", weight: 3, fillColor: "#7c3aed", fillOpacity: 0.5 },
+    hors: { color: "#64748b", weight: 0.8, fillColor: "#94a3b8", fillOpacity: 0.03 },
+    inter: { color: "#7c3aed", weight: 2, fillColor: "#a78bfa", fillOpacity: 0.3 },
+    choisie: { color: "#dc2626", weight: 3, fillColor: "#7c3aed", fillOpacity: 0.5 },
   },
   commune: {
-    hors: { color: "#475569", weight: 0.6, fillColor: "#94a3b8", fillOpacity: 0.02 },
-    inter: { color: "#5eead4", weight: 1.5, fillColor: "#14b8a6", fillOpacity: 0.45 },
-    choisie: { color: "#f87171", weight: 3, fillColor: "#0d9488", fillOpacity: 0.6 },
+    hors: { color: "#64748b", weight: 0.6, fillColor: "#94a3b8", fillOpacity: 0.03 },
+    inter: { color: "#0f766e", weight: 1.5, fillColor: "#14b8a6", fillOpacity: 0.45 },
+    choisie: { color: "#dc2626", weight: 3, fillColor: "#0d9488", fillOpacity: 0.6 },
   },
 };
 
@@ -535,7 +568,6 @@ export default function ZonesIntervention() {
   const { lang: brut } = useLanguage();
   const lang: Lang = (["fr", "mg", "en", "de"] as string[]).includes(brut as string) ? (brut as Lang) : "fr";
   const t = T[lang];
-  const sombre = true; // thème sombre permanent
 
   const elMap = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
@@ -549,6 +581,7 @@ export default function ZonesIntervention() {
   const [requete, setRequete] = useState("");
   const [ouvert, setOuvert] = useState(false);
   const [sel, setSel] = useState<Sel | null>(null);
+  const [typeFond, setTypeFond] = useState<Fond>("topo");
 
   /* ----- aires protégées (mêmes données que la page feux) ----- */
   const [airesF] = useGeo(DATA.aires);
@@ -634,22 +667,15 @@ export default function ZonesIntervention() {
     };
   }, []);
 
-  /* ----- fond de carte sombre ----- */
+  /* ----- fond de carte : Topographie, Satellite ou OpenStreetMap ----- */
   useEffect(() => {
     const m = map.current;
     if (!m) return;
     fond.current?.remove();
-    fond.current = sombre
-      ? L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-          attribution: "&copy; OpenStreetMap, &copy; CARTO",
-          maxZoom: 19,
-        })
-      : L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "&copy; OpenStreetMap",
-          maxZoom: 19,
-        });
-    fond.current.addTo(m).bringToBack();
-  }, [sombre]);
+    const f = FONDS[typeFond];
+    fond.current = L.tileLayer(f.url, { attribution: f.attr, maxZoom: f.maxZoom }).addTo(m);
+    fond.current.bringToBack();
+  }, [typeFond]);
 
   /* ----- chargement des limites ----- */
   useEffect(() => {
@@ -669,7 +695,6 @@ export default function ZonesIntervention() {
     const etiqDistrict = n === "projet" || n === "region" || n === "district";
     const etiqCommune = n === "district" || n === "commune";
 
-    /* Recherche de la ligne d'intervention correspondant à un district ou une commune (pour les clics). */
     const ligneDuDistrict = (dk: string) => LIGNES.find((l) => l.district && cle(l.district.nom) === dk);
     const ligneDeCommune = (ck: string) => LIGNES.find((l) => l.commune && cle(l.commune.nom) === ck);
 
@@ -678,7 +703,7 @@ export default function ZonesIntervention() {
       L.geoJSON(z.feature as any, {
         pane: "zi-ap",
         interactive: true,
-        style: { color: "#4ade80", weight: 2.5, fillColor: "#22c55e", fillOpacity: 0.1 },
+        style: { color: "#16a34a", weight: 2.5, fillColor: "#22c55e", fillOpacity: 0.1 },
       })
         .bindTooltip(String(z.nom), { sticky: true, className: "zi-hover" })
         .addTo(g);
@@ -696,7 +721,7 @@ export default function ZonesIntervention() {
       });
     });
 
-    /* Districts : ceux d'intervention, et tous ceux de la région sélectionnée en contexte */
+    /* Districts d'intervention, et tous ceux de la région sélectionnée */
     const districtsAff = districts.filter(
       (d) => NOMS_DIS.has(cle(nomFeat(d))) || (regionFeat && estDans(d, regionFeat))
     );
@@ -714,7 +739,7 @@ export default function ZonesIntervention() {
       });
     });
 
-    /* Communes : celles d'intervention, et toutes celles du district sélectionné en contexte */
+    /* Communes d'intervention, et toutes celles du district sélectionné */
     const communesAff = communes.filter(
       (c) => NOMS_COM.has(cle(nomFeat(c))) || (districtFeat && estDans(c, districtFeat))
     );
@@ -813,7 +838,7 @@ export default function ZonesIntervention() {
 
   /* ----- rendu ----- */
   return (
-    <div className="zi zi-dark">
+    <div className="zi">
       <style>{CSS}</style>
 
       <header className="zi-head">
@@ -881,7 +906,6 @@ export default function ZonesIntervention() {
               </>
             ) : (
               <>
-                <span className="zi-niveau">{t.vueNiveau}</span>
                 <h2>{t.vueTitre}</h2>
                 <p className="zi-fil">{t.vueTexte}</p>
                 <div className="zi-chips">
@@ -1035,8 +1059,22 @@ export default function ZonesIntervention() {
 
         <section className="zi-mcard" aria-label={t.carteAria}>
           <div className="zi-mhead">
-            <MapPin size={16} aria-hidden />
-            <span>{sel ? sel.label : t.carteTitre}</span>
+            <span className="zi-mtitre">
+              <MapPin size={16} aria-hidden />
+              <span>{sel ? sel.label : t.carteTitre}</span>
+            </span>
+            <div className="zi-fondsel">
+              <Globe2 size={14} aria-hidden />
+              <select
+                value={typeFond}
+                onChange={(e) => setTypeFond(e.target.value as Fond)}
+                aria-label={t.fondAria}
+              >
+                <option value="topo">{t.fondTopo}</option>
+                <option value="sat">{t.fondSat}</option>
+                <option value="osm">{t.fondOsm}</option>
+              </select>
+            </div>
           </div>
           <div className="zi-mbox">
             <div ref={elMap} className="zi-map" />
@@ -1060,14 +1098,17 @@ export default function ZonesIntervention() {
   );
 }
 
-/* ===================== STYLES (thème sombre) ===================== */
+/* ===================== STYLES (thème de l'application) ===================== */
+/* Les couleurs viennent des variables de l'application (clair ou sombre), comme AnalyseTerritoriale. */
 
 const CSS = `
-.zi{--bg:#0d1411;--card:#15201b;--line:#2a3a33;--ink:#e7efe9;--ink2:#b3c2b9;--ink3:#8a9b92;
-  --acc:#5fc79a;--acc-soft:#1d3a2e;--chip:#1b2a24;--hover:#1d2b25;--map:#0d1411;
+.zi{--bg:var(--surface-2,#f1efe8);--card:var(--surface,#ffffff);--line:var(--border,#d8d4c8);
+  --ink:var(--text,#1c2822);--ink2:var(--text-2,#4a5850);--ink3:var(--text-3,#7a867f);
+  --acc:var(--accent,#1f6f50);--acc-soft:color-mix(in srgb,var(--accent,#1f6f50) 14%,var(--surface,#ffffff));
+  --chip:var(--surface-3,var(--surface,#ffffff));--hover:var(--surface-2,#f1efe8);--map:#e5e7eb;
   display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);color:var(--ink);font-family:inherit}
 .zi *{box-sizing:border-box}
-.zi h1,.zi h2,.zi h3,.zi h4{margin:0;font-weight:600}
+.zi h1,.zi h2,.zi h3,.zi h4{margin:0;font-weight:600;color:var(--ink)}
 .zi h1{font-size:22px}
 .zi h2{font-family:Georgia,serif;font-weight:500;font-size:30px;line-height:1.1;margin:4px 0}
 .zi h3{font-size:16px;margin-bottom:8px}
@@ -1078,17 +1119,17 @@ const CSS = `
 .zi-search input{flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:var(--ink)}
 .zi-search input::placeholder{color:var(--ink3)}
 .zi-clear{cursor:pointer;display:grid;place-items:center;color:var(--ink3)}
-.zi-sug{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:2000;margin:0;padding:6px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.5);max-height:360px;overflow-y:auto}
+.zi-sug{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:2000;margin:0;padding:6px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.2);max-height:360px;overflow-y:auto}
 .zi-sug li{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;padding:8px 10px;border-radius:8px;cursor:pointer;align-items:center}
 .zi-sug li:hover{background:var(--hover)}
 .zi-sug strong{font-size:14px;color:var(--ink)}
 .zi-sug small{grid-column:2;font-size:12px;color:var(--ink3)}
 .zi-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
-.zi-badge.projet{background:#4a3a0f;color:#fde68a}
-.zi-badge.region{background:#4a2a12;color:#fdba74}
-.zi-badge.district{background:#2e2350;color:#c4b5fd}
-.zi-badge.commune{background:#123c37;color:#5eead4}
-.zi-erreur{padding:10px 20px;background:#3b1717;color:#fca5a5;font-size:13px}
+.zi-badge.projet{background:#fde68a;color:#78350f}
+.zi-badge.region{background:#ffedd5;color:#9a3412}
+.zi-badge.district{background:#ede9fe;color:#5b21b6}
+.zi-badge.commune{background:#ccfbf1;color:#115e59}
+.zi-erreur{padding:10px 20px;background:rgba(220,38,38,.1);color:#dc2626;font-size:13px}
 .zi-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,38%)}
 .zi-panel{overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--line)}
 .zi-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0}
@@ -1119,30 +1160,32 @@ const CSS = `
 .zi-row:hover td{background:var(--hover)}
 .zi-note{font-size:12px;color:var(--ink3);line-height:1.5;margin:0 4px}
 .zi-mcard{margin:10px;display:flex;flex-direction:column;min-height:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.zi-mhead{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
+.zi-mhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
+.zi-mtitre{display:flex;align-items:center;gap:8px}
+.zi-fondsel{display:flex;align-items:center;gap:6px;color:var(--ink3)}
+.zi-fondsel select{padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
 .zi-mbox{position:relative;flex:1;min-height:420px}
 .zi-map{position:absolute;inset:0;background:var(--map)}
-.zi-reset{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:6px;align-items:center;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.zi-reset{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:6px;align-items:center;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)}
 .zi-reset:hover{background:var(--hover)}
 .zi-legende{display:flex;gap:16px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
 .zi-legende i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 .zi-lg-reg{background:#ff6a00;opacity:.6;border:2px solid #ff6a00}
 .zi-lg-dis{background:#a78bfa;border:2px solid #7c3aed}
-.zi-lg-com{background:#14b8a6;border:1px solid #5eead4}
-.zi-lg-ap{background:#22c55e;opacity:.5;border:2px solid #4ade80}
-.zi-lg-sel{background:#f97316;border:3px solid #f87171}
-/* Étiquettes sans cadre ni fond */
-.leaflet-tooltip.zi-label{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;font-size:11px;font-weight:700;white-space:nowrap;text-shadow:0 0 3px #0d1411,0 0 3px #0d1411,0 0 2px #0d1411}
+.zi-lg-com{background:#14b8a6;border:1px solid #0f766e}
+.zi-lg-ap{background:#22c55e;opacity:.5;border:2px solid #16a34a}
+.zi-lg-sel{background:#f97316;border:3px solid #dc2626}
+/* Étiquettes sans cadre ni fond : contour de texte pour rester lisibles sur toutes les cartes */
+.leaflet-tooltip.zi-label{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;font-size:11px;font-weight:700;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff}
 .leaflet-tooltip.zi-label::before{display:none!important}
-.zi-label-region{color:#fdba74!important}
-.zi-label-district{color:#c4b5fd!important}
-.zi-label-commune{color:#5eead4!important}
+.zi-label-region{color:#c2410c!important}
+.zi-label-district{color:#6d28d9!important}
+.zi-label-commune{color:#0f766e!important}
 .leaflet-tooltip.zi-hover{background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:12px}
 .leaflet-tooltip.zi-hover::before{display:none}
 .zi .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
-.zi .leaflet-control-attribution{background:rgba(21,32,27,.8)!important;color:var(--ink3)!important}
-.zi .leaflet-control-attribution a{color:var(--ink2)}
+.zi .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:var(--ink3)!important}
 @media (max-width:900px){
   .zi{height:auto;min-height:100dvh}
   .zi-body{grid-template-columns:1fr}
