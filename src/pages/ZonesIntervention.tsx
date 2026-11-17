@@ -1,17 +1,21 @@
 /**
  * ZonesIntervention.tsx — zones d'intervention des projets
  * Les données (projets, régions, districts, communes, activités, MBV) sont lues depuis
- * public/data/zones_intervention.geojson : il suffit de modifier ce fichier pour mettre à jour la page.
+ * public/data/zones_intervention.geojson. La mise à jour se fait par le bouton « Mettre à jour »
+ * (connexion requise), via ZonesUpdateModal.
  * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
  * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
- * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext, ../lib/fireGeo
+ * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext, ../lib/fireGeo,
+ *               ../components/LoginModal, ../components/ZonesUpdateModal
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2 } from "lucide-react";
+import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { DATA, PROP, useGeo, toZones } from "../lib/fireGeo";
+import LoginModal from "../components/LoginModal";
+import ZonesUpdateModal from "../components/ZonesUpdateModal";
 
 /* ===================== OUTIL DE COMPARAISON ===================== */
 
@@ -20,8 +24,9 @@ const cle = (s: string) =>
 
 /* ===================== TYPES ET DONNÉES ===================== */
 
-/* Fichier des données : à placer dans public/data/ */
+/* Fichier des données (lecture) et route d'enregistrement (écriture, avec jeton) */
 const DATA_URL = "/data/zones_intervention.geojson";
+const SAUVEGARDE_URL = "/api/zones-intervention";
 
 type TypeActivite = "restauration" | "reboisement" | "autre";
 type Activite = { type: TypeActivite; titre: string; annee?: number; surface_ha?: number };
@@ -96,6 +101,7 @@ const FR = {
   rechercheAria: "Rechercher une zone d'intervention",
   effacer: "Effacer",
   retirer: "Retirer de la liste",
+  update: "Mettre à jour",
   vueMada: "Vue Madagascar",
   vueTitre: "Zones d'intervention",
   vueTexte: "Recherchez un projet, une catégorie, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
@@ -148,6 +154,7 @@ const MG: Dict = {
   rechercheAria: "Hitady faritra fanatanterahana",
   effacer: "Esory",
   retirer: "Esorina amin'ny lisitra",
+  update: "Havaozina",
   vueMada: "Madagasikara manontolo",
   vueTitre: "Faritra fanatanterahana",
   vueTexte: "Hitady tetikasa, sokajy, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
@@ -198,6 +205,7 @@ const EN: Dict = {
   rechercheAria: "Search an intervention zone",
   effacer: "Clear",
   retirer: "Remove from list",
+  update: "Update",
   vueMada: "Madagascar view",
   vueTitre: "Intervention zones",
   vueTexte: "Search for a project, category, region, district or commune, or click a project below.",
@@ -248,6 +256,7 @@ const DE: Dict = {
   rechercheAria: "Interventionsgebiet suchen",
   effacer: "Leeren",
   retirer: "Aus der Liste entfernen",
+  update: "Aktualisieren",
   vueMada: "Ansicht Madagaskar",
   vueTitre: "Interventionsgebiete",
   vueTexte: "Suchen Sie ein Projekt, eine Kategorie, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
@@ -587,6 +596,7 @@ export default function ZonesIntervention() {
 
   const [donnees, setDonnees] = useState<Donnees | null>(null);
   const [erreurDonnees, setErreurDonnees] = useState(false);
+  const [version, setVersion] = useState(0);
   const [regions, setRegions] = useState<Feat[]>([]);
   const [districts, setDistricts] = useState<Feat[]>([]);
   const [communes, setCommunes] = useState<Feat[]>([]);
@@ -598,16 +608,25 @@ export default function ZonesIntervention() {
   const [typeFond, setTypeFond] = useState<Fond>("topo");
   const [masques, setMasques] = useState<Set<string>>(new Set());
 
-  /* ----- données (fichier GeoJSON) ----- */
+  /* ----- mise à jour (connexion requise, comme le Dashboard) ----- */
+  const [showLogin, setShowLogin] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [token, setToken] = useState("");
+
+  /* ----- données (fichier GeoJSON), rechargées après chaque enregistrement ----- */
   useEffect(() => {
-    fetch(DATA_URL)
+    fetch(`${DATA_URL}?v=${version}`, { cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
-      .then((geo) => setDonnees(construireDonnees(geo)))
+      .then((geo) => {
+        setDonnees(construireDonnees(geo));
+        setErreurDonnees(false);
+      })
       .catch(() => setErreurDonnees(true));
-  }, []);
+  }, [version]);
 
   const PROJETS = donnees?.projets ?? [];
   const LIGNES = donnees?.lignes ?? LIGNES_VIDES;
@@ -1065,6 +1084,11 @@ export default function ZonesIntervention() {
             </ul>
           )}
         </div>
+
+        <button type="button" className="zi-update" onClick={() => setShowLogin(true)}>
+          <RefreshCw size={16} aria-hidden />
+          <span>{t.update}</span>
+        </button>
       </header>
 
       {erreurDonnees && <div className="zi-erreur" role="alert">{t.erreurDonnees}</div>}
@@ -1272,6 +1296,33 @@ export default function ZonesIntervention() {
           </p>
         </section>
       </div>
+
+      {/* Connexion, puis fenêtre de mise à jour (même enchaînement que le Dashboard) */}
+      {showLogin && (
+        <LoginModal
+          onClose={() => setShowLogin(false)}
+          onSuccess={(name: string, jeton: string) => {
+            setUserName(name);
+            setToken(jeton);
+            setShowLogin(false);
+            setShowUpdate(true);
+          }}
+        />
+      )}
+      {showUpdate && donnees && (
+        <ZonesUpdateModal
+          projets={PROJETS}
+          lignes={LIGNES}
+          token={token}
+          userName={userName}
+          saveUrl={SAUVEGARDE_URL}
+          onClose={() => {
+            setShowUpdate(false);
+            setToken("");
+          }}
+          onSaved={() => setVersion((v) => v + 1)}
+        />
+      )}
     </div>
   );
 }
@@ -1310,6 +1361,8 @@ const CSS = `
 .zi-badge.region{background:#ffedd5;color:#9a3412}
 .zi-badge.district{background:#ede9fe;color:#5b21b6}
 .zi-badge.commune{background:#ccfbf1;color:#115e59}
+.zi-update{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:none;border-radius:10px;background:#14532d;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 5px rgba(20,83,45,.2)}
+.zi-update:hover{filter:brightness(1.08)}
 .zi-erreur{padding:8px 20px;background:rgba(220,38,38,.1);color:#dc2626;font-size:13px}
 
 /* Mise en page : panneau à gauche, carte à droite, le tout sur un seul écran */
