@@ -1152,14 +1152,16 @@ export default function ZonesIntervention() {
                       </tr>
                     </thead>
                     <tbody>
-                      {lignesCommunes.map((l) => {
+                      {lignesCommunes.map((l, i) => {
                         const acts = l.commune.activites;
                         const s = surfaceDe(l);
                         const o = l.commune.objectif_ha;
+                        /* Trait plus épais avant la première commune d'une nouvelle région */
+                        const nouvelleRegion = i > 0 && lignesCommunes[i - 1].region.nom !== l.region.nom;
                         return (
                           <tr
                             key={`${l.region.nom}-${l.district.nom}-${l.commune.nom}`}
-                            className="zi-row"
+                            className={`zi-row${nouvelleRegion ? " zi-sep" : ""}`}
                             onClick={() =>
                               choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom))
                             }
@@ -1300,13 +1302,14 @@ const CSS = `
 .zi-regname{font-size:13px;font-weight:600;color:var(--acc);text-align:right}
 .zi-scroll{flex:1;min-height:0;overflow:auto}
 
-/* Tableau Par commune : colonnes séparées par un filet vertical */
+/* Tableau Par commune : colonnes séparées par un filet vertical, régions séparées par un trait épais */
 .zi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--ink)}
 .zi-tbl th{font-weight:500;font-size:11.5px;color:var(--ink3);text-align:right;padding:4px 6px;position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line)}
 .zi-tbl td{padding:5px 6px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
 .zi-tbl th+th,.zi-tbl td+td{border-left:1px solid var(--line)}
 .zi-tbl th:first-child,.zi-tbl td:first-child{text-align:left}
 .zi-tbl tfoot td{font-weight:700;border-top:2px solid var(--line)}
+.zi-tbl tr.zi-sep td{border-top:3px solid var(--ink2)}
 .zi-row{cursor:pointer}
 .zi-row:hover td{background:var(--hover)}
 
