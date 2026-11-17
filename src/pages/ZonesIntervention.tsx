@@ -26,7 +26,7 @@ const cle = (s: string) =>
 
 /* Fichier des données (lecture) et route d'enregistrement (écriture, avec jeton) */
 const DATA_URL = "/data/zones_intervention.geojson";
-const SAUVEGARDE_URL = "/api/zones-intervention";
+const SAUVEGARDE_URL = "/api/import?type=zones";
 
 type TypeActivite = "restauration" | "reboisement" | "autre";
 type Activite = { type: TypeActivite; titre: string; annee?: number; surface_ha?: number };
