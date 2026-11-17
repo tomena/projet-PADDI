@@ -81,7 +81,7 @@ const PROJETS: Projet[] = [
         nom: "Atsimo Atsinanana",
         districts: [
           { nom: "Befotaka", communes: [] },
-          { nom: "Midongy", communes: [] },
+          { nom: "Midongy Atsimo", communes: [] },
           { nom: "Vangaindrano", communes: [] },
         ],
       },
@@ -160,7 +160,6 @@ const FR = {
   colCommune: "Commune",
   colResto: "Restauration",
   colReboisement: "Reboisement",
-  colAutres: "Autres",
   colSuperficie: "Superficie (ha)",
   colObjectif: "Objectif (ha)",
   total: "Total",
@@ -208,7 +207,6 @@ const MG: Dict = {
   colCommune: "Kaominina",
   colResto: "Fanarenana",
   colReboisement: "Fambolena ala",
-  colAutres: "Hafa",
   colSuperficie: "Habetsahana (ha)",
   colObjectif: "Tanjona (ha)",
   total: "Totaly",
@@ -254,7 +252,6 @@ const EN: Dict = {
   colCommune: "Commune",
   colResto: "Restoration",
   colReboisement: "Reforestation",
-  colAutres: "Other",
   colSuperficie: "Area (ha)",
   colObjectif: "Target (ha)",
   total: "Total",
@@ -300,7 +297,6 @@ const DE: Dict = {
   colCommune: "Gemeinde",
   colResto: "Wiederherstellung",
   colReboisement: "Aufforstung",
-  colAutres: "Andere",
   colSuperficie: "Fläche (ha)",
   colObjectif: "Ziel (ha)",
   total: "Gesamt",
@@ -634,6 +630,20 @@ export default function ZonesIntervention() {
     if (s) choisir(s);
   };
 
+  /* ----- saisie : le panneau suit la recherche dès que le texte correspond exactement à une zone ----- */
+  const saisir = (v: string) => {
+    setRequete(v);
+    setOuvert(true);
+    if (!v) {
+      setSel(null);
+      setMasques(new Set());
+      return;
+    }
+    const q = cle(v);
+    const exact = SUGGESTIONS.find((s) => cle(s.label) === q);
+    if (exact) setSel(exact);
+  };
+
   /* ----- suggestions (sans celles que l'on a retirées avec la croix) ----- */
   const suggestions = useMemo(() => {
     const q = cle(requete);
@@ -863,7 +873,7 @@ export default function ZonesIntervention() {
     }));
   }, [lignesTableau]);
 
-  /* Nom de la région affiché à droite du titre ; sans région choisie, les régions apparaissent dans l'arbre */
+  /* Nom de la région affiché à droite du titre */
   const regionAff = sel ? (sel.niveau === "region" ? sel.label : sel.regionNom ?? null) : null;
 
   const nbRegions = new Set(actives.map((l) => cle(l.region.nom))).size;
@@ -886,36 +896,32 @@ export default function ZonesIntervention() {
   const fmt = (n: number) => Math.round(n).toLocaleString(LOCALE[lang]);
   const compte = (ty: TypeActivite) => activites.filter((a) => a.type === ty).length;
 
-  /* Liste des districts (et de leurs communes) d'une région */
-  const rendreDistricts = (r: Noeud) => (
-    <ul>
-      {r.districts.map((d) => (
-        <li key={d.nom}>
-          <button
-            type="button"
-            className="zi-node zi-n-dis"
-            onClick={() => choisirZone("district", cle(d.nom), cle(r.nom))}
-          >
-            {d.nom}
-          </button>
-          {d.communes.length > 0 && (
-            <ul>
-              {d.communes.map((c) => (
-                <li key={c}>
-                  <button
-                    type="button"
-                    className="zi-node zi-n-com"
-                    onClick={() => choisirZone("commune", cle(c), cle(r.nom), cle(d.nom))}
-                  >
-                    {c}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
-      ))}
-    </ul>
+  /* Bloc d'un district et de ses communes */
+  const blocDistrict = (r: Noeud, d: Noeud["districts"][number]) => (
+    <div className="zi-dis" key={`${r.nom}|${d.nom}`}>
+      <button
+        type="button"
+        className="zi-node zi-n-dis"
+        onClick={() => choisirZone("district", cle(d.nom), cle(r.nom))}
+      >
+        {d.nom}
+      </button>
+      {d.communes.length > 0 && (
+        <ul>
+          {d.communes.map((c) => (
+            <li key={c}>
+              <button
+                type="button"
+                className="zi-node zi-n-com"
+                onClick={() => choisirZone("commune", cle(c), cle(r.nom), cle(d.nom))}
+              >
+                {c}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 
   /* ----- rendu ----- */
@@ -935,11 +941,7 @@ export default function ZonesIntervention() {
             type="search"
             value={requete}
             placeholder={t.recherche}
-            onChange={(e) => {
-              setRequete(e.target.value);
-              if (!e.target.value) setMasques(new Set());
-              setOuvert(true);
-            }}
+            onChange={(e) => saisir(e.target.value)}
             onFocus={() => setOuvert(true)}
             onBlur={() => setOuvert(false)}
             onKeyDown={(e) => {
@@ -1074,7 +1076,6 @@ export default function ZonesIntervention() {
                         <th>{t.colCommune}</th>
                         <th>{t.colResto}</th>
                         <th>{t.colReboisement}</th>
-                        <th>{t.colAutres}</th>
                         <th>{t.colSuperficie}</th>
                         <th>{t.colObjectif}</th>
                       </tr>
@@ -1095,7 +1096,6 @@ export default function ZonesIntervention() {
                             <td>{l.commune.nom}</td>
                             <td>{acts.filter((a) => a.type === "restauration").length}</td>
                             <td>{acts.filter((a) => a.type === "reboisement").length}</td>
-                            <td>{acts.filter((a) => a.type === "autre").length}</td>
                             <td>{s != null ? fmt(s) : "—"}</td>
                             <td>{o != null ? fmt(o) : "—"}</td>
                           </tr>
@@ -1107,7 +1107,6 @@ export default function ZonesIntervention() {
                         <td>{t.total}</td>
                         <td>{compte("restauration")}</td>
                         <td>{compte("reboisement")}</td>
-                        <td>{compte("autre")}</td>
                         <td>{fmt(totaux.surface)}</td>
                         <td>{totaux.objectif ? fmt(totaux.objectif) : "—"}</td>
                       </tr>
@@ -1126,13 +1125,15 @@ export default function ZonesIntervention() {
               </div>
               <div className="zi-scroll">
                 {arbre.length ? (
-                  <div className="zi-tree">
-                    {regionAff ? (
-                      arbre.map((r) => <div key={r.nom}>{rendreDistricts(r)}</div>)
-                    ) : (
-                      <ul>
-                        {arbre.map((r) => (
-                          <li key={r.nom}>
+                  <div className="zi-regions">
+                    {regionAff
+                      ? arbre.flatMap((r) => r.districts.map((d) => (
+                          <div className="zi-reg" key={`${r.nom}|${d.nom}`}>
+                            {blocDistrict(r, d)}
+                          </div>
+                        )))
+                      : arbre.map((r) => (
+                          <div className="zi-reg" key={r.nom}>
                             <button
                               type="button"
                               className="zi-node zi-n-reg"
@@ -1140,11 +1141,9 @@ export default function ZonesIntervention() {
                             >
                               {r.nom}
                             </button>
-                            {rendreDistricts(r)}
-                          </li>
+                            {r.districts.map((d) => blocDistrict(r, d))}
+                          </div>
                         ))}
-                      </ul>
-                    )}
                   </div>
                 ) : (
                   <p className="zi-vide">{t.districtsNon}</p>
@@ -1255,8 +1254,8 @@ const CSS = `
 .zi-type small{color:var(--ink3)}
 .zi-vide{font-size:13px;color:var(--ink3);margin:2px 0}
 
-/* Tableaux côte à côte, qui passent en colonne quand la place manque */
-.zi-duo{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:10px;min-height:0}
+/* Tableau et zones côte à côte ; en colonne sur petit écran */
+.zi-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;min-height:0}
 .zi-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .zi-cardh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
 .zi-cardh h3{margin:0}
@@ -1273,15 +1272,17 @@ const CSS = `
 .zi-row{cursor:pointer}
 .zi-row:hover td{background:var(--hover)}
 
-/* Arborescence Région > District > Commune */
-.zi-tree ul{list-style:none;margin:0;padding:0 0 0 14px;border-left:1px solid var(--line)}
-.zi-tree>ul{border-left:0;padding-left:0}
-.zi-tree li{margin:2px 0}
+/* Zones d'intervention : blocs par région (ou par district), sur 2 à 3 colonnes */
+.zi-regions{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;align-content:start}
+.zi-reg{border:1px solid var(--line);border-radius:10px;padding:6px;min-width:0;background:var(--card)}
+.zi-dis{margin-top:4px}
+.zi-dis ul{list-style:none;margin:0 0 0 6px;padding:0 0 0 8px;border-left:1px solid var(--line)}
+.zi-dis li{margin:1px 0}
 .zi-node{display:block;width:100%;background:none;border:0;padding:3px 6px;font:inherit;font-size:12.5px;color:var(--ink);text-align:left;border-radius:6px;cursor:pointer}
 .zi-node:hover{background:var(--hover)}
-.zi-n-reg{font-weight:700;font-size:13.5px;color:var(--acc)}
+.zi-n-reg{font-weight:700;font-size:13px;color:var(--acc);border-bottom:1px solid var(--line);border-radius:0;padding-bottom:5px;margin-bottom:2px}
 .zi-n-dis{font-weight:600}
-.zi-n-com{color:var(--ink2)}
+.zi-n-com{color:var(--ink2);font-size:12px}
 
 /* Carte */
 .zi-mcard{margin:10px;display:flex;flex-direction:column;min-height:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
