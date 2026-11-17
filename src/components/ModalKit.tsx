@@ -86,6 +86,7 @@ const TXT = {
     wait: "Veuillez patienter...",
     saveLogin: "Enregistrer et se connecter",
     close: "Fermer",
+    subZones: "Connectez-vous pour mettre à jour les zones d'intervention.",
   },
   mg: {
     titleLogin: "Fidirana azo antoka",
@@ -110,6 +111,7 @@ const TXT = {
     wait: "Mahandrata azafady...",
     saveLogin: "Tahirizo ary hiditra",
     close: "Akatony",
+    subZones: "Hiditra mba hanavao ny faritra fanatanterahana.",
   },
   en: {
     titleLogin: "Secure access",
@@ -134,6 +136,7 @@ const TXT = {
     wait: "Please wait...",
     saveLogin: "Save and sign in",
     close: "Close",
+     subZones: "Sign in to update the intervention zones.",
   },
   de: {
     titleLogin: "Sicherer Zugang",
@@ -158,6 +161,7 @@ const TXT = {
     wait: "Bitte warten...",
     saveLogin: "Speichern und anmelden",
     close: "Schließen",
+     subZones: "Melden Sie sich an, um die Interventionsgebiete zu aktualisieren.",
   },
 };
 
@@ -255,7 +259,7 @@ const CSS = `
 
 export interface AuthModalProps {
   /** « costs » : mise à jour des coûts · « activities » : mise à jour des activités */
-  purpose: "costs" | "activities";
+  purpose: "costs" | "activities" | "zones";
   onClose: () => void;
   // userName : prénom de l'utilisateur ; token : jeton de session signé par le serveur
   onSuccess: (userName: string, token: string) => void;
@@ -377,7 +381,7 @@ export function AuthModal({ purpose, onClose, onSuccess }: AuthModalProps) {
             </h2>
 
             <p className="am-subtitle">
-              {enChangement ? t.subChange : purpose === "costs" ? t.subCosts : t.subActivities}
+              {enChangement ? t.subChange : purpose === "costs" ? t.subCosts : purpose === "zones" ? t.subZones : t.subActivities}
             </p>
           </div>
 
