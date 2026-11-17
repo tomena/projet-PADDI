@@ -14,7 +14,7 @@ import "leaflet/dist/leaflet.css";
 import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { DATA, PROP, useGeo, toZones } from "../lib/fireGeo";
-import LoginModal from "../components/LoginModal";
+import ZonesLoginModal from "../components/ZonesLoginModal";
 import ZonesUpdateModal from "../components/ZonesUpdateModal";
 
 /* ===================== OUTIL DE COMPARAISON ===================== */
@@ -1299,7 +1299,7 @@ export default function ZonesIntervention() {
 
       {/* Connexion, puis fenêtre de mise à jour (même enchaînement que le Dashboard) */}
       {showLogin && (
-        <LoginModal
+        <ZonesLoginModal
           onClose={() => setShowLogin(false)}
           onSuccess={(name: string, jeton: string) => {
             setUserName(name);
