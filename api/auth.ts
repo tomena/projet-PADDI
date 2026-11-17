@@ -142,7 +142,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     if (action === "login") {
       if (!(await motDePasseValide(String(password ?? "")))) return res.status(401).json(refus);
-      return res.status(200).json({ userName, token: creerJeton(userName, secret), mustChange: !entree });
+      return res.status(200).json({ userName, token: creerJeton(userName, mail, secret), mustChange: !entree });
     }
 
     // action === "change"
@@ -162,7 +162,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     store.users[mail] = await creerEntree(nouveau);
     await ecrireStore(c, store, sha, `Mot de passe mis à jour : ${userName}`);
-    return res.status(200).json({ userName, token: creerJeton(userName, secret), mustChange: false });
+    return res.status(200).json({ userName, token: creerJeton(userName, mail, secret), mustChange: false });
   } catch (e: any) {
     console.error("Erreur auth :", e);
     const message = e?.message === "CONFIG" ? "Configuration serveur incomplète." : e?.message || "Erreur serveur.";
