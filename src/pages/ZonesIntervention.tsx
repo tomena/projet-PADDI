@@ -115,18 +115,12 @@ const LIGNES: Ligne[] = PROJETS.flatMap((projet) =>
   })
 );
 
-/* Ensembles d'intervention, indépendants de la sélection. */
+/* Clé d'une ligne : région|district|commune (vides si absents) */
+const cleLigne = (l: Ligne) =>
+  [cle(l.region.nom), l.district ? cle(l.district.nom) : "", l.commune ? cle(l.commune.nom) : ""].join("|");
+
+/* Régions d'intervention (noms uniques dans geoBoundaries) */
 const SURB_REG = new Set(LIGNES.map((l) => cle(l.region.nom)));
-const SURB_DIS = new Set(
-  LIGNES.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
-);
-const SURB_COM = new Set(
-  LIGNES.filter((l) => l.commune).map(
-    (l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}|${cle(l.commune!.nom)}`
-  )
-);
-const NOMS_DIS = new Set(LIGNES.filter((l) => l.district).map((l) => cle(l.district!.nom)));
-const NOMS_COM = new Set(LIGNES.filter((l) => l.commune).map((l) => cle(l.commune!.nom)));
 
 /* ===================== FONDS DE CARTE (sans clé API) ===================== */
 
@@ -680,25 +674,62 @@ export default function ZonesIntervention() {
   const lignes = useMemo(() => (sel ? LIGNES.filter((l) => correspond(l, sel)) : []), [sel]);
   const actives = useMemo<Ligne[]>(() => (vide ? [] : sel ? lignes : LIGNES), [vide, sel, lignes]);
 
-  const regionActive = sel ? (sel.niveau === "region" ? sel.cle : sel.regionCle ?? null) : null;
-  const districtActive =
-    sel?.niveau === "district" ? sel.cle : sel?.niveau === "commune" ? sel.districtCle ?? null : null;
-  const communeActive = sel?.niveau === "commune" ? sel.cle : null;
+  /* ----- correspondance géographique : chaque district et commune est trouvé À L'INTÉRIEUR
+         de sa région et de son district, pour éviter les homonymes ailleurs dans le pays ----- */
+  const { featDis, featCom, ligneDis, ligneCom } = useMemo(() => {
+    const featDis = new Map<string, Feat>();
+    const featCom = new Map<string, Feat>();
+    const ligneDis = new Map<Feat, Ligne>();
+    const ligneCom = new Map<Feat, Ligne>();
 
+    LIGNES.forEach((l) => {
+      if (!l.district) return;
+      const rF = regions.find((r) => cle(nomFeat(r)) === cle(l.region.nom));
+      const dk = cle(l.district.nom);
+      const candD = districts.filter((d) => cle(nomFeat(d)) === dk);
+      const dF = rF ? candD.find((d) => estDans(d, rF)) : candD[0];
+      if (!dF) return;
+
+      const kD = `${cle(l.region.nom)}|${dk}|`;
+      if (!featDis.has(kD)) {
+        featDis.set(kD, dF);
+        ligneDis.set(dF, { projet: l.projet, region: l.region, district: l.district });
+      }
+
+      if (!l.commune) return;
+      const ck = cle(l.commune.nom);
+      const cF = communes.find((c) => cle(nomFeat(c)) === ck && estDans(c, dF));
+      if (cF) {
+        featCom.set(cleLigne(l), cF);
+        ligneCom.set(cF, l);
+      }
+    });
+    return { featDis, featCom, ligneDis, ligneCom };
+  }, [regions, districts, communes]);
+
+  const interDisSet = useMemo(() => new Set(featDis.values()), [featDis]);
+  const interComSet = useMemo(() => new Set(featCom.values()), [featCom]);
+
+  /* Région, district et commune actuellement choisis (géométries) */
+  const regionCle = sel ? (sel.niveau === "region" ? sel.cle : sel.regionCle ?? null) : null;
   const regionFeat = useMemo(
-    () => (regionActive ? regions.find((f) => cle(nomFeat(f)) === regionActive) : undefined),
-    [regionActive, regions]
+    () => (regionCle ? regions.find((f) => cle(nomFeat(f)) === regionCle) : undefined),
+    [regionCle, regions]
   );
   const districtFeat = useMemo(() => {
-    if (!districtActive) return undefined;
-    return districts.find(
-      (d) => cle(nomFeat(d)) === districtActive && (!regionFeat || estDans(d, regionFeat))
-    );
-  }, [districtActive, districts, regionFeat]);
+    if (!sel) return undefined;
+    const kD =
+      sel.niveau === "district"
+        ? `${sel.regionCle}|${sel.cle}|`
+        : sel.niveau === "commune"
+        ? `${sel.regionCle}|${sel.districtCle}|`
+        : null;
+    return kD ? featDis.get(kD) : undefined;
+  }, [sel, featDis]);
   const communeFeat = useMemo(() => {
-    if (!communeActive || !districtFeat) return undefined;
-    return communes.find((c) => cle(nomFeat(c)) === communeActive && estDans(c, districtFeat));
-  }, [communeActive, districtFeat, communes]);
+    if (!sel || sel.niveau !== "commune") return undefined;
+    return featCom.get(`${sel.regionCle}|${sel.districtCle}|${sel.cle}`);
+  }, [sel, featCom]);
 
   const regionsProjet = useMemo(() => {
     const ids = new Set(lignes.map((l) => cle(l.region.nom)));
@@ -739,7 +770,7 @@ export default function ZonesIntervention() {
     charger("ADM3").then(setCommunes).catch(() => setErreur(true));
   }, []);
 
-  /* ----- dessin : aires protégées, régions, districts, communes ----- */
+  /* ----- dessin : aires protégées, régions, districts, communes d'intervention ----- */
   useEffect(() => {
     const g = couche.current;
     if (!g) return;
@@ -764,59 +795,46 @@ export default function ZonesIntervention() {
     const etiqDistrict = n === "projet" || n === "region" || n === "district";
     const etiqCommune = n === "district" || n === "commune";
 
-    const ligneDuDistrict = (dk: string) => LIGNES.find((l) => l.district && cle(l.district.nom) === dk);
-    const ligneDeCommune = (ck: string) => LIGNES.find((l) => l.commune && cle(l.commune.nom) === ck);
-
     /* Régions */
     regions.forEach((f) => {
       const k = cle(nomFeat(f));
       const inter = SURB_REG.has(k);
-      const etat: Etat = n === "region" && regionActive === k ? "choisie" : inter ? "inter" : "hors";
+      const etat: Etat = n === "region" && regionFeat === f ? "choisie" : inter ? "inter" : "hors";
       dessiner(g, f, "region", etat, etiqRegion && inter, () => {
         if (!inter) return;
-        if (n === "region" && regionActive === k) effacer();
+        if (n === "region" && regionFeat === f) effacer();
         else choisirZone("region", k);
       });
     });
 
     /* Districts d'intervention, et tous ceux de la région sélectionnée */
-    const districtsAff = districts.filter(
-      (d) => NOMS_DIS.has(cle(nomFeat(d))) || (regionFeat && estDans(d, regionFeat))
-    );
-    districtsAff.forEach((d) => {
-      const dk = cle(nomFeat(d));
-      const inter = NOMS_DIS.has(dk);
-      const etat: Etat = n === "district" && districtActive === dk ? "choisie" : inter ? "inter" : "hors";
-      dessiner(g, d, "district", etat, etiqDistrict && inter, () => {
-        if (!inter) return;
-        const l = ligneDuDistrict(dk);
-        if (!l) return;
-        const rk = cle(l.region.nom);
-        if (n === "district" && districtActive === dk) choisirZone("region", rk);
-        else choisirZone("district", dk, rk);
+    districts
+      .filter((d) => interDisSet.has(d) || (regionFeat && estDans(d, regionFeat)))
+      .forEach((d) => {
+        const inter = interDisSet.has(d);
+        const etat: Etat = n === "district" && districtFeat === d ? "choisie" : inter ? "inter" : "hors";
+        dessiner(g, d, "district", etat, etiqDistrict && inter, () => {
+          if (!inter) return;
+          const l = ligneDis.get(d);
+          if (!l) return;
+          if (n === "district" && districtFeat === d) choisirZone("region", cle(l.region.nom));
+          else choisirZone("district", cle(l.district!.nom), cle(l.region.nom));
+        });
       });
-    });
 
-    /* Communes d'intervention, et toutes celles du district sélectionné */
-    const communesAff = communes.filter(
-      (c) => NOMS_COM.has(cle(nomFeat(c))) || (districtFeat && estDans(c, districtFeat))
-    );
-    communesAff.forEach((c) => {
-      const ck = cle(nomFeat(c));
-      const inter = NOMS_COM.has(ck);
-      const etat: Etat = n === "commune" && communeActive === ck ? "choisie" : inter ? "inter" : "hors";
-      dessiner(g, c, "commune", etat, etiqCommune && inter, () => {
-        if (!inter) return;
-        const l = ligneDeCommune(ck);
-        if (!l || !l.district) return;
-        const rk = cle(l.region.nom);
-        const dk = cle(l.district.nom);
-        if (n === "commune" && communeActive === ck) choisirZone("district", dk, rk);
-        else choisirZone("commune", ck, rk, dk);
+    /* Communes d'intervention uniquement (aucune autre commune, même homonyme ailleurs) */
+    interComSet.forEach((c) => {
+      const etat: Etat = n === "commune" && communeFeat === c ? "choisie" : "inter";
+      dessiner(g, c, "commune", etat, etiqCommune, () => {
+        const l = ligneCom.get(c);
+        if (!l || !l.district || !l.commune) return;
+        if (n === "commune" && communeFeat === c)
+          choisirZone("district", cle(l.district.nom), cle(l.region.nom));
+        else choisirZone("commune", cle(l.commune.nom), cle(l.region.nom), cle(l.district.nom));
       });
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, communes, sel, vide, regionActive, districtActive, communeActive, regionFeat, districtFeat]);
+  }, [apZ, regions, districts, sel, vide, regionFeat, districtFeat, communeFeat, interDisSet, interComSet, ligneDis, ligneCom]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -898,11 +916,9 @@ export default function ZonesIntervention() {
     actives.filter((l) => l.district).map((l) => `${cle(l.region.nom)}|${cle(l.district!.nom)}`)
   ).size;
 
-  /* Superficie d'une commune : recherchée dans son district, pour éviter les homonymes */
+  /* Superficie de la commune, prise dans la géométrie trouvée pour sa ligne */
   const surfaceDe = (l: LigneCommune) => {
-    const dF = districts.find((d) => cle(nomFeat(d)) === cle(l.district.nom));
-    const cibles = communes.filter((c) => cle(nomFeat(c)) === cle(l.commune.nom));
-    const f = cibles.find((c) => (dF ? estDans(c, dF) : true)) ?? cibles[0];
+    const f = featCom.get(cleLigne(l));
     return f ? surfaceHa(f) : null;
   };
   const totaux = lignesCommunes.reduce(
