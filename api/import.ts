@@ -4,7 +4,7 @@ import importCouts from "../server/import-couts.js";
 import importDecaissement from "../server/import-decaissement.js";
 import importIndicateurs from "../server/import-indicateurs.js";
 import osmTerritoire from "../server/osm-territoire.js";
-import zonesIntervention from "../server/zones-intervention.js";
+import zonesIntervention from "../server/zones-intervention.ts";
 
 type Handler = (req: any, res: any) => unknown;
 
