@@ -60,16 +60,12 @@ const PROJETS: Projet[] = [
             nom: "Antsiranana II",
             communes: communesVides(
               "Anivorano-Nord",
-              "Ambondrona",
-              "Andranofanjava",
-              "Bobakilandy",
+              "Antsoha",
+              "Ankarongana",
               "Joffre Ville",
               "Sakaramy",
-              "Marosolava",
-              "Mangaoko",
-              "Antsalaka",
-              "Anketrakabe",
-              "Mahavanona"
+              "Mangaoka",
+              "Antsahampano",
             ),
           },
           {
