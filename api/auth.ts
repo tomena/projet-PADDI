@@ -65,8 +65,8 @@ function signer(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }
 
-function creerJeton(userName: string, secret: string): string {
-  const payload = Buffer.from(JSON.stringify({ u: userName, exp: Date.now() + DUREE_JETON_MS })).toString("base64url");
+function creerJeton(userName: string, mail: string, secret: string): string {
+  const payload = Buffer.from(JSON.stringify({ u: userName, e: mail, exp: Date.now() + DUREE_JETON_MS })).toString("base64url");
   return `${payload}.${signer(payload, secret)}`;
 }
 
