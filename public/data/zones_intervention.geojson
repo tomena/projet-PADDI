@@ -333,20 +333,6 @@
         "projet_id": "paddi",
         "projet": "PADDI+",
         "type": "environnement",
-        "region": "Atsimo Atsinanana",
-        "district": "Vangaindrano",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
         "region": "Anosy",
         "district": "Taolagnaro",
         "commune": null,
@@ -504,6 +490,48 @@
         "region": "Atsimo Atsinanana",
         "district": "Farafangana",
         "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Vangaindrano",
+        "commune": "Ambongo",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Vangaindrano",
+        "commune": "Vatanato",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Vangaindrano",
+        "commune": "Ambatolava",
         "mbv_ha": null,
         "activites": []
       }
