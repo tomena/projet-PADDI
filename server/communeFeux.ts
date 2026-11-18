@@ -1,386 +1,522 @@
-/**
- * communeFeux.ts — analyse d'une commune à partir des lignes de la base des feux (Bases_Feux)
- * et des points de feux satellite (FIRMS). Logique pure, sans React : testable seule.
- *
- * Lignes attendues (propriétés du GeoJSON) : Commune, AP, Année, Source (Commune | 5km | Interieur),
- * Janvier … Décembre (null si le mois n'est pas encore renseigné), Total.
- *
- * Principes :
- *  - un mois vide reste vide (null), jamais 0 : une année incomplète n'est pas comparée à une année complète ;
- *  - l'année en cours est comparée à la MÊME période des années complètes ;
- *  - aucune phrase n'est produite sur une donnée absente (ex. pas de limite de commune → pas de décompte de points).
- */
+import React, { useEffect, useMemo } from "react";
+import { X } from "lucide-react";
+import {
+  ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Cell,
+} from "recharts";
+// Ajuste le chemin selon ton arborescence (communeFeux.ts est dans server/)
+import { analyserCommune, bilanPoints, txtCommune } from "../../server/communeFeux";
+import { inZone, norm } from "../lib/fireGeo";
+import type { Zone } from "../lib/fireGeo";
 
-export const MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
-export const REF_DEBUT = 2020, REF_FIN = 2024; // même référence que la page : moyenne historique 2020-2024
-export const SEUIL_INTERIEUR_HA = 1;            // sous ce niveau, pas de feu significatif dans l'aire protégée
+export type FicheFire = { t: number; lat: number; lon: number; frp: number | null; age: number };
 
-export type Tend = "hausse" | "baisse" | "stable" | null;
-export type Lvl = "haute" | "moyenne" | "info";
-type Mois12 = (number | null)[];
-
-const src = (p: any) => String(p?.Source ?? "").trim().toLowerCase();
-const val = (v: any): number | null => {
-  if (v == null || v === "") return null;
-  const n = Number(String(v).replace(",", "."));
-  return Number.isFinite(n) ? n : null;
-};
-const complet = (m?: Mois12) => !!m && m.length === 12 && m.every((v) => v != null);
-const somme = (m: Mois12, n = 12) => m.slice(0, n).reduce<number>((s, v) => s + (v ?? 0), 0);
-const moyenne = (v: number[]) => (v.length ? v.reduce((s, x) => s + x, 0) / v.length : 0);
-const dernierRempli = (m: Mois12) => m.reduce((l, v, i) => (v != null ? i : l), -1);
-
-function serie(rows: any[], source: string): Map<number, Mois12> {
-  const out = new Map<number, Mois12>();
-  for (const p of rows) {
-    if (src(p) !== source) continue;
-    const an = Number(p["Année"]);
-    if (!Number.isFinite(an)) continue;
-    const mois = MOIS.map((k) => val(p[k])), cur = out.get(an);
-    out.set(an, cur ? mois.map((v, i) => (v == null ? cur[i] : cur[i] == null ? v : Math.max(v, cur[i] as number))) : mois);
-  }
-  return out;
-}
-
-function tendance(v: number[], seuil: number): Tend {
-  if (v.length < 4) return null;
-  const h = Math.floor(v.length / 2);
-  const a = moyenne(v.slice(0, h)), b = moyenne(v.slice(v.length - h));
-  return b > a * 1.25 && b - a > seuil ? "hausse" : b < a * 0.75 && a - b > seuil ? "baisse" : "stable";
-}
-
-/* ===================== ANALYSE DE LA BASE ===================== */
-
-export type Annee = { annee: number; ha: number; complet: boolean; dernierMois: number; interieur: number | null; peripherie: number | null };
-export type CommuneAnalyse = {
-  annees: Annee[];
-  anneeSel: Annee | null;
-  moyRef: number | null;
-  vsRef: number | null;                       // % si l'année choisie est complète
-  memePeriode: { ha: number; ref: number; ratio: number | null; dernierMois: number } | null; // si elle est incomplète
-  mensuel: { m: number; sel: number | null; prec: number | null; moy: number | null }[];
-  heat: { annee: number; mois: Mois12 }[];
-  saison: { debut: number; fin: number; pic: number; part: number } | null;
-  tendance: Tend; moyDebut: number; moyFin: number;
-  recurrence: { n: number; sur: number };
-  moyHa: number;
-  pctSup: number | null; pctSupSel: number | null; incoherent: boolean;
-  interieur: { moy: number; touchees: number; sur: number } | null;
-  peripherie: { moy: number } | null;
-  derniere: { annee: number; mois: number } | null;
+export type CommuneFicheProps = {
+  commune: string;
+  ap: string;
+  year: number;
+  hours: number;
+  lang: string;
+  monthNames: string[];
+  rowsAP: any[];                 // propriétés des lignes de la base pour l'AP choisie
+  superficieHa: number | null;   // superficie de la commune (ha)
+  rang: number;                  // rang de la commune dans l'AP (1 = la plus touchée)
+  nbCommunes: number;
+  partAP: number | null;         // part (%) de la commune dans le total brûlé de l'AP
+  zone: Zone | null;             // limite géographique de la commune (pour compter les points de feux)
+  fires: FicheFire[];
+  onClose: () => void;
 };
 
-export function analyserCommune(rows: any[], annee: number, superficieHa: number | null): CommuneAnalyse {
-  const C = serie(rows, "commune"), I = serie(rows, "interieur"), B = serie(rows, "5km");
-  const ans = [...C.keys()].sort((a, b) => a - b);
-  const sup = superficieHa && superficieHa > 0 ? superficieHa : null;
+/* ---- Seuils et calibrage (à ajuster avec l'équipe) ---- */
+const FRP_SEUIL_MW = 50;        // en dessous, la puissance cumulée n'est pas commentée
+const FRP_HA_PAR_MW = 0.5;      // ESTIMATION INDICATIVE : hectares potentiellement touchés par MW cumulé. À calibrer.
+const SEUIL_INTERIEUR_HA = 1;
 
-  const annees: Annee[] = ans.map((y) => {
-    const m = C.get(y)!, ok = complet(m);
-    return {
-      annee: y, ha: somme(m), complet: ok, dernierMois: dernierRempli(m),
-      interieur: ok && I.has(y) && complet(I.get(y)) ? somme(I.get(y)!) : null,
-      peripherie: ok && B.has(y) && complet(B.get(y)) ? somme(B.get(y)!) : null,
+const LOC: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE" };
+const LVL_COLOR: Record<"haute" | "moyenne" | "info", string> = { haute: "#dc2626", moyenne: "#d97706", info: "#2563eb" };
+const REF_LABEL = "2020–2024";
+
+type Ln = { lvl: "haute" | "moyenne" | "info"; t: string; d?: string };
+
+const CSS = `
+.fxm-bg{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:12px}
+.fxm{background:var(--surface,#fff);color:var(--text,#0f172a);border:1px solid var(--border,#e2e8f0);border-radius:14px;width:min(1040px,100%);max-height:92vh;overflow:auto;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.fxm *{box-sizing:border-box}
+.fxm-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.fxm-h h2{margin:0;font-size:20px;color:color-mix(in srgb,#0b4ea2 60%,var(--text,#0f172a))}
+.fxm-h p{margin:2px 0 0;font-size:12px;color:var(--text-3,#64748b)}
+.fxm-x{border:1px solid var(--border,#e2e8f0);background:var(--surface-3,#f1f5f9);color:var(--text,#0f172a);border-radius:8px;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;flex:none}
+.fxm-x:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+.fxm-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
+.fxm-kpi{border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:8px 10px;background:var(--surface-2,#f8fafc)}
+.fxm-kpi span{display:block;font-size:11px;color:var(--text-2,#475569);font-weight:600}
+.fxm-kpi b{display:block;font-size:17px;margin-top:2px;color:var(--text,#0f172a)}
+.fxm-kpi small{display:block;font-size:10.5px;color:var(--text-3,#64748b)}
+.fxm-grid{display:grid;grid-template-columns:1fr;gap:10px}
+@media(min-width:760px){.fxm-grid{grid-template-columns:1fr 1fr;align-items:start}}
+.fxm-col{display:flex;flex-direction:column;gap:10px;min-width:0}
+.fxm-card{border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:10px;background:var(--surface,#fff);min-width:0}
+.fxm-card h3{margin:0 0 6px;font-size:13px;text-align:center;color:#b91c1c}
+.fxm-info h3{color:var(--text,#0f172a);text-align:left}
+.fxm-chart{height:210px}
+.fxm-chips{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;font-size:11px;color:var(--text-2,#475569);margin-bottom:4px}
+.fxm-chips i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
+.fxm-note{font-size:11px;color:var(--text-3,#64748b);margin:6px 0 0;text-align:center}
+.fxm-item{border-left:4px solid;padding:6px 10px;margin-bottom:8px;background:var(--surface-2,#f8fafc);border-radius:6px}
+.fxm-item:last-child{margin-bottom:0}
+.fxm-it-t{font-weight:700;font-size:13px}
+.fxm-it-d{font-size:12.5px;margin-top:2px;color:var(--text-2,#475569)}
+@media(prefers-reduced-motion:reduce){.fxm *{transition:none!important}}
+`;
+
+const TICK = { fontSize: 11, fill: "var(--text-3,#64748b)" };
+const TIP_STYLE = { background: "var(--surface,#fff)", border: "1px solid var(--border,#e2e8f0)", color: "var(--text,#0f172a)", borderRadius: 8, fontSize: 12 };
+
+/* Carte d'information : une liste de constats colorés par niveau */
+const InfoCard = ({ title, lines, empty }: { title: string; lines: Ln[]; empty: string }) => (
+  <section className="fxm-card fxm-info">
+    <h3>{title}</h3>
+    {lines.length === 0 ? (
+      <p className="fxm-note">{empty}</p>
+    ) : (
+      lines.map((l, i) => (
+        <div key={i} className="fxm-item" style={{ borderLeftColor: LVL_COLOR[l.lvl] }}>
+          <div className="fxm-it-t" style={{ color: LVL_COLOR[l.lvl] }}>
+            {l.t}
+          </div>
+          {l.d && <div className="fxm-it-d">{l.d}</div>}
+        </div>
+      ))
+    )}
+  </section>
+);
+
+export default function CommuneFiche({
+  commune, ap, year, hours, lang, monthNames, rowsAP, superficieHa, rang, nbCommunes, partAP, zone, fires, onClose,
+}: CommuneFicheProps) {
+  const T = txtCommune(lang);
+  const isEn = lang === "en";
+  const tx = (fr: string, en: string) => (isEn ? en : fr);
+  const loc = LOC[lang] ?? "fr-FR";
+  const fmt = (v: number) => v.toLocaleString(loc, { maximumFractionDigits: 1 }) + " ha";
+  const n0 = (v: number) => v.toLocaleString(loc, { maximumFractionDigits: 0 });
+  const p1 = (v: number) => v.toLocaleString(loc, { maximumFractionDigits: 1 }) + " %";
+  const mName = (m: number) => monthNames[m] ?? String(m + 1);
+  const nowDate = new Date();
+  const nowMonth = nowDate.getMonth();
+
+  // Échap pour fermer
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
     };
-  });
-  const cmpl = annees.filter((a) => a.complet);
-  const ha = cmpl.map((a) => a.ha);
-  const moyHa = moyenne(ha);
-  const anneeSel = annees.find((a) => a.annee === annee) ?? null;
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
 
-  const refs = cmpl.filter((a) => a.annee >= REF_DEBUT && a.annee <= REF_FIN);
-  const moyRef = refs.length >= 3 ? moyenne(refs.map((a) => a.ha)) : null;
-  const vsRef = anneeSel?.complet && moyRef != null && moyRef > 0 ? ((anneeSel.ha - moyRef) / moyRef) * 100 : null;
+  // Lignes de cette seule commune
+  const key = norm(commune);
+  const rows = useMemo(() => rowsAP.filter((p) => norm(p.Commune) === key), [rowsAP, key]);
 
-  let memePeriode: CommuneAnalyse["memePeriode"] = null;
-  if (anneeSel && !anneeSel.complet && anneeSel.dernierMois >= 0 && refs.length >= 3) {
-    const dm = anneeSel.dernierMois, n = dm + 1;
-    const ref = moyenne(refs.map((a) => somme(C.get(a.annee)!, n)));
-    memePeriode = { ha: anneeSel.ha, ref, ratio: ref > 0 ? anneeSel.ha / ref : null, dernierMois: dm };
-  }
+  const analyse = useMemo(() => analyserCommune(rows, year, superficieHa), [rows, year, superficieHa]);
 
-  const profil = cmpl.length >= 2 ? Array.from({ length: 12 }, (_, m) => moyenne(cmpl.map((a) => C.get(a.annee)![m] as number))) : null;
-  const mensuel = MOIS.map((_, m) => ({
-    m, sel: C.get(annee)?.[m] ?? null, prec: C.get(annee - 1)?.[m] ?? null, moy: profil ? profil[m] : null,
+  // Points de feux satellite situés dans la commune
+  const bilan = useMemo(() => {
+    if (!zone) return null;
+    const pts = fires.filter((f) => inZone(f.lon, f.lat, zone)).map((f) => ({ t: f.t, age: f.age, frp: f.frp }));
+    return bilanPoints(pts, hours, superficieHa);
+  }, [zone, fires, hours, superficieHa]);
+
+  const cur = analyse.anneeSel;
+  const curRow = cur;
+
+  /* ---------- Carte 1 : année en cours (sous « Saisonnalité mensuelle ») ---------- */
+  const lignesAnnee = useMemo((): Ln[] => {
+    const out: Ln[] = [];
+
+    // Bilan de l'année
+    if (!cur) {
+      out.push({ lvl: "info", t: tx(`Aucune donnée pour ${year}`, `No data for ${year}`) });
+    } else if (cur.complet && analyse.vsRef != null) {
+      const v = analyse.vsRef;
+      out.push({
+        lvl: v >= 25 ? "haute" : v >= 10 ? "moyenne" : "info",
+        t: `${year} : ${fmt(cur.ha)}`,
+        d: tx(
+          `${v > 0 ? "+" : ""}${v.toFixed(1)} % par rapport à la moyenne ${REF_LABEL} (${fmt(analyse.moyRef ?? 0)}).`,
+          `${v > 0 ? "+" : ""}${v.toFixed(1)} % versus the ${REF_LABEL} average (${fmt(analyse.moyRef ?? 0)}).`
+        ),
+      });
+    } else if (analyse.memePeriode?.ratio != null) {
+      const mp = analyse.memePeriode;
+      const r = mp.ratio!;
+      out.push({
+        lvl: r >= 1.3 ? "haute" : r >= 1.1 ? "moyenne" : "info",
+        t: tx(
+          `${year} incomplet (janvier à ${mName(mp.dernierMois)}) : ${r.toFixed(1)} fois la moyenne de la même période`,
+          `${year} incomplete (January to ${mName(mp.dernierMois)}): ${r.toFixed(1)} times the same-period average`
+        ),
+        d: tx(
+          `${fmt(mp.ha)} brûlés, contre ${fmt(mp.ref)} en moyenne sur ${REF_LABEL} pour la même période.`,
+          `${fmt(mp.ha)} burned, versus ${fmt(mp.ref)} on average over ${REF_LABEL} for the same period.`
+        ),
+      });
+    } else {
+      out.push({ lvl: "info", t: `${year} : ${fmt(cur.ha)}` });
+    }
+
+    // Retard de la base
+    if (analyse.derniere) {
+      const d = analyse.derniere;
+      const lag = nowDate.getFullYear() * 12 + nowMonth - (d.annee * 12 + d.mois);
+      if (lag >= 1) {
+        out.push({
+          lvl: "info",
+          t: tx(`Dernière donnée de la base : ${mName(d.mois)} ${d.annee}`, `Latest database entry: ${mName(d.mois)} ${d.annee}`),
+          d: tx("Les détections récentes ne sont pas encore comptées dans les superficies.", "Recent detections are not yet counted in the burned areas."),
+        });
+      }
+    }
+
+    // Zone tampon : part de la commune
+    if (cur && cur.complet && cur.peripherie != null && cur.ha > 0) {
+      const pc = (cur.peripherie / cur.ha) * 100;
+      out.push({
+        lvl: pc >= 20 ? "haute" : pc >= 5 ? "moyenne" : "info",
+        t: tx(`Zone tampon 5 km : ${fmt(cur.peripherie)} brûlés en ${year}`, `5 km buffer: ${fmt(cur.peripherie)} burned in ${year}`),
+        d: tx(
+          `soit ${p1(pc)} de la superficie brûlée de la commune cette année : ces feux peuvent se propager vers l'aire protégée.`,
+          `i.e. ${p1(pc)} of the commune's burned area this year: these fires can spread toward the protected area.`
+        ),
+      });
+    }
+
+    // Satellite : détections et puissance cumulée
+    if (!zone) {
+      out.push({
+        lvl: "info",
+        t: tx("Limite de commune introuvable", "Commune boundary not found"),
+        d: tx("Les points de feux satellite ne peuvent pas être rattachés à la commune.", "Satellite fire points cannot be assigned to the commune."),
+      });
+    } else if (bilan && bilan.n72 > 0) {
+      out.push({
+        lvl: bilan.n24 > 0 ? "haute" : "moyenne",
+        t: tx(`${bilan.n72} détection(s) satellite sur 72 h`, `${bilan.n72} satellite detection(s) over 72 h`),
+        d: tx(`dont ${bilan.n24} sur les dernières 24 h.`, `including ${bilan.n24} in the last 24 h.`),
+      });
+      if (bilan.frpTotal >= FRP_SEUIL_MW) {
+        const hectares = bilan.frpTotal * FRP_HA_PAR_MW;
+        out.push({
+          lvl: "haute",
+          t: tx(
+            `Puissance cumulée ${n0(bilan.frpTotal)} MW : propagation possible sur environ ${n0(hectares)} ha`,
+            `Cumulative power ${n0(bilan.frpTotal)} MW: possible spread over about ${n0(hectares)} ha`
+          ),
+          d: tx(
+            "Estimation indicative à partir de la puissance détectée : à vérifier sur le terrain.",
+            "Indicative estimate from detected power: to be verified on the ground."
+          ),
+        });
+      }
+    } else if (bilan) {
+      out.push({
+        lvl: "info",
+        t: tx(`Aucune détection satellite sur ${hours} h`, `No satellite detection over ${hours} h`),
+        d: tx(
+          "Cela ne dit rien des mois précédents : l'historique vient de la base.",
+          "This says nothing about earlier months: the history comes from the database."
+        ),
+      });
+    }
+
+    return out;
+  }, [cur, analyse, bilan, zone, year, hours, lang, monthNames]);
+
+  /* ---------- Carte 2 : saisonnalité (sous « Saisonnalité mensuelle ») ---------- */
+  const lignesSaison = useMemo((): Ln[] => {
+    const out: Ln[] = [];
+    const z = analyse.saison;
+    if (z && analyse.recurrence.n >= 2) {
+      const avant = (z.debut - nowMonth + 12) % 12;
+      const dedans = (nowMonth - z.debut + 12) % 12 <= 2;
+      const per = `${mName(z.debut)} ${tx("à", "to")} ${mName(z.fin)}`;
+      if (dedans) {
+        out.push({
+          lvl: "haute",
+          t: tx(`Nous sommes dans la fenêtre à risque (${per})`, `We are inside the risk window (${per})`),
+          d: tx(
+            `${p1(z.part)} des surfaces brûlées se concentrent sur ces trois mois (pic en ${mName(z.pic)}). Activer la veille et positionner les équipes.`,
+            `${p1(z.part)} of burned area is concentrated in these three months (peak in ${mName(z.pic)}). Activate watch and position teams.`
+          ),
+        });
+      } else if (avant <= 2) {
+        out.push({
+          lvl: "haute",
+          t: tx(`La fenêtre à risque (${per}) commence dans ${avant} mois`, `The risk window (${per}) starts in ${avant} months`),
+          d: tx(
+            `${p1(z.part)} des surfaces brûlées se concentrent sur ces trois mois. Ouvrir et entretenir les pare-feux avant le début.`,
+            `${p1(z.part)} of burned area is concentrated in these three months. Open and maintain firebreaks before it starts.`
+          ),
+        });
+      } else {
+        out.push({
+          lvl: "moyenne",
+          t: tx(`Période la plus touchée : ${per}`, `Most affected period: ${per}`),
+          d: tx(
+            `${p1(z.part)} des surfaces brûlées (pic en ${mName(z.pic)}). Hors de cette fenêtre, c'est le moment de faire le bilan et de planifier.`,
+            `${p1(z.part)} of burned area (peak in ${mName(z.pic)}). Outside this window, it is time to review and plan.`
+          ),
+        });
+      }
+    }
+    if (analyse.recurrence.sur < 3) {
+      out.push({
+        lvl: "info",
+        t: tx("Historique trop court pour une saisonnalité fiable", "History too short for a reliable seasonality"),
+        d: tx(`Moins de 3 années complètes dans la base.`, `Fewer than 3 complete years in the database.`),
+      });
+    }
+    return out;
+  }, [analyse, nowMonth, lang, monthNames]);
+
+  /* ---------- Carte 3 : multi-annuel + verdict (sous « Historique annuel ») ---------- */
+  const lignesMulti = useMemo((): Ln[] => {
+    const out: Ln[] = [];
+
+    // Verdict sur l'année en cours
+    if (cur?.complet && analyse.vsRef != null) {
+      const v = analyse.vsRef;
+      const word =
+        v >= 25 ? tx("année très forte", "very severe year")
+          : v >= 10 ? tx("année au-dessus de la moyenne", "above-average year")
+          : v <= -10 ? tx("année en dessous de la moyenne", "below-average year")
+          : tx("année proche de la moyenne", "near-average year");
+      out.push({
+        lvl: v >= 25 ? "haute" : v >= 10 ? "moyenne" : "info",
+        t: tx(`Verdict ${year} : ${word}`, `${year} verdict: ${word}`),
+        d: tx(`Référence ${REF_LABEL}, moyenne ${fmt(analyse.moyRef ?? 0)}.`, `${REF_LABEL} reference, average ${fmt(analyse.moyRef ?? 0)}.`),
+      });
+    } else if (cur && analyse.memePeriode?.ratio != null) {
+      const r = analyse.memePeriode.ratio!;
+      const word =
+        r >= 1.3 ? tx("forte pression pour la période", "high pressure for the period")
+          : r >= 1.1 ? tx("au-dessus de la même période", "above the same period")
+          : r <= 0.9 ? tx("en dessous de la même période", "below the same period")
+          : tx("proche de la même période", "close to the same period");
+      out.push({
+        lvl: r >= 1.3 ? "haute" : r >= 1.1 ? "moyenne" : "info",
+        t: tx(`Verdict ${year} (partiel) : ${word}`, `${year} verdict (partial): ${word}`),
+        d: tx("Année non terminée : le verdict porte sur la même période des années complètes.", "Year not finished: the verdict compares the same period of complete years."),
+      });
+    }
+
+    // Tendance
+    if (analyse.tendance === "hausse") {
+      out.push({
+        lvl: "moyenne",
+        t: tx("Les surfaces brûlées augmentent", "Burned areas are increasing"),
+        d: tx(`${fmt(analyse.moyFin)}/an en moyenne récemment, contre ${fmt(analyse.moyDebut)}/an au début. À confirmer.`, `${fmt(analyse.moyFin)}/yr recently, versus ${fmt(analyse.moyDebut)}/yr at the start. To be confirmed.`),
+      });
+    } else if (analyse.tendance === "baisse") {
+      out.push({
+        lvl: "info",
+        t: tx("Baisse des surfaces brûlées", "Burned areas are decreasing"),
+        d: tx(`${fmt(analyse.moyFin)}/an en moyenne récemment, contre ${fmt(analyse.moyDebut)}/an au début.`, `${fmt(analyse.moyFin)}/yr recently, versus ${fmt(analyse.moyDebut)}/yr at the start.`),
+      });
+    }
+
+    // Récurrence
+    const rec = analyse.recurrence;
+    if (rec.sur >= 3 && analyse.moyHa > 0) {
+      if (rec.n === rec.sur) {
+        out.push({
+          lvl: "moyenne",
+          t: tx("Des feux chaque année", "Fires every year"),
+          d: tx(`Surfaces brûlées enregistrées ${rec.n} années sur ${rec.sur} : feux structurels, pas accidentels.`, `Burned area recorded in ${rec.n} of ${rec.sur} years: structural, not accidental, fires.`),
+        });
+      } else if (rec.n / rec.sur < 0.5) {
+        out.push({
+          lvl: "info",
+          t: tx("Feux occasionnels", "Occasional fires"),
+          d: tx(`Surfaces brûlées enregistrées seulement ${rec.n} années sur ${rec.sur}.`, `Burned area recorded in only ${rec.n} of ${rec.sur} years.`),
+        });
+      }
+    }
+
+    // Aire protégée (intérieur)
+    if (analyse.interieur) {
+      const i = analyse.interieur;
+      if (i.moy < SEUIL_INTERIEUR_HA) {
+        out.push({
+          lvl: "info",
+          t: tx("Pas de feu significatif dans l'aire protégée", "No significant fire inside the protected area"),
+          d: tx("Moins de 1 ha par an en moyenne à l'intérieur.", "Less than 1 ha per year on average inside."),
+        });
+      } else {
+        out.push({
+          lvl: i.moy >= 500 ? "haute" : "moyenne",
+          t: tx(`Intérieur de l'AP : ${fmt(i.moy)}/an en moyenne`, `Inside the PA: ${fmt(i.moy)}/yr on average`),
+          d: tx(`Touché ${i.touchees} années sur ${i.sur}. Renforcer patrouilles et pare-feux en limite.`, `Affected ${i.touchees} of ${i.sur} years. Strengthen patrols and boundary firebreaks.`),
+        });
+      }
+    }
+
+    // Zone tampon (moyenne)
+    if (analyse.peripherie && analyse.peripherie.moy >= 200) {
+      out.push({
+        lvl: "moyenne",
+        t: tx(`Zone tampon 5 km : ${fmt(analyse.peripherie.moy)}/an en moyenne`, `5 km buffer: ${fmt(analyse.peripherie.moy)}/yr on average`),
+        d: tx("Ces feux peuvent se propager vers l'aire protégée : prévoir des pare-feux avec les communautés riveraines.", "These fires can spread toward the protected area: plan firebreaks with neighbouring communities."),
+      });
+    }
+
+    // Rang dans l'AP
+    if (rang > 0 && partAP != null) {
+      out.push({
+        lvl: rang <= 3 ? "haute" : rang <= 6 ? "moyenne" : "info",
+        t: tx(`N° ${rang} sur ${nbCommunes} dans l'AP`, `No. ${rang} of ${nbCommunes} in the PA`),
+        d: tx(`${p1(partAP)} des surfaces brûlées de l'aire protégée en ${year}.`, `${p1(partAP)} of the protected area's burned area in ${year}.`),
+      });
+    }
+
+    return out;
+  }, [cur, analyse, year, rang, nbCommunes, partAP, lang, monthNames]);
+
+  const mensuel = analyse.mensuel.map((r) => ({
+    mois: monthNames[r.m]?.slice(0, 3) ?? String(r.m + 1),
+    sel: r.sel ?? undefined,
+    prec: r.prec ?? undefined,
+    moy: r.moy ?? undefined,
   }));
 
-  let saison: CommuneAnalyse["saison"] = null;
-  const tot = profil ? profil.reduce((s, x) => s + x, 0) : 0;
-  if (profil && tot > 0) {
-    let debut = 0, best = -1;
-    for (let s = 0; s < 12; s++) {
-      const x = profil[s] + profil[(s + 1) % 12] + profil[(s + 2) % 12];
-      if (x > best) { best = x; debut = s; }
-    }
-    saison = { debut, fin: (debut + 2) % 12, pic: profil.indexOf(Math.max(...profil)), part: (best / tot) * 100 };
-  }
+  const historique = analyse.annees.map((a) => ({
+    an: String(a.annee),
+    ha: a.ha,
+    sel: a.annee === year,
+    complet: a.complet,
+  }));
 
-  const h = Math.floor(ha.length / 2);
-  const incoherent = sup != null && ha.length > 0 && Math.max(...ha) > sup * 1.05;
-  const iv = [...I.entries()].filter(([, m]) => complet(m)).map(([, m]) => somme(m));
-  const bv = [...B.entries()].filter(([, m]) => complet(m)).map(([, m]) => somme(m));
+  return (
+    <div className="fxm-bg" onClick={onClose} role="presentation">
+      <style>{CSS}</style>
+      <div className="fxm" role="dialog" aria-modal="true" aria-labelledby="fxm-title" onClick={(e) => e.stopPropagation()}>
+        <header className="fxm-h">
+          <div>
+            <h2 id="fxm-title">{commune}</h2>
+            <p>
+              {T.apLbl} : {ap} · {year}
+            </p>
+          </div>
+          <button className="fxm-x" onClick={onClose} aria-label={T.fermer} title={T.fermer}>
+            <X size={18} />
+          </button>
+        </header>
 
-  let derniere: CommuneAnalyse["derniere"] = null;
-  for (const y of [...ans].reverse()) {
-    const d = dernierRempli(C.get(y)!);
-    if (d >= 0) { derniere = { annee: y, mois: d }; break; }
-  }
+        {rows.length === 0 ? (
+          <p className="fxm-note">{T.aucune}</p>
+        ) : (
+          <>
+            <div className="fxm-kpis">
+              <div className="fxm-kpi">
+                <span>{T.totalAn.replace("{an}", String(year))}</span>
+                <b>{cur ? fmt(cur.ha) : T.na}</b>
+                {cur && !cur.complet && <small>{T.partiel}</small>}
+              </div>
+              <div className="fxm-kpi">
+                <span>{T.rang}</span>
+                <b>{rang > 0 ? `${rang} / ${nbCommunes}` : T.na}</b>
+                {partAP != null && <small>{`${T.partAP} : ${p1(partAP)}`}</small>}
+              </div>
+              <div className="fxm-kpi">
+                <span>{T.interieurAn}</span>
+                <b>{analyse.interieur ? fmt(analyse.interieur.moy) : T.na}</b>
+              </div>
+              <div className="fxm-kpi">
+                <span>{T.recurrence}</span>
+                <b>{analyse.recurrence.sur ? `${analyse.recurrence.n} / ${analyse.recurrence.sur}` : T.na}</b>
+              </div>
+              <div className="fxm-kpi">
+                <span>{T.detect72}</span>
+                <b>{bilan ? n0(bilan.n72) : T.na}</b>
+              </div>
+            </div>
 
-  return {
-    annees, anneeSel, moyRef, vsRef, memePeriode, mensuel,
-    heat: ans.map((y) => ({ annee: y, mois: C.get(y)! })),
-    saison, tendance: tendance(ha, sup ? sup * 0.0005 : 50), moyDebut: moyenne(ha.slice(0, h)), moyFin: moyenne(ha.slice(ha.length - h)),
-    recurrence: { n: ha.filter((x) => x > 0).length, sur: ha.length },
-    moyHa,
-    pctSup: sup && !incoherent ? (moyHa / sup) * 100 : null,
-    pctSupSel: sup && anneeSel && !incoherent ? (anneeSel.ha / sup) * 100 : null,
-    incoherent,
-    interieur: iv.length ? { moy: moyenne(iv), touchees: iv.filter((x) => x > 0).length, sur: iv.length } : null,
-    peripherie: bv.length ? { moy: moyenne(bv) } : null,
-    derniere,
-  };
+            <div className="fxm-grid">
+              {/* Colonne gauche : saisonnalité + année en cours */}
+              <div className="fxm-col">
+                <section className="fxm-card">
+                  <h3>{T.mens}</h3>
+                  <div className="fxm-chips">
+                    <span>
+                      <i style={{ background: "#2563eb", opacity: 0.5 }} />
+                      {T.prec} ({year - 1})
+                    </span>
+                    <span>
+                      <i style={{ background: "#dc2626" }} />
+                      {T.sel} ({year})
+                    </span>
+                    <span>
+                      <i style={{ background: "#64748b" }} />
+                      {T.moy}
+                    </span>
+                  </div>
+                  <div className="fxm-chart">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <ComposedChart data={mensuel} margin={{ top: 6, right: 8, left: -10, bottom: 0 }}>
+                        <CartesianGrid stroke="var(--border,#e2e8f0)" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="mois" tick={TICK} axisLine={false} tickLine={false} />
+                        <YAxis tick={TICK} axisLine={false} tickLine={false} width={44} />
+                        <Tooltip contentStyle={TIP_STYLE} labelStyle={{ color: "var(--text,#0f172a)" }} formatter={(v: any) => fmt(Number(v))} />
+                        <Bar dataKey="prec" name={`${year - 1}`} fill="#2563eb" fillOpacity={0.5} radius={[3, 3, 0, 0]} />
+                        <Bar dataKey="sel" name={`${year}`} fill="#dc2626" radius={[3, 3, 0, 0]} />
+                        <Line type="monotone" dataKey="moy" name={T.moy} stroke="#64748b" strokeWidth={2} strokeDasharray="4 3" dot={false} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="fxm-note">{T.mensNote}</p>
+                </section>
+
+                <InfoCard
+                  title={tx(`Année ${year} et saisonnalité`, `${year} and seasonality`)}
+                  lines={[...lignesAnnee, ...lignesSaison]}
+                  empty={T.aucune}
+                />
+              </div>
+
+              {/* Colonne droite : historique + saisonnalité multi-annuelle + verdict */}
+              <div className="fxm-col">
+                <section className="fxm-card">
+                  <h3>{T.hist}</h3>
+                  <div className="fxm-chart">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={historique} margin={{ top: 6, right: 8, left: -10, bottom: 0 }}>
+                        <CartesianGrid stroke="var(--border,#e2e8f0)" strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="an" tick={TICK} axisLine={false} tickLine={false} />
+                        <YAxis tick={TICK} axisLine={false} tickLine={false} width={44} />
+                        <Tooltip contentStyle={TIP_STYLE} labelStyle={{ color: "var(--text,#0f172a)" }} formatter={(v: any) => fmt(Number(v))} />
+                        <Bar dataKey="ha" name="ha" radius={[4, 4, 0, 0]}>
+                          {historique.map((h, i) => (
+                            <Cell key={i} fill={h.sel ? "#dc2626" : h.complet ? "#64748b" : "#cbd5e1"} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="fxm-note">{T.histNote}</p>
+                </section>
+
+                <InfoCard
+                  title={tx("Analyse multi-annuelle et verdict", "Multi-year analysis and verdict")}
+                  lines={lignesMulti}
+                  empty={T.aucune}
+                />
+              </div>
+            </div>
+
+            <p className="fxm-note">{T.src}</p>
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
-
-/* ===================== POINTS DE FEUX (satellite) ===================== */
-
-export type Bilan = {
-  total: number; n24: number; n48: number; n72: number;
-  frpTotal: number; frpMax: number | null;
-  premier: number | null; dernier: number | null;
-  largeurH: number;
-  bins: { de: number; a: number; n: number }[];   // du plus récent au plus ancien
-  densite: number | null;                          // détections pour 100 km² sur 72 h
-};
-
-/** pts : points DÉJÀ filtrés sur la commune, avec leur âge en heures. fenetreH : âge du plus ancien point connu (toutes zones). */
-export function bilanPoints(pts: { t: number; age: number; frp: number | null }[], fenetreH: number, superficieHa: number | null): Bilan {
-  const largeurH = fenetreH <= 80 ? 6 : 24;
-  const nb = Math.min(40, Math.max(1, Math.ceil(fenetreH / largeurH)));
-  const bins = Array.from({ length: nb }, (_, i) => ({ de: i * largeurH, a: (i + 1) * largeurH, n: 0 }));
-  let frpTotal = 0, frpMax: number | null = null;
-  for (const p of pts) {
-    bins[Math.min(nb - 1, Math.max(0, Math.floor(p.age / largeurH)))].n++;
-    if (p.frp != null) { frpTotal += p.frp; frpMax = frpMax == null ? p.frp : Math.max(frpMax, p.frp); }
-  }
-  const n72 = pts.filter((p) => p.age <= 72).length;
-  return {
-    total: pts.length, n24: pts.filter((p) => p.age <= 24).length, n48: pts.filter((p) => p.age <= 48).length, n72,
-    frpTotal, frpMax,
-    premier: pts.length ? Math.min(...pts.map((p) => p.t)) : null,
-    dernier: pts.length ? Math.max(...pts.map((p) => p.t)) : null,
-    largeurH, bins,
-    densite: superficieHa && superficieHa > 0 ? (n72 / (superficieHa / 100)) * 100 : null,
-  };
-}
-
-/* ===================== TEXTES (FR / EN ; mg et de retombent sur le français) ===================== */
-
-type R = { t: string; d: string; a?: string[] };
-type Key =
-  | "pos" | "refComplet" | "refPartiel" | "tendHausse" | "tendBaisse" | "recurrent" | "occasionnel"
-  | "saisonDedans" | "saisonAvant" | "saisonHors" | "interieur" | "interieurNul" | "peripherie"
-  | "pointsActifs" | "pointsAucun" | "pointsSansLimite" | "retardBase" | "incoherent";
-
-const FR: Record<Key, R> = {
-  pos: { t: "{c} : n° {rang} sur {de} dans {ap}", d: "{part} des surfaces brûlées des communes de l'aire protégée en {an}." },
-  refComplet: { t: "{an} : {pct} par rapport à la moyenne historique", d: "{ha} ha brûlés en {an}, contre {moy} ha en moyenne sur {ref}." },
-  refPartiel: {
-    t: "{an} (janvier à {mois}) : {ratio} fois la moyenne de la même période",
-    d: "{ha} ha brûlés, contre {ref} ha en moyenne sur la même période ({refAns}). {manque} ne figurent pas encore dans la base : le bilan {an} est incomplet.",
-  },
-  tendHausse: {
-    t: "Les surfaces brûlées augmentent", d: "{fin} ha/an en moyenne sur les dernières années, contre {debut} ha/an sur les premières. À confirmer par les prochaines saisons.",
-    a: ["Rechercher les causes locales de l'augmentation (défrichement, pâturage, conflits d'usage)", "Renforcer la prévention dès la prochaine saison"],
-  },
-  tendBaisse: { t: "Baisse des surfaces brûlées", d: "{fin} ha/an en moyenne sur les dernières années, contre {debut} ha/an sur les premières.", a: ["Identifier les pratiques qui ont fonctionné et les maintenir"] },
-  recurrent: { t: "Des feux chaque année", d: "Des surfaces brûlées sont enregistrées {n} années sur {sur} : les feux sont structurels dans cette commune, pas accidentels." },
-  occasionnel: { t: "Feux occasionnels", d: "Des surfaces brûlées ne sont enregistrées que {n} années sur {sur}." },
-  saisonDedans: {
-    t: "Nous sommes dans la fenêtre à risque ({debut} à {fin})", d: "{part} des surfaces brûlées de cette commune se concentrent sur ces trois mois (pic en {pic}).",
-    a: ["Activer la veille communautaire et les alertes", "Positionner les équipes sur les zones brûlées chaque année", "Signaler chaque départ de feu pour compléter la base"],
-  },
-  saisonAvant: {
-    t: "La fenêtre à risque ({debut} à {fin}) commence dans {n} mois", d: "{part} des surfaces brûlées se concentrent sur ces trois mois (pic en {pic}).",
-    a: ["Ouvrir ou entretenir les pare-feux avant {debut}", "Sensibiliser sur les brûlis et les feux de pâturage avant la saison"],
-  },
-  saisonHors: {
-    t: "Période la plus touchée : {debut} à {fin}", d: "{part} des surfaces brûlées se concentrent sur ces trois mois (pic en {pic}). Hors de cette fenêtre, c'est le moment de faire le bilan et de planifier.",
-    a: ["Faire le bilan de la dernière saison avec les communautés", "Programmer l'entretien des pare-feux avant {debut}"],
-  },
-  interieur: {
-    t: "Feux à l'intérieur de l'aire protégée", d: "{moy} ha brûlent en moyenne par an dans l'aire protégée ({t} années sur {sur}).",
-    a: ["Renforcer les patrouilles et les pare-feux en limite de l'aire protégée", "Transmettre les données au gestionnaire de l'aire protégée"],
-  },
-  interieurNul: { t: "Pas de feu significatif dans l'aire protégée", d: "Moins de 1 ha brûlé par an en moyenne à l'intérieur de l'aire protégée de la commune." },
-  peripherie: {
-    t: "Feux dans la zone tampon de 5 km", d: "{moy} ha brûlent en moyenne par an dans les 5 km autour de l'aire protégée : ils peuvent s'y propager.",
-    a: ["Établir des pare-feux dans la zone tampon avec les communautés riveraines", "Prioriser les villages proches des limites"],
-  },
-  pointsActifs: {
-    t: "Feux actifs détectés par satellite", d: "{n72} détection(s) dans la commune sur les 72 dernières heures, dont {n24} sur les dernières 24 h (puissance cumulée {frp} MW). Données disponibles sur {fenetre}.",
-    a: ["Vérifier ces points sur le terrain avec les relais locaux", "Prévenir les villages et le gestionnaire de l'aire protégée"],
-  },
-  pointsAucun: { t: "Aucune détection satellite récente", d: "Aucun feu actif détecté dans la commune sur les {fenetre} disponibles. Cela ne dit rien des mois précédents : l'historique vient de la base." },
-  pointsSansLimite: { t: "Détections non attribuées à la commune", d: "La limite de cette commune est introuvable sur la carte : les points de feux ne peuvent pas lui être rattachés." },
-  retardBase: { t: "Dernière donnée de la base : {mois} {an}", d: "Les superficies brûlées ne couvrent pas {manque} : les détections récentes n'y sont pas encore comptées." },
-  incoherent: { t: "Valeurs de la base à vérifier", d: "Un total annuel dépasse la superficie de la commune : les pourcentages ne sont pas affichés. Vérifier l'unité (hectares ?) ou le périmètre." },
-};
-const EN: Record<Key, R> = {
-  pos: { t: "{c}: no. {rang} of {de} in {ap}", d: "{part} of the burned area of the protected area's communes in {an}." },
-  refComplet: { t: "{an}: {pct} versus the historical average", d: "{ha} ha burned in {an}, versus {moy} ha on average over {ref}." },
-  refPartiel: {
-    t: "{an} (January to {mois}): {ratio} times the average for the same period",
-    d: "{ha} ha burned, versus {ref} ha on average over the same period ({refAns}). {manque} are not yet in the database: the {an} total is incomplete.",
-  },
-  tendHausse: {
-    t: "Burned area is increasing", d: "{fin} ha/yr on average in recent years, versus {debut} ha/yr in the first years. To be confirmed by the next seasons.",
-    a: ["Look for local causes of the increase (clearing, grazing, land-use conflicts)", "Strengthen prevention from the next season"],
-  },
-  tendBaisse: { t: "Burned area is decreasing", d: "{fin} ha/yr on average in recent years, versus {debut} ha/yr in the first years.", a: ["Identify the practices that worked and keep them"] },
-  recurrent: { t: "Fires every year", d: "Burned area is recorded in {n} of {sur} years: fires are structural in this commune, not accidental." },
-  occasionnel: { t: "Occasional fires", d: "Burned area is recorded in only {n} of {sur} years." },
-  saisonDedans: {
-    t: "We are inside the risk window ({debut} to {fin})", d: "{part} of this commune's burned area is concentrated in these three months (peak in {pic}).",
-    a: ["Activate community watch and alerts", "Position teams on areas that burn every year", "Report every fire start to complete the database"],
-  },
-  saisonAvant: {
-    t: "The risk window ({debut} to {fin}) starts in {n} months", d: "{part} of burned area is concentrated in these three months (peak in {pic}).",
-    a: ["Open or maintain firebreaks before {debut}", "Raise awareness on burning and pasture fires before the season"],
-  },
-  saisonHors: {
-    t: "Most affected period: {debut} to {fin}", d: "{part} of burned area is concentrated in these three months (peak in {pic}). Outside this window, it is time to review and plan.",
-    a: ["Review the last season with communities", "Schedule firebreak maintenance before {debut}"],
-  },
-  interieur: {
-    t: "Fires inside the protected area", d: "{moy} ha burn on average per year inside the protected area ({t} of {sur} years).",
-    a: ["Strengthen patrols and firebreaks along the protected area boundary", "Share the data with the protected area manager"],
-  },
-  interieurNul: { t: "No significant fire in the protected area", d: "Less than 1 ha burned per year on average inside the commune's protected area." },
-  peripherie: {
-    t: "Fires in the 5 km buffer", d: "{moy} ha burn on average per year within 5 km of the protected area: they can spread into it.",
-    a: ["Set up firebreaks in the buffer zone with neighbouring communities", "Prioritise villages close to the boundary"],
-  },
-  pointsActifs: {
-    t: "Active fires detected by satellite", d: "{n72} detection(s) in the commune over the last 72 hours, {n24} of them in the last 24 h (total power {frp} MW). Data available over {fenetre}.",
-    a: ["Check these points on the ground with local relays", "Warn villages and the protected area manager"],
-  },
-  pointsAucun: { t: "No recent satellite detection", d: "No active fire detected in the commune over the {fenetre} available. This says nothing about earlier months: the history comes from the database." },
-  pointsSansLimite: { t: "Detections not attributed to the commune", d: "This commune's boundary is missing on the map: fire points cannot be assigned to it." },
-  retardBase: { t: "Latest database entry: {mois} {an}", d: "Burned areas do not cover {manque}: recent detections are not counted in them yet." },
-  incoherent: { t: "Database values to check", d: "An annual total exceeds the commune's area: percentages are not shown. Check the unit (hectares?) or the perimeter." },
-};
-
-const fill = (s: string, v: Record<string, string | number>) => s.replace(/\{(\w+)\}/g, (_, k) => (k in v ? String(v[k]) : `{${k}}`));
-
-export type Item = { lvl: Lvl; t: string; d: string; acts?: string[] };
-export type CtxLecture = {
-  commune: string; ap: string; annee: number; rang: number; de: number; partAP: number | null;
-  nowMs: number; moisLongs: string[]; geometrieOk: boolean; fenetreH: number;
-};
-
-const dureeTxt = (h: number, en: boolean) => (h >= 48 ? `${Math.round(h / 24)} ${en ? "days" : "jours"}` : `${Math.max(1, Math.round(h))} h`);
-const LVL: Record<Lvl, number> = { haute: 0, moyenne: 1, info: 2 };
-
-export function lecture(a: CommuneAnalyse, b: Bilan | null, c: CtxLecture, lang: string): Item[] {
-  const en = lang === "en", TX = en ? EN : FR, loc = en ? "en-GB" : "fr-FR";
-  const N = (n: number, d = 0) => n.toLocaleString(loc, { maximumFractionDigits: d });
-  const out: Item[] = [];
-  const add = (k: Key, lvl: Lvl, v: Record<string, string | number> = {}) => {
-    const r = TX[k];
-    out.push({ lvl, t: fill(r.t, v), d: fill(r.d, v), acts: r.a?.map((s) => fill(s, v)) });
-  };
-  const M = (m: number) => c.moisLongs[m] ?? String(m + 1);
-  const now = new Date(c.nowMs), moisNow = now.getMonth();
-  const refAns = `${REF_DEBUT}–${REF_FIN}`;
-
-  if (a.incoherent) add("incoherent", "info");
-
-  // Position dans l'aire protégée
-  if (c.rang > 0 && c.partAP != null)
-    add("pos", c.rang <= 3 ? "haute" : c.rang <= 6 ? "moyenne" : "info", { c: c.commune, rang: c.rang, de: c.de, ap: c.ap, part: `${N(c.partAP, 1)} %`, an: c.annee });
-
-  // Année choisie : complète → vs moyenne ; incomplète → même période
-  const s = a.anneeSel;
-  if (s?.complet && a.vsRef != null && a.moyRef != null)
-    add("refComplet", a.vsRef >= 25 ? "moyenne" : "info", { an: s.annee, pct: `${a.vsRef > 0 ? "+" : ""}${N(a.vsRef, 1)} %`, ha: N(s.ha), moy: N(a.moyRef), ref: refAns });
-  else if (s && !s.complet && a.memePeriode?.ratio != null) {
-    const mp = a.memePeriode, manque = mp.dernierMois >= 11 ? "" : `${M(mp.dernierMois + 1)}–${M(11)}`;
-    add("refPartiel", mp.ratio! >= 1.3 ? "moyenne" : "info", {
-      an: s.annee, mois: M(mp.dernierMois), ratio: N(mp.ratio!, 1), ha: N(mp.ha), ref: N(mp.ref), refAns,
-      manque: manque ? manque[0].toUpperCase() + manque.slice(1) : "",
-    });
-  }
-
-  if (a.tendance === "hausse") add("tendHausse", "moyenne", { debut: N(a.moyDebut), fin: N(a.moyFin) });
-  else if (a.tendance === "baisse") add("tendBaisse", "info", { debut: N(a.moyDebut), fin: N(a.moyFin) });
-
-  if (a.recurrence.sur >= 3 && a.moyHa > 0) {
-    if (a.recurrence.n === a.recurrence.sur) add("recurrent", "moyenne", a.recurrence);
-    else if (a.recurrence.n / a.recurrence.sur < 0.5) add("occasionnel", "info", a.recurrence);
-  }
-
-  if (a.saison && a.recurrence.n >= 2) {
-    const z = a.saison, v = { debut: M(z.debut), fin: M(z.fin), pic: M(z.pic), part: `${N(z.part)} %` };
-    const dedans = (moisNow - z.debut + 12) % 12 <= 2, avant = (z.debut - moisNow + 12) % 12;
-    if (dedans) add("saisonDedans", "haute", v);
-    else if (avant <= 2) add("saisonAvant", "haute", { ...v, n: avant });
-    else add("saisonHors", "moyenne", v);
-  }
-
-  if (a.interieur) {
-    const i = a.interieur;
-    if (i.moy < SEUIL_INTERIEUR_HA) add("interieurNul", "info");
-    else add("interieur", i.moy >= 500 ? "haute" : "moyenne", { moy: N(i.moy), t: i.touchees, sur: i.sur });
-  }
-  if (a.peripherie && a.peripherie.moy >= 200) add("peripherie", "moyenne", { moy: N(a.peripherie.moy) });
-
-  // Points de feux satellite
-  if (!c.geometrieOk) add("pointsSansLimite", "info");
-  else if (b && b.total > 0 && b.n72 > 0)
-    add("pointsActifs", b.n24 > 0 ? "haute" : "moyenne", { n72: b.n72, n24: b.n24, frp: N(b.frpTotal), fenetre: dureeTxt(c.fenetreH, en) });
-  else if (b) add("pointsAucun", "info", { fenetre: dureeTxt(c.fenetreH, en) });
-
-  // Retard de la base par rapport à aujourd'hui
-  if (a.derniere) {
-    const lag = now.getFullYear() * 12 + moisNow - (a.derniere.annee * 12 + a.derniere.mois);
-    if (lag >= 1) {
-      const m1 = (a.derniere.mois + 1) % 12;
-      const manque = lag === 1 ? M(m1) : `${M(m1)}–${M(moisNow)}`;
-      add("retardBase", "info", { mois: M(a.derniere.mois), an: a.derniere.annee, manque: manque[0].toUpperCase() + manque.slice(1) });
-    }
-  }
-  return out.sort((x, y) => LVL[x.lvl] - LVL[y.lvl]);
-}
-
-/* ===================== LIBELLÉS DE LA FENÊTRE ===================== */
-
-const UI_FR = {
-  fermer: "Fermer", apLbl: "Aire protégée", rang: "Rang dans l'AP", partAP: "Part de l'AP", totalAn: "Brûlé en {an}", vsRef: "vs moyenne {ref}",
-  pctSup: "de la commune ({an})", recurrence: "Années avec feux", interieurAn: "Dans l'AP / an", detect72: "Détections 72 h", ha: "ha", partiel: "partiel", na: "—",
-  hist: "Historique annuel (ha brûlés)", histNote: "Barres : toute la commune. Lignes : intérieur de l'aire protégée et zone de 5 km (années complètes seulement).",
-  barres: "Commune", interieur: "Intérieur AP", tampon: "Zone 5 km", refLbl: "Moyenne {ref}",
-  mens: "Saisonnalité mensuelle (ha)", prec: "Année précédente", moy: "Moyenne des années complètes", sel: "Année choisie",
-  mensNote: "Un mois sans valeur n'est pas dessiné : il n'est pas encore dans la base.",
-  heat: "Carte année × mois (ha)", heatNote: "Plus la case est foncée, plus la surface brûlée est élevée. Tiret : mois pas encore dans la base.",
-  pts: "Points de feux (satellite)", ptsFen: "Données de feux disponibles sur {fenetre}", ptsNo: "Aucun point dans la commune.", ptsSans: "Limite de commune introuvable : points non attribués.",
-  ptsChart: "Détections par tranche de {w} h (du plus ancien au plus récent)", ptsList: "Dernières détections (UTC)", frp: "Puissance", sat: "Satellite",
-  lect: "Lecture et orientations", src: "Sources : base des feux (superficies brûlées par commune, par mois) ; points de feux FIRMS pour les détections récentes. Les deux ne mesurent pas la même chose : la base donne des hectares, les points donnent des détections.",
-  cartAria: "Carte de la commune avec les points de feux", aucune: "Aucune donnée pour cette commune.",
-  hint: "Cliquez sur une commune pour son analyse détaillée.",
-};
-const UI_EN: typeof UI_FR = {
-  fermer: "Close", apLbl: "Protected area", rang: "Rank in the PA", partAP: "Share of the PA", totalAn: "Burned in {an}", vsRef: "vs {ref} average",
-  pctSup: "of the commune ({an})", recurrence: "Years with fires", interieurAn: "Inside PA / yr", detect72: "Detections 72 h", ha: "ha", partiel: "partial", na: "—",
-  hist: "Annual history (ha burned)", histNote: "Bars: whole commune. Lines: inside the protected area and 5 km zone (complete years only).",
-  barres: "Commune", interieur: "Inside PA", tampon: "5 km zone", refLbl: "{ref} average",
-  mens: "Monthly seasonality (ha)", prec: "Previous year", moy: "Average of complete years", sel: "Selected year",
-  mensNote: "A month with no value is not drawn: it is not in the database yet.",
-  heat: "Year × month map (ha)", heatNote: "The darker the cell, the larger the burned area. Dash: month not yet in the database.",
-  pts: "Fire points (satellite)", ptsFen: "Fire data available over {fenetre}", ptsNo: "No point in the commune.", ptsSans: "Commune boundary missing: points not attributed.",
-  ptsChart: "Detections per {w} h slot (oldest to newest)", ptsList: "Latest detections (UTC)", frp: "Power", sat: "Satellite",
-  lect: "Reading and orientations", src: "Sources: fire database (burned area per commune, per month); FIRMS fire points for recent detections. They do not measure the same thing: the database gives hectares, the points give detections.",
-  cartAria: "Commune map with fire points", aucune: "No data for this commune.",
-  hint: "Click a commune for its detailed analysis.",
-};
-export const txtCommune = (lang: string) => (lang === "en" ? UI_EN : UI_FR);
-export { fill };
