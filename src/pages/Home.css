@@ -322,7 +322,7 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   .leaf span {
     font-size: clamp(8px, 1.9cqw, 22px);
     line-height: 1.1;
-    max-width: 80%;           /* force la mise à la ligne des libellés de deux mots */
+    max-width: 60%;           /* force la mise à la ligne des libellés de deux mots */
     text-wrap: balance;
     overflow-wrap: anywhere;
     hyphens: auto;
@@ -333,11 +333,12 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   .cadre { left: 55%;   top: 54.5%; height: auto; width: 26%; }
   .proj  { left: 87%;   top: 57%;   height: auto; width: 26%; }
 
-  /* Ces deux feuilles ont des titres sur deux lignes : on remonte leur icône
-     pour laisser la place au second mot. */
-  .cadre svg,
-  .proj svg {
-    translate: 0 -1.2cqw;
+  /* Ces deux feuilles ont des titres sur deux lignes : on remonte tout le bloc
+     (icône + titre) pour que le second mot reste dans la feuille, sans écarter
+     l'icône de son titre. */
+  .cadre,
+  .proj {
+    translate: -50% calc(-50% - 2cqw);
   }
 
   .paddi-btn {
