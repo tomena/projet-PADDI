@@ -318,7 +318,6 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   }
   .leaf svg {
     width: clamp(14px, 3.6cqw, 56px);
-    translate: 0 -1.2cqw;     /* remonte légèrement l'icône */
   }
   .leaf span {
     font-size: clamp(8px, 1.9cqw, 22px);
@@ -333,6 +332,13 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   .soc   { left: 86.5%; top: 35.5%; height: auto; width: 26%; }
   .cadre { left: 55%;   top: 54.5%; height: auto; width: 26%; }
   .proj  { left: 87%;   top: 57%;   height: auto; width: 26%; }
+
+  /* Ces deux feuilles ont des titres sur deux lignes : on remonte leur icône
+     pour laisser la place au second mot. */
+  .cadre svg,
+  .proj svg {
+    translate: 0 -1.2cqw;
+  }
 
   .paddi-btn {
     font-size: clamp(10px, 2.8cqw, 40px);
