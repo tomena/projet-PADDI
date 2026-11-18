@@ -17,6 +17,7 @@ import {
   DATA, PROP, useGeo, toZones, inZone, sameArea, norm, touch, zoneIn, around, parseFires,
 } from "../lib/fireGeo";
 import type { Bbox, Zone } from "../lib/fireGeo";
+import CommuneFiche from "./CommuneFiche";
 
 /* ============================ TRADUCTIONS ============================ */
 const txt: any = {
@@ -280,7 +281,7 @@ const CSS = `
 @media(max-width:1099px){.fx-mapcard{order:-1;height:64vh;min-height:380px}}
 .fx-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px;min-width:0;display:flex;flex-direction:column;box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .fx-ct{margin:0 0 8px;text-align:center;font-size:12px;font-weight:700;font-style:italic;color:color-mix(in srgb,#d32f2f 80%,var(--text));line-height:1.3}
-.fx-chart{height:270px}
+.fx-chart{height:270px;cursor:pointer}
 .fx-note{margin:6px 0 0;font-size:11px;color:var(--text-3);text-align:center}
 .fx-tip{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .fx-tip b{display:block;margin-bottom:4px;color:var(--text)}
@@ -557,7 +558,7 @@ const ImpactTip = ({ active, payload, t }: any) => {
   );
 };
 
-const ImpactChart = ({ all, ap, t, n, setN }: any) => {
+const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
   const data = all.slice(0, n);
   const sum = (a: any[]) => a.reduce((s, d) => s + d.total, 0);
   const share = sum(all) > 0 ? Math.round((sum(data) / sum(all)) * 100) : 0;
@@ -589,7 +590,15 @@ const ImpactChart = ({ all, ap, t, n, setN }: any) => {
       </div>
       <div className="fx-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 20, right: 8, left: -4, bottom: 30 }} barCategoryGap="22%">
+          <BarChart
+            data={data}
+            margin={{ top: 20, right: 8, left: -4, bottom: 30 }}
+            barCategoryGap="22%"
+            onClick={(s: any) => {
+              const c = s?.activePayload?.[0]?.payload?.commune;
+              if (c) onPick(c);
+            }}
+          >
             <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="commune" interval={0} tick={<RankTick />} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
             <YAxis domain={[0, top]} ticks={ticks} tickFormatter={compact} width={40} tick={TICK} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
@@ -603,9 +612,13 @@ const ImpactChart = ({ all, ap, t, n, setN }: any) => {
       <p className="fx-note">
         {t.topN} {n} : <strong>{share} %</strong> {t.ofTotal}
       </p>
+      <p className="fx-note">{txtCommuneHint(t)}</p>
     </Card>
   );
 };
+
+// Indication de clic (texte traduit via communeFeux si disponible)
+const txtCommuneHint = (t: any) => t.clickHint ?? "Cliquez sur une barre pour la fiche détaillée de la commune.";
 
 const Gauge = ({ variation, t }: any) => {
   const cx = 250, cy = 120, R = 80;
@@ -1013,6 +1026,8 @@ export default function AnalyseFeux() {
   const [topN, setTopN] = useState(11);
   const [mapMonth, setMapMonth] = useState((new Date().getMonth() + 11) % 12);
   const [scaleMode, setScaleMode] = useState<"abs" | "rel">("abs");
+  // Commune sélectionnée en cliquant sur une barre de l'impact des feux
+  const [selCommune, setSelCommune] = useState<string | null>(null);
 
   useEffect(() => {
     if (location.state?.ap) {
@@ -1021,6 +1036,11 @@ export default function AnalyseFeux() {
       setRegion("all");
     }
   }, [location.state]);
+
+  // Changer d'AP ou d'année referme la fiche
+  useEffect(() => {
+    setSelCommune(null);
+  }, [ap, year]);
 
   // Données statistiques + géographiques
   const [baseFeux, baseOk] = useGeo(DATA.feux);
@@ -1248,6 +1268,31 @@ export default function AnalyseFeux() {
 
   const evoColor = (evolution ?? 0) >= 0 ? "#d32f2f" : "#2e7d32";
 
+  // Fiche de la commune sélectionnée
+  const ficheCommune = (() => {
+    if (!selCommune) return null;
+    const i = impactAll.findIndex((c: any) => norm(c.commune) === norm(selCommune));
+    const totalAP = impactAll.reduce((s: number, c: any) => s + c.total, 0);
+    return (
+      <CommuneFiche
+        commune={selCommune}
+        ap={ap}
+        year={year}
+        hours={hours}
+        lang={lang}
+        monthNames={monthNames}
+        rowsAP={rowsAP.map((f) => f.properties)}
+        superficieHa={supBy[norm(selCommune)] || null}
+        rang={i + 1}
+        nbCommunes={impactAll.length}
+        partAP={i >= 0 && totalAP > 0 ? (impactAll[i].total / totalAP) * 100 : null}
+        zone={communesMap.find((z: any) => norm(z.nom) === norm(selCommune)) ?? null}
+        fires={fires}
+        onClose={() => setSelCommune(null)}
+      />
+    );
+  })();
+
   return (
     <div className="fx">
       <style>{CSS}</style>
@@ -1359,7 +1404,7 @@ export default function AnalyseFeux() {
               <Gauge variation={variation5km} t={t} />
               <MonthlyChart data={chart1} year={year} t={t} />
               <HistoricalChart zones={zonesHisto} year={year} t={t} />
-              <ImpactChart all={impactAll} ap={ap} t={t} n={topN} setN={setTopN} />
+              <ImpactChart all={impactAll} ap={ap} t={t} n={topN} setN={setTopN} onPick={setSelCommune} />
             </div>
             <FireMap
               t={t} ap={ap} year={year} communes={communesMap} zones={zonesBrulees} apZones={apZones} periph={periphSel}
@@ -1370,6 +1415,8 @@ export default function AnalyseFeux() {
               periodLabel={periodLabel} periodParts={periodParts} monthSel={mapMonth} setMonthSel={setMapMonth} monthNames={monthNames}
             />
           </div>
+
+          {ficheCommune}
         </>
       )}
     </div>
