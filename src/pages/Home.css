@@ -307,27 +307,33 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
     aspect-ratio: var(--ratio);
   }
 
-  /* Feuilles : zones plus larges, centrées sur (left, top) */
+  /* Feuilles : zones plus larges, centrées sur (left, top).
+     Toutes les tailles sont en cqw (proportionnelles à l'image), sans minimum
+     trop grand, pour que le texte reste dans la feuille sur tous les écrans. */
   .leaf {
-    width: 22%;
+    width: 26%;
     height: auto;
     translate: -50% -50%;
+    gap: 0.2em;
   }
   .leaf svg {
-    width: clamp(18px, 4cqw, 60px);
+    width: clamp(14px, 3.6cqw, 56px);
   }
   .leaf span {
-    font-size: clamp(10px, 2.2cqw, 24px);
+    font-size: clamp(8px, 1.9cqw, 22px);
+    line-height: 1.1;
     overflow-wrap: anywhere;
+    hyphens: auto;
   }
-  .env   { left: 56.5%; top: 31.5%; height: auto; width: 22%; }
-  .eco   { left: 73%;   top: 17%;   height: auto; width: 22%; }
-  .soc   { left: 86.5%; top: 35.5%; height: auto; width: 22%; }
-  .cadre { left: 55%;   top: 54.5%; height: auto; width: 22%; }
-  .proj  { left: 87%;   top: 57%;   height: auto; width: 22%; }
+  .env   { left: 56.5%; top: 31.5%; height: auto; width: 26%; }
+  .eco   { left: 73%;   top: 17%;   height: auto; width: 26%; }
+  .soc   { left: 86.5%; top: 35.5%; height: auto; width: 26%; }
+  .cadre { left: 55%;   top: 54.5%; height: auto; width: 26%; }
+  .proj  { left: 87%;   top: 57%;   height: auto; width: 26%; }
 
   .paddi-btn {
-    font-size: clamp(14px, 3.4cqw, 48px);
+    font-size: clamp(10px, 2.8cqw, 40px);
+    white-space: nowrap;
   }
 
   .info-card {
