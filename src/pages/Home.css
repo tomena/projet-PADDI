@@ -1,6 +1,7 @@
 /* =====================================================
    PRINCIPE : tout l'accueil tient dans l'écran (100dvh) sur tablette et grand écran.
-   - Téléphone (portrait) : titre / arbre / texte / boutons empilés, la page défile.
+   - Téléphone (portrait) : titre / arbre / texte / boutons empilés, la page défile,
+     l'arbre est zoomé et recadré pour centrer le groupe de feuilles.
    - Tablette et petit paysage : texte à gauche, arbre à droite.
    - Grand écran : l'arbre remplit l'écran, texte et boutons par-dessus.
    ===================================================== */
@@ -280,8 +281,12 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 /* =====================================================
-   TÉLÉPHONE (portrait) : l'arbre prend la largeur de l'écran, sa hauteur
-   suit l'image (pas de hauteur fixe ni de container-type: size qui l'écrasent)
+   TÉLÉPHONE (portrait) :
+   - l'arbre est zoomé (--zoom) et décalé à droite : la partie gauche vide
+     de l'image sort de l'écran et le groupe de feuilles se retrouve centré ;
+   - la zone de l'arbre suit la hauteur de l'image (pas de hauteur figée) ;
+   - feuilles, icônes et libellés sont proportionnels à l'image (cqw sans
+     minimum écrasant) et les zones sont centrées sur leur point.
    ===================================================== */
 @media (max-width: 819px) {
   .stage {
@@ -290,16 +295,41 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   .tree-viewport {
     height: auto;
     min-height: 0;
-    container-type: normal;   /* sinon la hauteur est nulle sans taille explicite */
+    container-type: normal;   /* la hauteur vient de l'image, pas de cqh */
   }
   .tree-canvas {
+    --zoom: 1.72;             /* 1.72 = largeur de l'image pour que le groupe soit centré */
     position: relative;
-    left: 0;
+    left: calc(100% - var(--zoom) * 100%);
     top: 0;
-    width: 100%;
+    width: calc(var(--zoom) * 100%);
     height: auto;
     aspect-ratio: var(--ratio);
   }
+
+  /* Feuilles : zones plus larges, centrées sur (left, top) */
+  .leaf {
+    width: 22%;
+    height: auto;
+    translate: -50% -50%;
+  }
+  .leaf svg {
+    width: clamp(18px, 4cqw, 60px);
+  }
+  .leaf span {
+    font-size: clamp(10px, 2.2cqw, 24px);
+    overflow-wrap: anywhere;
+  }
+  .env   { left: 56.5%; top: 31.5%; height: auto; width: 22%; }
+  .eco   { left: 73%;   top: 17%;   height: auto; width: 22%; }
+  .soc   { left: 86.5%; top: 35.5%; height: auto; width: 22%; }
+  .cadre { left: 55%;   top: 54.5%; height: auto; width: 22%; }
+  .proj  { left: 87%;   top: 57%;   height: auto; width: 22%; }
+
+  .paddi-btn {
+    font-size: clamp(14px, 3.4cqw, 48px);
+  }
+
   .info-card {
     overflow: visible;
     font-size: 0.9rem;
