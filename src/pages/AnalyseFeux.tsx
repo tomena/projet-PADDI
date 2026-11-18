@@ -510,11 +510,15 @@ const HistoricalChart = ({ zones, year, t }: any) => (
   </Card>
 );
 
-const RankTick = ({ x, y, payload, index }: any) => {
+const RankTick = ({ x, y, payload, index, onPick }: any) => {
   const nom = String(payload.value);
   const top5 = index < 5;
   return (
-    <g transform={`translate(${x},${y})`}>
+    <g
+      transform={`translate(${x},${y})`}
+      style={{ cursor: "pointer" }}
+      onClick={() => onPick?.(String(payload.value))}
+    >
       <text x={0} y={0} dy={12} textAnchor="end" transform="rotate(-30)" fill={top5 ? "#ef4444" : "var(--text-2)"} fontSize={11} fontWeight={top5 ? 700 : 400}>
         {top5 ? `${index + 1}. ` : ""}
         {nom.length > 9 ? nom.substring(0, 9) + "…" : nom}
@@ -523,12 +527,12 @@ const RankTick = ({ x, y, payload, index }: any) => {
   );
 };
 
-const CustomTotalBar = ({ x, y, width, height, payload }: any) => {
+const CustomTotalBar = ({ x, y, width, height, payload, onPick }: any) => {
   const total = payload.total || 1;
   const hInt = (payload.interieur / total) * height, hPer = (payload.peripherie / total) * height;
   const w = width * 0.45, gap = 2, x0 = x + (width - (w * 2 + gap)) / 2;
   return (
-    <g>
+    <g style={{ cursor: "pointer" }} onClick={() => onPick?.(payload.commune)}>
       <rect x={x} y={y} width={width} height={height} fill={BLEU_TOTAL} rx={4} />
       <rect x={x0} y={y + height - hInt} width={w} height={hInt} fill="#ff0000" />
       <rect x={x0 + w + gap} y={y + height - hPer} width={w} height={hPer} fill="#ffff00" />
@@ -594,16 +598,12 @@ const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
             data={data}
             margin={{ top: 20, right: 8, left: -4, bottom: 30 }}
             barCategoryGap="22%"
-            onClick={(s: any) => {
-              const c = s?.activePayload?.[0]?.payload?.commune;
-              if (c) onPick(c);
-            }}
           >
             <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="commune" interval={0} tick={<RankTick />} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
+            <XAxis dataKey="commune" interval={0} tick={<RankTick onPick={onPick} />} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
             <YAxis domain={[0, top]} ticks={ticks} tickFormatter={compact} width={40} tick={TICK} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
             <Tooltip content={<ImpactTip t={t} />} cursor={{ fill: "rgba(59,130,246,.10)" }} />
-            <Bar dataKey="total" name="Total" shape={<CustomTotalBar />} barSize={22}>
+            <Bar dataKey="total" name="Total" shape={(p: any) => <CustomTotalBar {...p} onPick={onPick} />} barSize={22}>
               <LabelList dataKey="total" position="top" fill="#0099ff" fontSize={10} formatter={(v: number) => Math.round(v).toLocaleString("fr-FR")} />
             </Bar>
           </BarChart>
