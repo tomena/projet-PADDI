@@ -318,10 +318,13 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
   }
   .leaf svg {
     width: clamp(14px, 3.6cqw, 56px);
+    translate: 0 -1.2cqw;     /* remonte légèrement l'icône */
   }
   .leaf span {
     font-size: clamp(8px, 1.9cqw, 22px);
     line-height: 1.1;
+    max-width: 80%;           /* force la mise à la ligne des libellés de deux mots */
+    text-wrap: balance;
     overflow-wrap: anywhere;
     hyphens: auto;
   }
