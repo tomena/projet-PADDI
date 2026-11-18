@@ -1,6 +1,6 @@
 /* =====================================================
-   PRINCIPE : tout l'accueil tient dans l'écran (100dvh).
-   - Téléphone : titre / arbre / texte / boutons empilés, la page défile.
+   PRINCIPE : tout l'accueil tient dans l'écran (100dvh) sur tablette et grand écran.
+   - Téléphone (portrait) : titre / arbre / texte / boutons empilés, la page défile.
    - Tablette et petit paysage : texte à gauche, arbre à droite.
    - Grand écran : l'arbre remplit l'écran, texte et boutons par-dessus.
    ===================================================== */
@@ -15,13 +15,15 @@
   position: relative;
   height: 100vh;
   height: 100dvh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;               /* la page peut toujours défiler */
+  -webkit-overflow-scrolling: touch;
   background: linear-gradient(#eaf5ff, #cfe6fb);
 }
 
 .stage {
   position: relative;
-  height: 100%;
+  min-height: 100%;
   display: grid;
   gap: clamp(0.4rem, 1.2dvh, 0.9rem);
   padding:
@@ -30,7 +32,7 @@
     max(0.6rem, env(safe-area-inset-bottom))
     max(0.8rem, env(safe-area-inset-left));
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto auto auto;
   grid-template-areas: "header" "tree" "card" "footer";
 }
 
@@ -278,24 +280,25 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
 /* =====================================================
-   TÉLÉPHONE (portrait) : la page défile, l'arbre garde une hauteur fixe
+   TÉLÉPHONE (portrait) : l'arbre prend la largeur de l'écran, sa hauteur
+   suit l'image (pas de hauteur fixe ni de container-type: size qui l'écrasent)
    ===================================================== */
 @media (max-width: 819px) {
-  .home-page {
-    height: 100vh;
-    height: 100dvh;
-    overflow-x: hidden;
-    overflow-y: auto;               /* la page peut défiler */
-    -webkit-overflow-scrolling: touch;
-  }
   .stage {
-    height: auto;
-    min-height: 100%;
-    grid-template-rows: auto auto auto auto;   /* plus de ligne « 1fr » qui s'écrase */
+    grid-template-rows: auto auto auto auto;
   }
   .tree-viewport {
-    height: clamp(300px, 55dvh, 520px);        /* hauteur définie : l'arbre reste visible */
-    min-height: 300px;
+    height: auto;
+    min-height: 0;
+    container-type: normal;   /* sinon la hauteur est nulle sans taille explicite */
+  }
+  .tree-canvas {
+    position: relative;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: auto;
+    aspect-ratio: var(--ratio);
   }
   .info-card {
     overflow: visible;
@@ -312,6 +315,8 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
     grid-template-rows: auto minmax(0, 1fr) auto;
     grid-template-areas: "header header" "card tree" "footer footer";
   }
+  .home-page { overflow: hidden; }
+  .stage { height: 100%; min-height: 0; }
   .info-card { align-self: stretch; font-size: clamp(0.8rem, 0.6rem + 0.5vw, 1.05rem); }
 }
 
@@ -333,10 +338,14 @@ button:focus-visible { outline: 3px solid #ffb400; outline-offset: 3px; }
     width: auto;
     border-radius: 0;
     box-shadow: none;
+    container-type: size;
   }
   .tree-canvas {
+    position: absolute;
     --w: min(max(100cqw, calc(100dvh * var(--ratio))), calc(130dvh * var(--ratio)));
     --h: calc(var(--w) / var(--ratio));
+    width: var(--w);
+    height: var(--h);
     left: calc((100% - var(--w)) / 2);
     top: calc((100% - var(--h)) * 0.4);
   }
