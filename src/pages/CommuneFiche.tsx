@@ -76,6 +76,13 @@ const CSS = `
 .fxm-item:last-child{margin-bottom:0}
 .fxm-it-t{font-weight:700;font-size:13px}
 .fxm-it-d{font-size:12.5px;margin-top:2px;color:var(--text-2,#475569)}
+.fxm-part{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.fxm-pc{border:1px solid var(--border,#e2e8f0);border-radius:10px;padding:10px 12px;background:var(--surface-2,#f8fafc)}
+.fxm-pc span{display:block;font-size:12px;font-weight:600;color:var(--text-2,#475569)}
+.fxm-pc b{font-size:28px;line-height:1.1;color:var(--text,#0f172a)}
+.fxm-pc small{display:block;font-size:11px;color:var(--text-3,#64748b);margin-top:2px}
+.fxm-bar{height:8px;border-radius:999px;background:var(--border,#e2e8f0);margin:6px 0 4px;overflow:hidden}
+.fxm-bar i{display:block;height:100%;border-radius:999px}
 .fxm-heatw{overflow-x:auto}
 .fxm-heat{border-collapse:separate;border-spacing:2px;width:100%;font-size:10.5px;text-align:center}
 .fxm-heat th{font-weight:600;color:var(--text-3,#64748b);padding:2px 3px;white-space:nowrap}
@@ -157,7 +164,6 @@ export default function CommuneFiche({
   }));
   const satSerie = bilan ? [...bilan.bins].reverse().map((b) => ({ tr: `${b.a}h`, n: b.n })) : [];
   const heatMax = Math.max(0, ...analyse.heat.flatMap((r) => r.mois.map((v) => v ?? 0)));
-  const nSup = rap.points.length;
 
   return (
     <div className="fxm-bg" onClick={onClose} role="presentation">
@@ -232,6 +238,31 @@ export default function CommuneFiche({
                 {bilan && bilan.n72 > 0 && <small>{`${n0(bilan.n24)} / 24 h`}</small>}
               </div>
             </div>
+
+            {/* ===== Poids de l'intérieur et de la zone 5 km par rapport à la commune ===== */}
+            {(analyse.partInterieur != null || analyse.partPeripherie != null || analyse.pctSel) && (
+              <section className="fxm-card fxm-info" style={{ marginBottom: 10 }}>
+                <h3>{T.partTitre}</h3>
+                <div className="fxm-part">
+                  {([
+                    { lbl: T.partInt, moy: analyse.partInterieur, sel: analyse.pctSel?.interieur ?? null, col: "#dc2626", note: T.partNoteInt },
+                    { lbl: T.partTam, moy: analyse.partPeripherie, sel: analyse.pctSel?.peripherie ?? null, col: "#d97706", note: T.partNoteTam },
+                  ]).map((x) => {
+                    const big = x.sel ?? x.moy;
+                    return (
+                      <div key={x.lbl} className="fxm-pc">
+                        <span>{x.lbl}</span>
+                        {big == null ? <b>{T.na}</b> : <b>{p1(big)}</b>}
+                        <small>{x.sel != null ? `${year}${analyse.pctSel?.partiel ? ` (${T.partiel})` : ""}` : T.partMoy}</small>
+                        <div className="fxm-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, big ?? 0)}%`, background: x.col }} /></div>
+                        {x.sel != null && x.moy != null && <small>{`${T.partMoy} : ${p1(x.moy)}`}</small>}
+                        <small>{x.note}</small>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* ===== Graphes et lecture ===== */}
             <div className="fxm-grid">
@@ -354,12 +385,6 @@ export default function CommuneFiche({
                 </div>
               </section>
             )}
-
-            {/* ===== Détail des constats ===== */}
-            <details>
-              <summary>{T.tous.replace("{n}", String(nSup))}</summary>
-              <section className="fxm-card fxm-info"><Items items={rap.points} /></section>
-            </details>
 
             {/* ===== Qualité des données ===== */}
             {rap.qualite.length > 0 && (
