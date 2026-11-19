@@ -1,7 +1,7 @@
 {
   "type": "FeatureCollection",
   "name": "zones_intervention",
-  "mise_a_jour": "2026-11-17",
+  "mise_a_jour": "2026-11-19",
   "projets": [
     {
       "id": "paddi",
@@ -56,7 +56,7 @@
         "region": "Boeny",
         "district": "Ambato Boeni",
         "commune": "Ankijabe",
-        "mbv_ha": null,
+        "mbv_ha": 3824.882,
         "activites": []
       }
     },
@@ -70,7 +70,7 @@
         "region": "Boeny",
         "district": "Ambato Boeni",
         "commune": "Andranofasika",
-        "mbv_ha": null,
+        "mbv_ha": 1290.035,
         "activites": []
       }
     },
@@ -84,7 +84,7 @@
         "region": "Boeny",
         "district": "Ambato Boeni",
         "commune": "Ambondromamy",
-        "mbv_ha": null,
+        "mbv_ha": 1306.79,
         "activites": []
       }
     },
@@ -98,7 +98,7 @@
         "region": "Boeny",
         "district": "Ambato Boeni",
         "commune": "Tsaramandroso",
-        "mbv_ha": null,
+        "mbv_ha": 4993.397,
         "activites": []
       }
     },
@@ -112,7 +112,7 @@
         "region": "Boeny",
         "district": "Marovoay",
         "commune": "Ankazomborona",
-        "mbv_ha": null,
+        "mbv_ha": 1157.804,
         "activites": []
       }
     },
@@ -126,7 +126,7 @@
         "region": "Boeny",
         "district": "Marovoay",
         "commune": "Marosakoa",
-        "mbv_ha": null,
+        "mbv_ha": 2402.692,
         "activites": []
       }
     },
@@ -140,7 +140,7 @@
         "region": "Diana",
         "district": "Antsiranana II",
         "commune": "Anivorano-Nord",
-        "mbv_ha": null,
+        "mbv_ha": 6512.839,
         "activites": []
       }
     },
@@ -154,7 +154,7 @@
         "region": "Diana",
         "district": "Antsiranana II",
         "commune": "Antsoha",
-        "mbv_ha": null,
+        "mbv_ha": 10.029,
         "activites": []
       }
     },
@@ -168,7 +168,7 @@
         "region": "Diana",
         "district": "Antsiranana II",
         "commune": "Ankarongana",
-        "mbv_ha": null,
+        "mbv_ha": 1872.695,
         "activites": []
       }
     },
@@ -182,7 +182,7 @@
         "region": "Diana",
         "district": "Antsiranana II",
         "commune": "Joffre Ville",
-        "mbv_ha": null,
+        "mbv_ha": 2284.8,
         "activites": []
       }
     },
@@ -196,7 +196,7 @@
         "region": "Diana",
         "district": "Antsiranana II",
         "commune": "Sakaramy",
-        "mbv_ha": null,
+        "mbv_ha": 1222.445,
         "activites": []
       }
     },
@@ -210,7 +210,7 @@
         "region": "Diana",
         "district": "Antsiranana II",
         "commune": "Mangaoka",
-        "mbv_ha": null,
+        "mbv_ha": 2487.94,
         "activites": []
       }
     },
@@ -224,7 +224,7 @@
         "region": "Diana",
         "district": "Antsiranana II",
         "commune": "Antsahampano",
-        "mbv_ha": null,
+        "mbv_ha": 2942.979,
         "activites": []
       }
     },
@@ -238,7 +238,7 @@
         "region": "Diana",
         "district": "Ambilobe",
         "commune": "Antsaravibe",
-        "mbv_ha": null,
+        "mbv_ha": 1812.278,
         "activites": []
       }
     },
@@ -252,7 +252,7 @@
         "region": "Diana",
         "district": "Ambilobe",
         "commune": "Tanambao Marivorahona",
-        "mbv_ha": null,
+        "mbv_ha": 2064.649,
         "activites": []
       }
     },
