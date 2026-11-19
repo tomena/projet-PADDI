@@ -35,7 +35,7 @@ export interface DashboardConfig {
 }
 
 /* Limites administratives. Régions : OpenStreetMap (Overpass). Districts et communes : geoBoundaries. */
-type Adm = { properties: Record<string, any>; geometry: { type: string; coordinates: any } };
+type Adm = { type?: string; properties: Record<string, any>; geometry: { type: string; coordinates: any } };
 type Niv = 'ADM2' | 'ADM3';
 type Pt = [number, number];
 
@@ -103,6 +103,7 @@ const dateFmt = (iso: string) => new Date(iso).toLocaleDateString(LOC, { timeZon
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const cle = (s: string) =>
   s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const trier = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
 const group = (rows: Parcelle[], key: keyof Parcelle) => {
   const m: Record<string, number> = {};
   rows.forEach((r) => { const k = String(r[key]); m[k] = (m[k] || 0) + r.superficie_ha; });
@@ -146,13 +147,19 @@ function dansAnneau(x: number, y: number, a: number[][]): boolean {
 const contient = (x: number, y: number, f: Adm) =>
   polygones(f).some((p) => dansAnneau(x, y, p[0]) && !p.slice(1).some((h) => dansAnneau(x, y, h)));
 
+/* Centre approximatif d'une zone (moyenne des sommets) */
+function centre(f: Adm): [number, number] | null {
+  const pts = polygones(f).flatMap((p) => p[0]);
+  if (!pts.length) return null;
+  return [pts.reduce((s, p) => s + p[0], 0) / pts.length, pts.reduce((s, p) => s + p[1], 0) / pts.length];
+}
+
 /* Vrai si l'enfant (district ou commune) se trouve à l'intérieur du parent */
 function estDans(enfant: Adm, parent: Adm): boolean {
   const pts = polygones(enfant).flatMap((p) => p[0]);
-  if (!pts.length) return false;
-  const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
-  const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
-  let score = contient(cx, cy, parent) ? 3 : 0;
+  const c = centre(enfant);
+  if (!pts.length || !c) return false;
+  let score = contient(c[0], c[1], parent) ? 3 : 0;
   const pas = Math.max(1, Math.floor(pts.length / 6));
   for (let i = 0; i < pts.length && i < pas * 6; i += pas) {
     if (contient(pts[i][0], pts[i][1], parent)) score++;
@@ -223,7 +230,7 @@ function assemblerAnneaux(segs: Pt[][]): Pt[][] {
   return anneaux;
 }
 
-/* Relation OSM (out geom) -> polygone GeoJSON, avec trous */
+/* Relation OSM (out geom) -> Feature GeoJSON (MultiPolygon, avec trous) */
 function relationVersAdm(rel: any): Adm | null {
   const ext: Pt[][] = [];
   const int: Pt[][] = [];
@@ -238,6 +245,7 @@ function relationVersAdm(rel: any): Adm | null {
   if (!exterieurs.length) return null;
   const polys = exterieurs.map((o) => [o, ...trous.filter((h) => dansAnneau(h[0][0], h[0][1], o))]);
   return {
+    type: 'Feature',
     properties: { shapeName: String(rel.tags?.name ?? '') },
     geometry: { type: 'MultiPolygon', coordinates: polys },
   };
@@ -393,6 +401,7 @@ const CSS = `
 .sv-mh select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
 .sv-leg-adm{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--txt2);margin-top:6px}
 .sv-leg-adm i{display:inline-block;width:14px;height:0;border-top:3px solid;margin-right:6px;vertical-align:middle}
+.sv-warn{margin:6px 0 0;font-size:12px;color:var(--bad);text-align:center}
 .sv-tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
 .sv-tb h4{margin:0}
 .sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--txt)}
@@ -448,6 +457,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const [regions, setRegions] = useState<Adm[]>([]);
   const [districts, setDistricts] = useState<Adm[]>([]);
   const [communes, setCommunes] = useState<Adm[]>([]);
+  const [admErreurs, setAdmErreurs] = useState<string[]>([]);
 
   const load = () => {
     setErr(false);
@@ -459,12 +469,28 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
       .finally(() => setBusy(false));
   };
   useEffect(() => { load(); }, [src]);
-  // Limites administratives : chargées une fois ; en cas d'échec, la carte reste sans contours
+
+  // Limites administratives : chargées une fois ; un message s'affiche si une source échoue
   useEffect(() => {
-    chargerRegions().then(setRegions).catch((e) => console.warn('Régions OSM :', e));
-    chargerAdm('ADM2').then(setDistricts).catch(() => {});
-    chargerAdm('ADM3').then(setCommunes).catch(() => {});
+    const erreurs: string[] = [];
+    chargerRegions().then(setRegions).catch(() => erreurs.push('régions (OpenStreetMap)'));
+    chargerAdm('ADM2').then(setDistricts).catch(() => erreurs.push('districts (geoBoundaries)'));
+    chargerAdm('ADM3').then(setCommunes).catch(() => erreurs.push('communes (geoBoundaries)'));
+    const t0 = setTimeout(() => setAdmErreurs(erreurs), 0);
+    return () => clearTimeout(t0);
   }, []);
+  // Met à jour la liste des erreurs une fois les chargements terminés
+  useEffect(() => {
+    const id = setTimeout(() => {
+      const manque: string[] = [];
+      if (!regions.length) manque.push('régions (OpenStreetMap)');
+      if (!districts.length) manque.push('districts (geoBoundaries)');
+      if (!communes.length) manque.push('communes (geoBoundaries)');
+      setAdmErreurs(manque);
+    }, 15000);
+    return () => clearTimeout(id);
+  }, [regions, districts, communes]);
+
   // « Actualiser » : réinitialise filtres, recherche et pagination, puis recharge les données
   const refresh = () => { setF({}); setQ(''); setPage(1); setPer(10); load(); };
 
@@ -472,18 +498,10 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const match = (p: Parcelle, skip?: FilterKey) => FILTERS.every((k) => k === skip || !f[k] || String(p[k]) === f[k]);
   const filtered = useMemo(() => feats.filter((x) => match(x.properties)), [feats, f]); // eslint-disable-line
   const rows = useMemo(() => filtered.map((x) => x.properties), [filtered]);
-  // Options en cascade : chaque filtre ne tient compte que des autres filtres sélectionnés
-  const opts = (k: FilterKey) => [...new Set(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])))].sort();
-  // Filtre Région : toujours les 24 régions, plus les noms présents dans la base qui n'y figurent pas
-  const optsRegion = () => {
-    const base = opts('region');
-    const ref = new Set(REGIONS_REF.map(cle));
-    const extra = base.filter((n) => !ref.has(cle(n)));
-    return [...REGIONS_REF, ...extra].sort((a, b) => a.localeCompare(b, 'fr'));
-  };
+  // Options issues des parcelles, en cascade : chaque filtre tient compte des autres filtres
+  const opts = (k: FilterKey) => trier(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])));
 
-  /* Géométries administratives de la sélection, cherchées à l'intérieur de leur parent
-     (repli sur le nom seul si le parent ne contient pas la zone, ce qui arrive après un redécoupage) */
+  /* Géométries administratives de la sélection, cherchées à l'intérieur de leur parent */
   const adm = useMemo(() => {
     const rK = f.region ? cle(f.region) : '';
     const dK = f.district ? cle(f.district) : '';
@@ -497,14 +515,58 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     return { reg, dis, com };
   }, [f.region, f.district, f.commune, regions, districts, communes]);
 
+  /* Listes en cascade :
+     - District : districts de la région choisie (référence), plus ceux de la base
+     - Commune : communes du district choisi (référence), plus celles de la base */
+  const optsRegion = useMemo(() => {
+    const ref = new Set(REGIONS_REF.map(cle));
+    return [...REGIONS_REF, ...opts('region').filter((n) => !ref.has(cle(n)))]
+      .sort((a, b) => a.localeCompare(b, 'fr'));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feats, f]);
+
+  const optsDistrict = useMemo(() => {
+    let ref: string[] = [];
+    if (adm.reg) ref = districts.filter((d) => estDans(d, adm.reg!)).map(nomAdm);
+    else if (!f.region) ref = districts.map(nomAdm);
+    return trier([...ref, ...opts('district')]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adm.reg, districts, feats, f]);
+
+  const optsCommune = useMemo(() => {
+    let ref: string[] = [];
+    if (adm.dis) {
+      const b = centre(adm.dis);
+      ref = communes
+        .filter((c) => {
+          const cc = centre(c);
+          return cc && b && Math.abs(cc[0] - b[0]) < 1.5 && Math.abs(cc[1] - b[1]) < 1.5 && estDans(c, adm.dis!);
+        })
+        .map(nomAdm);
+    }
+    return trier([...ref, ...opts('commune')]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adm.dis, communes, feats, f]);
+
   /* Cadrage : commune, sinon district, sinon région ; sinon Madagascar */
   const cadre = useMemo(() => {
     const cibleAdm = adm.com ?? adm.dis ?? adm.reg;
     return cibleAdm ? L.geoJSON(cibleAdm as any).getBounds() : null;
   }, [adm]);
 
-  /* Barres par région : uniquement les régions présentes dans la base (superficies de la base) */
+  /* Barres par région : uniquement les régions présentes dans la base */
   const regionsData = useMemo(() => group(rows, 'region'), [rows]);
+
+  // Changer un filtre réinitialise les filtres qui en dépendent
+  const choisirFiltre = (k: FilterKey, v: string) => {
+    setF((prev) => {
+      const n = { ...prev, [k]: v };
+      if (k === 'region') { n.district = ''; n.commune = ''; }
+      if (k === 'district') { n.commune = ''; }
+      return n;
+    });
+    setPage(1);
+  };
 
   const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
   const dTot = sum(rows);
@@ -550,6 +612,9 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     );
   };
 
+  const listeFiltre = (k: FilterKey): string[] =>
+    k === 'region' ? optsRegion : k === 'district' ? optsDistrict : k === 'commune' ? optsCommune : opts(k);
+
   return (
     <div className="sv">
       <style>{CSS}</style>
@@ -571,9 +636,9 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
           <section className="sv-f">
             {FILTERS.map((k) => (
               <label key={k}>{t.f[k]}
-                <select value={f[k] || ''} onChange={(e) => { setF({ ...f, [k]: e.target.value }); setPage(1); }}>
+                <select value={f[k] || ''} onChange={(e) => choisirFiltre(k, e.target.value)}>
                   <option value="">{t.all}</option>
-                  {(k === 'region' ? optsRegion() : opts(k)).map((o) => <option key={o} value={o}>{k === 'statut' ? tv(o) : o}</option>)}
+                  {listeFiltre(k).map((o) => <option key={o} value={o}>{k === 'statut' ? tv(o) : o}</option>)}
                 </select>
               </label>
             ))}
@@ -690,6 +755,9 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                 <span><i style={{ borderColor: COULEUR_DISTRICT }} />{t.f.district}</span>
                 <span><i style={{ borderColor: COULEUR_COMMUNE }} />{t.f.commune}</span>
               </div>
+              {admErreurs.length > 0 && (
+                <p className="sv-warn">Limites non chargées : {admErreurs.join(', ')}. Le zoom et les contours ne peuvent pas s'afficher.</p>
+              )}
             </div>
           </section>
 
