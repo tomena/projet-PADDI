@@ -22,11 +22,11 @@
       "type": "environnement"
     },
     {
-      "id": "soilwaters",
-      "nom": "SoilWaters",
+      "id": "SoilMaters",
+      "nom": "SoilMaters",
       "alias": [
-        "soilwaters",
-        "soil waters"
+        "SoilMaters",
+        "soil maters"
       ],
       "type": "environnement"
     },
@@ -428,8 +428,8 @@
       "type": "Feature",
       "geometry": null,
       "properties": {
-        "projet_id": "soilwaters",
-        "projet": "SoilWaters",
+        "projet_id": "SoilMaters",
+        "projet": "SoilMaters",
         "type": "environnement",
         "region": "Boeny",
         "district": null,
