@@ -1,125 +1,477 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  ResponsiveContainer, PieChart, Pie, Cell, XAxis, YAxis,
-  Tooltip, BarChart, Bar, LabelList,
-} from 'recharts';
-import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { RefreshCw, Users, Flame, Download, Search } from 'lucide-react';
-import { useLanguage } from '../context/LanguageContext';
-import { T, V, IDX, LOCALES } from '../i18n/suivi';
-import type { Lang } from '../i18n/suivi';
+/**
+ * ZonesIntervention.tsx — zones d'intervention des projets
+ * Les données (projets, régions, districts, communes, activités, MBV) sont lues depuis
+ * public/data/zones_intervention.geojson. La mise à jour se fait par le bouton « Mettre à jour »
+ * (connexion requise), via ZonesUpdateModal.
+ * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
+ * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
+ * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext, ../lib/fireGeo,
+ *               ../components/ZonesLoginModal, ../components/ZonesUpdateModal
+ */
+import { useEffect, useMemo, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw } from "lucide-react";
+import { useLanguage } from "../context/LanguageContext";
+import { DATA, PROP, useGeo, toZones } from "../lib/fireGeo";
+import ZonesLoginModal from "../components/ZonesLoginModal";
+import ZonesUpdateModal from "../components/ZonesUpdateModal";
 
-export interface Parcelle {
-  id: string; utilisateur: string; theme: string; theme_label: string; pratique: string; pratique_cat: string;
-  type_terrain: string; region: string; aire_protegee: string; paysage: string; district: string; commune: string;
-  fokontany: string; mbv: string; annee: number; debut: string; fin: string; superficie_ha: number;
-  statut: string; precision_gps_m: number; is_cep: boolean; is_pare_feu: boolean;
-}
-type Feat = { type: 'Feature'; geometry: any; properties: Parcelle };
-type Geo = { type: 'FeatureCollection'; features: Feat[] };
-type FilterKey = 'annee' | 'aire_protegee' | 'region' | 'district' | 'commune' | 'paysage' | 'mbv' | 'statut';
-type PageKey = 'agro' | 'foret' | 'global';
-type Base = 'topo' | 'sat' | 'osm';
+/* ===================== OUTIL DE COMPARAISON ===================== */
 
-export interface DashboardConfig {
-  titleKey: PageKey;
-  enonceKey: PageKey;
-  themes: string[];
-  cible: number;
-  debut: number;
-  fin: number;
-  donuts: ('type_terrain' | 'pratique_cat' | 'theme_label')[];
-  extras?: { key: 'cep' | 'feu'; flag: 'is_cep' | 'is_pare_feu'; icon: 'cep' | 'feu' }[];
-}
+const cle = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/* Limites administratives (geoBoundaries), comme sur la page Zones d'intervention */
-type Adm = { properties: Record<string, any>; geometry: { type: string; coordinates: any } };
-type Niv = 'ADM1' | 'ADM2' | 'ADM3';
+/* ===================== TYPES ET DONNÉES ===================== */
 
-/* Couleurs
-   - G / STATUT : valeurs « réelles » (hex) utilisées sur la carte Leaflet
-   - GV / BAD / STATUT_UI : variables du thème (clair / sombre) pour le reste de l'interface */
-const G = '#1b5e20';
-const GV = 'var(--gv)';
-const BAD = 'var(--bad)';
-const PAL = ['#2e7d32', '#66bb6a', '#D4E157', '#FFB300', '#64B5F6', '#a5d6a7', '#8d6e63'];
-const STATUT: Record<string, string> = { 'Validé': G, 'En attente': '#FFB300', 'Rejeté': '#c62828' };
-const STATUT_UI: Record<string, string> = { 'Validé': GV, 'En attente': '#FFB300', 'Rejeté': BAD };
-const COULEUR_REGION = '#ea580c';
-const COULEUR_DISTRICT = '#7c3aed';
-const COULEUR_COMMUNE = '#dc2626';
-// Ordre d'affichage des filtres (Fokontany retiré)
-const FILTERS: FilterKey[] = ['annee', 'aire_protegee', 'region', 'district', 'commune', 'paysage', 'mbv', 'statut'];
-const ICONS: Record<string, React.ComponentType<any>> = { cep: Users, feu: Flame };
-const MADAGASCAR: [number, number] = [-18.9, 47.5];
+/* Fichier des données (lecture) et route d'enregistrement (écriture, avec jeton) */
+const DATA_URL = "/data/zones_intervention.geojson";
+const SAUVEGARDE_URL = "/api/import?type=zones";
 
-// Homonymes : clé région|district|commune (normalisées) -> nom de la géométrie à utiliser
-const COMMUNE_GEO: Record<string, string> = {
-  'boeny|marovoay|marosakoa': 'Marovoay',
+type TypeActivite = "restauration" | "reboisement" | "autre";
+type Activite = { type: TypeActivite; titre: string; annee?: number; surface_ha?: number };
+type TypeProjet = "environnement" | "developpement";
+type ProjetMeta = { id: string; nom: string; alias: string[]; type: TypeProjet };
+
+/* Une ligne = une zone d'intervention (commune, district ou région) d'un projet */
+type Ligne = {
+  projetId: string;
+  projet: string;
+  type: TypeProjet;
+  region: string;
+  district?: string;
+  commune?: string;
+  activites: Activite[];
+  mbv_ha?: number;
 };
 
-// Fonds de carte : Topographie (ArcGIS), Satellite (ArcGIS), OpenStreetMap
-const BASEMAPS: Record<Base, { label: string; url: string; attribution: string }> = {
+type Donnees = { projets: ProjetMeta[]; lignes: Ligne[] };
+
+const LIGNES_VIDES: Ligne[] = [];
+
+/* Transforme le GeoJSON en données utilisables par la page */
+const construireDonnees = (geo: any): Donnees => ({
+  projets: (geo.projets ?? []) as ProjetMeta[],
+  lignes: ((geo.features ?? []) as any[]).map((f): Ligne => {
+    const p = f.properties ?? {};
+    return {
+      projetId: String(p.projet_id),
+      projet: String(p.projet),
+      type: p.type as TypeProjet,
+      region: String(p.region),
+      district: p.district || undefined,
+      commune: p.commune || undefined,
+      activites: (p.activites ?? []) as Activite[],
+      mbv_ha: p.mbv_ha ?? undefined,
+    };
+  }),
+});
+
+/* Clé d'une ligne : région|district|commune (vides si absents) */
+const cleLigne = (l: Ligne) =>
+  [cle(l.region), l.district ? cle(l.district) : "", l.commune ? cle(l.commune) : ""].join("|");
+
+/* Communes homonymes : pour la ligne (clé région|district|commune), nom de la géométrie à utiliser.
+   Ex. : la commune « Marovoay » du district Marovoay (Boeny) correspond à la géométrie « Marosakoa »,
+   et non à « Marovoay ville » ni à « Marovoay Banlieue ». */
+const COMMUNE_GEO: Record<string, string> = {
+  "boeny|marovoay|marosakoa": "Marovoay",
+};
+
+/* ===================== FONDS DE CARTE (sans clé API) ===================== */
+
+type Fond = "topo" | "sat" | "osm";
+const FONDS: Record<Fond, { url: string; attr: string; maxZoom: number }> = {
   topo: {
-    label: 'Topographie',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Esri',
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+    attr: "Tiles © Esri",
+    maxZoom: 18,
   },
   sat: {
-    label: 'Satellite',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Esri, Maxar, Earthstar Geographics',
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attr: "Tiles © Esri",
+    maxZoom: 18,
   },
   osm: {
-    label: 'OpenStreetMap',
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '© OpenStreetMap contributors',
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attr: "© OpenStreetMap",
+    maxZoom: 19,
   },
 };
 
-// Style des info-bulles Recharts (lisibles en clair et en sombre)
-const TIP = {
-  contentStyle: { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--txt)' },
-  itemStyle: { color: 'var(--txt)' },
-  labelStyle: { color: 'var(--txt)' },
+/* ===================== TEXTES (fr, mg, en, de) ===================== */
+
+const FR = {
+  titre: "Zones d'intervention des projets",
+  sousTitre: "Localisation des régions, districts et communes où interviennent les projets",
+  recherche: "Projet, catégorie, région, district ou commune (ex. PADDI+, environnement, Boeny)",
+  rechercheAria: "Rechercher une zone d'intervention",
+  effacer: "Effacer",
+  retirer: "Retirer de la liste",
+  update: "Mettre à jour",
+  vueMada: "Vue Madagascar",
+  vueTitre: "Zones d'intervention",
+  vueTexte: "Recherchez un projet, une catégorie, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
+  chargement: "Chargement des données…",
+  aucunResultat: "Aucun résultat pour cette recherche.",
+  projets: "Projets",
+  regions: "Régions",
+  districts: "Districts",
+  communes: "Communes",
+  parCommune: "Par commune",
+  colCommune: "Commune",
+  colSuperficie: "Superficie (ha)",
+  colMBV: "Superficie MBV (ha)",
+  colPourcentage: "Part de la commune",
+  total: "Total",
+  activites: "Activités environnementales",
+  aucuneActivite: "Aucune activité renseignée",
+  zonesInterv: "Zones d'intervention",
+  communesNon: "Communes non renseignées",
+  districtsNon: "Districts non renseignés",
+  types: { restauration: "Restauration", reboisement: "Reboisement", autre: "Autres projets environnementaux" },
+  niveaux: { projet: "Projet", categorie: "Catégorie", region: "Région", district: "District", commune: "Commune" },
+  projetCtx: "Projet d'intervention",
+  catCtx: "Catégorie de projets",
+  catEnv: "Projets environnementaux",
+  catDev: "Projets de développement",
+  regionCtx: "Région",
+  legRegion: "Région",
+  legDistrict: "District",
+  legCommune: "Commune",
+  legAP: "Aire protégée",
+  legMixte: "Environnement et développement",
+  legSelection: "Sélection",
+  carteAria: "Carte des zones d'intervention",
+  carteTitre: "Madagascar : zones d'intervention",
+  projetsConcernes: "Projets concernés",
+  fondAria: "Fond de carte",
+  fondTopo: "Topographie",
+  fondSat: "Satellite",
+  fondOsm: "OpenStreetMap",
+  note: "Limites : geoBoundaries (ADM1 à ADM3). Superficies calculées à partir des contours, donc approximatives.",
+  erreur: "Impossible de charger les limites administratives.",
+  erreurDonnees: "Impossible de charger les données des zones d'intervention.",
 };
-const TICK = { fill: 'var(--txt2)' };
 
-let LOC = 'fr-FR'; // mis à jour à chaque rendu selon la langue active
-const fr = (n: number | string, d = 0) => Number(n || 0).toLocaleString(LOC, { maximumFractionDigits: d });
-const sum = (rows: Parcelle[]) => rows.reduce((s, r) => s + r.superficie_ha, 0);
-const dateFmt = (iso: string) => new Date(iso).toLocaleDateString(LOC, { timeZone: 'UTC' });
-const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const cle = (s: string) =>
-  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const group = (rows: Parcelle[], key: keyof Parcelle) => {
-  const m: Record<string, number> = {};
-  rows.forEach((r) => { const k = String(r[key]); m[k] = (m[k] || 0) + r.superficie_ha; });
-  return Object.entries(m)
-    .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
-    .sort((a, b) => b.value - a.value);
+type Dict = typeof FR;
+
+const MG: Dict = {
+  titre: "Faritra fanatanterahan'ny tetikasa",
+  sousTitre: "Fitoerana ny faritra, distrika sy kaominina misy ny tetikasa",
+  recherche: "Tetikasa, sokajy, faritra, distrika na kaominina (ohatra: PADDI+, tontolo iainana, Boeny)",
+  rechercheAria: "Hitady faritra fanatanterahana",
+  effacer: "Esory",
+  retirer: "Esorina amin'ny lisitra",
+  update: "Havaozina",
+  vueMada: "Madagasikara manontolo",
+  vueTitre: "Faritra fanatanterahana",
+  vueTexte: "Hitady tetikasa, sokajy, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
+  chargement: "Mampidina ny angon-drakitra…",
+  aucunResultat: "Tsy misy valiny ho an'ity fikarohana ity.",
+  projets: "Tetikasa",
+  regions: "Faritra",
+  districts: "Distrika",
+  communes: "Kaominina",
+  parCommune: "Isaky ny kaominina",
+  colCommune: "Kaominina",
+  colSuperficie: "Habetsahana (ha)",
+  colMBV: "Habetsahana MBV (ha)",
+  colPourcentage: "Anjara amin'ny kaominina",
+  total: "Totaly",
+  activites: "Asa ara-tontolo iainana",
+  aucuneActivite: "Tsy misy asa voarakitra",
+  zonesInterv: "Faritra fanatanterahana",
+  communesNon: "Kaominina tsy voarakitra",
+  districtsNon: "Distrika tsy voarakitra",
+  types: { restauration: "Fanarenana", reboisement: "Fambolena ala", autre: "Tetikasa hafa momba ny tontolo iainana" },
+  niveaux: { projet: "Tetikasa", categorie: "Sokajy", region: "Faritra", district: "Distrika", commune: "Kaominina" },
+  projetCtx: "Tetikasa fanatanterahana",
+  catCtx: "Sokajin'ny tetikasa",
+  catEnv: "Tetikasa ara-tontolo iainana",
+  catDev: "Tetikasa fampandrosoana",
+  regionCtx: "Faritra",
+  legRegion: "Faritra",
+  legDistrict: "Distrika",
+  legCommune: "Kaominina",
+  legAP: "Faritra arovana",
+  legMixte: "Tontolo iainana sy fampandrosoana",
+  legSelection: "Voafantina",
+  carteAria: "Sarintanin'ny faritra fanatanterahana",
+  carteTitre: "Madagasikara: faritra fanatanterahana",
+  projetsConcernes: "Tetikasa voakasika",
+  fondAria: "Fototra sarintany",
+  fondTopo: "Topografia",
+  fondSat: "Zanabolana",
+  fondOsm: "OpenStreetMap",
+  note: "Sisin-tany: geoBoundaries (ADM1 ka hatramin'ny ADM3). Ny habetsahana dia tombanana avy amin'ny sisin-tany, ka mety tsy marina tanteraka.",
+  erreur: "Tsy afaka naka ny sisin-tany administratifa.",
+  erreurDonnees: "Tsy afaka naka ny angon-drakitra momba ny faritra fanatanterahana.",
 };
 
-/* ===================== LIMITES ADMINISTRATIVES ===================== */
+const EN: Dict = {
+  titre: "Project intervention zones",
+  sousTitre: "Location of the regions, districts and communes where the projects operate",
+  recherche: "Project, category, region, district or commune (e.g. PADDI+, environment, Boeny)",
+  rechercheAria: "Search an intervention zone",
+  effacer: "Clear",
+  retirer: "Remove from list",
+  update: "Update",
+  vueMada: "Madagascar view",
+  vueTitre: "Intervention zones",
+  vueTexte: "Search for a project, category, region, district or commune, or click a project below.",
+  chargement: "Loading data…",
+  aucunResultat: "No result for this search.",
+  projets: "Projects",
+  regions: "Regions",
+  districts: "Districts",
+  communes: "Communes",
+  parCommune: "By commune",
+  colCommune: "Commune",
+  colSuperficie: "Area (ha)",
+  colMBV: "MBV area (ha)",
+  colPourcentage: "Share of commune",
+  total: "Total",
+  activites: "Environmental activities",
+  aucuneActivite: "No activity recorded",
+  zonesInterv: "Intervention zones",
+  communesNon: "Communes not recorded",
+  districtsNon: "Districts not recorded",
+  types: { restauration: "Restoration", reboisement: "Reforestation", autre: "Other environmental projects" },
+  niveaux: { projet: "Project", categorie: "Category", region: "Region", district: "District", commune: "Commune" },
+  projetCtx: "Intervention project",
+  catCtx: "Project category",
+  catEnv: "Environmental projects",
+  catDev: "Development projects",
+  regionCtx: "Region",
+  legRegion: "Region",
+  legDistrict: "District",
+  legCommune: "Commune",
+  legAP: "Protected area",
+  legMixte: "Environment and development",
+  legSelection: "Selection",
+  carteAria: "Intervention zones map",
+  carteTitre: "Madagascar: intervention zones",
+  projetsConcernes: "Projects involved",
+  fondAria: "Basemap",
+  fondTopo: "Topographic",
+  fondSat: "Satellite",
+  fondOsm: "OpenStreetMap",
+  note: "Boundaries: geoBoundaries (ADM1 to ADM3). Areas are computed from the outlines, so they are approximate.",
+  erreur: "Unable to load the administrative boundaries.",
+  erreurDonnees: "Unable to load the intervention zone data.",
+};
 
-const REV = '9469f09';
-const GH = 'wmgeolab/geoBoundaries';
-const CACHE: Partial<Record<Niv, Adm[]>> = {};
+const DE: Dict = {
+  titre: "Interventionsgebiete der Projekte",
+  sousTitre: "Lage der Regionen, Distrikte und Gemeinden, in denen die Projekte tätig sind",
+  recherche: "Projekt, Kategorie, Region, Distrikt oder Gemeinde (z. B. PADDI+, Umwelt, Boeny)",
+  rechercheAria: "Interventionsgebiet suchen",
+  effacer: "Leeren",
+  retirer: "Aus der Liste entfernen",
+  update: "Aktualisieren",
+  vueMada: "Ansicht Madagaskar",
+  vueTitre: "Interventionsgebiete",
+  vueTexte: "Suchen Sie ein Projekt, eine Kategorie, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
+  chargement: "Daten werden geladen…",
+  aucunResultat: "Kein Ergebnis für diese Suche.",
+  projets: "Projekte",
+  regions: "Regionen",
+  districts: "Distrikte",
+  communes: "Gemeinden",
+  parCommune: "Nach Gemeinde",
+  colCommune: "Gemeinde",
+  colSuperficie: "Fläche (ha)",
+  colMBV: "MBV-Fläche (ha)",
+  colPourcentage: "Anteil der Gemeinde",
+  total: "Gesamt",
+  activites: "Umweltaktivitäten",
+  aucuneActivite: "Keine Aktivität erfasst",
+  zonesInterv: "Interventionsgebiete",
+  communesNon: "Gemeinden nicht erfasst",
+  districtsNon: "Distrikte nicht erfasst",
+  types: { restauration: "Wiederherstellung", reboisement: "Aufforstung", autre: "Andere Umweltprojekte" },
+  niveaux: { projet: "Projekt", categorie: "Kategorie", region: "Region", district: "Distrikt", commune: "Gemeinde" },
+  projetCtx: "Interventionsprojekt",
+  catCtx: "Projektkategorie",
+  catEnv: "Umweltprojekte",
+  catDev: "Entwicklungsprojekte",
+  regionCtx: "Region",
+  legRegion: "Region",
+  legDistrict: "Distrikt",
+  legCommune: "Gemeinde",
+  legAP: "Schutzgebiet",
+  legMixte: "Umwelt und Entwicklung",
+  legSelection: "Auswahl",
+  carteAria: "Karte der Interventionsgebiete",
+  carteTitre: "Madagaskar: Interventionsgebiete",
+  projetsConcernes: "Beteiligte Projekte",
+  fondAria: "Kartengrundlage",
+  fondTopo: "Topografie",
+  fondSat: "Satellit",
+  fondOsm: "OpenStreetMap",
+  note: "Grenzen: geoBoundaries (ADM1 bis ADM3). Flächen werden aus den Umrissen berechnet und sind daher ungefähr.",
+  erreur: "Die Verwaltungsgrenzen konnten nicht geladen werden.",
+  erreurDonnees: "Die Daten der Interventionsgebiete konnten nicht geladen werden.",
+};
 
-const nomAdm = (f: Adm): string =>
+type Lang = "fr" | "mg" | "en" | "de";
+const T: Record<Lang, Dict> = { fr: FR, mg: MG, en: EN, de: DE };
+const LOCALE: Record<Lang, string> = { fr: "fr-FR", mg: "fr-FR", en: "en-US", de: "de-DE" };
+
+/* ===================== RECHERCHE ===================== */
+
+type Niveau = "projet" | "categorie" | "region" | "district" | "commune";
+
+type Sel = {
+  niveau: Niveau;
+  label: string;
+  cle: string;
+  recherche: string;
+  projetId?: string;
+  categorie?: TypeProjet;
+  mots?: string[];
+  regionCle?: string;
+  districtCle?: string;
+  regionNom?: string;
+  districtNom?: string;
+};
+
+/* Arborescence pour le panneau « Zones d'intervention » */
+type Noeud = { nom: string; districts: { nom: string; communes: string[] }[] };
+
+const RANG: Record<Niveau, number> = { categorie: -1, projet: 0, region: 1, district: 2, commune: 3 };
+
+const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> = {
+  restauration: { couleur: "#65a30d", icone: Sprout },
+  reboisement: { couleur: "#15803d", icone: Trees },
+  autre: { couleur: "#0891b2", icone: Leaf },
+};
+
+const idSug = (s: Sel) => [s.niveau, s.regionCle, s.districtCle, s.cle].join("|");
+
+/* Suggestions : catégories, projets, puis régions, districts et communes présents dans les données */
+const construireSuggestions = (d: Donnees): Sel[] => {
+  const vues = new Map<string, Sel>();
+  const ajouter = (s: Sel) => {
+    const k = idSug(s);
+    if (!vues.has(k)) vues.set(k, s);
+  };
+  ajouter({
+    niveau: "categorie",
+    label: "Projets environnementaux",
+    cle: "environnement",
+    recherche: "environnement environnemental environnementaux environnementale",
+    categorie: "environnement",
+    mots: ["environnement", "environnemental", "environnementaux", "environnementale"],
+  });
+  ajouter({
+    niveau: "categorie",
+    label: "Projets de développement",
+    cle: "developpement",
+    recherche: "developpement developpementrural rural",
+    categorie: "developpement",
+    mots: ["developpement", "developpementrural", "rural"],
+  });
+  d.projets.forEach((p) =>
+    ajouter({
+      niveau: "projet",
+      label: p.nom,
+      cle: cle(p.id),
+      recherche: [p.nom, ...p.alias].map(cle).join(" "),
+      projetId: p.id,
+    })
+  );
+  d.lignes.forEach((l) => {
+    const rk = cle(l.region);
+    ajouter({ niveau: "region", label: l.region, cle: rk, regionCle: rk, recherche: rk, regionNom: l.region });
+    if (l.district) {
+      const dk = cle(l.district);
+      ajouter({
+        niveau: "district",
+        label: l.district,
+        cle: dk,
+        regionCle: rk,
+        recherche: dk,
+        regionNom: l.region,
+        districtNom: l.district,
+      });
+      if (l.commune) {
+        const ck = cle(l.commune);
+        ajouter({
+          niveau: "commune",
+          label: l.commune,
+          cle: ck,
+          regionCle: rk,
+          districtCle: dk,
+          recherche: ck,
+          regionNom: l.region,
+          districtNom: l.district,
+        });
+      }
+    }
+  });
+  return [...vues.values()];
+};
+
+const contexteDe = (s: Sel, t: Dict) =>
+  s.niveau === "projet"
+    ? t.projetCtx
+    : s.niveau === "categorie"
+    ? t.catCtx
+    : s.niveau === "region"
+    ? t.regionCtx
+    : s.niveau === "district"
+    ? `${t.regionCtx} ${s.regionNom}`
+    : `${s.regionNom} · ${s.districtNom}`;
+
+/* Libellé traduit d'une suggestion (les catégories changent de langue, les noms propres non) */
+const libelleDe = (s: Sel, t: Dict) =>
+  s.niveau === "categorie" ? (s.categorie === "environnement" ? t.catEnv : t.catDev) : s.label;
+
+function correspond(l: Ligne, s: Sel): boolean {
+  const rk = cle(l.region);
+  switch (s.niveau) {
+    case "categorie":
+      return l.type === s.categorie;
+    case "projet":
+      return l.projetId === s.projetId;
+    case "region":
+      return rk === s.cle;
+    case "district":
+      return rk === s.regionCle && !!l.district && cle(l.district) === s.cle;
+    case "commune":
+      return (
+        rk === s.regionCle &&
+        !!l.district &&
+        cle(l.district) === s.districtCle &&
+        !!l.commune &&
+        cle(l.commune) === s.cle
+      );
+  }
+}
+
+/* ===================== GÉOMÉTRIE ET LIMITES ===================== */
+
+type Feat = { properties: Record<string, any>; geometry: { type: string; coordinates: any } };
+type Niv = "ADM1" | "ADM2" | "ADM3";
+
+const REV = "9469f09";
+const GH = "wmgeolab/geoBoundaries";
+const MADA: L.LatLngBoundsExpression = [[-25.9, 43.0], [-11.8, 50.7]];
+
+const nomFeat = (f: Feat): string =>
   String(
     f.properties.shapeName ??
       f.properties.name ??
-      Object.values(f.properties).find((v) => typeof v === 'string') ??
-      ''
+      Object.values(f.properties).find((v) => typeof v === "string") ??
+      ""
   );
 
-const polygones = (f: Adm): number[][][][] =>
-  f.geometry.type === 'Polygon'
+const polygones = (f: Feat): number[][][][] =>
+  f.geometry.type === "Polygon"
     ? [f.geometry.coordinates]
-    : f.geometry.type === 'MultiPolygon'
+    : f.geometry.type === "MultiPolygon"
     ? f.geometry.coordinates
     : [];
 
@@ -133,11 +485,10 @@ function dansAnneau(x: number, y: number, a: number[][]): boolean {
   return dedans;
 }
 
-const contient = (x: number, y: number, f: Adm) =>
+const contient = (x: number, y: number, f: Feat) =>
   polygones(f).some((p) => dansAnneau(x, y, p[0]) && !p.slice(1).some((h) => dansAnneau(x, y, h)));
 
-/* Vrai si l'enfant (district ou commune) se trouve à l'intérieur du parent */
-function estDans(enfant: Adm, parent: Adm): boolean {
+function estDans(enfant: Feat, parent: Feat): boolean {
   const pts = polygones(enfant).flatMap((p) => p[0]);
   if (!pts.length) return false;
   const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
@@ -150,7 +501,26 @@ function estDans(enfant: Adm, parent: Adm): boolean {
   return score >= 5;
 }
 
-async function chargerAdm(niv: Niv): Promise<Adm[]> {
+/** Superficie approximative d'un polygone, en hectares. */
+function surfaceHa(f: Feat): number {
+  const anneau = (r: number[][]) => {
+    const k = Math.cos((r[0][1] * Math.PI) / 180) * 111.32;
+    let s = 0;
+    for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+      s += r[j][0] * k * (r[i][1] * 110.54) - r[i][0] * k * (r[j][1] * 110.54);
+    }
+    return Math.abs(s / 2);
+  };
+  const km2 = polygones(f).reduce(
+    (t, p) => t + anneau(p[0]) - p.slice(1).reduce((h, r) => h + anneau(r), 0),
+    0
+  );
+  return km2 * 100;
+}
+
+const CACHE: Partial<Record<Niv, Feat[]>> = {};
+
+async function charger(niv: Niv): Promise<Feat[]> {
   if (CACHE[niv]) return CACHE[niv]!;
   const f = `releaseData/gbOpen/MDG/${niv}/geoBoundaries-MDG-${niv}_simplified.geojson`;
   const urls = [
@@ -163,11 +533,11 @@ async function chargerAdm(niv: Niv): Promise<Adm[]> {
       const r = await fetch(u);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const texte = await r.text();
-      if (texte.startsWith('version https://git-lfs')) throw new Error('LFS');
+      if (texte.startsWith("version https://git-lfs")) throw new Error("LFS");
       const j = JSON.parse(texte);
       const feats = (j.features ?? []).filter(
-        (x: Adm) => x?.geometry && /Polygon/.test(x.geometry.type)
-      ) as Adm[];
+        (x: Feat) => x?.geometry && /Polygon/.test(x.geometry.type)
+      ) as Feat[];
       if (feats.length) {
         CACHE[niv] = feats;
         return feats;
@@ -179,455 +549,1012 @@ async function chargerAdm(niv: Niv): Promise<Adm[]> {
   throw new Error(niv);
 }
 
-/* ===================== CARTE : RECADRAGE, ÉCHELLE ===================== */
+/* ===================== STYLES DE CARTE ===================== */
 
-// Recadre la carte sur la zone sélectionnée, sinon sur Madagascar
-function MapController({ bounds }: { bounds: L.LatLngBounds | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!bounds) { map.setView(MADAGASCAR, 5); return; }
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 10 });
-  }, [bounds]); // eslint-disable-line
-  return null;
-}
+/* Couleur de la limite d'une région selon les types de projets qui y interviennent */
+const COULEUR_TYPE: Record<TypeProjet | "mixte", string> = {
+  environnement: "#b91c1c",
+  developpement: "#1d4ed8",
+  mixte: "#7c3aed",
+};
+const COULEUR_HORS = "#64748b";
 
-// Échelle métrique en bas à gauche de la carte
-function ScaleBar() {
-  const map = useMap();
-  useEffect(() => {
-    const c = L.control.scale({ metric: true, imperial: false, position: 'bottomleft' });
-    c.addTo(map);
-    return () => { c.remove(); };
-  }, [map]);
-  return null;
-}
-
-/* ===================== GRAPHIQUES ===================== */
-
-function Donut({ title, data }: { title: string; data: { name: string; value: number }[] }) {
-  const t = data.reduce((s, d) => s + d.value, 0);
-  return (
-    <div className="sv-c">
-      <h4>{title}</h4>
-      <div style={{ height: 200 }}>
-        <ResponsiveContainer>
-          <PieChart>
-            <Pie data={data} dataKey="value" innerRadius="55%" outerRadius="85%" stroke="var(--card)">
-              {data.map((d, i) => <Cell key={d.name} fill={PAL[i % PAL.length]} />)}
-            </Pie>
-            <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
-            <text x="50%" y="48%" textAnchor="middle" fontSize={15} fontWeight="700" fill="var(--gv)">{fr(t)} ha</text>
-            <text x="50%" y="58%" textAnchor="middle" fontSize={11} fill="var(--mut)">(100 %)</text>
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      {data.map((d, i) => (
-        <div className="sv-lg" key={d.name}>
-          <span><i style={{ background: PAL[i % PAL.length] }} />{d.name}</span>
-          <span><b>{fr(d.value)} ha</b> ({fr((d.value / (t || 1)) * 100, 1)} %)</span>
-        </div>
-      ))}
-    </div>
+/* Limite seule, sans fond (sauf les communes, remplies légèrement) */
+function contour(
+  g: L.LayerGroup,
+  f: Feat,
+  style: L.PathOptions,
+  nom: string,
+  classe: string | null,
+  onClick?: () => void
+) {
+  const couc = L.geoJSON(f as any, { style });
+  couc.bindTooltip(
+    nom,
+    classe
+      ? { permanent: true, direction: "center", className: `zi-label ${classe}` }
+      : { sticky: true, className: "zi-hover" }
   );
+  if (onClick) couc.on("click", onClick);
+  couc.addTo(g);
 }
 
-function Gauge({ pct }: { pct: number }) {
-  const p = Math.max(0, Math.min(100, pct));
-  return (
-    <div style={{ height: 110 }}>
-      <ResponsiveContainer>
-        <PieChart>
-          <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="65%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none">
-            <Cell fill="var(--gv)" /><Cell fill="var(--track)" />
-          </Pie>
-          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize={14} fontWeight="700" fill="var(--gv)">{fr(pct, 1)} %</text>
-        </PieChart>
-      </ResponsiveContainer>
-    </div>
-  );
-}
+type ActiviteLocalisee = Activite & { region: string; district: string; commune: string };
 
-/* ===================== CSS ===================== */
+const DONNEES_VIDES: Donnees = { projets: [], lignes: LIGNES_VIDES };
 
-/* Les couleurs viennent de variables : valeurs claires dans « .sv »,
-   surcharges du thème sombre dans « :root[data-theme="dark"] .sv ». */
-const CSS = `
-.sv{--g:clamp(8px,1.2vw,16px);
-  --page:#f4f6f5;--card:#fff;--txt:#374151;--txt2:#4b5563;--mut:#6b7280;--line:#e5e7eb;--bd:#d1d5db;--track:#e5e7eb;
-  --gv:#1b5e20;--gb:#1b5e20;--bad:#c62828;--e1:rgba(27,94,32,.08);--e2:rgba(27,94,32,.02);--map-bg:#e5e7eb;
-  background:var(--page);min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--txt)}
-:root[data-theme="dark"] .sv{--page:var(--bg);--card:var(--surface);--txt:#e5e7eb;--txt2:#cbd5e1;--mut:#94a3b8;
-  --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
-  --gv:#66bb6a;--gb:#2e7d32;--bad:#f87171;--e1:rgba(102,187,106,.14);--e2:rgba(102,187,106,.04);--map-bg:#1b2740}
-.sv *{box-sizing:border-box}
-.sv-w{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px);display:grid;gap:var(--g)}
-.sv-hd{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px) clamp(10px,2vw,24px) 0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;color:var(--txt)}
-.sv-hd h2{margin:0;font-size:clamp(16px,2.4vw,22px);line-height:1.2;color:var(--txt)}
-.sv-ha{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
-.sv-hd button{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600}
-.sv-hd button:disabled{opacity:.7;cursor:default}
-.sv-spin{animation:svs 1s linear infinite}@keyframes svs{to{transform:rotate(360deg)}}
-.sv-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
-.sv-f label{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px;min-width:0}
-.sv-f select{height:38px;width:100%;min-width:0;border:1px solid var(--bd);border-radius:8px;padding:0 8px;background:var(--card);color:var(--txt)}
-.sv-cols{display:grid;grid-template-columns:1fr;gap:var(--g)}
-@media(min-width:1000px){.sv-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}}
-.sv-side{display:flex;flex-direction:column;gap:var(--g);min-width:0}
-.sv-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--g);flex:1}
-.sv-span{grid-column:1/-1}
-@media(max-width:520px){.sv-grid2{grid-template-columns:1fr}}
-.sv-c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0;display:flex;flex-direction:column}
-.sv-c h4{margin:0 0 10px;text-align:center;color:var(--gv);font-size:14px}
-.sv-e{border-left:6px solid var(--gv);background:linear-gradient(90deg,var(--e1),var(--e2)),var(--card)}
-.sv-e p{margin:0;text-align:center;font-size:14px;line-height:1.6}
-.sv-big{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
-.sv-sub{font-size:12px;font-weight:700;text-align:center;margin-top:6px}
-.sv-val{flex:1;display:flex;flex-direction:column;justify-content:center}
-.sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center;flex-wrap:wrap}
-.sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-.sv-map{min-height:480px}
-.sv-mapbox{flex:1;min-height:420px;width:100%;border-radius:8px;z-index:0;background:var(--map-bg)}
-.sv-mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.sv-mh h4{margin:0;color:var(--gv);font-size:14px}
-.sv-mh select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
-.sv-leg-adm{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--txt2);margin-top:6px}
-.sv-leg-adm i{display:inline-block;width:14px;height:0;border-top:3px solid;margin-right:6px;vertical-align:middle}
-.sv-tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
-.sv-tb h4{margin:0}
-.sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--txt)}
-.sv-btn{display:inline-flex;gap:6px;align-items:center;padding:8px 12px;background:var(--gb);color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600}
-.sv-t{overflow-x:auto}
-.sv-t table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
-.sv-t th{background:var(--gb);color:#fff;padding:10px;border-right:1px solid rgba(255,255,255,.3)}
-.sv-t td{padding:10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;color:var(--txt)}
-.sv-t td.l{text-align:left}
-.sv-pg{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px}
-.sv-pg div{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
-.sv-pg button{min-width:32px;height:32px;border:1px solid var(--bd);background:var(--card);color:var(--txt);border-radius:6px;cursor:pointer;font-weight:600}
-.sv-pg button.on{background:var(--gb);color:#fff;border-color:var(--gb)}
-.sv-pg button:disabled{opacity:.4;cursor:default}
-.sv-pg select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
-.sv-msg{padding:40px 16px;text-align:center}
-@media(max-width:520px){.sv-pg{justify-content:center}}
-@media(min-width:2200px){.sv{font-size:18px}.sv-c h4{font-size:18px}.sv-t table{font-size:16px}}
-@media(prefers-reduced-motion:reduce){.sv *{transition:none!important;animation:none!important}}
-.leaflet-tooltip.sv-tip{font-size:12px;font-weight:600}
-`;
+/* ===================== COMPOSANT ===================== */
 
-function useNarrow(px = 480) {
-  const q = `(max-width:${px}px)`;
-  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(q);
-    const h = () => setM(mq.matches);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, [q]);
-  return m;
-}
-
-export default function SuiviDashboard({ config, src = '/data/parcelles.geojson', headerExtra }: { config: DashboardConfig; src?: string; headerExtra?: React.ReactNode }) {
-  const { titleKey, enonceKey, themes, cible, extras = [] } = config;
-  const ctx: any = useLanguage() || {};
-  const raw = ctx.language ?? ctx.lang ?? ctx.locale;
-  const lang: Lang = typeof raw === 'string' && raw in IDX ? (raw as Lang) : 'fr';
+export default function ZonesIntervention() {
+  const { lang: brut } = useLanguage();
+  const lang: Lang = (["fr", "mg", "en", "de"] as string[]).includes(brut as string) ? (brut as Lang) : "fr";
   const t = T[lang];
-  LOC = LOCALES[lang];
-  const tv = (s: string) => (V[s] ? V[s][IDX[lang]] : s);
-  const tp = (s: string) => s.replace(/^(.*?) \((.*)\)$/, (_: string, c: string, sub: string) => `${tv(c)} (${tv(sub)})`);
-  const narrow = useNarrow();
-  const [geo, setGeo] = useState<Geo | null>(null);
-  const [err, setErr] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [f, setF] = useState<Record<string, string>>({});
-  const [q, setQ] = useState('');
-  const [page, setPage] = useState(1);
-  const [per, setPer] = useState(10);
-  const [base, setBase] = useState<Base>('topo');
-  const [regions, setRegions] = useState<Adm[]>([]);
-  const [districts, setDistricts] = useState<Adm[]>([]);
-  const [communes, setCommunes] = useState<Adm[]>([]);
 
-  const load = () => {
-    setErr(false);
-    setBusy(true);
-    fetch(src, { cache: 'no-store' })
-      .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-      .then(setGeo)
-      .catch(() => setErr(true))
-      .finally(() => setBusy(false));
-  };
-  useEffect(() => { load(); }, [src]);
-  // Limites administratives : chargées une fois ; en cas d'échec, la carte reste sans contours
+  const elMap = useRef<HTMLDivElement>(null);
+  const map = useRef<L.Map | null>(null);
+  const couche = useRef<L.LayerGroup | null>(null);
+  const fond = useRef<L.TileLayer | null>(null);
+
+  const [donnees, setDonnees] = useState<Donnees | null>(null);
+  const [erreurDonnees, setErreurDonnees] = useState(false);
+  const [version, setVersion] = useState(0);
+  const [regions, setRegions] = useState<Feat[]>([]);
+  const [districts, setDistricts] = useState<Feat[]>([]);
+  const [communes, setCommunes] = useState<Feat[]>([]);
+  const [erreur, setErreur] = useState(false);
+  const [requete, setRequete] = useState("");
+  const [ouvert, setOuvert] = useState(false);
+  const [sel, setSel] = useState<Sel | null>(null);
+  const [vide, setVide] = useState(false);
+  const [typeFond, setTypeFond] = useState<Fond>("topo");
+  const [masques, setMasques] = useState<Set<string>>(new Set());
+
+  /* ----- mise à jour (connexion requise, comme le Dashboard) ----- */
+  const [showLogin, setShowLogin] = useState(false);
+  const [showUpdate, setShowUpdate] = useState(false);
+  const [userName, setUserName] = useState("");
+  const [token, setToken] = useState("");
+
+  /* ----- données (fichier GeoJSON), rechargées après chaque enregistrement ----- */
   useEffect(() => {
-    chargerAdm('ADM1').then(setRegions).catch(() => {});
-    chargerAdm('ADM2').then(setDistricts).catch(() => {});
-    chargerAdm('ADM3').then(setCommunes).catch(() => {});
-  }, []);
-  // « Actualiser » : réinitialise filtres, recherche et pagination, puis recharge les données
-  const refresh = () => { setF({}); setQ(''); setPage(1); setPer(10); load(); };
+    fetch(`${DATA_URL}?v=${version}`, { cache: "no-store" })
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((geo) => {
+        setDonnees(construireDonnees(geo));
+        setErreurDonnees(false);
+      })
+      .catch(() => setErreurDonnees(true));
+  }, [version]);
 
-  const feats = useMemo(() => (geo ? geo.features.filter((x) => themes.includes(x.properties.theme)) : []), [geo, themes]);
-  const match = (p: Parcelle, skip?: FilterKey) => FILTERS.every((k) => k === skip || !f[k] || String(p[k]) === f[k]);
-  const filtered = useMemo(() => feats.filter((x) => match(x.properties)), [feats, f]); // eslint-disable-line
-  const rows = useMemo(() => filtered.map((x) => x.properties), [filtered]);
-  // Options en cascade : chaque filtre ne tient compte que des autres filtres sélectionnés
-  const opts = (k: FilterKey) => [...new Set(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])))].sort();
+  const PROJETS = donnees?.projets ?? [];
+  const LIGNES = donnees?.lignes ?? LIGNES_VIDES;
+  const SUGG = useMemo(() => construireSuggestions(donnees ?? DONNEES_VIDES), [donnees]);
 
-  /* Géométries administratives de la sélection, trouvées à l'intérieur de leur parent */
-  const adm = useMemo(() => {
-    const rK = f.region ? cle(f.region) : '';
-    const dK = f.district ? cle(f.district) : '';
-    const cK = f.commune ? cle(f.commune) : '';
-    const reg = rK ? regions.find((x) => cle(nomAdm(x)) === rK) : undefined;
-    const dis = dK
-      ? (reg
-          ? districts.find((x) => cle(nomAdm(x)) === dK && estDans(x, reg))
-          : districts.find((x) => cle(nomAdm(x)) === dK))
-      : undefined;
-    const nomCommune = COMMUNE_GEO[`${rK}|${dK}|${cK}`] ?? f.commune ?? '';
-    const com = cK && dis
-      ? communes.find((x) => cle(nomAdm(x)) === cle(nomCommune) && estDans(x, dis))
-      : undefined;
-    return { reg, dis, com };
-  }, [f.region, f.district, f.commune, regions, districts, communes]);
-
-  /* Cadrage : commune, sinon district, sinon région ; sinon Madagascar */
-  const cadre = useMemo(() => {
-    const cibleAdm = adm.com ?? adm.dis ?? adm.reg;
-    return cibleAdm ? L.geoJSON(cibleAdm as any).getBounds() : null;
-  }, [adm]);
-
-  const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
-  const dTot = sum(rows);
-  const taux = cible ? (vTot / cible) * 100 : 0;
-  const regionsData = group(rows, 'region');
-
-  const ql = q.trim().toLowerCase();
-  const table = ql ? rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(ql)) : rows;
-  const pages = Math.max(1, Math.ceil(table.length / per));
-  const cur = Math.min(page, pages);
-  const slice = table.slice((cur - 1) * per, cur * per);
-  const win = [...new Set([1, cur - 1, cur, cur + 1, pages])].filter((p) => p >= 1 && p <= pages).sort((a, b) => a - b);
-
-  const exportCsv = () => {
-    const c = t.table.cols;
-    const head = [c[0], c[1], c[2], t.f.region, t.f.commune, c[3], c[4], c[5], c[6]];
-    const keys: (keyof Parcelle)[] = ['id', 'utilisateur', 'pratique', 'region', 'commune', 'debut', 'fin', 'superficie_ha', 'statut'];
-    const cell = (r: Parcelle, k: keyof Parcelle) => (k === 'pratique' ? tp(r[k]) : k === 'statut' ? tv(r[k]) : r[k]);
-    const csv = ([head, ...table.map((r) => keys.map((k) => cell(r, k)))] as (string | number | boolean)[][])
-      .map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(';')).join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' }));
-    a.download = 'parcelles.csv';
-    a.click();
-    URL.revokeObjectURL(a.href);
-  };
-
-  const mapKey = `${filtered.length}-${Math.round(dTot)}`;
-  const title = t.title[titleKey];
-  const showTitle = !/vue\s+d.ensemble/i.test(title);
-
-  /* Carte d'information simple (CEP, pare-feux) depuis la configuration */
-  const carteExtra = (key: 'cep' | 'feu') => {
-    const x = extras.find((e) => e.key === key);
-    if (!x) return null;
-    const Ic = ICONS[x.icon] || Users;
-    return (
-      <div className="sv-c" key={x.key}>
-        <h4>{t.extra[x.key]}</h4>
-        <div className="sv-val">
-          <div className="sv-big"><Ic size={20} style={{ verticalAlign: -3, marginRight: 6 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
-        </div>
-      </div>
+  const trouver = (niveau: Niveau, k: string, regionK?: string, districtK?: string) =>
+    SUGG.find(
+      (s) =>
+        s.niveau === niveau &&
+        s.cle === k &&
+        (regionK === undefined || s.regionCle === regionK) &&
+        (districtK === undefined || s.districtCle === districtK)
     );
+
+  /* ----- aires protégées (mêmes données que la page feux) ----- */
+  const [airesF] = useGeo(DATA.aires);
+  const apZ = useMemo(() => toZones(airesF, PROP.ap, ""), [airesF]);
+
+  /* ----- actions ----- */
+  const choisir = (s: Sel) => {
+    setSel(s);
+    setVide(false);
+    setRequete(libelleDe(s, t));
+    setOuvert(false);
+  };
+  const effacer = () => {
+    setSel(null);
+    setVide(false);
+    setRequete("");
+    setOuvert(false);
+    setMasques(new Set());
+  };
+  const choisirZone = (niveau: Niveau, k: string, rk?: string, dk?: string) => {
+    const s = trouver(niveau, k, rk, dk);
+    if (s) choisir(s);
   };
 
+  /* ----- saisie : le panneau suit la recherche ; sans résultat, tout reste vide ----- */
+  const saisir = (v: string) => {
+    setRequete(v);
+    setOuvert(true);
+    if (!v) {
+      setSel(null);
+      setVide(false);
+      setMasques(new Set());
+      return;
+    }
+    const q = cle(v);
+    const exact = SUGG.find((s) => cle(s.label) === q || (s.mots ?? []).includes(q));
+    if (exact) {
+      setSel(exact);
+      setVide(false);
+      return;
+    }
+    const trouve = SUGG.some((s) => s.recherche.includes(q));
+    setSel(null);
+    setVide(!trouve);
+  };
+
+  /* ----- suggestions (sans celles que l'on a retirées avec la croix) ----- */
+  const suggestions = useMemo(() => {
+    const q = cle(requete);
+    if (!q) return [];
+    return SUGG.filter((s) => s.recherche.includes(q) && !masques.has(idSug(s)))
+      .sort((a, b) => RANG[a.niveau] - RANG[b.niveau] || a.label.localeCompare(b.label))
+      .slice(0, 8);
+  }, [requete, masques, SUGG]);
+
+  /* ----- périmètre ----- */
+  const lignes = useMemo(() => (sel ? LIGNES.filter((l) => correspond(l, sel)) : []), [sel, LIGNES]);
+  const actives = useMemo<Ligne[]>(
+    () => (vide ? [] : sel ? lignes : LIGNES),
+    [vide, sel, lignes, LIGNES]
+  );
+
+  /* ----- correspondance géographique : chaque district et commune est trouvé À L'INTÉRIEUR
+         de sa région et de son district, pour éviter les homonymes ailleurs dans le pays ----- */
+  const { featDis, featCom, ligneDis, ligneCom } = useMemo(() => {
+    const featDis = new Map<string, Feat>();
+    const featCom = new Map<string, Feat>();
+    const ligneDis = new Map<Feat, { region: string; district: string }>();
+    const ligneCom = new Map<Feat, Ligne>();
+
+    LIGNES.forEach((l) => {
+      if (!l.district) return;
+      const rF = regions.find((r) => cle(nomFeat(r)) === cle(l.region));
+      const dk = cle(l.district);
+      const candD = districts.filter((d) => cle(nomFeat(d)) === dk);
+      const dF = rF ? candD.find((d) => estDans(d, rF)) : candD[0];
+      if (!dF) return;
+
+      const kD = `${cle(l.region)}|${dk}|`;
+      if (!featDis.has(kD)) {
+        featDis.set(kD, dF);
+        ligneDis.set(dF, { region: l.region, district: l.district });
+      }
+
+      if (!l.commune) return;
+      /* Nom de géométrie : celui défini dans COMMUNE_GEO si la commune est un homonyme */
+      const ck = cle(COMMUNE_GEO[cleLigne(l)] ?? l.commune);
+      const cF = communes.find((c) => cle(nomFeat(c)) === ck && estDans(c, dF));
+      if (cF) {
+        featCom.set(cleLigne(l), cF);
+        ligneCom.set(cF, l);
+      }
+    });
+    return { featDis, featCom, ligneDis, ligneCom };
+  }, [regions, districts, communes, LIGNES]);
+
+  /* Zones à dessiner : uniquement celles des lignes de la sélection en cours */
+  const actRegKeys = useMemo(() => new Set(actives.map((l) => cle(l.region))), [actives]);
+  const actDisSet = useMemo(() => {
+    const s = new Set<Feat>();
+    actives.forEach((l) => {
+      if (!l.district) return;
+      const f = featDis.get(`${cle(l.region)}|${cle(l.district)}|`);
+      if (f) s.add(f);
+    });
+    return s;
+  }, [actives, featDis]);
+  const actComSet = useMemo(() => {
+    const s = new Set<Feat>();
+    actives.forEach((l) => {
+      if (!l.commune) return;
+      const f = featCom.get(cleLigne(l));
+      if (f) s.add(f);
+    });
+    return s;
+  }, [actives, featCom]);
+
+  /* Types de projets par région (couleur de la limite régionale) */
+  const typesRegion = useMemo(() => {
+    const m = new Map<string, Set<TypeProjet>>();
+    actives.forEach((l) => {
+      const k = cle(l.region);
+      if (!m.has(k)) m.set(k, new Set());
+      m.get(k)!.add(l.type);
+    });
+    return m;
+  }, [actives]);
+
+  /* Région, district et commune actuellement choisis (géométries) */
+  const regionCle = sel && (sel.niveau === "region" ? sel.cle : sel.regionCle ?? null);
+  const regionFeat = useMemo(
+    () => (regionCle ? regions.find((f) => cle(nomFeat(f)) === regionCle) : undefined),
+    [regionCle, regions]
+  );
+  const districtFeat = useMemo(() => {
+    if (!sel) return undefined;
+    const kD =
+      sel.niveau === "district"
+        ? `${sel.regionCle}|${sel.cle}|`
+        : sel.niveau === "commune"
+        ? `${sel.regionCle}|${sel.districtCle}|`
+        : null;
+    return kD ? featDis.get(kD) : undefined;
+  }, [sel, featDis]);
+  const communeFeat = useMemo(() => {
+    if (!sel || sel.niveau !== "commune") return undefined;
+    return featCom.get(`${sel.regionCle}|${sel.districtCle}|${sel.cle}`);
+  }, [sel, featCom]);
+
+  const regionsProjet = useMemo(() => {
+    const ids = new Set(lignes.map((l) => cle(l.region)));
+    return regions.filter((f) => ids.has(cle(nomFeat(f))));
+  }, [lignes, regions]);
+
+  /* ----- carte : création ----- */
+  useEffect(() => {
+    const m = L.map(elMap.current!, { zoomControl: false }).fitBounds(MADA);
+    L.control.zoom({ position: "bottomright" }).addTo(m);
+    L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
+    m.createPane("zi-ap").style.zIndex = "450";
+    couche.current = L.layerGroup().addTo(m);
+    map.current = m;
+    const ro = new ResizeObserver(() => m.invalidateSize());
+    ro.observe(elMap.current!);
+    return () => {
+      ro.disconnect();
+      m.remove();
+      map.current = null;
+    };
+  }, []);
+
+  /* ----- fond de carte : Topographie, Satellite ou OpenStreetMap ----- */
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    fond.current?.remove();
+    const f = FONDS[typeFond];
+    fond.current = L.tileLayer(f.url, { attribution: f.attr, maxZoom: f.maxZoom }).addTo(m);
+    fond.current.bringToBack();
+  }, [typeFond]);
+
+  /* ----- chargement des limites ----- */
+  useEffect(() => {
+    charger("ADM1").then(setRegions).catch(() => setErreur(true));
+    charger("ADM2").then(setDistricts).catch(() => setErreur(true));
+    charger("ADM3").then(setCommunes).catch(() => setErreur(true));
+  }, []);
+
+  /* ----- dessin (limites sans fond) ----- */
+  useEffect(() => {
+    const g = couche.current;
+    if (!g) return;
+    g.clearLayers();
+
+    /* Aires protégées : limites comme sur la page feux */
+    apZ.forEach((z) => {
+      L.geoJSON(z.feature as any, {
+        pane: "zi-ap",
+        interactive: true,
+        style: { color: "#16a34a", weight: 1.2, fillColor: "#22c55e", fillOpacity: 0.1 },
+      })
+        .bindTooltip(String(z.nom), { sticky: true, className: "zi-hover" })
+        .addTo(g);
+    });
+
+    /* Recherche sans résultat, ou sélection sans zone renseignée : aucune limite administrative */
+    if (vide || (sel && actives.length === 0)) return;
+
+    const n = sel?.niveau ?? "vue";
+    const versCommunes = n === "district" || n === "commune";
+    const etiqRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
+    /* Fond : uniquement sur le niveau choisi (région, district ou commune) */
+    const remplirRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
+    const etiqDistrict = n === "district";
+    const etiqCommune = n === "commune";
+
+    /* Régions : toutes sans recherche, puis seulement celles de la sélection */
+    regions
+      .filter((f) => n === "vue" || actRegKeys.has(cle(nomFeat(f))))
+      .forEach((f) => {
+        const k = cle(nomFeat(f));
+        const choisie = n === "region" && regionFeat === f;
+        const types = typesRegion.get(k);
+        const couleur = !types
+          ? COULEUR_HORS
+          : types.size > 1
+          ? COULEUR_TYPE.mixte
+          : COULEUR_TYPE[[...types][0]];
+        contour(
+          g,
+          f,
+          { color: couleur, weight: choisie ? 3 : 1.6, fillColor: couleur, fillOpacity: remplirRegion ? 0.18 : 0 },
+          nomFeat(f),
+          etiqRegion && typesRegion.has(k) ? "zi-label-region" : null,
+          () => {
+            if (n === "region" && regionFeat === f) effacer();
+            else choisirZone("region", k);
+          }
+        );
+      });
+
+    /* Districts de la sélection (limites sans fond) */
+    if (n !== "vue") {
+      districts
+        .filter((d) => actDisSet.has(d))
+        .forEach((d) => {
+          const choisi = n === "district" && districtFeat === d;
+          contour(
+            g,
+            d,
+            {
+              color: choisi ? "#dc2626" : "#6d28d9",
+              weight: choisi ? 2.5 : 1.2,
+              dashArray: "4 3",
+              fillColor: "#a78bfa",
+              fillOpacity: n === "district" && choisi ? 0.3 : 0,
+            },
+            nomFeat(d),
+            etiqDistrict ? "zi-label-district" : null,
+            () => {
+              const l = ligneDis.get(d);
+              if (!l) return;
+              if (choisi) choisirZone("region", cle(l.region));
+              else choisirZone("district", cle(l.district), cle(l.region));
+            }
+          );
+        });
+    }
+
+    /* Communes : uniquement quand un district (ou une commune) est choisi */
+    if (versCommunes) {
+      actComSet.forEach((c) => {
+        const choisie = n === "commune" && communeFeat === c;
+        const l = ligneCom.get(c);
+        contour(
+          g,
+          c,
+          {
+            color: choisie ? "#dc2626" : "#0f766e",
+            weight: choisie ? 2.5 : 1,
+            fillColor: choisie ? "#0d9488" : "#14b8a6",
+            fillOpacity: choisie ? 0.5 : 0,
+          },
+          nomFeat(c),
+          etiqCommune ? "zi-label-commune" : null,
+          () => {
+            if (!l || !l.district || !l.commune) return;
+            if (choisie) choisirZone("district", cle(l.district), cle(l.region));
+            else choisirZone("commune", cle(l.commune), cle(l.region), cle(l.district));
+          }
+        );
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion]);
+
+  /* ----- cadrage ----- */
+  useEffect(() => {
+    const m = map.current;
+    if (!m) return;
+    if (!sel) {
+      m.flyToBounds(MADA, { duration: 0.8 });
+      return;
+    }
+    let liste: Feat[] = [];
+    if (sel.niveau === "projet" || sel.niveau === "categorie") liste = regionsProjet;
+    else {
+      const cible =
+        sel.niveau === "commune" ? communeFeat : sel.niveau === "district" ? districtFeat : regionFeat;
+      if (cible) liste = [cible];
+    }
+    if (!liste.length) return;
+    const bounds = liste.map((f) => L.geoJSON(f as any).getBounds()).reduce((a, b) => a.extend(b));
+    m.flyToBounds(bounds, { padding: [40, 40], maxZoom: sel.niveau === "commune" ? 11 : 9, duration: 0.9 });
+  }, [sel, regionsProjet, regionFeat, districtFeat, communeFeat]);
+
+  /* ----- données du panneau ----- */
+  const lignesCommunes = useMemo(() => actives.filter((l) => !!l.commune && !!l.district), [actives]);
+  const activites = useMemo<ActiviteLocalisee[]>(
+    () =>
+      lignesCommunes.flatMap((l) =>
+        l.activites.map((a) => ({
+          ...a,
+          region: l.region,
+          district: l.district ?? "",
+          commune: l.commune ?? "",
+        }))
+      ),
+    [lignesCommunes]
+  );
+  const projetsVue = useMemo(
+    () => PROJETS.filter((p) => actives.some((l) => l.projetId === p.id)),
+    [actives, PROJETS]
+  );
+
+  /* La carte « Activités environnementales » n'apparaît que pour un projet environnemental choisi */
+  const afficherActivites = !vide && !!sel && projetsVue.some((p) => p.type === "environnement");
+
+  /* Le MBV ne concerne que les projets environnementaux (ils ciblent un endroit précis).
+     Les projets de développement travaillent sur la commune entière : pas de MBV pour eux. */
+  const avecMbv = lignesCommunes.some((l) => l.type === "environnement");
+
+  /* Lignes sans doublon */
+  const lignesTableau = useMemo(() => {
+    const vues = new Set<string>();
+    const out: Ligne[] = [];
+    actives.forEach((l) => {
+      const k = `${l.region}|${l.district ?? ""}|${l.commune ?? ""}`;
+      if (!vues.has(k)) {
+        vues.add(k);
+        out.push(l);
+      }
+    });
+    return out;
+  }, [actives]);
+
+  /* Arborescence Région > District > Commune */
+  const arbre = useMemo<Noeud[]>(() => {
+    const regs = new Map<string, Map<string, string[]>>();
+    lignesTableau.forEach((l) => {
+      if (!regs.has(l.region)) regs.set(l.region, new Map());
+      if (!l.district) return;
+      const dis = regs.get(l.region)!;
+      if (!dis.has(l.district)) dis.set(l.district, []);
+      if (l.commune) dis.get(l.district)!.push(l.commune);
+    });
+    return [...regs.entries()].map(([nom, dis]) => ({
+      nom,
+      districts: [...dis.entries()].map(([dn, communesN]) => ({ nom: dn, communes: communesN })),
+    }));
+  }, [lignesTableau]);
+
+  /* Nom de la région affiché à droite du titre */
+  const regionAff = !vide && sel ? (sel.niveau === "region" ? sel.label : sel.regionNom ?? null) : null;
+
+  const nbRegions = new Set(actives.map((l) => cle(l.region))).size;
+  const nbDistricts = new Set(
+    actives.filter((l) => l.district).map((l) => `${cle(l.region)}|${cle(l.district!)}`)
+  ).size;
+
+  /* Superficie de la commune, prise dans la géométrie trouvée pour sa ligne */
+  const surfaceDe = (l: Ligne) => {
+    const f = featCom.get(cleLigne(l));
+    return f ? surfaceHa(f) : null;
+  };
+
+  /* Pourcentage : superficie MBV divisée par la superficie de la commune */
+  const pourcentage = (sup: number | null, mbv: number | undefined) =>
+    sup && sup > 0 && mbv != null ? (mbv / sup) * 100 : null;
+
+  /* Totaux : le MBV n'est cumulé que pour les lignes de projets environnementaux */
+  const totaux = lignesCommunes.reduce(
+    (acc, l) => {
+      const sup = surfaceDe(l);
+      acc.surface += sup ?? 0;
+      if (l.type === "environnement" && l.mbv_ha != null) {
+        acc.mbv += l.mbv_ha;
+        acc.supAvecMbv += sup ?? 0;
+      }
+      return acc;
+    },
+    { surface: 0, mbv: 0, supAvecMbv: 0 }
+  );
+  const pctTotal = totaux.supAvecMbv > 0 ? (totaux.mbv / totaux.supAvecMbv) * 100 : null;
+
+  const fmt = (n: number) => Math.round(n).toLocaleString(LOCALE[lang]);
+  const fmtPct = (p: number | null) =>
+    p != null ? `${p.toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 })} %` : "—";
+  const compte = (ty: TypeActivite) => activites.filter((a) => a.type === ty).length;
+
+  /* Bloc d'un district et de ses communes */
+  const blocDistrict = (r: Noeud, d: Noeud["districts"][number]) => (
+    <div className="zi-dis" key={`${r.nom}|${d.nom}`}>
+      <button
+        type="button"
+        className="zi-node zi-n-dis"
+        onClick={() => choisirZone("district", cle(d.nom), cle(r.nom))}
+      >
+        {d.nom}
+      </button>
+      {d.communes.length > 0 && (
+        <ul>
+          {d.communes.map((c) => (
+            <li key={c}>
+              <button
+                type="button"
+                className="zi-node zi-n-com"
+                onClick={() => choisirZone("commune", cle(c), cle(r.nom), cle(d.nom))}
+              >
+                {c}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+
+  /* ----- rendu ----- */
   return (
-    <div className="sv">
+    <div className="zi">
       <style>{CSS}</style>
-      <header className="sv-hd">
-        {showTitle ? <h2>{title}</h2> : <span />}
-        <div className="sv-ha">
-          {headerExtra}
-          <button onClick={refresh} disabled={busy} aria-label={t.refresh}>
-            <RefreshCw className={busy ? 'sv-spin' : ''} /><span>{t.refresh}</span>
-          </button>
+
+      <header className="zi-head">
+        <div>
+          <h1>{t.titre}</h1>
+          <p>{t.sousTitre}</p>
         </div>
+
+        <div className="zi-search">
+          <Search size={17} aria-hidden />
+          <input
+            type="search"
+            value={requete}
+            placeholder={t.recherche}
+            onChange={(e) => saisir(e.target.value)}
+            onFocus={() => setOuvert(true)}
+            onBlur={() => setOuvert(false)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && suggestions[0]) choisir(suggestions[0]);
+              if (e.key === "Escape") setOuvert(false);
+            }}
+            aria-label={t.rechercheAria}
+            aria-autocomplete="list"
+          />
+          {requete && (
+            <span className="zi-clear" onClick={effacer} role="button" tabIndex={0} aria-label={t.effacer}>
+              <X size={16} />
+            </span>
+          )}
+          {ouvert && suggestions.length > 0 && (
+            <ul className="zi-sug" role="listbox">
+              {suggestions.map((s) => (
+                <li
+                  key={idSug(s)}
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    choisir(s);
+                  }}
+                >
+                  <span className={`zi-badge ${s.niveau}`}>{t.niveaux[s.niveau]}</span>
+                  <strong>{libelleDe(s, t)}</strong>
+                  <small>{contexteDe(s, t)}</small>
+                  <button
+                    type="button"
+                    className="zi-sug-x"
+                    aria-label={t.retirer}
+                    title={t.retirer}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setMasques((prev) => new Set(prev).add(idSug(s)));
+                    }}
+                  >
+                    <X size={14} aria-hidden />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <button type="button" className="zi-update" onClick={() => setShowLogin(true)}>
+          <RefreshCw size={16} aria-hidden />
+          <span>{t.update}</span>
+        </button>
       </header>
 
-      <main className="sv-w">
-        {err && <div className="sv-c sv-msg">{t.err(src)}</div>}
-        {!geo && !err && <div className="sv-c sv-msg">{t.loading}</div>}
+      {erreurDonnees && <div className="zi-erreur" role="alert">{t.erreurDonnees}</div>}
+      {erreur && <div className="zi-erreur" role="alert">{t.erreur}</div>}
 
-        {geo && (<>
-          <section className="sv-f">
-            {FILTERS.map((k) => (
-              <label key={k}>{t.f[k]}
-                <select value={f[k] || ''} onChange={(e) => { setF({ ...f, [k]: e.target.value }); setPage(1); }}>
-                  <option value="">{t.all}</option>
-                  {opts(k).map((o) => <option key={o} value={o}>{k === 'statut' ? tv(o) : o}</option>)}
-                </select>
-              </label>
-            ))}
-          </section>
+      <div className="zi-body">
+        <aside className="zi-panel">
+          {/* 1. Carte d'accueil / sélection, avec le nombre et la liste des projets concernés */}
+          <section className="zi-card zi-hero">
+            {vide ? (
+              <p className="zi-fil">{t.aucunResultat}</p>
+            ) : sel ? (
+              <>
+                <span className="zi-niveau">{t.niveaux[sel.niveau]}</span>
+                <h2>{libelleDe(sel, t)}</h2>
+                {sel.niveau !== "projet" && <p className="zi-fil">{contexteDe(sel, t)}</p>}
+              </>
+            ) : (
+              <p className="zi-fil">{donnees ? t.vueTexte : t.chargement}</p>
+            )}
 
-          <section className="sv-cols">
-            {/* Partie gauche : énoncé et cartes d'information */}
-            <div className="sv-side">
-              <section className="sv-c sv-e">
-                <h4>{t.enonceTitle}</h4>
-                <p>{t.enonce[enonceKey](fr(cible))}</p>
-              </section>
-
-              <div className="sv-grid2">
-                {/* Ligne 1 : pare-feux | CEP */}
-                {carteExtra('feu')}
-                {carteExtra('cep')}
-
-                {/* Ligne 2 : superficie validée | répartition par type de pratique */}
-                <div className="sv-c">
-                  <h4>{t.k.valide}</h4>
-                  <div className="sv-val">
-                    <div className="sv-big">{fr(vTot)} ha</div>
-                    <div className="sv-sub">{t.k.on(fr(cible))}</div>
-                    <Gauge pct={taux} />
-                  </div>
-                </div>
-                <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
-
-                {/* Ligne 3 : répartition par région, pleine largeur */}
-                <div className="sv-c sv-span">
-                  <h4>{t.c.region}</h4>
-                  <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 36 + 30)}>
-                    <BarChart data={regionsData} layout="vertical" margin={{ left: 0, right: 48 }}>
-                      <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
-                      <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
-                      <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
-                      <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
-                        <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            </div>
-
-            {/* Partie droite : carte de localisation centrée sur Madagascar */}
-            <div className="sv-c sv-map">
-              <div className="sv-mh">
-                <h4>{t.c.map}</h4>
-                <select value={base} onChange={(e) => setBase(e.target.value as Base)} aria-label="Fond de carte">
-                  {(Object.keys(BASEMAPS) as Base[]).map((b) => (
-                    <option key={b} value={b}>{BASEMAPS[b].label}</option>
-                  ))}
-                </select>
-              </div>
-              <MapContainer center={MADAGASCAR} zoom={5} scrollWheelZoom={!narrow} className="sv-mapbox">
-                <TileLayer key={base} attribution={BASEMAPS[base].attribution} url={BASEMAPS[base].url} />
-                <GeoJSON
-                  key={`${mapKey}-${lang}`}
-                  data={{ type: 'FeatureCollection', features: filtered } as any}
-                  style={(x: any) => ({ color: STATUT[x.properties.statut], weight: 5, fillOpacity: 0.6 })}
-                  onEachFeature={(x: any, l: any) => {
-                    const p = x.properties;
-                    l.bindPopup(`<b>${esc(p.id)}</b><br>${esc(tp(p.pratique))}<br>${esc(p.commune)}, ${esc(p.region)}<br>${fr(p.superficie_ha, 2)} ha · ${esc(tv(p.statut))}`);
-                  }}
-                />
-
-                {/* Limites de la sélection : région, puis district, puis commune (par-dessus) */}
-                {adm.reg && (
-                  <GeoJSON
-                    key={`reg-${f.region}`}
-                    data={adm.reg as any}
-                    style={() => ({ color: COULEUR_REGION, weight: 3, fillOpacity: 0, dashArray: adm.dis ? '6 4' : undefined })}
-                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.region} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
-                  />
-                )}
-                {adm.dis && (
-                  <GeoJSON
-                    key={`dis-${f.district}`}
-                    data={adm.dis as any}
-                    style={() => ({ color: COULEUR_DISTRICT, weight: 2.5, fillColor: COULEUR_DISTRICT, fillOpacity: adm.com ? 0 : 0.12 })}
-                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.district} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
-                  />
-                )}
-                {adm.com && (
-                  <GeoJSON
-                    key={`com-${f.commune}`}
-                    data={adm.com as any}
-                    style={() => ({ color: COULEUR_COMMUNE, weight: 3, fillColor: '#14b8a6', fillOpacity: 0.25 })}
-                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.commune} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
-                  />
-                )}
-
-                <MapController bounds={cadre} />
-                <ScaleBar />
-              </MapContainer>
-              <div className="sv-lg" style={{ justifyContent: 'center', gap: 14 }}>
-                {Object.entries(STATUT_UI).map(([s, c]) => <span key={s}><i style={{ background: c }} />{tv(s)}</span>)}
-              </div>
-              <div className="sv-leg-adm">
-                <span><i style={{ borderColor: COULEUR_REGION }} />{t.f.region}</span>
-                <span><i style={{ borderColor: COULEUR_DISTRICT }} />{t.f.district}</span>
-                <span><i style={{ borderColor: COULEUR_COMMUNE }} />{t.f.commune}</span>
-              </div>
-            </div>
-          </section>
-
-          {/* Bas de page : détails des parcelles */}
-          <section className="sv-c">
-            <div className="sv-tb">
-              <h4>{t.table.title(fr(table.length))}</h4>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ position: 'relative', display: 'inline-flex' }}>
-                  <Search size={16} style={{ position: 'absolute', left: 10, top: 11, color: 'var(--mut)' }} />
-                  <input style={{ paddingLeft: 32 }} placeholder={t.table.search} value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} />
-                </span>
-                <button className="sv-btn" onClick={exportCsv}><Download size={16} />{t.table.export}</button>
-              </div>
-            </div>
-            <div className="sv-t">
-              <table>
-                <thead><tr>{t.table.cols.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-                <tbody>
-                  {slice.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.id}</td><td>{r.utilisateur}</td><td className="l">{tp(r.pratique)}</td>
-                      <td>{dateFmt(r.debut)}</td><td>{dateFmt(r.fin)}</td>
-                      <td style={{ fontWeight: 600, color: GV }}>{fr(r.superficie_ha, 2)}</td>
-                      <td style={{ color: STATUT_UI[r.statut], fontWeight: 600 }}>{tv(r.statut)}</td>
-                    </tr>
-                  ))}
-                  {!slice.length && <tr><td colSpan={7}>{t.table.none}</td></tr>}
-                </tbody>
-              </table>
-            </div>
-            <div className="sv-pg">
-              <span style={{ fontWeight: 700, color: 'var(--mut)' }}>
-                {table.length ? t.table.showing(fr((cur - 1) * per + 1), fr(Math.min(cur * per, table.length)), fr(table.length)) : t.table.empty}
-              </span>
-              <div>
-                <button disabled={cur === 1} onClick={() => setPage(1)} aria-label={t.table.first}>⏮</button>
-                <button disabled={cur === 1} onClick={() => setPage(cur - 1)} aria-label={t.table.prev}>◀</button>
-                {win.map((p, i) => (
-                  <React.Fragment key={p}>
-                    {i > 0 && p - win[i - 1] > 1 && <span>…</span>}
-                    <button className={p === cur ? 'on' : ''} onClick={() => setPage(p)}>{p}</button>
-                  </React.Fragment>
+            {!sel && !vide && (
+              <div className="zi-chips">
+                {PROJETS.map((p) => (
+                  <span
+                    key={p.id}
+                    className="zi-chip"
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => choisirZone("projet", cle(p.id))}
+                  >
+                    {p.nom}
+                  </span>
                 ))}
-                <button disabled={cur === pages} onClick={() => setPage(cur + 1)} aria-label={t.table.next}>▶</button>
-                <button disabled={cur === pages} onClick={() => setPage(pages)} aria-label={t.table.last}>⏭</button>
               </div>
-              <label>{t.table.rows}{' '}
-                <select value={per} onChange={(e) => { setPer(Number(e.target.value)); setPage(1); }}>
-                  {[10, 25, 50, 100].map((n) => <option key={n}>{n}</option>)}
-                </select>
-              </label>
+            )}
+
+            {sel && !vide && (
+              <div className="zi-projets">
+                <h4>
+                  {t.projetsConcernes} <span className="zi-compte">{projetsVue.length}</span>
+                </h4>
+                {projetsVue.length > 0 ? (
+                  <div className="zi-chips">
+                    {projetsVue.map((p) => (
+                      <span
+                        key={p.id}
+                        className={`zi-chip zi-chip-${p.type}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => choisirZone("projet", cle(p.id))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") choisirZone("projet", cle(p.id));
+                        }}
+                      >
+                        {p.nom}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="zi-vide">{t.aucunResultat}</p>
+                )}
+              </div>
+            )}
+
+            <div className="zi-stats">
+              <div><b>{projetsVue.length}</b><span>{t.projets}</span></div>
+              <div><b>{nbRegions}</b><span>{t.regions}</span></div>
+              <div><b>{nbDistricts}</b><span>{t.districts}</span></div>
+              <div><b>{lignesCommunes.length}</b><span>{t.communes}</span></div>
             </div>
           </section>
-        </>)}
-      </main>
+
+          {/* 2. Activités environnementales (seulement pour les projets environnementaux) */}
+          {afficherActivites && (
+            <section className="zi-card">
+              <h3>{t.activites}</h3>
+              <div className="zi-acts">
+                {(Object.keys(TYPE_ICONE) as TypeActivite[]).map((ty) => {
+                  const Icone = TYPE_ICONE[ty].icone;
+                  const liste = activites.filter((a) => a.type === ty);
+                  return (
+                    <div className="zi-type" key={ty}>
+                      <div className="zi-typeh" style={{ color: TYPE_ICONE[ty].couleur }}>
+                        <Icone size={16} aria-hidden />
+                        {t.types[ty]}
+                        <span>{compte(ty)}</span>
+                      </div>
+                      {liste.length ? (
+                        <ul>
+                          {liste.map((a, i) => (
+                            <li key={i}>
+                              <strong>{a.commune}</strong> · {a.titre}
+                              {a.surface_ha ? ` · ${a.surface_ha} ha` : ""}
+                              {a.annee ? ` · ${a.annee}` : ""}
+                              <small> ({a.district}, {a.region})</small>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="zi-vide">{t.aucuneActivite}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
+          {/* 3. Zones d'intervention et Par commune, côte à côte */}
+          <div className="zi-duo">
+            <section className="zi-card zi-col">
+              <div className="zi-cardh">
+                <h3>{t.zonesInterv}</h3>
+                {regionAff && <span className="zi-regname">{regionAff}</span>}
+              </div>
+              <div className="zi-scroll">
+                {arbre.length ? (
+                  <div className="zi-regions">
+                    {regionAff
+                      ? arbre.flatMap((r) => r.districts.map((d) => (
+                          <div className="zi-reg" key={`${r.nom}|${d.nom}`}>
+                            {blocDistrict(r, d)}
+                          </div>
+                        )))
+                      : arbre.map((r) => (
+                          <div className="zi-reg" key={r.nom}>
+                            <button
+                              type="button"
+                              className="zi-node zi-n-reg"
+                              onClick={() => choisirZone("region", cle(r.nom))}
+                            >
+                              {r.nom}
+                            </button>
+                            {r.districts.map((d) => blocDistrict(r, d))}
+                          </div>
+                        ))}
+                  </div>
+                ) : (
+                  <p className="zi-vide">{t.districtsNon}</p>
+                )}
+              </div>
+            </section>
+
+            <section className="zi-card zi-col">
+              <div className="zi-cardh">
+                <h3>{t.parCommune}</h3>
+              </div>
+              <div className="zi-scroll">
+                {lignesCommunes.length ? (
+                  <table className="zi-tbl">
+                    <thead>
+                      <tr>
+                        <th>{t.colCommune}</th>
+                        <th>{t.colSuperficie}</th>
+                        {avecMbv && <th>{t.colMBV}</th>}
+                        {avecMbv && <th className="zi-th-pct">{t.colPourcentage}</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {lignesCommunes.map((l, i) => {
+                        const s = surfaceDe(l);
+                        /* MBV affiché uniquement pour un projet environnemental */
+                        const mbv = l.type === "environnement" ? l.mbv_ha : undefined;
+                        /* Trait plus épais avant la première commune d'une nouvelle région */
+                        const nouvelleRegion = i > 0 && lignesCommunes[i - 1].region !== l.region;
+                        return (
+                          <tr
+                            key={`${l.region}-${l.district}-${l.commune}-${l.projetId}`}
+                            className={`zi-row${nouvelleRegion ? " zi-sep" : ""}`}
+                            onClick={() =>
+                              choisirZone("commune", cle(l.commune!), cle(l.region), cle(l.district!))
+                            }
+                          >
+                            <td>{l.commune}</td>
+                            <td>{s != null ? fmt(s) : "—"}</td>
+                            {avecMbv && <td>{mbv != null ? fmt(mbv) : "—"}</td>}
+                            {avecMbv && <td>{fmtPct(pourcentage(s, mbv))}</td>}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <td>{t.total}</td>
+                        <td>{fmt(totaux.surface)}</td>
+                        {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
+                        {avecMbv && <td>{fmtPct(pctTotal)}</td>}
+                      </tr>
+                    </tfoot>
+                  </table>
+                ) : (
+                  <p className="zi-vide">{t.communesNon}</p>
+                )}
+              </div>
+            </section>
+          </div>
+        </aside>
+
+        <section className="zi-mcard" aria-label={t.carteAria}>
+          <div className="zi-mhead">
+            <span className="zi-mtitre">
+              <MapPin size={16} aria-hidden />
+              <span>{sel && !vide ? libelleDe(sel, t) : t.carteTitre}</span>
+            </span>
+            <div className="zi-fondsel">
+              <Globe2 size={14} aria-hidden />
+              <select
+                value={typeFond}
+                onChange={(e) => setTypeFond(e.target.value as Fond)}
+                aria-label={t.fondAria}
+              >
+                <option value="topo">{t.fondTopo}</option>
+                <option value="sat">{t.fondSat}</option>
+                <option value="osm">{t.fondOsm}</option>
+              </select>
+            </div>
+          </div>
+          <div className="zi-mbox">
+            <div ref={elMap} className="zi-map" />
+            {sel && (
+              <button type="button" className="zi-reset" onClick={effacer}>
+                <RotateCcw size={14} aria-hidden />
+                {t.vueMada}
+              </button>
+            )}
+          </div>
+          <div className="zi-legende">
+            <span><i className="zi-lg-reg" />{t.legRegion}</span>
+            <span><i className="zi-lg-dis" />{t.legDistrict}</span>
+            <span><i className="zi-lg-com" />{t.legCommune}</span>
+            <span><i className="zi-lg-ap" />{t.legAP}</span>
+            <span><i className="zi-lg-sel" />{t.legSelection}</span>
+          </div>
+          <p className="zi-note">{t.note}</p>
+        </section>
+      </div>
+
+      {/* Connexion, puis fenêtre de mise à jour (même enchaînement que le Dashboard) */}
+      {showLogin && (
+        <ZonesLoginModal
+          onClose={() => setShowLogin(false)}
+          onSuccess={(name: string, jeton: string) => {
+            setUserName(name);
+            setToken(jeton);
+            setShowLogin(false);
+            setShowUpdate(true);
+          }}
+        />
+      )}
+      {showUpdate && donnees && (
+        <ZonesUpdateModal
+          projets={PROJETS}
+          lignes={LIGNES}
+          token={token}
+          userName={userName}
+          saveUrl={SAUVEGARDE_URL}
+          onClose={() => {
+            setShowUpdate(false);
+            setToken("");
+          }}
+          onSaved={() => setVersion((v) => v + 1)}
+        />
+      )}
     </div>
   );
 }
+
+/* ===================== STYLES (thème de l'application) ===================== */
+/* Les couleurs viennent des variables de l'application (clair ou sombre), comme AnalyseTerritoriale. */
+
+const CSS = `
+.zi{--bg:var(--surface-2,#f1efe8);--card:var(--surface,#ffffff);--line:var(--border,#d8d4c8);
+  --ink:var(--text,#1c2822);--ink2:var(--text-2,#4a5850);--ink3:var(--text-3,#7a867f);
+  --acc:var(--accent,#1f6f50);--acc-soft:color-mix(in srgb,var(--accent,#1f6f50) 14%,var(--surface,#ffffff));
+  --chip:var(--surface-3,var(--surface,#ffffff));--hover:var(--surface-2,#f1efe8);--map:#e5e7eb;
+  display:flex;flex-direction:column;height:100vh;height:100dvh;background:var(--bg);color:var(--ink);font-family:inherit}
+.zi *{box-sizing:border-box}
+.zi h1,.zi h2,.zi h3,.zi h4{margin:0;font-weight:600;color:var(--ink)}
+.zi h1{font-size:20px}
+.zi h2{font-family:Georgia,serif;font-weight:500;font-size:26px;line-height:1.1;margin:2px 0}
+.zi h3{font-size:15px}
+.zi h4{font-size:13px;margin:4px 0 6px;color:var(--ink2)}
+.zi-head{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:center;justify-content:space-between;padding:10px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+.zi-head p{margin:2px 0 0;font-size:13px;color:var(--ink3)}
+.zi-search{position:relative;display:flex;align-items:center;gap:8px;flex:1;max-width:640px;min-width:260px;padding:0 12px;height:42px;border:1px solid var(--line);border-radius:12px;background:var(--chip);color:var(--ink3)}
+.zi-search:focus-within{border-color:var(--acc);box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 22%,transparent)}
+.zi-search input{flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:14px;color:var(--ink)}
+.zi-search input::placeholder{color:var(--ink3)}
+.zi-clear{cursor:pointer;display:grid;place-items:center;color:var(--ink3)}
+.zi-sug{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:2000;margin:0;padding:6px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,.2);max-height:360px;overflow-y:auto}
+.zi-sug li{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;padding:8px 8px 8px 10px;border-radius:8px;cursor:pointer;align-items:center}
+.zi-sug li:hover{background:var(--hover)}
+.zi-sug strong{font-size:14px;color:var(--ink)}
+.zi-sug small{grid-column:2;font-size:12px;color:var(--ink3)}
+.zi-sug-x{grid-column:3;grid-row:1 / span 2;display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:none;color:var(--ink3);cursor:pointer}
+.zi-sug-x:hover{background:var(--line);color:var(--ink)}
+.zi-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
+.zi-badge.categorie{background:#dbeafe;color:#1e40af}
+.zi-badge.projet{background:#fde68a;color:#78350f}
+.zi-badge.region{background:#ffedd5;color:#9a3412}
+.zi-badge.district{background:#ede9fe;color:#5b21b6}
+.zi-badge.commune{background:#ccfbf1;color:#115e59}
+.zi-update{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:none;border-radius:10px;background:#14532d;color:#fff;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 5px rgba(20,83,45,.2)}
+.zi-update:hover{filter:brightness(1.08)}
+.zi-erreur{padding:8px 20px;background:rgba(220,38,38,.1);color:#dc2626;font-size:13px}
+
+/* Mise en page : panneau à gauche, carte à droite, le tout sur un seul écran */
+.zi-body{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+.zi-panel{min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--line)}
+.zi-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
+.zi-hero{display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,var(--card),var(--acc-soft));flex:none}
+.zi-niveau{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--acc)}
+.zi-fil{margin:0;font-size:13px;color:var(--ink2);line-height:1.5}
+.zi-projets{display:flex;flex-direction:column;gap:2px;padding-top:6px;border-top:1px solid var(--line)}
+.zi-compte{display:inline-block;margin-left:4px;padding:0 8px;border-radius:999px;background:var(--acc);color:#fff;font-size:12px;font-weight:700}
+.zi-chips{display:flex;flex-wrap:wrap;gap:6px}
+.zi-chip{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);cursor:pointer;color:var(--ink2)}
+.zi-chip:hover{background:var(--hover)}
+.zi-chip-environnement{border-color:#65a30d}
+.zi-chip-developpement{border-color:#2563eb}
+.zi-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.zi-stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}
+.zi-stats b{font-family:Georgia,serif;font-weight:500;font-size:24px;line-height:1.1;color:var(--acc)}
+.zi-stats span{font-size:12px;color:var(--ink3)}
+
+.zi-acts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;max-height:150px;overflow:auto}
+.zi-typeh{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px;margin:0 0 4px}
+.zi-typeh span{margin-left:auto;font-size:12px;background:var(--hover);color:var(--ink2);padding:1px 8px;border-radius:999px}
+.zi-type ul{margin:0;padding-left:16px;font-size:12.5px;line-height:1.5;color:var(--ink2)}
+.zi-type small{color:var(--ink3)}
+.zi-vide{font-size:13px;color:var(--ink3);margin:2px 0}
+
+/* Zones d'intervention et tableau côte à côte ; en colonne sur petit écran */
+.zi-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px;flex:1;min-height:0}
+.zi-col{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.zi-cardh{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:6px}
+.zi-cardh h3{margin:0}
+.zi-regname{font-size:13px;font-weight:600;color:var(--acc);text-align:right}
+.zi-scroll{flex:1;min-height:0;overflow:auto}
+
+/* Tableau Par commune : colonnes séparées par un filet vertical, régions séparées par un trait épais */
+.zi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;color:var(--ink)}
+.zi-tbl th{font-weight:500;font-size:11.5px;color:var(--ink3);text-align:right;padding:4px 6px;position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line)}
+.zi-tbl td{padding:5px 6px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
+.zi-tbl th+th,.zi-tbl td+td{border-left:1px solid var(--line)}
+.zi-tbl th.zi-th-pct{white-space:normal;max-width:120px;font-size:10.5px;line-height:1.25;vertical-align:bottom}
+.zi-tbl th:first-child,.zi-tbl td:first-child{text-align:left}
+.zi-tbl tfoot td{font-weight:700;border-top:2px solid var(--line)}
+.zi-tbl tr.zi-sep td{border-top:3px solid var(--ink2)}
+.zi-row{cursor:pointer}
+.zi-row:hover td{background:var(--hover)}
+
+/* Zones d'intervention : blocs par région (ou par district), sur 2 à 3 colonnes */
+.zi-regions{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;align-content:start}
+.zi-reg{border:1px solid var(--line);border-radius:10px;padding:6px;min-width:0;background:var(--card)}
+.zi-dis{margin-top:4px}
+.zi-dis ul{list-style:none;margin:0 0 0 6px;padding:0 0 0 8px;border-left:1px solid var(--line)}
+.zi-dis li{margin:1px 0}
+.zi-node{display:block;width:100%;background:none;border:0;padding:3px 6px;font:inherit;font-size:12.5px;color:var(--ink);text-align:left;border-radius:6px;cursor:pointer}
+.zi-node:hover{background:var(--hover)}
+.zi-n-reg{font-weight:700;font-size:13px;color:var(--acc);border-bottom:1px solid var(--line);border-radius:0;padding-bottom:5px;margin-bottom:2px}
+.zi-n-dis{font-weight:600}
+.zi-n-com{color:var(--ink2);font-size:12px}
+
+/* Carte */
+.zi-mcard{margin:10px;display:flex;flex-direction:column;min-height:0;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.zi-mhead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;border-bottom:1px solid var(--line);font-size:14px;font-weight:600;color:var(--ink)}
+.zi-mtitre{display:flex;align-items:center;gap:8px}
+.zi-fondsel{display:flex;align-items:center;gap:6px;color:var(--ink3)}
+.zi-fondsel select{padding:5px 9px;border-radius:8px;border:1px solid var(--line);background:var(--chip);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.zi-mbox{position:relative;flex:1;min-height:0}
+.zi-map{position:absolute;inset:0;background:var(--map)}
+.zi-reset{position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;display:flex;gap:6px;align-items:center;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card);color:var(--ink);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.zi-reset:hover{background:var(--hover)}
+.zi-legende{display:flex;gap:14px;flex-wrap:wrap;padding:8px 14px;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
+.zi-legende i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
+.zi-lg-reg{background:#ff6a00;opacity:.6;border:1.5px solid #ff6a00}
+.zi-lg-dis{background:#a78bfa;border:1.5px solid #7c3aed}
+.zi-lg-com{background:#14b8a6;border:1px solid #0f766e}
+.zi-lg-ap{background:#22c55e;opacity:.5;border:1.5px solid #16a34a}
+.zi-lg-sel{background:#f97316;border:2px solid #dc2626}
+.zi-note{font-size:11.5px;color:var(--ink3);line-height:1.4;margin:0;padding:6px 14px 8px}
+
+/* Étiquettes et infobulles de carte */
+.leaflet-tooltip.zi-label{background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;font-size:11px;font-weight:700;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff}
+.leaflet-tooltip.zi-label::before{display:none!important}
+.zi-label-region{color:#c2410c!important}
+.zi-label-district{color:#6d28d9!important}
+.zi-label-commune{color:#0f766e!important}
+.leaflet-tooltip.zi-hover{background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:12px}
+.leaflet-tooltip.zi-hover::before{display:none}
+.zi .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
+.zi .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
+.zi .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:var(--ink3)!important}
+
+/* Petit écran : la page s'adapte et défile */
+@media (max-width:900px){
+  .zi{height:auto;min-height:100dvh}
+  .zi-body{grid-template-columns:1fr}
+  .zi-panel{border-right:0;order:2;overflow:visible}
+  .zi-mcard{order:1;margin:10px 10px 0}
+  .zi-mbox{min-height:50vh;flex:none}
+  .zi-scroll{overflow:visible}
+  .zi-acts{max-height:none;grid-template-columns:1fr}
+  .zi-duo{grid-template-columns:1fr}
+  .zi-stats{grid-template-columns:repeat(2,1fr)}
+}
+`;
