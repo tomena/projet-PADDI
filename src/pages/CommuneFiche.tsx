@@ -164,8 +164,16 @@ const CSS = `
     --text:#0f172a;--text-2:#475569;--text-3:#64748b;--surface:#fff;--surface-2:#f8fafc;--surface-3:#f1f5f9;--border:#e2e8f0}
   .fxm-h,.fxm-noprint,.fxm-lect-title{display:none!important}
   .fxm-print-only{display:block!important}
-  .fxm-syn,.fxm-card,.fxm-kpi,.fxm-item,.fxm-pc,.fxm-lect,.fxm-keys li{break-inside:avoid;page-break-inside:avoid}
-  .fxm-chart{height:190px}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  .fxm-syn,.fxm-kpi,.fxm-item,.fxm-pc,.fxm-lect,.fxm-keys li{break-inside:avoid;page-break-inside:avoid}
+  .fxm-chart{height:220px!important;overflow:visible}
+  .fxm-chart .recharts-responsive-container,.fxm-chart .recharts-wrapper{overflow:visible!important}
+  .fxm-card .fxm-note{margin-top:12px;clear:both}
+  .fxm-kpis{grid-template-columns:repeat(auto-fit,minmax(0,1fr))!important;gap:6px}
+  .fxm-kpi b{font-size:14px}
+  .fxm-kpi small{font-size:9px}
+  .fxm-noprint-pdf{display:none!important}
+  .fxm-heat td{background:rgba(0,0,0,calc(var(--a,0)*.35))!important;color:#000!important;outline:none!important}
   .fxm-grid{gap:8px}
 }
 `;
@@ -176,6 +184,12 @@ const compact = (v: number) => (v >= 1000 ? `${Math.round(v / 100) / 10}k` : Str
 
 // Les horodatages peuvent être en secondes ou en millisecondes
 const toMs = (t: number) => (t < 1e12 ? t * 1000 : t);
+
+// Retire « Nous sommes dans… » : la phrase commence directement par « La fenêtre à risque… »
+const fixTxt = (s: string) => {
+  const r = s.replace(/Nous sommes dans\s+/gi, "");
+  return r.charAt(0).toUpperCase() + r.slice(1);
+};
 
 const Items = ({ items }: { items: Item[] }) => (
   <>
@@ -191,8 +205,8 @@ const Items = ({ items }: { items: Item[] }) => (
 const Lecture = ({ title, l }: { title: string; l: LectureT }) => (
   <div className="fxm-lect">
     <b className="fxm-lect-title">{title}</b>
-    <p className="k">{l.cle}</p>
-    {l.lignes.length > 0 && <ul>{l.lignes.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+    <p className="k">{fixTxt(l.cle)}</p>
+    {l.lignes.length > 0 && <ul>{l.lignes.map((x, i) => <li key={i}>{fixTxt(x)}</li>)}</ul>}
   </div>
 );
 
@@ -292,7 +306,6 @@ export default function CommuneFiche({
           <p><b>{P.fenetre} :</b> {hours} {P.heures}{bilan ? ` · ${P.total} : ${n0(bilan.total)}` : ""}</p>
           <p>
             {superficieHa != null && <><b>{P.superficie} :</b> {fmt(superficieHa)} · </>}
-            {rang > 0 && <><b>{P.rang} :</b> {rang} / {nbCommunes} · </>}
             <b>{P.periodeRef} :</b> {REF_LABEL}
           </p>
         </div>
@@ -311,8 +324,8 @@ export default function CommuneFiche({
               <ol className="fxm-keys">
                 {rap.cles.map((k, i) => (
                   <li key={`${k.k}-${i}`} style={{ borderLeftColor: LVL_COLOR[k.lvl] }}>
-                    <div className="fxm-it-t" style={{ color: LVL_COLOR[k.lvl] }}>{k.t}</div>
-                    <div className="fxm-it-d">{k.d}</div>
+                    <div className="fxm-it-t" style={{ color: LVL_COLOR[k.lvl] }}>{fixTxt(k.t)}</div>
+                    <div className="fxm-it-d">{fixTxt(k.d)}</div>
                   </li>
                 ))}
               </ol>
@@ -320,7 +333,7 @@ export default function CommuneFiche({
                 <em>{T.declench} :</em>
                 {rap.declencheurs.length ? rap.declencheurs.map((d) => <span key={d} className="fxm-chip">{d}</span>) : <span>{T.aucunDeclench}</span>}
               </div>
-              <p className="fxm-note" style={{ textAlign: "left" }}>{T.niveauNote}</p>
+              <p className="fxm-note" style={{ textAlign: "left" }}>{fixTxt(T.niveauNote)}</p>
             </section>
 
             {/* ===== Indicateurs ===== */}
@@ -451,7 +464,7 @@ export default function CommuneFiche({
                             const a = v != null && v > 0 && heatMax > 0 ? 0.08 + 0.92 * Math.sqrt(v / heatMax) : 0;
                             return (
                               <td key={m} title={v == null ? "—" : fmt(v)}
-                                style={{ background: v == null ? "transparent" : `rgba(220,38,38,${a})`, color: a > 0.55 ? "#fff" : "var(--text,#0f172a)", outline: v == null ? "1px dashed var(--border,#e2e8f0)" : undefined }}>
+                                style={{ ["--a" as any]: a, background: v == null ? "transparent" : `rgba(220,38,38,${a})`, color: a > 0.55 ? "#fff" : "var(--text,#0f172a)", outline: v == null ? "1px dashed var(--border,#e2e8f0)" : undefined }}>
                                 {v == null ? "–" : v === 0 ? "" : compact(v)}
                               </td>
                             );
@@ -499,7 +512,7 @@ export default function CommuneFiche({
                   {rap.actions.map((g) => (
                     <div key={g.hz}>
                       <h4>{T.hz[g.hz]}</h4>
-                      <ul>{g.items.map((s) => <li key={s}>{s}</li>)}</ul>
+                      <ul>{g.items.map((s) => <li key={s}>{fixTxt(s)}</li>)}</ul>
                     </div>
                   ))}
                 </div>
@@ -508,7 +521,7 @@ export default function CommuneFiche({
 
             {/* ===== Qualité des données ===== */}
             {rap.qualite.length > 0 && (
-              <section className="fxm-card fxm-info" style={{ marginBottom: 10 }}>
+              <section className="fxm-card fxm-info fxm-noprint-pdf" style={{ marginBottom: 10 }}>
                 <h3>{T.qualite}</h3>
                 <Items items={rap.qualite} />
               </section>
