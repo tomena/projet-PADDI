@@ -177,10 +177,12 @@ const CSS = `
   .fxm-card,.fxm-syn,.fxm-info{break-inside:avoid;page-break-inside:avoid}
   .fxm-chart-row{display:flex;gap:10px;align-items:stretch}
   .fxm-chart-row .fxm-chart{flex:1 1 0;min-width:0}
-  .fxm-side-note{flex:0 0 34%;text-align:left!important;margin:0!important;align-self:center;font-size:10.5px!important}
+  .fxm-side-note{text-align:left!important;margin:0 0 6px!important;font-size:10.5px!important}
   .fxm-print-line{white-space:nowrap;font-size:10.5px!important}
   .fxm-chart-row .fxm-chart-main{flex:1 1 0;min-width:0}
   .fxm-side-lect{flex:0 0 34%;min-width:0}
+  .fxm-side-col{flex:0 0 34%;min-width:0}
+  .fxm-side-col .fxm-side-lect{flex:none!important;width:100%}
   .fxm-side-lect .fxm-lect{margin-top:0!important;border-top:none!important;padding-top:0!important;font-size:10.5px!important;align-self:center}
 }
 `;
@@ -414,7 +416,7 @@ export default function CommuneFiche({
                   <span><i style={{ background: "#dc2626" }} />{T.sel} ({year})</span>
                   <span><i style={{ background: "#64748b" }} />{T.moy}</span>
                 </div>
-                <div className="fxm-chart">
+                <div className="fxm-chart-row"><div className="fxm-chart-main"><div className="fxm-chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={mensuel} margin={{ top: 6, right: 8, left: -10, bottom: 0 }}>
                       <CartesianGrid stroke="var(--border,#e2e8f0)" strokeDasharray="3 3" vertical={false} />
@@ -427,13 +429,12 @@ export default function CommuneFiche({
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="fxm-note">{T.mensNote}</p>
-                <Lecture title={T.lectLbl} l={rap.lectures.mensuel} />
+</div><div className="fxm-side-col"><p className="fxm-note fxm-side-note">{T.mensNote}</p><div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.mensuel} /></div></div></div>
               </section>
 
               <section className="fxm-card">
                 <h3>{T.hist}</h3>
-                <div className="fxm-chart-row">
+                <div className="fxm-chart-row"><div className="fxm-chart-main">
                 <div className="fxm-chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={historique} margin={{ top: 6, right: 8, left: -10, bottom: 0 }}>
@@ -452,9 +453,8 @@ export default function CommuneFiche({
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="fxm-note fxm-side-note">{T.histNote}</p>
+</div><div className="fxm-side-col"><p className="fxm-note fxm-side-note">{T.histNote}</p><div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.historique} /></div></div>
                 </div>
-                <Lecture title={T.lectLbl} l={rap.lectures.historique} />
               </section>
             </div>
 
