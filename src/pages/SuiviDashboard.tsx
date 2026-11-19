@@ -34,6 +34,10 @@ export interface DashboardConfig {
   extras?: { key: 'cep' | 'feu'; flag: 'is_cep' | 'is_pare_feu'; icon: 'cep' | 'feu' }[];
 }
 
+/* Limites administratives (geoBoundaries), comme sur la page Zones d'intervention */
+type Adm = { properties: Record<string, any>; geometry: { type: string; coordinates: any } };
+type Niv = 'ADM1' | 'ADM2' | 'ADM3';
+
 /* Couleurs
    - G / STATUT : valeurs « réelles » (hex) utilisées sur la carte Leaflet
    - GV / BAD / STATUT_UI : variables du thème (clair / sombre) pour le reste de l'interface */
@@ -43,12 +47,18 @@ const BAD = 'var(--bad)';
 const PAL = ['#2e7d32', '#66bb6a', '#D4E157', '#FFB300', '#64B5F6', '#a5d6a7', '#8d6e63'];
 const STATUT: Record<string, string> = { 'Validé': G, 'En attente': '#FFB300', 'Rejeté': '#c62828' };
 const STATUT_UI: Record<string, string> = { 'Validé': GV, 'En attente': '#FFB300', 'Rejeté': BAD };
+const COULEUR_REGION = '#ea580c';
+const COULEUR_DISTRICT = '#7c3aed';
+const COULEUR_COMMUNE = '#dc2626';
 // Ordre d'affichage des filtres (Fokontany retiré)
 const FILTERS: FilterKey[] = ['annee', 'aire_protegee', 'region', 'district', 'commune', 'paysage', 'mbv', 'statut'];
-// Filtres qui recadrent la carte sur la sélection
-const ZOOM_FILTERS: FilterKey[] = ['region', 'district', 'commune'];
 const ICONS: Record<string, React.ComponentType<any>> = { cep: Users, feu: Flame };
 const MADAGASCAR: [number, number] = [-18.9, 47.5];
+
+// Homonymes : clé région|district|commune (normalisées) -> nom de la géométrie à utiliser
+const COMMUNE_GEO: Record<string, string> = {
+  'boeny|marovoay|marosakoa': 'Marovoay',
+};
 
 // Fonds de carte : Topographie (ArcGIS), Satellite (ArcGIS), OpenStreetMap
 const BASEMAPS: Record<Base, { label: string; url: string; attribution: string }> = {
@@ -82,6 +92,8 @@ const fr = (n: number | string, d = 0) => Number(n || 0).toLocaleString(LOC, { m
 const sum = (rows: Parcelle[]) => rows.reduce((s, r) => s + r.superficie_ha, 0);
 const dateFmt = (iso: string) => new Date(iso).toLocaleDateString(LOC, { timeZone: 'UTC' });
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const cle = (s: string) =>
+  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 const group = (rows: Parcelle[], key: keyof Parcelle) => {
   const m: Record<string, number> = {};
   rows.forEach((r) => { const k = String(r[key]); m[k] = (m[k] || 0) + r.superficie_ha; });
@@ -90,89 +102,92 @@ const group = (rows: Parcelle[], key: keyof Parcelle) => {
     .sort((a, b) => b.value - a.value);
 };
 
-/* Les couleurs viennent de variables : valeurs claires dans « .sv »,
-   surcharges du thème sombre dans « :root[data-theme="dark"] .sv ». */
-const CSS = `
-.sv{--g:clamp(8px,1.2vw,16px);
-  --page:#f4f6f5;--card:#fff;--txt:#374151;--txt2:#4b5563;--mut:#6b7280;--line:#e5e7eb;--bd:#d1d5db;--track:#e5e7eb;
-  --gv:#1b5e20;--gb:#1b5e20;--bad:#c62828;--e1:rgba(27,94,32,.08);--e2:rgba(27,94,32,.02);--map-bg:#e5e7eb;
-  background:var(--page);min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--txt)}
-:root[data-theme="dark"] .sv{--page:var(--bg);--card:var(--surface);--txt:#e5e7eb;--txt2:#cbd5e1;--mut:#94a3b8;
-  --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
-  --gv:#66bb6a;--gb:#2e7d32;--bad:#f87171;--e1:rgba(102,187,106,.14);--e2:rgba(102,187,106,.04);--map-bg:#1b2740}
-.sv *{box-sizing:border-box}
-.sv-w{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px);display:grid;gap:var(--g)}
-.sv-hd{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px) clamp(10px,2vw,24px) 0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;color:var(--txt)}
-.sv-hd h2{margin:0;font-size:clamp(16px,2.4vw,22px);line-height:1.2;color:var(--txt)}
-.sv-ha{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
-.sv-hd button{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600}
-.sv-hd button:disabled{opacity:.7;cursor:default}
-.sv-spin{animation:svs 1s linear infinite}@keyframes svs{to{transform:rotate(360deg)}}
-.sv-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
-.sv-f label{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px;min-width:0}
-.sv-f select{height:38px;width:100%;min-width:0;border:1px solid var(--bd);border-radius:8px;padding:0 8px;background:var(--card);color:var(--txt)}
-.sv-cols{display:grid;grid-template-columns:1fr;gap:var(--g)}
-@media(min-width:1000px){.sv-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}}
-.sv-side{display:flex;flex-direction:column;gap:var(--g);min-width:0}
-.sv-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--g);flex:1}
-.sv-span{grid-column:1/-1}
-@media(max-width:520px){.sv-grid2{grid-template-columns:1fr}}
-.sv-c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0;display:flex;flex-direction:column}
-.sv-c h4{margin:0 0 10px;text-align:center;color:var(--gv);font-size:14px}
-.sv-e{border-left:6px solid var(--gv);background:linear-gradient(90deg,var(--e1),var(--e2)),var(--card)}
-.sv-e p{margin:0;text-align:center;font-size:14px;line-height:1.6}
-.sv-big{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
-.sv-sub{font-size:12px;font-weight:700;text-align:center;margin-top:6px}
-.sv-val{flex:1;display:flex;flex-direction:column;justify-content:center}
-.sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center;flex-wrap:wrap}
-.sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-.sv-map{min-height:480px}
-.sv-mapbox{flex:1;min-height:420px;width:100%;border-radius:8px;z-index:0;background:var(--map-bg)}
-.sv-mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
-.sv-mh h4{margin:0;color:var(--gv);font-size:14px}
-.sv-mh select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
-.sv-tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
-.sv-tb h4{margin:0}
-.sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--txt)}
-.sv-btn{display:inline-flex;gap:6px;align-items:center;padding:8px 12px;background:var(--gb);color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600}
-.sv-t{overflow-x:auto}
-.sv-t table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
-.sv-t th{background:var(--gb);color:#fff;padding:10px;border-right:1px solid rgba(255,255,255,.3)}
-.sv-t td{padding:10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;color:var(--txt)}
-.sv-t td.l{text-align:left}
-.sv-pg{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px}
-.sv-pg div{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
-.sv-pg button{min-width:32px;height:32px;border:1px solid var(--bd);background:var(--card);color:var(--txt);border-radius:6px;cursor:pointer;font-weight:600}
-.sv-pg button.on{background:var(--gb);color:#fff;border-color:var(--gb)}
-.sv-pg button:disabled{opacity:.4;cursor:default}
-.sv-pg select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
-.sv-msg{padding:40px 16px;text-align:center}
-@media(max-width:520px){.sv-pg{justify-content:center}}
-@media(min-width:2200px){.sv{font-size:18px}.sv-c h4{font-size:18px}.sv-t table{font-size:16px}}
-@media(prefers-reduced-motion:reduce){.sv *{transition:none!important;animation:none!important}}
-`;
+/* ===================== LIMITES ADMINISTRATIVES ===================== */
 
-function useNarrow(px = 480) {
-  const q = `(max-width:${px}px)`;
-  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(q);
-    const h = () => setM(mq.matches);
-    mq.addEventListener('change', h);
-    return () => mq.removeEventListener('change', h);
-  }, [q]);
-  return m;
+const REV = '9469f09';
+const GH = 'wmgeolab/geoBoundaries';
+const CACHE: Partial<Record<Niv, Adm[]>> = {};
+
+const nomAdm = (f: Adm): string =>
+  String(
+    f.properties.shapeName ??
+      f.properties.name ??
+      Object.values(f.properties).find((v) => typeof v === 'string') ??
+      ''
+  );
+
+const polygones = (f: Adm): number[][][][] =>
+  f.geometry.type === 'Polygon'
+    ? [f.geometry.coordinates]
+    : f.geometry.type === 'MultiPolygon'
+    ? f.geometry.coordinates
+    : [];
+
+function dansAnneau(x: number, y: number, a: number[][]): boolean {
+  let dedans = false;
+  for (let i = 0, j = a.length - 1; i < a.length; j = i++) {
+    const [xi, yi] = a[i];
+    const [xj, yj] = a[j];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) dedans = !dedans;
+  }
+  return dedans;
 }
 
-// Recadre la carte : sur Madagascar par défaut, sur la sélection quand zoomKey change
-function MapController({ feats, zoomKey }: { feats: Feat[]; zoomKey: string }) {
+const contient = (x: number, y: number, f: Adm) =>
+  polygones(f).some((p) => dansAnneau(x, y, p[0]) && !p.slice(1).some((h) => dansAnneau(x, y, h)));
+
+/* Vrai si l'enfant (district ou commune) se trouve à l'intérieur du parent */
+function estDans(enfant: Adm, parent: Adm): boolean {
+  const pts = polygones(enfant).flatMap((p) => p[0]);
+  if (!pts.length) return false;
+  const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  let score = contient(cx, cy, parent) ? 3 : 0;
+  const pas = Math.max(1, Math.floor(pts.length / 6));
+  for (let i = 0; i < pts.length && i < pas * 6; i += pas) {
+    if (contient(pts[i][0], pts[i][1], parent)) score++;
+  }
+  return score >= 5;
+}
+
+async function chargerAdm(niv: Niv): Promise<Adm[]> {
+  if (CACHE[niv]) return CACHE[niv]!;
+  const f = `releaseData/gbOpen/MDG/${niv}/geoBoundaries-MDG-${niv}_simplified.geojson`;
+  const urls = [
+    `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`,
+    `https://raw.githubusercontent.com/${GH}/${REV}/${f}`,
+    `https://cdn.jsdelivr.net/gh/${GH}@${REV}/${f}`,
+  ];
+  for (const u of urls) {
+    try {
+      const r = await fetch(u);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const texte = await r.text();
+      if (texte.startsWith('version https://git-lfs')) throw new Error('LFS');
+      const j = JSON.parse(texte);
+      const feats = (j.features ?? []).filter(
+        (x: Adm) => x?.geometry && /Polygon/.test(x.geometry.type)
+      ) as Adm[];
+      if (feats.length) {
+        CACHE[niv] = feats;
+        return feats;
+      }
+    } catch {
+      /* source suivante */
+    }
+  }
+  throw new Error(niv);
+}
+
+/* ===================== CARTE : RECADRAGE, ÉCHELLE ===================== */
+
+// Recadre la carte sur la zone sélectionnée, sinon sur Madagascar
+function MapController({ bounds }: { bounds: L.LatLngBounds | null }) {
   const map = useMap();
   useEffect(() => {
-    if (!zoomKey) { map.setView(MADAGASCAR, 5); return; }
-    if (!feats.length) return;
-    const b = L.geoJSON({ type: 'FeatureCollection', features: feats } as any).getBounds();
-    if (b.isValid()) map.fitBounds(b, { padding: [24, 24], maxZoom: 10 });
-  }, [zoomKey]); // eslint-disable-line
+    if (!bounds) { map.setView(MADAGASCAR, 5); return; }
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 10 });
+  }, [bounds]); // eslint-disable-line
   return null;
 }
 
@@ -186,6 +201,8 @@ function ScaleBar() {
   }, [map]);
   return null;
 }
+
+/* ===================== GRAPHIQUES ===================== */
 
 function Donut({ title, data }: { title: string; data: { name: string; value: number }[] }) {
   const t = data.reduce((s, d) => s + d.value, 0);
@@ -230,6 +247,85 @@ function Gauge({ pct }: { pct: number }) {
   );
 }
 
+/* ===================== CSS ===================== */
+
+/* Les couleurs viennent de variables : valeurs claires dans « .sv »,
+   surcharges du thème sombre dans « :root[data-theme="dark"] .sv ». */
+const CSS = `
+.sv{--g:clamp(8px,1.2vw,16px);
+  --page:#f4f6f5;--card:#fff;--txt:#374151;--txt2:#4b5563;--mut:#6b7280;--line:#e5e7eb;--bd:#d1d5db;--track:#e5e7eb;
+  --gv:#1b5e20;--gb:#1b5e20;--bad:#c62828;--e1:rgba(27,94,32,.08);--e2:rgba(27,94,32,.02);--map-bg:#e5e7eb;
+  background:var(--page);min-height:100vh;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;color:var(--txt)}
+:root[data-theme="dark"] .sv{--page:var(--bg);--card:var(--surface);--txt:#e5e7eb;--txt2:#cbd5e1;--mut:#94a3b8;
+  --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
+  --gv:#66bb6a;--gb:#2e7d32;--bad:#f87171;--e1:rgba(102,187,106,.14);--e2:rgba(102,187,106,.04);--map-bg:#1b2740}
+.sv *{box-sizing:border-box}
+.sv-w{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px);display:grid;gap:var(--g)}
+.sv-hd{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px) clamp(10px,2vw,24px) 0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;color:var(--txt)}
+.sv-hd h2{margin:0;font-size:clamp(16px,2.4vw,22px);line-height:1.2;color:var(--txt)}
+.sv-ha{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.sv-hd button{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600}
+.sv-hd button:disabled{opacity:.7;cursor:default}
+.sv-spin{animation:svs 1s linear infinite}@keyframes svs{to{transform:rotate(360deg)}}
+.sv-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.sv-f label{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px;min-width:0}
+.sv-f select{height:38px;width:100%;min-width:0;border:1px solid var(--bd);border-radius:8px;padding:0 8px;background:var(--card);color:var(--txt)}
+.sv-cols{display:grid;grid-template-columns:1fr;gap:var(--g)}
+@media(min-width:1000px){.sv-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}}
+.sv-side{display:flex;flex-direction:column;gap:var(--g);min-width:0}
+.sv-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--g);flex:1}
+.sv-span{grid-column:1/-1}
+@media(max-width:520px){.sv-grid2{grid-template-columns:1fr}}
+.sv-c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0;display:flex;flex-direction:column}
+.sv-c h4{margin:0 0 10px;text-align:center;color:var(--gv);font-size:14px}
+.sv-e{border-left:6px solid var(--gv);background:linear-gradient(90deg,var(--e1),var(--e2)),var(--card)}
+.sv-e p{margin:0;text-align:center;font-size:14px;line-height:1.6}
+.sv-big{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
+.sv-sub{font-size:12px;font-weight:700;text-align:center;margin-top:6px}
+.sv-val{flex:1;display:flex;flex-direction:column;justify-content:center}
+.sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center;flex-wrap:wrap}
+.sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.sv-map{min-height:480px}
+.sv-mapbox{flex:1;min-height:420px;width:100%;border-radius:8px;z-index:0;background:var(--map-bg)}
+.sv-mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.sv-mh h4{margin:0;color:var(--gv);font-size:14px}
+.sv-mh select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
+.sv-leg-adm{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--txt2);margin-top:6px}
+.sv-leg-adm i{display:inline-block;width:14px;height:0;border-top:3px solid;margin-right:6px;vertical-align:middle}
+.sv-tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sv-tb h4{margin:0}
+.sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--txt)}
+.sv-btn{display:inline-flex;gap:6px;align-items:center;padding:8px 12px;background:var(--gb);color:#fff;border:0;border-radius:8px;cursor:pointer;font-weight:600}
+.sv-t{overflow-x:auto}
+.sv-t table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
+.sv-t th{background:var(--gb);color:#fff;padding:10px;border-right:1px solid rgba(255,255,255,.3)}
+.sv-t td{padding:10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;color:var(--txt)}
+.sv-t td.l{text-align:left}
+.sv-pg{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px}
+.sv-pg div{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
+.sv-pg button{min-width:32px;height:32px;border:1px solid var(--bd);background:var(--card);color:var(--txt);border-radius:6px;cursor:pointer;font-weight:600}
+.sv-pg button.on{background:var(--gb);color:#fff;border-color:var(--gb)}
+.sv-pg button:disabled{opacity:.4;cursor:default}
+.sv-pg select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
+.sv-msg{padding:40px 16px;text-align:center}
+@media(max-width:520px){.sv-pg{justify-content:center}}
+@media(min-width:2200px){.sv{font-size:18px}.sv-c h4{font-size:18px}.sv-t table{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.sv *{transition:none!important;animation:none!important}}
+.leaflet-tooltip.sv-tip{font-size:12px;font-weight:600}
+`;
+
+function useNarrow(px = 480) {
+  const q = `(max-width:${px}px)`;
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.matchMedia(q).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(q);
+    const h = () => setM(mq.matches);
+    mq.addEventListener('change', h);
+    return () => mq.removeEventListener('change', h);
+  }, [q]);
+  return m;
+}
+
 export default function SuiviDashboard({ config, src = '/data/parcelles.geojson', headerExtra }: { config: DashboardConfig; src?: string; headerExtra?: React.ReactNode }) {
   const { titleKey, enonceKey, themes, cible, extras = [] } = config;
   const ctx: any = useLanguage() || {};
@@ -248,6 +344,9 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const [page, setPage] = useState(1);
   const [per, setPer] = useState(10);
   const [base, setBase] = useState<Base>('topo');
+  const [regions, setRegions] = useState<Adm[]>([]);
+  const [districts, setDistricts] = useState<Adm[]>([]);
+  const [communes, setCommunes] = useState<Adm[]>([]);
 
   const load = () => {
     setErr(false);
@@ -259,6 +358,12 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
       .finally(() => setBusy(false));
   };
   useEffect(() => { load(); }, [src]);
+  // Limites administratives : chargées une fois ; en cas d'échec, la carte reste sans contours
+  useEffect(() => {
+    chargerAdm('ADM1').then(setRegions).catch(() => {});
+    chargerAdm('ADM2').then(setDistricts).catch(() => {});
+    chargerAdm('ADM3').then(setCommunes).catch(() => {});
+  }, []);
   // « Actualiser » : réinitialise filtres, recherche et pagination, puis recharge les données
   const refresh = () => { setF({}); setQ(''); setPage(1); setPer(10); load(); };
 
@@ -269,13 +374,34 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   // Options en cascade : chaque filtre ne tient compte que des autres filtres sélectionnés
   const opts = (k: FilterKey) => [...new Set(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])))].sort();
 
-  // Clé de zoom : change quand région, district ou commune change ; vide = vue Madagascar
-  const zoomKey = ZOOM_FILTERS.some((k) => f[k]) ? ZOOM_FILTERS.map((k) => f[k] || '').join('|') : '';
+  /* Géométries administratives de la sélection, trouvées à l'intérieur de leur parent */
+  const adm = useMemo(() => {
+    const rK = f.region ? cle(f.region) : '';
+    const dK = f.district ? cle(f.district) : '';
+    const cK = f.commune ? cle(f.commune) : '';
+    const reg = rK ? regions.find((x) => cle(nomAdm(x)) === rK) : undefined;
+    const dis = dK
+      ? (reg
+          ? districts.find((x) => cle(nomAdm(x)) === dK && estDans(x, reg))
+          : districts.find((x) => cle(nomAdm(x)) === dK))
+      : undefined;
+    const nomCommune = COMMUNE_GEO[`${rK}|${dK}|${cK}`] ?? f.commune ?? '';
+    const com = cK && dis
+      ? communes.find((x) => cle(nomAdm(x)) === cle(nomCommune) && estDans(x, dis))
+      : undefined;
+    return { reg, dis, com };
+  }, [f.region, f.district, f.commune, regions, districts, communes]);
+
+  /* Cadrage : commune, sinon district, sinon région ; sinon Madagascar */
+  const cadre = useMemo(() => {
+    const cibleAdm = adm.com ?? adm.dis ?? adm.reg;
+    return cibleAdm ? L.geoJSON(cibleAdm as any).getBounds() : null;
+  }, [adm]);
 
   const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
   const dTot = sum(rows);
   const taux = cible ? (vTot / cible) * 100 : 0;
-  const regions = group(rows, 'region');
+  const regionsData = group(rows, 'region');
 
   const ql = q.trim().toLowerCase();
   const table = ql ? rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(ql)) : rows;
@@ -301,6 +427,21 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const mapKey = `${filtered.length}-${Math.round(dTot)}`;
   const title = t.title[titleKey];
   const showTitle = !/vue\s+d.ensemble/i.test(title);
+
+  /* Carte d'information simple (CEP, pare-feux) depuis la configuration */
+  const carteExtra = (key: 'cep' | 'feu') => {
+    const x = extras.find((e) => e.key === key);
+    if (!x) return null;
+    const Ic = ICONS[x.icon] || Users;
+    return (
+      <div className="sv-c" key={x.key}>
+        <h4>{t.extra[x.key]}</h4>
+        <div className="sv-val">
+          <div className="sv-big"><Ic size={20} style={{ verticalAlign: -3, marginRight: 6 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="sv">
@@ -340,6 +481,11 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               </section>
 
               <div className="sv-grid2">
+                {/* Ligne 1 : pare-feux | CEP */}
+                {carteExtra('feu')}
+                {carteExtra('cep')}
+
+                {/* Ligne 2 : superficie validée | répartition par type de pratique */}
                 <div className="sv-c">
                   <h4>{t.k.valide}</h4>
                   <div className="sv-val">
@@ -348,25 +494,13 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                     <Gauge pct={taux} />
                   </div>
                 </div>
-
-                {extras.map((x) => {
-                  const Ic = ICONS[x.icon] || Users;
-                  return (
-                    <div className="sv-c" key={x.key}>
-                      <h4>{t.extra[x.key]}</h4>
-                      <div className="sv-val">
-                        <div className="sv-big"><Ic size={20} style={{ verticalAlign: -3, marginRight: 6 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
-                      </div>
-                    </div>
-                  );
-                })}
-
                 <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
 
-                <div className="sv-c">
+                {/* Ligne 3 : répartition par région, pleine largeur */}
+                <div className="sv-c sv-span">
                   <h4>{t.c.region}</h4>
-                  <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 36 + 30)}>
-                    <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 48 }}>
+                  <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 36 + 30)}>
+                    <BarChart data={regionsData} layout="vertical" margin={{ left: 0, right: 48 }}>
                       <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
                       <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
                       <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
@@ -400,11 +534,43 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                     l.bindPopup(`<b>${esc(p.id)}</b><br>${esc(tp(p.pratique))}<br>${esc(p.commune)}, ${esc(p.region)}<br>${fr(p.superficie_ha, 2)} ha · ${esc(tv(p.statut))}`);
                   }}
                 />
-                <MapController feats={filtered} zoomKey={zoomKey} />
+
+                {/* Limites de la sélection : région, puis district, puis commune (par-dessus) */}
+                {adm.reg && (
+                  <GeoJSON
+                    key={`reg-${f.region}`}
+                    data={adm.reg as any}
+                    style={() => ({ color: COULEUR_REGION, weight: 3, fillOpacity: 0, dashArray: adm.dis ? '6 4' : undefined })}
+                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.region} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
+                  />
+                )}
+                {adm.dis && (
+                  <GeoJSON
+                    key={`dis-${f.district}`}
+                    data={adm.dis as any}
+                    style={() => ({ color: COULEUR_DISTRICT, weight: 2.5, fillColor: COULEUR_DISTRICT, fillOpacity: adm.com ? 0 : 0.12 })}
+                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.district} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
+                  />
+                )}
+                {adm.com && (
+                  <GeoJSON
+                    key={`com-${f.commune}`}
+                    data={adm.com as any}
+                    style={() => ({ color: COULEUR_COMMUNE, weight: 3, fillColor: '#14b8a6', fillOpacity: 0.25 })}
+                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.commune} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
+                  />
+                )}
+
+                <MapController bounds={cadre} />
                 <ScaleBar />
               </MapContainer>
               <div className="sv-lg" style={{ justifyContent: 'center', gap: 14 }}>
                 {Object.entries(STATUT_UI).map(([s, c]) => <span key={s}><i style={{ background: c }} />{tv(s)}</span>)}
+              </div>
+              <div className="sv-leg-adm">
+                <span><i style={{ borderColor: COULEUR_REGION }} />{t.f.region}</span>
+                <span><i style={{ borderColor: COULEUR_DISTRICT }} />{t.f.district}</span>
+                <span><i style={{ borderColor: COULEUR_COMMUNE }} />{t.f.commune}</span>
               </div>
             </div>
           </section>
