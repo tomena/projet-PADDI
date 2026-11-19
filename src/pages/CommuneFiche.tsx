@@ -173,8 +173,12 @@ const CSS = `
   .fxm-kpi b{font-size:14px}
   .fxm-kpi small{font-size:9px}
   .fxm-noprint-pdf{display:none!important}
-  .fxm-heat td{background:rgba(0,0,0,calc(var(--a,0)*.35))!important;color:#000!important;outline:none!important}
   .fxm-grid{gap:8px}
+  .fxm-card,.fxm-syn,.fxm-info{break-inside:avoid;page-break-inside:avoid}
+  .fxm-chart-row{display:flex;gap:10px;align-items:stretch}
+  .fxm-chart-row .fxm-chart{flex:1 1 0;min-width:0}
+  .fxm-side-note{flex:0 0 34%;text-align:left!important;margin:0!important;align-self:center;font-size:10.5px!important}
+  .fxm-print-line{white-space:nowrap;font-size:10.5px!important}
 }
 `;
 
@@ -296,14 +300,15 @@ export default function CommuneFiche({
           <h1>{P.titre} : {commune}</h1>
           <p><b>{T.apLbl} :</b> {ap} · {year}</p>
           <p><b>{P.edition} :</b> {dtFmt(now)}</p>
-          <p>
+          <p className="fxm-print-line">
             <b>{P.pointsDate} :</b>{" "}
             {premierPoint != null && dernierPoint != null
               ? `${P.pointsDu} ${dtFmt(premierPoint)} ${P.pointsAu} ${dtFmt(dernierPoint)}`
               : P.pointsNone}
+            {dernierPoint != null && <>{" · "}<b>{P.dernier} :</b> {dtFmt(dernierPoint)}</>}
+            {" · "}<b>{P.fenetre} :</b> {hours} {P.heures}
+            {bilan ? <>{" · "}<b>{P.total} :</b> {n0(bilan.total)}</> : null}
           </p>
-          {dernierPoint != null && <p><b>{P.dernier} :</b> {dtFmt(dernierPoint)}</p>}
-          <p><b>{P.fenetre} :</b> {hours} {P.heures}{bilan ? ` · ${P.total} : ${n0(bilan.total)}` : ""}</p>
           <p>
             {superficieHa != null && <><b>{P.superficie} :</b> {fmt(superficieHa)} · </>}
             <b>{P.periodeRef} :</b> {REF_LABEL}
@@ -425,6 +430,7 @@ export default function CommuneFiche({
 
               <section className="fxm-card">
                 <h3>{T.hist}</h3>
+                <div className="fxm-chart-row">
                 <div className="fxm-chart">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={historique} margin={{ top: 6, right: 8, left: -10, bottom: 0 }}>
@@ -443,7 +449,8 @@ export default function CommuneFiche({
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
-                <p className="fxm-note">{T.histNote}</p>
+                <p className="fxm-note fxm-side-note">{T.histNote}</p>
+                </div>
                 <Lecture title={T.lectLbl} l={rap.lectures.historique} />
               </section>
             </div>
