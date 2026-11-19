@@ -474,6 +474,13 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const rows = useMemo(() => filtered.map((x) => x.properties), [filtered]);
   // Options en cascade : chaque filtre ne tient compte que des autres filtres sélectionnés
   const opts = (k: FilterKey) => [...new Set(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])))].sort();
+  // Filtre Région : toujours les 24 régions, plus les noms présents dans la base qui n'y figurent pas
+  const optsRegion = () => {
+    const base = opts('region');
+    const ref = new Set(REGIONS_REF.map(cle));
+    const extra = base.filter((n) => !ref.has(cle(n)));
+    return [...REGIONS_REF, ...extra].sort((a, b) => a.localeCompare(b, 'fr'));
+  };
 
   /* Géométries administratives de la sélection, cherchées à l'intérieur de leur parent
      (repli sur le nom seul si le parent ne contient pas la zone, ce qui arrive après un redécoupage) */
@@ -496,17 +503,8 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     return cibleAdm ? L.geoJSON(cibleAdm as any).getBounds() : null;
   }, [adm]);
 
-  /* Barres par région : les 24 régions de référence (0 ha si aucune parcelle), puis les régions
-     présentes dans la base sans correspondance dans le référentiel */
-  const regionsData = useMemo(() => {
-    const parNom = new Map(group(rows, 'region').map((d) => [cle(d.name), d.value]));
-    const liste = REGIONS_REF.map((n) => ({ name: n, value: parNom.get(cle(n)) ?? 0 }));
-    const ref = new Set(REGIONS_REF.map(cle));
-    group(rows, 'region')
-      .filter((d) => !ref.has(cle(d.name)))
-      .forEach((d) => liste.push({ name: d.name, value: d.value }));
-    return liste.sort((a, b) => b.value - a.value);
-  }, [rows]);
+  /* Barres par région : uniquement les régions présentes dans la base (superficies de la base) */
+  const regionsData = useMemo(() => group(rows, 'region'), [rows]);
 
   const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
   const dTot = sum(rows);
@@ -575,7 +573,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               <label key={k}>{t.f[k]}
                 <select value={f[k] || ''} onChange={(e) => { setF({ ...f, [k]: e.target.value }); setPage(1); }}>
                   <option value="">{t.all}</option>
-                  {opts(k).map((o) => <option key={o} value={o}>{k === 'statut' ? tv(o) : o}</option>)}
+                  {(k === 'region' ? optsRegion() : opts(k)).map((o) => <option key={o} value={o}>{k === 'statut' ? tv(o) : o}</option>)}
                 </select>
               </label>
             ))}
@@ -605,15 +603,15 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                 </div>
                 <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
 
-                {/* Ligne 3 : répartition par région (24 régions), pleine largeur */}
+                {/* Ligne 3 : répartition par région (régions de la base), pleine largeur */}
                 <div className="sv-c sv-span">
                   <h4>{t.c.region}</h4>
-                  <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 22 + 30)}>
+                  <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 36 + 30)}>
                     <BarChart data={regionsData} layout="vertical" margin={{ left: 0, right: 48 }}>
                       <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
-                      <YAxis dataKey="name" type="category" width={narrow ? 110 : 140} interval={0} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
+                      <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
                       <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
-                      <Bar dataKey="value" fill="var(--gv)" barSize={14} radius={[0, 2, 2, 0]}>
+                      <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
                         <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
                       </Bar>
                     </BarChart>
