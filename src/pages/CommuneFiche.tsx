@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { X } from "lucide-react";
+import { X, Download } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
 } from "recharts";
@@ -34,6 +34,61 @@ const LVL_COLOR: Record<"haute" | "moyenne" | "info", string> = { haute: "#dc262
 const NIV_COLOR: Record<Niveau, string> = { critique: "#b91c1c", eleve: "#ea580c", modere: "#d97706", faible: "#16a34a" };
 const REF_LABEL = `${CFG.REF_DEBUT}–${CFG.REF_FIN}`;
 
+// Libellés propres à l'export PDF
+const PT: Record<string, Record<string, string>> = {
+  fr: {
+    titre: "Situation de feux de la Commune",
+    export: "Export PDF",
+    edition: "Date d'édition",
+    pointsDate: "Date des points de feux",
+    pointsDu: "du",
+    pointsAu: "au",
+    pointsNone: "Aucun point de feu dans la commune",
+    fenetre: "Fenêtre d'analyse",
+    heures: "h",
+    total: "Points détectés (fenêtre)",
+    superficie: "Superficie",
+    rang: "Rang dans l'AP",
+    periodeRef: "Période de référence",
+    dernier: "Dernier point",
+    source: "Document généré depuis l'outil d'analyse des feux",
+  },
+  en: {
+    titre: "Fire situation of the commune",
+    export: "Export PDF",
+    edition: "Edition date",
+    pointsDate: "Fire points date",
+    pointsDu: "from",
+    pointsAu: "to",
+    pointsNone: "No fire point in the commune",
+    fenetre: "Analysis window",
+    heures: "h",
+    total: "Detected points (window)",
+    superficie: "Area",
+    rang: "Rank in the AP",
+    periodeRef: "Reference period",
+    dernier: "Latest point",
+    source: "Document generated from the fire analysis tool",
+  },
+  de: {
+    titre: "Brandsituation der Gemeinde",
+    export: "PDF exportieren",
+    edition: "Erstellungsdatum",
+    pointsDate: "Datum der Brandpunkte",
+    pointsDu: "vom",
+    pointsAu: "bis",
+    pointsNone: "Keine Brandpunkte in der Gemeinde",
+    fenetre: "Analysezeitraum",
+    heures: "Std.",
+    total: "Erkannte Punkte (Zeitraum)",
+    superficie: "Fläche",
+    rang: "Rang im AP",
+    periodeRef: "Referenzzeitraum",
+    dernier: "Letzter Punkt",
+    source: "Dokument aus dem Brand-Analysetool erstellt",
+  },
+};
+
 const CSS = `
 .fxm-bg{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:12px}
 .fxm{background:var(--surface,#fff);color:var(--text,#0f172a);border:1px solid var(--border,#e2e8f0);border-radius:14px;width:min(1080px,100%);max-height:92vh;overflow:auto;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -41,8 +96,11 @@ const CSS = `
 .fxm-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
 .fxm-h h2{margin:0;font-size:20px;color:color-mix(in srgb,#0b4ea2 60%,var(--text,#0f172a))}
 .fxm-h p{margin:2px 0 0;font-size:12px;color:var(--text-3,#64748b)}
+.fxm-tools{display:flex;gap:8px;align-items:center;flex:none}
+.fxm-btn{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 10px;border:1px solid var(--border,#e2e8f0);background:var(--surface-3,#f1f5f9);color:var(--text,#0f172a);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap}
+.fxm-btn:hover{border-color:#2563eb}
+.fxm-btn:focus-visible,.fxm-x:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
 .fxm-x{border:1px solid var(--border,#e2e8f0);background:var(--surface-3,#f1f5f9);color:var(--text,#0f172a);border-radius:8px;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;flex:none}
-.fxm-x:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
 .fxm-syn{border:1px solid var(--border,#e2e8f0);border-left:6px solid var(--niv);border-radius:10px;padding:10px 12px;background:var(--surface-2,#f8fafc);margin-bottom:10px}
 .fxm-syn-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:6px}
 .fxm-badge{background:var(--niv);color:#fff;font-weight:700;font-size:13px;padding:3px 10px;border-radius:999px}
@@ -92,12 +150,32 @@ const CSS = `
 .fxm-acts ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--text-2,#475569)}
 .fxm details{margin-bottom:10px}
 .fxm summary{cursor:pointer;font-size:13px;font-weight:600;margin-bottom:6px}
+.fxm-print-only{display:none}
+.fxm-print-meta{margin-bottom:12px;border-bottom:2px solid #0b4ea2;padding-bottom:8px}
+.fxm-print-meta h1{margin:0 0 6px;font-size:20px;color:#0b4ea2}
+.fxm-print-meta p{margin:2px 0;font-size:12px;color:#334155}
 @media(prefers-reduced-motion:reduce){.fxm *{transition:none!important}}
+@media print{
+  @page{size:A4;margin:12mm}
+  body *{visibility:hidden}
+  .fxm-bg,.fxm-bg *{visibility:visible}
+  .fxm-bg{position:absolute;left:0;top:0;width:100%;height:auto;display:block;padding:0;background:#fff!important}
+  .fxm{position:static;width:100%;max-height:none;overflow:visible;padding:0;border:none;border-radius:0;box-shadow:none;background:#fff;color:#0f172a;
+    --text:#0f172a;--text-2:#475569;--text-3:#64748b;--surface:#fff;--surface-2:#f8fafc;--surface-3:#f1f5f9;--border:#e2e8f0}
+  .fxm-h,.fxm-noprint,.fxm-lect-title{display:none!important}
+  .fxm-print-only{display:block!important}
+  .fxm-syn,.fxm-card,.fxm-kpi,.fxm-item,.fxm-pc,.fxm-lect,.fxm-keys li{break-inside:avoid;page-break-inside:avoid}
+  .fxm-chart{height:190px}
+  .fxm-grid{gap:8px}
+}
 `;
 
 const TICK = { fontSize: 11, fill: "var(--text-3,#64748b)" };
 const TIP_STYLE = { background: "var(--surface,#fff)", border: "1px solid var(--border,#e2e8f0)", color: "var(--text,#0f172a)", borderRadius: 8, fontSize: 12 };
 const compact = (v: number) => (v >= 1000 ? `${Math.round(v / 100) / 10}k` : String(Math.round(v)));
+
+// Les horodatages peuvent être en secondes ou en millisecondes
+const toMs = (t: number) => (t < 1e12 ? t * 1000 : t);
 
 const Items = ({ items }: { items: Item[] }) => (
   <>
@@ -112,7 +190,7 @@ const Items = ({ items }: { items: Item[] }) => (
 
 const Lecture = ({ title, l }: { title: string; l: LectureT }) => (
   <div className="fxm-lect">
-    <b>{title}</b>
+    <b className="fxm-lect-title">{title}</b>
     <p className="k">{l.cle}</p>
     {l.lignes.length > 0 && <ul>{l.lignes.map((x, i) => <li key={i}>{x}</li>)}</ul>}
   </div>
@@ -122,11 +200,14 @@ export default function CommuneFiche({
   commune, ap, year, hours, lang, monthNames, rowsAP, superficieHa, rang, nbCommunes, partAP, zone, fires, onClose, nowMs,
 }: CommuneFicheProps) {
   const T = txtCommune(lang);
+  const P = PT[lang] ?? PT.fr;
   const loc = LOC[lang] ?? "fr-FR";
   const fmt = (v: number) => v.toLocaleString(loc, { maximumFractionDigits: 1 }) + " ha";
   const n0 = (v: number) => v.toLocaleString(loc, { maximumFractionDigits: 0 });
   const p1 = (v: number) => v.toLocaleString(loc, { maximumFractionDigits: 1 }) + " %";
   const sp = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString(loc, { maximumFractionDigits: Math.abs(v) < 10 ? 1 : 0 })} %`;
+  const dtFmt = (ms: number) =>
+    new Date(ms).toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const now = useMemo(() => nowMs ?? Date.now(), [nowMs]);
 
   // Échap pour fermer
@@ -142,11 +223,17 @@ export default function CommuneFiche({
   const analyse = useMemo(() => analyserCommune(rows, year, superficieHa, now), [rows, year, superficieHa, now]);
 
   // Points de feux satellite situés dans la commune
+  const pointsZone = useMemo(() => (zone ? fires.filter((f) => inZone(f.lon, f.lat, zone)) : []), [zone, fires]);
   const bilan = useMemo(() => {
     if (!zone) return null;
-    const pts = fires.filter((f) => inZone(f.lon, f.lat, zone)).map((f) => ({ t: f.t, age: f.age, frp: f.frp }));
+    const pts = pointsZone.map((f) => ({ t: f.t, age: f.age, frp: f.frp }));
     return bilanPoints(pts, hours, superficieHa);
-  }, [zone, fires, hours, superficieHa]);
+  }, [zone, pointsZone, hours, superficieHa]);
+
+  // Dates des points (première et dernière détection dans la commune)
+  const datesPoints = useMemo(() => pointsZone.map((f) => toMs(f.t)).filter((v) => Number.isFinite(v)), [pointsZone]);
+  const premierPoint = datesPoints.length ? Math.min(...datesPoints) : null;
+  const dernierPoint = datesPoints.length ? Math.max(...datesPoints) : null;
 
   // Rapport : niveau de priorité, points clés, actions, lecture de chaque graphe
   const rap = useMemo(
@@ -165,6 +252,14 @@ export default function CommuneFiche({
   const satSerie = bilan ? [...bilan.bins].reverse().map((b) => ({ tr: `${b.a}h`, n: b.n })) : [];
   const heatMax = Math.max(0, ...analyse.heat.flatMap((r) => r.mois.map((v) => v ?? 0)));
 
+  // Export PDF : passe par la boîte d'impression du navigateur (« Enregistrer au format PDF »)
+  const exportPdf = () => {
+    const titreAvant = document.title;
+    document.title = `Situation_feux_${commune}_${year}`.replace(/\s+/g, "_");
+    window.print();
+    setTimeout(() => { document.title = titreAvant; }, 500);
+  };
+
   return (
     <div className="fxm-bg" onClick={onClose} role="presentation">
       <style>{CSS}</style>
@@ -174,8 +269,33 @@ export default function CommuneFiche({
             <h2 id="fxm-title">{commune}</h2>
             <p>{T.apLbl} : {ap} · {year}</p>
           </div>
-          <button className="fxm-x" onClick={onClose} aria-label={T.fermer} title={T.fermer}><X size={18} /></button>
+          <div className="fxm-tools">
+            <button className="fxm-btn" onClick={exportPdf} title={P.export} aria-label={P.export}>
+              <Download size={16} aria-hidden="true" /> {P.export}
+            </button>
+            <button className="fxm-x" onClick={onClose} aria-label={T.fermer} title={T.fermer}><X size={18} /></button>
+          </div>
         </header>
+
+        {/* En-tête visible uniquement dans le PDF */}
+        <div className="fxm-print-only fxm-print-meta">
+          <h1>{P.titre} : {commune}</h1>
+          <p><b>{T.apLbl} :</b> {ap} · {year}</p>
+          <p><b>{P.edition} :</b> {dtFmt(now)}</p>
+          <p>
+            <b>{P.pointsDate} :</b>{" "}
+            {premierPoint != null && dernierPoint != null
+              ? `${P.pointsDu} ${dtFmt(premierPoint)} ${P.pointsAu} ${dtFmt(dernierPoint)}`
+              : P.pointsNone}
+          </p>
+          {dernierPoint != null && <p><b>{P.dernier} :</b> {dtFmt(dernierPoint)}</p>}
+          <p><b>{P.fenetre} :</b> {hours} {P.heures}{bilan ? ` · ${P.total} : ${n0(bilan.total)}` : ""}</p>
+          <p>
+            {superficieHa != null && <><b>{P.superficie} :</b> {fmt(superficieHa)} · </>}
+            {rang > 0 && <><b>{P.rang} :</b> {rang} / {nbCommunes} · </>}
+            <b>{P.periodeRef} :</b> {REF_LABEL}
+          </p>
+        </div>
 
         {rows.length === 0 ? (
           <p className="fxm-note">{T.aucune}</p>
@@ -395,6 +515,7 @@ export default function CommuneFiche({
             )}
 
             <p className="fxm-note">{T.src}</p>
+            <p className="fxm-print-only fxm-note">{P.source}</p>
           </>
         )}
       </div>
