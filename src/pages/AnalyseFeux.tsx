@@ -159,24 +159,6 @@ const MADAGASCAR: L.LatLngBoundsExpression = [[-26, 42.3], [-11.5, 50.9]];
 /* ---- Années « à forte pression », par zone (à ajuster ici) ----
    2018 n'est pas dans la base GeoJSON (qui commence en 2020) : sa valeur 5 km vient de SUPERFICIE_2018. */
 const ANNEES_PRESSION: Record<"5km" | "interieur", number[]> = { "5km": [2018, 2023, 2025], interieur: [2023, 2025] };
-const PRESSION_TXT: Record<string, { def: string; line: (val: string, pct: string) => string }> = {
-  fr: {
-    def: "Années à forte pression : années où les superficies brûlées ont été exceptionnellement élevées. Elles servent de repère pour juger si l'année choisie est ordinaire ou extrême.",
-    line: (v, p) => `en moyenne ${v} ha sur ces années, soit ${p} par rapport à la moyenne 2020-2024.`,
-  },
-  mg: {
-    def: "Taona nahitana tsindry avo : taona nanana velaran-tany may avo tsy ara-dalàna. Fanondroana izy ireo hitsarana raha mahazatra na tafahoatra ny taona voafidy.",
-    line: (v, p) => `salan'isa ${v} ha tamin'ireo taona ireo, na ${p} raha oharina amin'ny salan'isa 2020-2024.`,
-  },
-  en: {
-    def: "High-pressure years: years when burned areas were exceptionally high. They serve as a benchmark to judge whether the selected year is ordinary or extreme.",
-    line: (v, p) => `on average ${v} ha over these years, i.e. ${p} versus the 2020-2024 average.`,
-  },
-  de: {
-    def: "Jahre mit hohem Druck: Jahre mit außergewöhnlich großen verbrannten Flächen. Sie dienen als Maßstab, um zu beurteilen, ob das gewählte Jahr gewöhnlich oder extrem ist.",
-    line: (v, p) => `im Durchschnitt ${v} ha in diesen Jahren, also ${p} gegenüber dem Durchschnitt 2020-2024.`,
-  },
-};
 
 const FONDS: Record<string, { url: string; attr: string }> = {
   topo: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", attr: "Tiles © Esri" },
@@ -338,7 +320,6 @@ const CSS = `
 .fx-lg-per b{color:#b91c1c;font-size:12px;text-transform:capitalize}
 .fx-lg .fx-lg-sev{justify-content:space-between;margin-top:4px;font-size:10px;color:#64748b}
 .fx-zone{background:var(--surface-3);border:1px solid var(--border-soft);border-radius:10px;padding:6px 8px 2px;margin-bottom:8px}
-.fx-pdesc{margin:2px 0 6px;font-size:11px;line-height:1.45;color:var(--text-2)}
 .fx-zh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
 .fx-zt{display:flex;align-items:center;gap:6px;color:color-mix(in srgb,#1565c0 70%,var(--text));font-size:12px;font-weight:700}
 .fx-vchip{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
@@ -473,7 +454,7 @@ const MonthlyChart = ({ data, year, t }: any) => {
 };
 
 const HistoricalChart = ({ zones, year, t, lang }: any) => {
-  const P = PRESSION_TXT[lang] ?? PRESSION_TXT.fr;
+  const annees = Array.from(new Set(Object.values(ANNEES_PRESSION).flat())).sort((a, b) => a - b);
   return (
     <Card title={t.historicalDifference}>
       {zones.map((z: any) => {
@@ -483,7 +464,6 @@ const HistoricalChart = ({ zones, year, t, lang }: any) => {
           { nom: t.highPressureYears, val: z.difficile },
         ];
         const v = z.moyenne !== 0 ? ((z.annee - z.moyenne) / z.moyenne) * 100 : 0;
-        const vp = z.moyenne !== 0 ? ((z.difficile - z.moyenne) / z.moyenne) * 100 : 0;
         const [base, sym] = v > 0 ? ["#dc2626", "▲"] : v < 0 ? ["#2563eb", "▼"] : ["#16a34a", "="];
         const Icon = z.kind === "5km" ? MapPinned : Trees;
         return (
@@ -531,16 +511,12 @@ const HistoricalChart = ({ zones, year, t, lang }: any) => {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
-            <p className="fx-pdesc">
-              <b>{t.highPressureYears}</b> ({z.pression.map((p: any) => p.y).join(", ")}) :{" "}
-              {P.line(nHa(Math.round(z.difficile)), `${vp > 0 ? "+" : ""}${vp.toFixed(1)} %`)}
-              <br />
-              {z.pression.map((p: any) => `${p.y} : ${nHa(Math.round(p.v))} ha`).join(" · ")}
-            </p>
           </div>
         );
       })}
-      <p className="fx-note">{P.def}</p>
+      <p className="fx-note">
+        <b>{t.highPressureYears}</b> ({annees.join(", ")})
+      </p>
     </Card>
   );
 };
