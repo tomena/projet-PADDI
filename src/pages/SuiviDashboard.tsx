@@ -3,7 +3,8 @@ import {
   ResponsiveContainer, PieChart, Pie, Cell, XAxis, YAxis,
   Tooltip, BarChart, Bar, LabelList,
 } from 'recharts';
-import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
+import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RefreshCw, Users, Flame, Download, Search } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -18,7 +19,7 @@ export interface Parcelle {
 }
 type Feat = { type: 'Feature'; geometry: any; properties: Parcelle };
 type Geo = { type: 'FeatureCollection'; features: Feat[] };
-type FilterKey = 'annee' | 'region' | 'aire_protegee' | 'paysage' | 'district' | 'commune' | 'fokontany' | 'mbv' | 'statut';
+type FilterKey = 'annee' | 'aire_protegee' | 'region' | 'district' | 'commune' | 'paysage' | 'mbv' | 'statut';
 type PageKey = 'agro' | 'foret' | 'global';
 type Base = 'topo' | 'sat' | 'osm';
 
@@ -42,8 +43,12 @@ const BAD = 'var(--bad)';
 const PAL = ['#2e7d32', '#66bb6a', '#D4E157', '#FFB300', '#64B5F6', '#a5d6a7', '#8d6e63'];
 const STATUT: Record<string, string> = { 'Validé': G, 'En attente': '#FFB300', 'Rejeté': '#c62828' };
 const STATUT_UI: Record<string, string> = { 'Validé': GV, 'En attente': '#FFB300', 'Rejeté': BAD };
-const FILTERS: FilterKey[] = ['annee', 'region', 'aire_protegee', 'paysage', 'district', 'commune', 'fokontany', 'mbv', 'statut'];
+// Ordre d'affichage des filtres (Fokontany retiré)
+const FILTERS: FilterKey[] = ['annee', 'aire_protegee', 'region', 'district', 'commune', 'paysage', 'mbv', 'statut'];
+// Filtres qui recadrent la carte sur la sélection
+const ZOOM_FILTERS: FilterKey[] = ['region', 'district', 'commune'];
 const ICONS: Record<string, React.ComponentType<any>> = { cep: Users, feu: Flame };
+const MADAGASCAR: [number, number] = [-18.9, 47.5];
 
 // Fonds de carte : Topographie (ArcGIS), Satellite (ArcGIS), OpenStreetMap
 const BASEMAPS: Record<Base, { label: string; url: string; attribution: string }> = {
@@ -109,7 +114,7 @@ const CSS = `
 .sv-cols{display:grid;grid-template-columns:1fr;gap:var(--g)}
 @media(min-width:1000px){.sv-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}}
 .sv-side{display:flex;flex-direction:column;gap:var(--g);min-width:0}
-.sv-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--g)}
+.sv-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--g);flex:1}
 .sv-span{grid-column:1/-1}
 @media(max-width:520px){.sv-grid2{grid-template-columns:1fr}}
 .sv-c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0;display:flex;flex-direction:column}
@@ -118,7 +123,7 @@ const CSS = `
 .sv-e p{margin:0;text-align:center;font-size:14px;line-height:1.6}
 .sv-big{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
 .sv-sub{font-size:12px;font-weight:700;text-align:center;margin-top:6px}
-.sv-combo{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
+.sv-val{flex:1;display:flex;flex-direction:column;justify-content:center}
 .sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center;flex-wrap:wrap}
 .sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .sv-map{min-height:480px}
@@ -157,6 +162,29 @@ function useNarrow(px = 480) {
     return () => mq.removeEventListener('change', h);
   }, [q]);
   return m;
+}
+
+// Recadre la carte : sur Madagascar par défaut, sur la sélection quand zoomKey change
+function MapController({ feats, zoomKey }: { feats: Feat[]; zoomKey: string }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!zoomKey) { map.setView(MADAGASCAR, 5); return; }
+    if (!feats.length) return;
+    const b = L.geoJSON({ type: 'FeatureCollection', features: feats } as any).getBounds();
+    if (b.isValid()) map.fitBounds(b, { padding: [24, 24], maxZoom: 10 });
+  }, [zoomKey]); // eslint-disable-line
+  return null;
+}
+
+// Échelle métrique en bas à gauche de la carte
+function ScaleBar() {
+  const map = useMap();
+  useEffect(() => {
+    const c = L.control.scale({ metric: true, imperial: false, position: 'bottomleft' });
+    c.addTo(map);
+    return () => { c.remove(); };
+  }, [map]);
+  return null;
 }
 
 function Donut({ title, data }: { title: string; data: { name: string; value: number }[] }) {
@@ -238,8 +266,11 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const match = (p: Parcelle, skip?: FilterKey) => FILTERS.every((k) => k === skip || !f[k] || String(p[k]) === f[k]);
   const filtered = useMemo(() => feats.filter((x) => match(x.properties)), [feats, f]); // eslint-disable-line
   const rows = useMemo(() => filtered.map((x) => x.properties), [filtered]);
+  // Options en cascade : chaque filtre ne tient compte que des autres filtres sélectionnés
   const opts = (k: FilterKey) => [...new Set(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])))].sort();
-  const gt = (key: keyof Parcelle) => group(rows, key).map((d) => ({ ...d, name: tv(d.name) }));
+
+  // Clé de zoom : change quand région, district ou commune change ; vide = vue Madagascar
+  const zoomKey = ZOOM_FILTERS.some((k) => f[k]) ? ZOOM_FILTERS.map((k) => f[k] || '').join('|') : '';
 
   const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
   const dTot = sum(rows);
@@ -301,34 +332,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
           </section>
 
           <section className="sv-cols">
-            {/* Partie gauche : carte de localisation centrée sur Madagascar */}
-            <div className="sv-c sv-map">
-              <div className="sv-mh">
-                <h4>{t.c.map}</h4>
-                <select value={base} onChange={(e) => setBase(e.target.value as Base)} aria-label="Fond de carte">
-                  {(Object.keys(BASEMAPS) as Base[]).map((b) => (
-                    <option key={b} value={b}>{BASEMAPS[b].label}</option>
-                  ))}
-                </select>
-              </div>
-              <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} className="sv-mapbox">
-                <TileLayer key={base} attribution={BASEMAPS[base].attribution} url={BASEMAPS[base].url} />
-                <GeoJSON
-                  key={`${mapKey}-${lang}`}
-                  data={{ type: 'FeatureCollection', features: filtered } as any}
-                  style={(x: any) => ({ color: STATUT[x.properties.statut], weight: 5, fillOpacity: 0.6 })}
-                  onEachFeature={(x: any, l: any) => {
-                    const p = x.properties;
-                    l.bindPopup(`<b>${esc(p.id)}</b><br>${esc(tp(p.pratique))}<br>${esc(p.commune)}, ${esc(p.region)}<br>${fr(p.superficie_ha, 2)} ha · ${esc(tv(p.statut))}`);
-                  }}
-                />
-              </MapContainer>
-              <div className="sv-lg" style={{ justifyContent: 'center', gap: 14 }}>
-                {Object.entries(STATUT_UI).map(([s, c]) => <span key={s}><i style={{ background: c }} />{tv(s)}</span>)}
-              </div>
-            </div>
-
-            {/* Partie droite : énoncé puis cartes de synthèse */}
+            {/* Partie gauche : énoncé et cartes d'information */}
             <div className="sv-side">
               <section className="sv-c sv-e">
                 <h4>{t.enonceTitle}</h4>
@@ -336,13 +340,11 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               </section>
 
               <div className="sv-grid2">
-                <div className="sv-c sv-span">
-                  <h4>{`${t.k.valide} · ${t.k.taux}`}</h4>
-                  <div className="sv-combo">
-                    <div>
-                      <div className="sv-big">{fr(vTot)} ha</div>
-                      <div className="sv-sub">{t.k.on(fr(cible))}</div>
-                    </div>
+                <div className="sv-c">
+                  <h4>{t.k.valide}</h4>
+                  <div className="sv-val">
+                    <div className="sv-big">{fr(vTot)} ha</div>
+                    <div className="sv-sub">{t.k.on(fr(cible))}</div>
                     <Gauge pct={taux} />
                   </div>
                 </div>
@@ -352,16 +354,16 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                   return (
                     <div className="sv-c" key={x.key}>
                       <h4>{t.extra[x.key]}</h4>
-                      <div className="sv-big"><Ic size={20} style={{ verticalAlign: -3, marginRight: 6 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
+                      <div className="sv-val">
+                        <div className="sv-big"><Ic size={20} style={{ verticalAlign: -3, marginRight: 6 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
+                      </div>
                     </div>
                   );
                 })}
 
-                <div className="sv-span">
-                  <Donut title={t.donut.pratique_cat} data={gt('pratique_cat')} />
-                </div>
+                <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
 
-                <div className="sv-c sv-span">
+                <div className="sv-c">
                   <h4>{t.c.region}</h4>
                   <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 36 + 30)}>
                     <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 48 }}>
@@ -374,6 +376,35 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
+              </div>
+            </div>
+
+            {/* Partie droite : carte de localisation centrée sur Madagascar */}
+            <div className="sv-c sv-map">
+              <div className="sv-mh">
+                <h4>{t.c.map}</h4>
+                <select value={base} onChange={(e) => setBase(e.target.value as Base)} aria-label="Fond de carte">
+                  {(Object.keys(BASEMAPS) as Base[]).map((b) => (
+                    <option key={b} value={b}>{BASEMAPS[b].label}</option>
+                  ))}
+                </select>
+              </div>
+              <MapContainer center={MADAGASCAR} zoom={5} scrollWheelZoom={!narrow} className="sv-mapbox">
+                <TileLayer key={base} attribution={BASEMAPS[base].attribution} url={BASEMAPS[base].url} />
+                <GeoJSON
+                  key={`${mapKey}-${lang}`}
+                  data={{ type: 'FeatureCollection', features: filtered } as any}
+                  style={(x: any) => ({ color: STATUT[x.properties.statut], weight: 5, fillOpacity: 0.6 })}
+                  onEachFeature={(x: any, l: any) => {
+                    const p = x.properties;
+                    l.bindPopup(`<b>${esc(p.id)}</b><br>${esc(tp(p.pratique))}<br>${esc(p.commune)}, ${esc(p.region)}<br>${fr(p.superficie_ha, 2)} ha · ${esc(tv(p.statut))}`);
+                  }}
+                />
+                <MapController feats={filtered} zoomKey={zoomKey} />
+                <ScaleBar />
+              </MapContainer>
+              <div className="sv-lg" style={{ justifyContent: 'center', gap: 14 }}>
+                {Object.entries(STATUT_UI).map(([s, c]) => <span key={s}><i style={{ background: c }} />{tv(s)}</span>)}
               </div>
             </div>
           </section>
