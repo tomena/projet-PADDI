@@ -63,7 +63,7 @@ const ecartType = (v: number[]) => {
   const m = moyenne(v);
   return Math.sqrt(v.reduce((s, x) => s + (x - m) ** 2, 0) / (v.length - 1));
 };
-const dernierRempli = (m: Mois12) => m.reduce((l, v, i) => (v != null ? i : l), -1);
+const dernierRempli = (m: Mois12) => m.reduce<number>((l, v, i) => (v != null ? i : l), -1);
 const erf = (x: number) => {
   const s = Math.sign(x); x = Math.abs(x);
   const t = 1 / (1 + 0.3275911 * x);
@@ -167,7 +167,9 @@ export type CommuneAnalyse = {
   moyHa: number;
   pctSup: number | null; pctSupSel: number | null; incoherent: boolean;
   interieur: { moy: number; touchees: number; sur: number } | null;
-  partInterieur: number | null;                           // % du brûlé de la commune situé dans l'AP (années complètes)
+  partInterieur: number | null;                           // % du brûlé de la commune situé dans l'AP (années complètes) : vraie part, ≤ 100
+  partPeripherie: number | null;                          // zone 5 km / commune, en % (années complètes) : RAPPORT, peut dépasser 100
+  pctSel: { interieur: number | null; peripherie: number | null; partiel: boolean; dernierMois: number } | null; // année choisie (même période si incomplète)
   interieurPer: Per | null;                               // année choisie vs référence, même période
   peripherie: { moy: number } | null;
   peripheriePer: Per | null;
@@ -271,6 +273,13 @@ export function analyserCommune(rows: any[], annee: number, superficieHa: number
   const both = cmpl.filter((a) => a.interieur != null && a.ha > 0);
   const partInterieur = both.length >= 2 ? (both.reduce((s, a) => s + (a.interieur as number), 0) / both.reduce((s, a) => s + a.ha, 0)) * 100 : null;
   const dmSel = anneeSel ? (anneeSel.complet ? 11 : anneeSel.dernierMois) : -1;
+  const bothB = cmpl.filter((a) => a.peripherie != null && a.ha > 0);
+  const partPeripherie = bothB.length >= 2 ? (bothB.reduce((s, a) => s + (a.peripherie as number), 0) / bothB.reduce((s, a) => s + a.ha, 0)) * 100 : null;
+  const comSel = anneeSel && dmSel >= 0 ? somme(C.get(annee)!, dmSel + 1) : 0;
+  const iPer = vsPeriode(I, annee, dmSel), bPer = vsPeriode(B, annee, dmSel);
+  const pctSel = anneeSel && comSel > 0 && (iPer || bPer)
+    ? { interieur: iPer ? (iPer.ha / comSel) * 100 : null, peripherie: bPer ? (bPer.ha / comSel) * 100 : null, partiel: !anneeSel.complet, dernierMois: dmSel }
+    : null;
 
   let derniere: CommuneAnalyse["derniere"] = null;
   for (const y of [...ans].reverse()) {
@@ -295,10 +304,10 @@ export function analyserCommune(rows: any[], annee: number, superficieHa: number
     pctSupSel: sup && anneeSel && !incoherent ? (anneeSel.ha / sup) * 100 : null,
     incoherent,
     interieur: iv.length ? { moy: moyenne(iv), touchees: iv.filter((x) => x > 0).length, sur: iv.length } : null,
-    partInterieur,
-    interieurPer: vsPeriode(I, annee, dmSel),
+    partInterieur, partPeripherie, pctSel,
+    interieurPer: iPer,
     peripherie: bv.length ? { moy: moyenne(bv) } : null,
-    peripheriePer: vsPeriode(B, annee, dmSel),
+    peripheriePer: bPer,
     derniere,
     qualite: { nComplet: cmpl.length, premiere, recente: premiere != null && premiere > CFG.REF_DEBUT, trous, confiance },
   };
@@ -370,6 +379,7 @@ export function rapport(a: CommuneAnalyse, b: Bilan | null, c: CtxLecture, lang:
   const en = lang === "en", loc = en ? "en-GB" : "fr-FR";
   const L = (fr: string, e: string) => (en ? e : fr);
   const N = (n: number, d = 0) => n.toLocaleString(loc, { maximumFractionDigits: d });
+  const Pc = (n: number) => N(n, n < 10 ? 1 : 0); // pourcentage : une décimale sous 10 %
   const S = (n: number) => `${n > 0 ? "+" : n < 0 ? "−" : ""}${N(Math.abs(n), Math.abs(n) < 10 ? 1 : 0)} %`;
   const Pv = (p: number) => (p < 0.001 ? "< 0.001" : N(p, 3));
   const M = (m: number) => c.moisLongs[m] ?? MOIS[m];
@@ -492,11 +502,13 @@ export function rapport(a: CommuneAnalyse, b: Bilan | null, c: CtxLecture, lang:
     else {
       const fort = i.moy >= CFG.INTERIEUR_FORT_HA;
       if (fort) trig.push(L(`Feux réguliers dans l'aire protégée (≥ ${CFG.INTERIEUR_FORT_HA} ha/an)`, `Regular fires in the protected area (≥ ${CFG.INTERIEUR_FORT_HA} ha/yr)`));
-      const selTxt = ip && s ? L(` En ${s.annee}${s.complet ? "" : ` (jusqu'à ${M(a.anneeSel!.dernierMois)})`} : ${N(ip.ha)} ha${ip.ratio != null ? `, soit ${N(ip.ratio, 1)} fois la moyenne de la même période` : ""}.`, ` In ${s.annee}${s.complet ? "" : ` (up to ${M(a.anneeSel!.dernierMois)})`}: ${N(ip.ha)} ha${ip.ratio != null ? `, i.e. ${N(ip.ratio, 1)} times the same-period average` : ""}.`) : "";
+      const selTxt = ip && s ? L(` Soit ${N(ip.ha)} ha${ip.ratio != null ? `, ${N(ip.ratio, 1)} fois la moyenne de la même période` : ""}.`, ` I.e. ${N(ip.ha)} ha${ip.ratio != null ? `, ${N(ip.ratio, 1)} times the same-period average` : ""}.`) : "";
       add(pts, "interieur", fort || (ip?.ratio ?? 0) >= CFG.RATIO_FORT ? "haute" : "moyenne",
-        L(`Feux à l'intérieur de l'aire protégée : ${N(i.moy)} ha/an en moyenne`, `Fires inside the protected area: ${N(i.moy)} ha/yr on average`),
-        L(`Touchée ${i.touchees} années sur ${i.sur}.${a.partInterieur != null ? ` ${N(a.partInterieur)} % des surfaces brûlées de la commune sont dans l'aire protégée.` : ""}${selTxt}`,
-          `Affected ${i.touchees} of ${i.sur} years.${a.partInterieur != null ? ` ${N(a.partInterieur)} % of the commune's burned area lies inside the protected area.` : ""}${selTxt}`), [
+        a.partInterieur != null
+          ? L(`${Pc(a.partInterieur)} % du brûlé de la commune est dans l'aire protégée (${N(i.moy)} ha/an)`, `${Pc(a.partInterieur)} % of the commune's burned area is inside the protected area (${N(i.moy)} ha/yr)`)
+          : L(`Feux à l'intérieur de l'aire protégée : ${N(i.moy)} ha/an en moyenne`, `Fires inside the protected area: ${N(i.moy)} ha/yr on average`),
+        L(`Touchée ${i.touchees} années sur ${i.sur}.${a.pctSel?.interieur != null && s ? ` En ${s.annee}${s.complet ? "" : ` (jusqu'à ${M(a.pctSel.dernierMois)})`} : ${Pc(a.pctSel.interieur)} % du brûlé de la commune.` : ""}${selTxt}`,
+          `Affected ${i.touchees} of ${i.sur} years.${a.pctSel?.interieur != null && s ? ` In ${s.annee}${s.complet ? "" : ` (up to ${M(a.pctSel.dernierMois)})`}: ${Pc(a.pctSel.interieur)} % of the commune's burned area.` : ""}${selTxt}`), [
           { hz: "pre", s: L("Renforcer les patrouilles et les pare-feux en limite de l'aire protégée", "Strengthen patrols and firebreaks along the protected area boundary") },
           { hz: "post", s: L("Transmettre les données au gestionnaire de l'aire protégée", "Share the data with the protected area manager") }]);
     }
@@ -506,9 +518,11 @@ export function rapport(a: CommuneAnalyse, b: Bilan | null, c: CtxLecture, lang:
   if (a.peripherie && a.peripherie.moy >= CFG.PERIPHERIE_HA) {
     const pp = a.peripheriePer;
     add(pts, "peripherie", (pp?.ratio ?? 0) >= CFG.RATIO_FORT ? "haute" : "moyenne",
-      L(`Zone tampon de 5 km : ${N(a.peripherie.moy)} ha/an en moyenne`, `5 km buffer: ${N(a.peripherie.moy)} ha/yr on average`),
-      L(`Ces feux brûlent hors de l'aire protégée et peuvent s'y propager.${pp && s ? ` En ${s.annee} : ${N(pp.ha)} ha${pp.ratio != null ? ` (${N(pp.ratio, 1)} fois la moyenne de la même période)` : ""}.` : ""} La zone tampon déborde du territoire communal : cette valeur ne se compare pas à la superficie brûlée de la commune.`,
-        `These fires burn outside the protected area and can spread into it.${pp && s ? ` In ${s.annee}: ${N(pp.ha)} ha${pp.ratio != null ? ` (${N(pp.ratio, 1)} times the same-period average)` : ""}.` : ""} The buffer extends beyond the commune: this value is not comparable with the commune's burned area.`), [
+      a.partPeripherie != null
+        ? L(`Zone tampon de 5 km : l'équivalent de ${Pc(a.partPeripherie)} % du brûlé de la commune (${N(a.peripherie.moy)} ha/an)`, `5 km buffer: equivalent to ${Pc(a.partPeripherie)} % of the commune's burned area (${N(a.peripherie.moy)} ha/yr)`)
+        : L(`Zone tampon de 5 km : ${N(a.peripherie.moy)} ha/an en moyenne`, `5 km buffer: ${N(a.peripherie.moy)} ha/yr on average`),
+      L(`Ces feux brûlent hors de l'aire protégée et peuvent s'y propager.${a.pctSel?.peripherie != null && s ? ` En ${s.annee}${s.complet ? "" : ` (jusqu'à ${M(a.pctSel.dernierMois)})`} : ${Pc(a.pctSel.peripherie)} % du brûlé de la commune${pp?.ratio != null ? `, soit ${N(pp.ratio, 1)} fois la moyenne de la même période` : ""}.` : ""} C'est un rapport, pas une part : la zone tampon déborde du territoire communal, il peut donc dépasser 100 %.`,
+        `These fires burn outside the protected area and can spread into it.${a.pctSel?.peripherie != null && s ? ` In ${s.annee}${s.complet ? "" : ` (up to ${M(a.pctSel.dernierMois)})`}: ${Pc(a.pctSel.peripherie)} % of the commune's burned area${pp?.ratio != null ? `, i.e. ${N(pp.ratio, 1)} times the same-period average` : ""}.` : ""} This is a ratio, not a share: the buffer extends beyond the commune, so it can exceed 100 %.`), [
         { hz: "pre", s: L("Établir des pare-feux dans la zone tampon avec les communautés riveraines", "Set up firebreaks in the buffer zone with neighbouring communities") },
         { hz: "pre", s: L("Prioriser les villages proches des limites", "Prioritise villages close to the boundary") }]);
   }
@@ -600,7 +614,7 @@ export function rapport(a: CommuneAnalyse, b: Bilan | null, c: CtxLecture, lang:
     : L(`Tendance à la ${T.tend} : ${(T.pente ?? 0) > 0 ? "+" : "−"}${N(Math.abs(T.pente ?? 0))} ha/an (τ = ${N(T.tau ?? 0, 2)}, p = ${Pv(T.p ?? 1)}, ${T.force === "forte" ? "significative" : "indicative"}).`, `Trend: ${T.tend === "hausse" ? "rising" : "falling"} at ${(T.pente ?? 0) > 0 ? "+" : "−"}${N(Math.abs(T.pente ?? 0))} ha/yr (τ = ${N(T.tau ?? 0, 2)}, p = ${Pv(T.p ?? 1)}, ${T.force === "forte" ? "significant" : "indicative"}).`));
   if (a.rang && s) hL.push(L(`${s.annee} : ${rangTxt}`, `${s.annee}: ${rangTxt}`));
   if (a.projection && s) hL.push(L(`La barre claire de ${s.annee} est la projection de fin d'année (indicative), la barre pleine ce qui est déjà dans la base.`, `The light ${s.annee} bar is the indicative year-end projection; the solid bar is what is already in the database.`));
-  if (a.partInterieur != null) hL.push(L(`En moyenne ${N(a.partInterieur)} % du brûlé de la commune se situe dans l'aire protégée.`, `On average ${N(a.partInterieur)} % of the commune's burned area lies inside the protected area.`));
+  if (a.partInterieur != null) hL.push(L(`En moyenne ${Pc(a.partInterieur)} % du brûlé de la commune se situe dans l'aire protégée.`, `On average ${Pc(a.partInterieur)} % of the commune's burned area lies inside the protected area.`));
   const historique: Lecture = {
     cle: st && st.n >= 2 ? L(`${N(st.moy)} ha/an en moyenne (médiane ${N(st.med)}), de ${N(st.min)} à ${N(st.max)} ha sur ${st.n} années complètes.`, `${N(st.moy)} ha/yr on average (median ${N(st.med)}), from ${N(st.min)} to ${N(st.max)} ha over ${st.n} complete years.`) : st ? L(`Une seule année complète (${N(st.moy)} ha) : aucune moyenne ni tendance possible.`, `Only one complete year (${N(st.moy)} ha): no average or trend possible.`) : L("Aucune année complète dans la base.", "No complete year in the database."),
     lignes: hL,
@@ -656,7 +670,7 @@ const UI_FR = {
   confLbl: "Fiabilité de l'analyse", conf: { haute: "élevée", moyenne: "moyenne", faible: "faible" } as Record<"haute" | "moyenne" | "faible", string>,
   cles: "À retenir", declench: "Pourquoi ce niveau", aucunDeclench: "Aucun critère d'alerte réuni pour le moment.",
   actions: "Actions recommandées", hz: { now: "Immédiat", pre: "Avant la saison", post: "Bilan et planification", data: "Fiabiliser les données" } as Record<Hz, string>,
-  qualite: "Qualité des données et limites", tous: "Tous les constats ({n})", projKpi: "Fin {an} (estimée)", vsMoy: "vs moyenne",
+  qualite: "Qualité des données et limites", partTitre: "Poids dans le brûlé de la commune", partInt: "Intérieur de l'aire protégée", partTam: "Zone tampon 5 km", partMoy: "Moyenne (années complètes)", partNoteInt: "Part réelle : l'intérieur est un sous-ensemble de la commune (≤ 100 %).", partNoteTam: "Rapport : la zone tampon déborde de la commune, il peut dépasser 100 %.", projKpi: "Fin {an} (estimée)", vsMoy: "vs moyenne",
 };
 const UI_EN: typeof UI_FR = {
   fermer: "Close", apLbl: "Protected area", rang: "Rank in the PA", partAP: "Share of the PA", totalAn: "Burned in {an}", vsRef: "vs {ref} average",
@@ -677,7 +691,7 @@ const UI_EN: typeof UI_FR = {
   confLbl: "Analysis reliability", conf: { haute: "high", moyenne: "medium", faible: "low" },
   cles: "Key points", declench: "Why this level", aucunDeclench: "No alert criterion met at the moment.",
   actions: "Recommended actions", hz: { now: "Right now", pre: "Before the season", post: "Review and planning", data: "Improve the data" },
-  qualite: "Data quality and limits", tous: "All findings ({n})", projKpi: "End of {an} (estimated)", vsMoy: "vs average",
+  qualite: "Data quality and limits", partTitre: "Weight in the commune's burned area", partInt: "Inside the protected area", partTam: "5 km buffer", partMoy: "Average (complete years)", partNoteInt: "True share: the interior is a subset of the commune (≤ 100 %).", partNoteTam: "Ratio: the buffer extends beyond the commune, so it can exceed 100 %.", projKpi: "End of {an} (estimated)", vsMoy: "vs average",
 };
 export const txtCommune = (lang: string) => (lang === "en" ? UI_EN : UI_FR);
 
