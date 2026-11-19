@@ -95,19 +95,19 @@ const LABELS: Record<string, Labels> = {
 
 const MENU_CSS = `
 .sv-dd{position:relative}
-.sv-h .sv-dd-btn{max-width:100%}
-.sv-h .sv-dd-btn .sv-dd-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sv-hd .sv-dd-btn{max-width:100%}
+.sv-hd .sv-dd-btn .sv-dd-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sv-dd-btn svg{flex:0 0 auto}
 .sv-dd-chev{transition:transform .15s}
 .sv-dd-chev.open{transform:rotate(180deg)}
 .sv-dd-menu{position:absolute;top:calc(100% + 6px);right:0;z-index:1000;min-width:100%;width:max-content;max-width:min(340px,88vw);
   background:var(--card);color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:4px;
   box-shadow:0 8px 24px rgba(0,0,0,.25);display:flex;flex-direction:column;gap:2px}
-.sv-h .sv-opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;color:var(--txt);
+.sv-hd .sv-opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;color:var(--txt);
   border:0;border-radius:8px;padding:9px 10px;font-weight:500;font-size:13px;cursor:pointer}
-.sv-h .sv-opt:hover,.sv-h .sv-opt:focus-visible{background:var(--e1);outline:none}
-.sv-h .sv-opt.on{color:var(--gv);font-weight:700}
-.sv-h .sv-opt .sv-opt-l{flex:1}
+.sv-hd .sv-opt:hover,.sv-hd .sv-opt:focus-visible{background:var(--e1);outline:none}
+.sv-hd .sv-opt.on{color:var(--gv);font-weight:700}
+.sv-hd .sv-opt .sv-opt-l{flex:1}
 @media(max-width:520px){.sv-dd-menu{left:0;right:auto}}
 `;
 
