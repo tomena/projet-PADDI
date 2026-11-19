@@ -140,6 +140,7 @@ const FR = {
   legDistrict: "District",
   legCommune: "Commune",
   legAP: "Aire protégée",
+  legMixte: "Environnement et développement",
   legSelection: "Sélection",
   carteAria: "Carte des zones d'intervention",
   carteTitre: "Madagascar : zones d'intervention",
@@ -194,6 +195,7 @@ const MG: Dict = {
   legDistrict: "Distrika",
   legCommune: "Kaominina",
   legAP: "Faritra arovana",
+  legMixte: "Tontolo iainana sy fampandrosoana",
   legSelection: "Voafantina",
   carteAria: "Sarintanin'ny faritra fanatanterahana",
   carteTitre: "Madagasikara: faritra fanatanterahana",
@@ -246,6 +248,7 @@ const EN: Dict = {
   legDistrict: "District",
   legCommune: "Commune",
   legAP: "Protected area",
+  legMixte: "Environment and development",
   legSelection: "Selection",
   carteAria: "Intervention zones map",
   carteTitre: "Madagascar: intervention zones",
@@ -298,6 +301,7 @@ const DE: Dict = {
   legDistrict: "Distrikt",
   legCommune: "Gemeinde",
   legAP: "Schutzgebiet",
+  legMixte: "Umwelt und Entwicklung",
   legSelection: "Auswahl",
   carteAria: "Karte der Interventionsgebiete",
   carteTitre: "Madagaskar: Interventionsgebiete",
@@ -547,45 +551,31 @@ async function charger(niv: Niv): Promise<Feat[]> {
 
 /* ===================== STYLES DE CARTE ===================== */
 
-type Etat = "hors" | "inter" | "choisie";
-type NivZone = "region" | "district" | "commune";
-
-/* Épaisseurs de trait réduites pour des limites plus fines. */
-const STYLE: Record<NivZone, Record<Etat, L.PathOptions>> = {
-  region: {
-    hors: { color: "#64748b", weight: 0.5, fillColor: "#94a3b8", fillOpacity: 0.05 },
-    inter: { color: "#ea580c", weight: 1.5, fillColor: "#ff6a00", fillOpacity: 0.14 },
-    choisie: { color: "#dc2626", weight: 2, fillColor: "#ff6a00", fillOpacity: 0.3 },
-  },
-  district: {
-    hors: { color: "#64748b", weight: 0.4, fillColor: "#94a3b8", fillOpacity: 0.03 },
-    inter: { color: "#7c3aed", weight: 1, fillColor: "#a78bfa", fillOpacity: 0.3 },
-    choisie: { color: "#dc2626", weight: 1.5, fillColor: "#7c3aed", fillOpacity: 0.5 },
-  },
-  commune: {
-    hors: { color: "#64748b", weight: 0.3, fillColor: "#94a3b8", fillOpacity: 0.03 },
-    inter: { color: "#0f766e", weight: 0.8, fillColor: "#14b8a6", fillOpacity: 0.45 },
-    choisie: { color: "#dc2626", weight: 1.5, fillColor: "#0d9488", fillOpacity: 0.6 },
-  },
+/* Couleur de la limite d'une région selon les types de projets qui y interviennent */
+const COULEUR_TYPE: Record<TypeProjet | "mixte", string> = {
+  environnement: "#b91c1c",
+  developpement: "#1d4ed8",
+  mixte: "#7c3aed",
 };
+const COULEUR_HORS = "#64748b";
 
-function dessiner(
+/* Limite seule, sans fond (sauf les communes, remplies légèrement) */
+function contour(
   g: L.LayerGroup,
   f: Feat,
-  niv: NivZone,
-  etat: Etat,
-  etiquette: boolean,
+  style: L.PathOptions,
+  nom: string,
+  classe: string | null,
   onClick?: () => void
 ) {
-  const nom = nomFeat(f);
-  const couc = L.geoJSON(f as any, { style: STYLE[niv][etat] });
+  const couc = L.geoJSON(f as any, { style });
   couc.bindTooltip(
     nom,
-    etiquette
-      ? { permanent: true, direction: "center", className: `zi-label zi-label-${niv}` }
+    classe
+      ? { permanent: true, direction: "center", className: `zi-label ${classe}` }
       : { sticky: true, className: "zi-hover" }
   );
-  if (onClick && etat !== "hors") couc.on("click", onClick);
+  if (onClick) couc.on("click", onClick);
   couc.addTo(g);
 }
 
@@ -768,6 +758,17 @@ export default function ZonesIntervention() {
     return s;
   }, [actives, featCom]);
 
+  /* Types de projets par région (couleur de la limite régionale) */
+  const typesRegion = useMemo(() => {
+    const m = new Map<string, Set<TypeProjet>>();
+    actives.forEach((l) => {
+      const k = cle(l.region);
+      if (!m.has(k)) m.set(k, new Set());
+      m.get(k)!.add(l.type);
+    });
+    return m;
+  }, [actives]);
+
   /* Région, district et commune actuellement choisis (géométries) */
   const regionCle = sel && (sel.niveau === "region" ? sel.cle : sel.regionCle ?? null);
   const regionFeat = useMemo(
@@ -828,7 +829,7 @@ export default function ZonesIntervention() {
     charger("ADM3").then(setCommunes).catch(() => setErreur(true));
   }, []);
 
-  /* ----- dessin : aires protégées, puis régions, districts et communes de la sélection ----- */
+  /* ----- dessin (limites sans fond) ----- */
   useEffect(() => {
     const g = couche.current;
     if (!g) return;
@@ -845,54 +846,96 @@ export default function ZonesIntervention() {
         .addTo(g);
     });
 
-    /* Recherche sans résultat, ou projet sans zone renseignée : aucune limite administrative */
+    /* Recherche sans résultat, ou sélection sans zone renseignée : aucune limite administrative */
     if (vide || (sel && actives.length === 0)) return;
 
     const n = sel?.niveau ?? "vue";
-    const etiqRegion = n === "vue" || n === "projet" || n === "categorie" || n === "region";
-    const etiqDistrict = n === "projet" || n === "categorie" || n === "region" || n === "district";
+    const versCommunes = n === "district" || n === "commune";
+    const etiqRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
+    /* Fond : uniquement sur le niveau choisi (région, district ou commune) */
+    const remplirRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
+    const etiqDistrict = n === "region" || n === "projet" || n === "categorie" || n === "district";
     const etiqCommune = n === "district" || n === "commune";
 
-    /* Régions de la sélection */
-    regions.forEach((f) => {
-      const k = cle(nomFeat(f));
-      const inter = actRegKeys.has(k);
-      const etat: Etat = n === "region" && regionFeat === f ? "choisie" : inter ? "inter" : "hors";
-      dessiner(g, f, "region", etat, etiqRegion && inter, () => {
-        if (!inter) return;
-        if (n === "region" && regionFeat === f) effacer();
-        else choisirZone("region", k);
+    /* Régions : toutes sans recherche, puis seulement celles de la sélection */
+    regions
+      .filter((f) => n === "vue" || actRegKeys.has(cle(nomFeat(f))))
+      .forEach((f) => {
+        const k = cle(nomFeat(f));
+        const choisie = n === "region" && regionFeat === f;
+        const types = typesRegion.get(k);
+        const couleur = !types
+          ? COULEUR_HORS
+          : types.size > 1
+          ? COULEUR_TYPE.mixte
+          : COULEUR_TYPE[[...types][0]];
+        contour(
+          g,
+          f,
+          { color: couleur, weight: choisie ? 3 : 1.6, fillColor: couleur, fillOpacity: remplirRegion ? 0.18 : 0 },
+          nomFeat(f),
+          etiqRegion ? "zi-label-region" : null,
+          () => {
+            if (n === "region" && regionFeat === f) effacer();
+            else choisirZone("region", k);
+          }
+        );
       });
-    });
 
-    /* Districts de la sélection, et tous ceux de la région sélectionnée */
-    districts
-      .filter((d) => actDisSet.has(d) || (regionFeat && estDans(d, regionFeat)))
-      .forEach((d) => {
-        const inter = actDisSet.has(d);
-        const etat: Etat = n === "district" && districtFeat === d ? "choisie" : inter ? "inter" : "hors";
-        dessiner(g, d, "district", etat, etiqDistrict && inter, () => {
-          if (!inter) return;
-          const l = ligneDis.get(d);
-          if (!l) return;
-          if (n === "district" && districtFeat === d) choisirZone("region", cle(l.region));
-          else choisirZone("district", cle(l.district), cle(l.region));
+    /* Districts de la sélection (limites sans fond) */
+    if (n !== "vue") {
+      districts
+        .filter((d) => actDisSet.has(d))
+        .forEach((d) => {
+          const choisi = n === "district" && districtFeat === d;
+          contour(
+            g,
+            d,
+            {
+              color: choisi ? "#dc2626" : "#6d28d9",
+              weight: choisi ? 2.5 : 1.2,
+              dashArray: "4 3",
+              fillColor: "#a78bfa",
+              fillOpacity: n === "district" && choisi ? 0.3 : 0,
+            },
+            nomFeat(d),
+            etiqDistrict ? "zi-label-district" : null,
+            () => {
+              const l = ligneDis.get(d);
+              if (!l) return;
+              if (choisi) choisirZone("region", cle(l.region));
+              else choisirZone("district", cle(l.district), cle(l.region));
+            }
+          );
         });
-      });
+    }
 
-    /* Communes de la sélection uniquement (aucune autre commune, même homonyme ailleurs) */
-    actComSet.forEach((c) => {
-      const etat: Etat = n === "commune" && communeFeat === c ? "choisie" : "inter";
-      dessiner(g, c, "commune", etat, etiqCommune, () => {
+    /* Communes : uniquement quand un district (ou une commune) est choisi */
+    if (versCommunes) {
+      actComSet.forEach((c) => {
+        const choisie = n === "commune" && communeFeat === c;
         const l = ligneCom.get(c);
-        if (!l || !l.district || !l.commune) return;
-        if (n === "commune" && communeFeat === c)
-          choisirZone("district", cle(l.district), cle(l.region));
-        else choisirZone("commune", cle(l.commune), cle(l.region), cle(l.district));
+        contour(
+          g,
+          c,
+          {
+            color: choisie ? "#dc2626" : "#0f766e",
+            weight: choisie ? 2.5 : 1,
+            fillColor: choisie ? "#0d9488" : "#14b8a6",
+            fillOpacity: choisie ? 0.5 : 0,
+          },
+          nomFeat(c),
+          etiqCommune ? "zi-label-commune" : null,
+          () => {
+            if (!l || !l.district || !l.commune) return;
+            if (choisie) choisirZone("district", cle(l.district), cle(l.region));
+            else choisirZone("commune", cle(l.commune), cle(l.region), cle(l.district));
+          }
+        );
       });
-    });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom]);
+  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -1326,19 +1369,21 @@ export default function ZonesIntervention() {
           </div>
           <div className="zi-mbox">
             <div ref={elMap} className="zi-map" />
+            <div className="zi-lgd">
+              <span><i style={{ borderTopColor: COULEUR_TYPE.environnement }} />{t.catEnv}</span>
+              <span><i style={{ borderTopColor: COULEUR_TYPE.developpement }} />{t.catDev}</span>
+              <span><i style={{ borderTopColor: COULEUR_TYPE.mixte }} />{t.legMixte}</span>
+              <span><i style={{ borderTopColor: COULEUR_HORS }} />{t.legRegion}</span>
+              <span><i className="zi-lg-dis" />{t.legDistrict}</span>
+              <span><i className="zi-lg-com" />{t.legCommune}</span>
+              <span><i className="zi-lg-ap" />{t.legAP}</span>
+            </div>
             {sel && (
               <button type="button" className="zi-reset" onClick={effacer}>
                 <RotateCcw size={14} aria-hidden />
                 {t.vueMada}
               </button>
             )}
-          </div>
-          <div className="zi-legende">
-            <span><i className="zi-lg-reg" />{t.legRegion}</span>
-            <span><i className="zi-lg-dis" />{t.legDistrict}</span>
-            <span><i className="zi-lg-com" />{t.legCommune}</span>
-            <span><i className="zi-lg-ap" />{t.legAP}</span>
-            <span><i className="zi-lg-sel" />{t.legSelection}</span>
           </div>
           <p className="zi-note">{t.note}</p>
         </section>
@@ -1500,6 +1545,14 @@ const CSS = `
 .zi .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:var(--ink3)!important}
+
+/* Légende superposée à la carte */
+.zi-lgd{position:absolute;left:10px;bottom:30px;z-index:1000;display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink2);font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.zi-lgd span{display:flex;align-items:center;white-space:nowrap}
+.zi-lgd i{display:inline-block;width:20px;border-top:3px solid currentColor;margin-right:8px;flex:none}
+.zi-lgd .zi-lg-dis{border-top:2px dashed #6d28d9}
+.zi-lgd .zi-lg-com{width:12px;height:12px;border:1px solid #0f766e;background:rgba(20,184,166,.4);margin-left:4px;margin-right:12px}
+.zi-lgd .zi-lg-ap{width:12px;height:12px;border:1.5px solid #16a34a;background:rgba(34,197,94,.3);margin-left:4px;margin-right:12px}
 
 /* Petit écran : la page s'adapte et défile */
 @media (max-width:900px){
