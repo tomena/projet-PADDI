@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, XAxis, YAxis,
   Tooltip, BarChart, Bar, LabelList,
@@ -34,9 +34,10 @@ export interface DashboardConfig {
   extras?: { key: 'cep' | 'feu'; flag: 'is_cep' | 'is_pare_feu'; icon: 'cep' | 'feu' }[];
 }
 
-/* Limites administratives. Régions : OpenStreetMap (Overpass). Districts et communes : geoBoundaries. */
+/* Limites administratives.
+   Régions : OpenStreetMap (Overpass) avec geoBoundaries ADM1 en secours. Districts et communes : geoBoundaries. */
 type Adm = { type?: string; properties: Record<string, any>; geometry: { type: string; coordinates: any } };
-type Niv = 'ADM2' | 'ADM3';
+type Niv = 'ADM1' | 'ADM2' | 'ADM3';
 type Pt = [number, number];
 
 /* Les 24 régions actuelles de Madagascar (Vatovavy-Fitovinany scindée, Ambatosoa créée) */
@@ -47,9 +48,6 @@ const REGIONS_REF = [
   'Androy', 'Anosy', 'Menabe', 'Diana', 'Sava', 'Sofia',
 ];
 
-/* Couleurs
-   - G / STATUT : valeurs « réelles » (hex) utilisées sur la carte Leaflet
-   - GV / BAD / STATUT_UI : variables du thème (clair / sombre) pour le reste de l'interface */
 const G = '#1b5e20';
 const GV = 'var(--gv)';
 const BAD = 'var(--bad)';
@@ -59,8 +57,8 @@ const STATUT_UI: Record<string, string> = { 'Validé': GV, 'En attente': '#FFB30
 const COULEUR_REGION = '#ea580c';
 const COULEUR_DISTRICT = '#7c3aed';
 const COULEUR_COMMUNE = '#dc2626';
-// Ordre d'affichage des filtres (Fokontany retiré)
 const FILTERS: FilterKey[] = ['annee', 'aire_protegee', 'region', 'district', 'commune', 'paysage', 'mbv', 'statut'];
+const NOMS_ADM: FilterKey[] = ['region', 'district', 'commune'];
 const ICONS: Record<string, React.ComponentType<any>> = { cep: Users, feu: Flame };
 const MADAGASCAR: [number, number] = [-18.9, 47.5];
 
@@ -69,7 +67,6 @@ const COMMUNE_GEO: Record<string, string> = {
   'boeny|marovoay|marosakoa': 'Marovoay',
 };
 
-// Fonds de carte : Topographie (ArcGIS), Satellite (ArcGIS), OpenStreetMap
 const BASEMAPS: Record<Base, { label: string; url: string; attribution: string }> = {
   topo: {
     label: 'Topographie',
@@ -88,7 +85,6 @@ const BASEMAPS: Record<Base, { label: string; url: string; attribution: string }
   },
 };
 
-// Style des info-bulles Recharts (lisibles en clair et en sombre)
 const TIP = {
   contentStyle: { background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--txt)' },
   itemStyle: { color: 'var(--txt)' },
@@ -96,14 +92,21 @@ const TIP = {
 };
 const TICK = { fill: 'var(--txt2)' };
 
-let LOC = 'fr-FR'; // mis à jour à chaque rendu selon la langue active
+let LOC = 'fr-FR';
 const fr = (n: number | string, d = 0) => Number(n || 0).toLocaleString(LOC, { maximumFractionDigits: d });
 const sum = (rows: Parcelle[]) => rows.reduce((s, r) => s + r.superficie_ha, 0);
 const dateFmt = (iso: string) => new Date(iso).toLocaleDateString(LOC, { timeZone: 'UTC' });
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const cle = (s: string) =>
-  s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const cleReg = (s: string) => cle(s).replace(/^(region|faritra)/, '');
 const trier = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
+/* Fusionne des listes de noms sans doublon (comparaison normalisée), la première occurrence gagne */
+const unir = (...listes: string[][]) => {
+  const m = new Map<string, string>();
+  listes.flat().filter(Boolean).forEach((n) => { const k = cle(n); if (!m.has(k)) m.set(k, n); });
+  return [...m.values()].sort((a, b) => a.localeCompare(b, 'fr'));
+};
 const group = (rows: Parcelle[], key: keyof Parcelle) => {
   const m: Record<string, number> = {};
   rows.forEach((r) => { const k = String(r[key]); m[k] = (m[k] || 0) + r.superficie_ha; });
@@ -111,13 +114,18 @@ const group = (rows: Parcelle[], key: keyof Parcelle) => {
     .map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }))
     .sort((a, b) => b.value - a.value);
 };
+/* Les noms administratifs se comparent sans accents ni majuscules ; les autres filtres à l'identique */
+const memeValeur = (k: FilterKey, a: unknown, b: string) =>
+  NOMS_ADM.includes(k) ? cle(String(a)) === cle(b) : String(a) === b;
 
 /* ===================== LIMITES ADMINISTRATIVES ===================== */
 
 const REV = '9469f09';
 const GH = 'wmgeolab/geoBoundaries';
 const CACHE: Partial<Record<Niv, Adm[]>> = {};
+const ENCOURS: Partial<Record<Niv, Promise<Adm[]>>> = {};
 let CACHE_REGIONS: Adm[] | null = null;
+let ENCOURS_REGIONS: Promise<Adm[]> | null = null;
 
 const nomAdm = (f: Adm): string =>
   String(
@@ -167,41 +175,45 @@ function estDans(enfant: Adm, parent: Adm): boolean {
   return score >= 5;
 }
 
-/* Districts et communes : geoBoundaries (libre) */
-async function chargerAdm(niv: Niv): Promise<Adm[]> {
-  if (CACHE[niv]) return CACHE[niv]!;
+/* geoBoundaries (ADM1, ADM2, ADM3) : plusieurs miroirs, un seul chargement par niveau */
+function chargerAdm(niv: Niv): Promise<Adm[]> {
+  if (CACHE[niv]) return Promise.resolve(CACHE[niv]!);
+  if (ENCOURS[niv]) return ENCOURS[niv]!;
   const f = `releaseData/gbOpen/MDG/${niv}/geoBoundaries-MDG-${niv}_simplified.geojson`;
   const urls = [
-    `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`,
     `https://raw.githubusercontent.com/${GH}/${REV}/${f}`,
     `https://cdn.jsdelivr.net/gh/${GH}@${REV}/${f}`,
+    `https://media.githubusercontent.com/media/${GH}/${REV}/${f}`,
   ];
-  for (const u of urls) {
-    try {
-      const r = await fetch(u);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const texte = await r.text();
-      if (texte.startsWith('version https://git-lfs')) throw new Error('LFS');
-      const j = JSON.parse(texte);
-      const feats = (j.features ?? []).filter(
-        (x: Adm) => x?.geometry && /Polygon/.test(x.geometry.type)
-      ) as Adm[];
-      if (feats.length) {
-        CACHE[niv] = feats;
-        return feats;
+  const p = (async () => {
+    for (const u of urls) {
+      try {
+        const r = await fetch(u);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const texte = await r.text();
+        if (texte.startsWith('version https://git-lfs')) throw new Error('LFS');
+        const j = JSON.parse(texte);
+        const feats = (j.features ?? []).filter(
+          (x: Adm) => x?.geometry && /Polygon/.test(x.geometry.type)
+        ) as Adm[];
+        if (feats.length) {
+          CACHE[niv] = feats;
+          return feats;
+        }
+      } catch {
+        /* source suivante */
       }
-    } catch {
-      /* source suivante */
     }
-  }
-  throw new Error(niv);
+    throw new Error(niv);
+  })().finally(() => { delete ENCOURS[niv]; });
+  ENCOURS[niv] = p;
+  return p;
 }
 
-/* ----- Conversion OpenStreetMap -> GeoJSON (sans bibliothèque externe) ----- */
+/* ----- Conversion OpenStreetMap -> GeoJSON ----- */
 
 const memePoint = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
 
-/* Assemble des segments (tronçons de contour) en anneaux fermés */
 function assemblerAnneaux(segs: Pt[][]): Pt[][] {
   const reste = segs.filter((s) => s.length > 1).map((s) => [...s]);
   const anneaux: Pt[][] = [];
@@ -230,7 +242,6 @@ function assemblerAnneaux(segs: Pt[][]): Pt[][] {
   return anneaux;
 }
 
-/* Relation OSM (out geom) -> Feature GeoJSON (MultiPolygon, avec trous) */
 function relationVersAdm(rel: any): Adm | null {
   const ext: Pt[][] = [];
   const int: Pt[][] = [];
@@ -251,56 +262,72 @@ function relationVersAdm(rel: any): Adm | null {
   };
 }
 
-/* Régions : OpenStreetMap via Overpass (libre, à jour). On ne garde que les 24 noms de référence,
-   car OSM peut aussi marquer les provinces au même niveau administratif. */
 const OVERPASS = 'https://overpass-api.de/api/interpreter';
 const REQUETE_REGIONS =
-  '[out:json][timeout:90];' +
+  '[out:json][timeout:60];' +
   'area["ISO3166-1"="MG"][admin_level=2]->.pays;' +
   'relation(area.pays)["boundary"="administrative"]["admin_level"="4"];' +
   'out geom;';
 
-async function chargerRegions(): Promise<Adm[]> {
-  if (CACHE_REGIONS) return CACHE_REGIONS;
-  const r = await fetch(OVERPASS, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'data=' + encodeURIComponent(REQUETE_REGIONS),
-  });
-  if (!r.ok) throw new Error(`Overpass HTTP ${r.status}`);
-  const data = await r.json();
-  const ref = new Set(REGIONS_REF.map(cle));
-  const vues = new Set<string>();
-  const feats: Adm[] = [];
-  (data.elements ?? []).forEach((rel: any) => {
-    if (rel.type !== 'relation') return;
-    const nom = String(rel.tags?.name ?? '');
-    const k = cle(nom);
-    if (!ref.has(k) || vues.has(k)) return;
-    const adm = relationVersAdm(rel);
-    if (!adm) return;
-    vues.add(k);
-    feats.push(adm);
-  });
-  const manquantes = REGIONS_REF.filter((n) => !vues.has(cle(n)));
-  if (manquantes.length) console.warn('Régions introuvables dans OpenStreetMap :', manquantes);
-  CACHE_REGIONS = feats;
-  return feats;
+async function regionsOSM(): Promise<Adm[]> {
+  const ctl = new AbortController();
+  const minuteur = setTimeout(() => ctl.abort(), 45000);
+  try {
+    const r = await fetch(OVERPASS, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: 'data=' + encodeURIComponent(REQUETE_REGIONS),
+      signal: ctl.signal,
+    });
+    if (!r.ok) throw new Error(`Overpass HTTP ${r.status}`);
+    const data = await r.json();
+    const out: Adm[] = [];
+    (data.elements ?? []).forEach((rel: any) => {
+      if (rel.type !== 'relation') return;
+      const adm = relationVersAdm(rel);
+      if (adm) out.push(adm);
+    });
+    return out;
+  } finally {
+    clearTimeout(minuteur);
+  }
+}
+
+/* Régions : on garde les 24 noms de référence.
+   Contour = OpenStreetMap si disponible, sinon geoBoundaries ADM1 (qui peut ne contenir que 22 régions).
+   Une région sans contour reste sélectionnable : la carte zoome alors sur ses parcelles. */
+function chargerRegions(): Promise<Adm[]> {
+  if (CACHE_REGIONS) return Promise.resolve(CACHE_REGIONS);
+  if (ENCOURS_REGIONS) return ENCOURS_REGIONS;
+  ENCOURS_REGIONS = (async () => {
+    const [osm, gb] = await Promise.all([
+      regionsOSM().catch(() => [] as Adm[]),
+      chargerAdm('ADM1').catch(() => [] as Adm[]),
+    ]);
+    const out: Adm[] = [];
+    REGIONS_REF.forEach((nom) => {
+      const k = cleReg(nom);
+      const src = osm.find((x) => cleReg(nomAdm(x)) === k) ?? gb.find((x) => cleReg(nomAdm(x)) === k);
+      if (src) out.push({ ...src, properties: { ...src.properties, shapeName: nom } });
+    });
+    if (!out.length) throw new Error('regions');
+    CACHE_REGIONS = out;
+    return out;
+  })().finally(() => { ENCOURS_REGIONS = null; });
+  return ENCOURS_REGIONS;
 }
 
 /* ===================== CARTE : RECADRAGE, ÉCHELLE ===================== */
 
-// Recadre la carte sur la zone sélectionnée, sinon sur Madagascar
 function MapController({ bounds }: { bounds: L.LatLngBounds | null }) {
   const map = useMap();
   useEffect(() => {
-    if (!bounds) { map.setView(MADAGASCAR, 5); return; }
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [24, 24], maxZoom: 10 });
+    if (!bounds) { map.flyTo(MADAGASCAR, 5, { duration: 0.8 }); return; }
+    if (bounds.isValid()) map.flyToBounds(bounds, { padding: [24, 24], maxZoom: 12, duration: 1 });
   }, [bounds]); // eslint-disable-line
   return null;
 }
 
-// Échelle métrique en bas à gauche de la carte
 function ScaleBar() {
   const map = useMap();
   useEffect(() => {
@@ -358,8 +385,6 @@ function Gauge({ pct }: { pct: number }) {
 
 /* ===================== CSS ===================== */
 
-/* Les couleurs viennent de variables : valeurs claires dans « .sv »,
-   surcharges du thème sombre dans « :root[data-theme="dark"] .sv ». */
 const CSS = `
 .sv{--g:clamp(8px,1.2vw,16px);
   --page:#f4f6f5;--card:#fff;--txt:#374151;--txt2:#4b5563;--mut:#6b7280;--line:#e5e7eb;--bd:#d1d5db;--track:#e5e7eb;
@@ -379,6 +404,7 @@ const CSS = `
 .sv-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .sv-f label{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px;min-width:0}
 .sv-f select{height:38px;width:100%;min-width:0;border:1px solid var(--bd);border-radius:8px;padding:0 8px;background:var(--card);color:var(--txt)}
+.sv-f select:disabled{opacity:.5}
 .sv-cols{display:grid;grid-template-columns:1fr;gap:var(--g)}
 @media(min-width:1000px){.sv-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}}
 .sv-side{display:flex;flex-direction:column;gap:var(--g);min-width:0}
@@ -402,6 +428,7 @@ const CSS = `
 .sv-leg-adm{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;font-size:12px;color:var(--txt2);margin-top:6px}
 .sv-leg-adm i{display:inline-block;width:14px;height:0;border-top:3px solid;margin-right:6px;vertical-align:middle}
 .sv-warn{margin:6px 0 0;font-size:12px;color:var(--bad);text-align:center}
+.sv-hint{margin:6px 0 0;font-size:12px;color:var(--mut);text-align:center}
 .sv-tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
 .sv-tb h4{margin:0}
 .sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--txt)}
@@ -458,6 +485,10 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const [districts, setDistricts] = useState<Adm[]>([]);
   const [communes, setCommunes] = useState<Adm[]>([]);
   const [admErreurs, setAdmErreurs] = useState<string[]>([]);
+  const [regChargees, setRegChargees] = useState(false);
+
+  const signaler = (n: string) => setAdmErreurs((p) => (p.includes(n) ? p : [...p, n]));
+  const retirer = (n: string) => setAdmErreurs((p) => p.filter((x) => x !== n));
 
   const load = () => {
     setErr(false);
@@ -470,92 +501,111 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   };
   useEffect(() => { load(); }, [src]);
 
-  // Limites administratives : chargées une fois ; un message s'affiche si une source échoue
+  /* ----- Limites : régions au démarrage, districts à la sélection d'une région, communes à celle d'un district ----- */
   useEffect(() => {
-    const erreurs: string[] = [];
-    chargerRegions().then(setRegions).catch(() => erreurs.push('régions (OpenStreetMap)'));
-    chargerAdm('ADM2').then(setDistricts).catch(() => erreurs.push('districts (geoBoundaries)'));
-    chargerAdm('ADM3').then(setCommunes).catch(() => erreurs.push('communes (geoBoundaries)'));
-    const t0 = setTimeout(() => setAdmErreurs(erreurs), 0);
-    return () => clearTimeout(t0);
+    chargerRegions()
+      .then((r) => { setRegions(r); retirer('régions'); })
+      .catch(() => signaler('régions'))
+      .finally(() => setRegChargees(true));
   }, []);
-  // Met à jour la liste des erreurs une fois les chargements terminés
   useEffect(() => {
-    const id = setTimeout(() => {
-      const manque: string[] = [];
-      if (!regions.length) manque.push('régions (OpenStreetMap)');
-      if (!districts.length) manque.push('districts (geoBoundaries)');
-      if (!communes.length) manque.push('communes (geoBoundaries)');
-      setAdmErreurs(manque);
-    }, 15000);
-    return () => clearTimeout(id);
-  }, [regions, districts, communes]);
+    if (!f.region || districts.length) return;
+    chargerAdm('ADM2').then((d) => { setDistricts(d); retirer('districts'); }).catch(() => signaler('districts'));
+  }, [f.region, districts.length]);
+  useEffect(() => {
+    if (!f.district || communes.length) return;
+    chargerAdm('ADM3').then((c) => { setCommunes(c); retirer('communes'); }).catch(() => signaler('communes'));
+  }, [f.district, communes.length]);
 
   // « Actualiser » : réinitialise filtres, recherche et pagination, puis recharge les données
   const refresh = () => { setF({}); setQ(''); setPage(1); setPer(10); load(); };
 
   const feats = useMemo(() => (geo ? geo.features.filter((x) => themes.includes(x.properties.theme)) : []), [geo, themes]);
-  const match = (p: Parcelle, skip?: FilterKey) => FILTERS.every((k) => k === skip || !f[k] || String(p[k]) === f[k]);
+  const match = (p: Parcelle, skip?: FilterKey) => FILTERS.every((k) => k === skip || !f[k] || memeValeur(k, p[k], f[k]));
   const filtered = useMemo(() => feats.filter((x) => match(x.properties)), [feats, f]); // eslint-disable-line
   const rows = useMemo(() => filtered.map((x) => x.properties), [filtered]);
   // Options issues des parcelles, en cascade : chaque filtre tient compte des autres filtres
   const opts = (k: FilterKey) => trier(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])));
 
-  /* Géométries administratives de la sélection, cherchées à l'intérieur de leur parent */
-  const adm = useMemo(() => {
-    const rK = f.region ? cle(f.region) : '';
-    const dK = f.district ? cle(f.district) : '';
-    const cK = f.commune ? cle(f.commune) : '';
-    const reg = rK ? regions.find((x) => cle(nomAdm(x)) === rK) : undefined;
-    const candD = dK ? districts.filter((x) => cle(nomAdm(x)) === dK) : [];
-    const dis = candD.length ? candD.find((x) => reg && estDans(x, reg)) ?? candD[0] : undefined;
-    const nomCommune = COMMUNE_GEO[`${rK}|${dK}|${cK}`] ?? f.commune ?? '';
-    const candC = cK && dis ? communes.filter((x) => cle(nomAdm(x)) === cle(nomCommune)) : [];
-    const com = candC.length ? candC.find((x) => estDans(x, dis!)) ?? candC[0] : undefined;
-    return { reg, dis, com };
-  }, [f.region, f.district, f.commune, regions, districts, communes]);
+  /* ===== Arbre administratif : région -> districts -> communes ===== */
 
-  /* Listes en cascade :
-     - District : districts de la région choisie (référence), plus ceux de la base
-     - Commune : communes du district choisi (référence), plus celles de la base */
-  const optsRegion = useMemo(() => {
-    const ref = new Set(REGIONS_REF.map(cle));
-    return [...REGIONS_REF, ...opts('region').filter((n) => !ref.has(cle(n)))]
-      .sort((a, b) => a.localeCompare(b, 'fr'));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feats, f]);
+  const rGeo = useMemo(
+    () => (f.region ? regions.find((x) => cleReg(nomAdm(x)) === cleReg(f.region)) : undefined),
+    [f.region, regions]);
 
-  const optsDistrict = useMemo(() => {
-    let ref: string[] = [];
-    if (adm.reg) ref = districts.filter((d) => estDans(d, adm.reg!)).map(nomAdm);
-    else if (!f.region) ref = districts.map(nomAdm);
-    return trier([...ref, ...opts('district')]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adm.reg, districts, feats, f]);
+  // Noms présents dans la base pour la sélection (sert quand un contour manque)
+  const nomsBase = (k: 'district' | 'commune') => {
+    const parent = k === 'district' ? 'region' : 'district';
+    return new Set(
+      feats
+        .filter((x) => !f[parent] || cle(String(x.properties[parent])) === cle(f[parent]))
+        .filter((x) => k === 'district' || !f.region || cle(String(x.properties.region)) === cle(f.region))
+        .map((x) => cle(String(x.properties[k])))
+        .filter(Boolean)
+    );
+  };
 
-  const optsCommune = useMemo(() => {
-    let ref: string[] = [];
-    if (adm.dis) {
-      const b = centre(adm.dis);
-      ref = communes
-        .filter((c) => {
-          const cc = centre(c);
-          return cc && b && Math.abs(cc[0] - b[0]) < 1.5 && Math.abs(cc[1] - b[1]) < 1.5 && estDans(c, adm.dis!);
-        })
-        .map(nomAdm);
+  const districtsRegion = useMemo(() => {
+    if (!f.region || !districts.length) return [];
+    if (rGeo) return districts.filter((d) => estDans(d, rGeo));
+    const noms = nomsBase('district');
+    return districts.filter((d) => noms.has(cle(nomAdm(d))));
+  }, [f.region, rGeo, districts, feats]); // eslint-disable-line
+
+  const dGeo = useMemo(
+    () => (f.district ? districtsRegion.find((x) => cle(nomAdm(x)) === cle(f.district)) : undefined),
+    [f.district, districtsRegion]);
+
+  const communesDistrict = useMemo(() => {
+    if (!f.district || !communes.length) return [];
+    if (dGeo) {
+      const b = centre(dGeo);
+      return communes.filter((c) => {
+        const cc = centre(c);
+        return cc && b && Math.abs(cc[0] - b[0]) < 1.5 && Math.abs(cc[1] - b[1]) < 1.5 && estDans(c, dGeo);
+      });
     }
-    return trier([...ref, ...opts('commune')]);
+    const noms = nomsBase('commune');
+    return communes.filter((c) => noms.has(cle(nomAdm(c))));
+  }, [f.district, dGeo, communes, feats]); // eslint-disable-line
+
+  const cGeo = useMemo(() => {
+    if (!f.commune) return undefined;
+    const nom = COMMUNE_GEO[`${cle(f.region || '')}|${cle(f.district || '')}|${cle(f.commune)}`] ?? f.commune;
+    return communesDistrict.find((x) => cle(nomAdm(x)) === cle(nom));
+  }, [f.commune, f.region, f.district, communesDistrict]);
+
+  /* Listes déroulantes : toujours les 24 régions ; districts / communes = contours de la zone + valeurs de la base */
+  const optsRegion = useMemo(
+    () => unir(REGIONS_REF, opts('region')),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [adm.dis, communes, feats, f]);
+    [feats, f]);
+  const optsDistrict = useMemo(
+    () => (f.region ? unir(districtsRegion.map(nomAdm), opts('district')) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [f.region, districtsRegion, feats, f]);
+  const optsCommune = useMemo(
+    () => (f.district ? unir(communesDistrict.map(nomAdm), opts('commune')) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [f.district, communesDistrict, feats, f]);
 
-  /* Cadrage : commune, sinon district, sinon région ; sinon Madagascar */
+  /* Cadrage : commune, sinon district, sinon région ; à défaut de contour, emprise des parcelles ; sinon Madagascar */
   const cadre = useMemo(() => {
-    const cibleAdm = adm.com ?? adm.dis ?? adm.reg;
-    return cibleAdm ? L.geoJSON(cibleAdm as any).getBounds() : null;
-  }, [adm]);
+    const g = cGeo ?? dGeo ?? rGeo;
+    const selection = f.commune || f.district || f.region;
+    if (selection && g) return L.geoJSON(g as any).getBounds();
+    if (selection && filtered.length) return L.geoJSON({ type: 'FeatureCollection', features: filtered } as any).getBounds();
+    return null;
+  }, [cGeo, dGeo, rGeo, f.region, f.district, f.commune, filtered]);
 
-  /* Barres par région : uniquement les régions présentes dans la base */
-  const regionsData = useMemo(() => group(rows, 'region'), [rows]);
+  /* Couche cliquable du niveau suivant */
+  const enfants = !f.region
+    ? { liste: regions, niveau: 'region' as FilterKey, couleur: COULEUR_REGION }
+    : !f.district
+    ? { liste: districtsRegion, niveau: 'district' as FilterKey, couleur: COULEUR_DISTRICT }
+    : !f.commune
+    ? { liste: communesDistrict, niveau: 'commune' as FilterKey, couleur: COULEUR_COMMUNE }
+    : null;
 
   // Changer un filtre réinitialise les filtres qui en dépendent
   const choisirFiltre = (k: FilterKey, v: string) => {
@@ -567,10 +617,17 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     });
     setPage(1);
   };
+  const pickRef = useRef<(k: FilterKey, v: string) => void>(() => {});
+  pickRef.current = choisirFiltre;
+
+  /* Barres par région : uniquement les régions présentes dans la base */
+  const regionsData = useMemo(() => group(rows, 'region'), [rows]);
 
   const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
   const dTot = sum(rows);
   const taux = cible ? (vTot / cible) * 100 : 0;
+  // Les données de superficie ne s'affichent que si la sélection en contient dans la base
+  const aDonnees = rows.length > 0;
 
   const ql = q.trim().toLowerCase();
   const table = ql ? rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(ql)) : rows;
@@ -597,7 +654,6 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const title = t.title[titleKey];
   const showTitle = !/vue\s+d.ensemble/i.test(title);
 
-  /* Carte d'information simple (CEP, pare-feux) depuis la configuration */
   const carteExtra = (key: 'cep' | 'feu') => {
     const x = extras.find((e) => e.key === key);
     if (!x) return null;
@@ -614,6 +670,18 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
 
   const listeFiltre = (k: FilterKey): string[] =>
     k === 'region' ? optsRegion : k === 'district' ? optsDistrict : k === 'commune' ? optsCommune : opts(k);
+
+  const chargeLimites =
+    (!!f.region && !districts.length && !admErreurs.includes('districts')) ||
+    (!!f.district && !communes.length && !admErreurs.includes('communes'));
+
+  const aide = !f.region
+    ? 'Cliquez sur une région (ou choisissez-la dans la liste) pour zoomer et voir ses districts.'
+    : !f.district
+    ? 'Cliquez sur un district pour zoomer et voir ses communes.'
+    : !f.commune
+    ? 'Cliquez sur une commune pour la sélectionner.'
+    : '';
 
   return (
     <div className="sv">
@@ -636,7 +704,11 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
           <section className="sv-f">
             {FILTERS.map((k) => (
               <label key={k}>{t.f[k]}
-                <select value={f[k] || ''} onChange={(e) => choisirFiltre(k, e.target.value)}>
+                <select
+                  value={f[k] || ''}
+                  onChange={(e) => choisirFiltre(k, e.target.value)}
+                  disabled={(k === 'district' && !f.region) || (k === 'commune' && !f.district)}
+                >
                   <option value="">{t.all}</option>
                   {listeFiltre(k).map((o) => <option key={o} value={o}>{k === 'statut' ? tv(o) : o}</option>)}
                 </select>
@@ -652,40 +724,42 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                 <p>{t.enonce[enonceKey](fr(cible))}</p>
               </section>
 
-              <div className="sv-grid2">
-                {/* Ligne 1 : pare-feux | CEP */}
-                {carteExtra('feu')}
-                {carteExtra('cep')}
+              {/* Superficies : seulement si la zone sélectionnée a des données dans la base */}
+              {aDonnees && (
+                <div className="sv-grid2">
+                  {carteExtra('feu')}
+                  {carteExtra('cep')}
 
-                {/* Ligne 2 : superficie validée | répartition par type de pratique */}
-                <div className="sv-c">
-                  <h4>{t.k.valide}</h4>
-                  <div className="sv-val">
-                    <div className="sv-big">{fr(vTot)} ha</div>
-                    <div className="sv-sub">{t.k.on(fr(cible))}</div>
-                    <Gauge pct={taux} />
+                  <div className="sv-c">
+                    <h4>{t.k.valide}</h4>
+                    <div className="sv-val">
+                      <div className="sv-big">{fr(vTot)} ha</div>
+                      <div className="sv-sub">{t.k.on(fr(cible))}</div>
+                      <Gauge pct={taux} />
+                    </div>
                   </div>
-                </div>
-                <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
+                  <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
 
-                {/* Ligne 3 : répartition par région (régions de la base), pleine largeur */}
-                <div className="sv-c sv-span">
-                  <h4>{t.c.region}</h4>
-                  <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 36 + 30)}>
-                    <BarChart data={regionsData} layout="vertical" margin={{ left: 0, right: 48 }}>
-                      <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
-                      <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
-                      <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
-                      <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
-                        <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {regionsData.length > 0 && (
+                    <div className="sv-c sv-span">
+                      <h4>{t.c.region}</h4>
+                      <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 36 + 30)}>
+                        <BarChart data={regionsData} layout="vertical" margin={{ left: 0, right: 48 }}>
+                          <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
+                          <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
+                          <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
+                          <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
+                            <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Partie droite : carte de localisation centrée sur Madagascar */}
+            {/* Partie droite : carte interactive */}
             <div className="sv-c sv-map">
               <div className="sv-mh">
                 <h4>{t.c.map}</h4>
@@ -698,16 +772,48 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               <MapContainer center={MADAGASCAR} zoom={5} scrollWheelZoom={!narrow} className="sv-mapbox">
                 <TileLayer key={base} attribution={BASEMAPS[base].attribution} url={BASEMAPS[base].url} />
 
-                {/* Contours de toutes les régions, en léger */}
-                {regions.length > 0 && (
+                {/* Niveau suivant, cliquable : régions -> districts -> communes */}
+                {enfants && enfants.liste.length > 0 && (
                   <GeoJSON
-                    key="toutes-regions"
-                    data={{ type: 'FeatureCollection', features: regions } as any}
-                    style={() => ({ color: COULEUR_REGION, weight: 1, opacity: 0.6, fillOpacity: 0 })}
-                    onEachFeature={(x: any, l: any) => l.bindTooltip(nomAdm(x), { sticky: true, className: 'sv-tip' })}
+                    key={`enf-${enfants.niveau}-${f.region || ''}-${f.district || ''}-${enfants.liste.length}`}
+                    data={{ type: 'FeatureCollection', features: enfants.liste } as any}
+                    style={() => ({ color: enfants.couleur, weight: 1.6, fillColor: enfants.couleur, fillOpacity: 0.06 })}
+                    onEachFeature={(x: any, l: any) => {
+                      l.bindTooltip(nomAdm(x), { sticky: true, className: 'sv-tip' });
+                      l.on('mouseover', () => l.setStyle({ fillOpacity: 0.3, weight: 2.5 }));
+                      l.on('mouseout', () => l.setStyle({ fillOpacity: 0.06, weight: 1.6 }));
+                      l.on('click', () => pickRef.current(enfants.niveau, nomAdm(x)));
+                    }}
                   />
                 )}
 
+                {/* Contours de la sélection (non interactifs) */}
+                {rGeo && (
+                  <GeoJSON
+                    key={`reg-${f.region}`}
+                    data={rGeo as any}
+                    interactive={false}
+                    style={() => ({ color: COULEUR_REGION, weight: 3, fillOpacity: 0, dashArray: dGeo ? '6 4' : undefined })}
+                  />
+                )}
+                {dGeo && (
+                  <GeoJSON
+                    key={`dis-${f.district}`}
+                    data={dGeo as any}
+                    interactive={false}
+                    style={() => ({ color: COULEUR_DISTRICT, weight: 3, fillOpacity: 0, dashArray: cGeo ? '6 4' : undefined })}
+                  />
+                )}
+                {cGeo && (
+                  <GeoJSON
+                    key={`com-${f.commune}`}
+                    data={cGeo as any}
+                    interactive={false}
+                    style={() => ({ color: COULEUR_COMMUNE, weight: 3, fillColor: '#14b8a6', fillOpacity: 0.2 })}
+                  />
+                )}
+
+                {/* Parcelles de la base (GeoJSON), filtrées, par-dessus les limites */}
                 <GeoJSON
                   key={`${mapKey}-${lang}`}
                   data={{ type: 'FeatureCollection', features: filtered } as any}
@@ -717,32 +823,6 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                     l.bindPopup(`<b>${esc(p.id)}</b><br>${esc(tp(p.pratique))}<br>${esc(p.commune)}, ${esc(p.region)}<br>${fr(p.superficie_ha, 2)} ha · ${esc(tv(p.statut))}`);
                   }}
                 />
-
-                {/* Limites de la sélection : région, puis district, puis commune (par-dessus) */}
-                {adm.reg && (
-                  <GeoJSON
-                    key={`reg-${f.region}`}
-                    data={adm.reg as any}
-                    style={() => ({ color: COULEUR_REGION, weight: 3, fillOpacity: 0, dashArray: adm.dis ? '6 4' : undefined })}
-                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.region} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
-                  />
-                )}
-                {adm.dis && (
-                  <GeoJSON
-                    key={`dis-${f.district}`}
-                    data={adm.dis as any}
-                    style={() => ({ color: COULEUR_DISTRICT, weight: 2.5, fillColor: COULEUR_DISTRICT, fillOpacity: adm.com ? 0 : 0.12 })}
-                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.district} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
-                  />
-                )}
-                {adm.com && (
-                  <GeoJSON
-                    key={`com-${f.commune}`}
-                    data={adm.com as any}
-                    style={() => ({ color: COULEUR_COMMUNE, weight: 3, fillColor: '#14b8a6', fillOpacity: 0.25 })}
-                    onEachFeature={(x: any, l: any) => l.bindTooltip(`${t.f.commune} : ${nomAdm(x)}`, { sticky: true, className: 'sv-tip' })}
-                  />
-                )}
 
                 <MapController bounds={cadre} />
                 <ScaleBar />
@@ -755,8 +835,14 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                 <span><i style={{ borderColor: COULEUR_DISTRICT }} />{t.f.district}</span>
                 <span><i style={{ borderColor: COULEUR_COMMUNE }} />{t.f.commune}</span>
               </div>
+              {aide && <p className="sv-hint">{chargeLimites ? 'Chargement des limites…' : aide}</p>}
               {admErreurs.length > 0 && (
-                <p className="sv-warn">Limites non chargées : {admErreurs.join(', ')}. Le zoom et les contours ne peuvent pas s'afficher.</p>
+                <p className="sv-warn">Limites non chargées : {admErreurs.join(', ')}. Le zoom se fait alors sur les parcelles de la base.</p>
+              )}
+              {regChargees && regions.length > 0 && regions.length < REGIONS_REF.length && (
+                <p className="sv-hint">
+                  Contours disponibles pour {regions.length} régions sur {REGIONS_REF.length} : les autres se zooment sur leurs parcelles.
+                </p>
               )}
             </div>
           </section>
