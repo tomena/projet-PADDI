@@ -1514,4 +1514,3 @@ const CSS = `
   .zi-stats{grid-template-columns:repeat(2,1fr)}
 }
 `;
-</document_content>
