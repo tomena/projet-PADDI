@@ -71,6 +71,13 @@ const construireDonnees = (geo: any): Donnees => ({
 const cleLigne = (l: Ligne) =>
   [cle(l.region), l.district ? cle(l.district) : "", l.commune ? cle(l.commune) : ""].join("|");
 
+/* Communes homonymes : pour la ligne (clé région|district|commune), nom de la géométrie à utiliser.
+   Ex. : la commune « Marovoay » du district Marovoay (Boeny) correspond à la géométrie « Marosakoa »,
+   et non à « Marovoay ville » ni à « Marovoay Banlieue ». */
+const COMMUNE_GEO: Record<string, string> = {
+  "boeny|marovoay|marovoay": "Marosakoa",
+};
+
 /* ===================== FONDS DE CARTE (sans clé API) ===================== */
 
 type Fond = "topo" | "sat" | "osm";
@@ -729,7 +736,8 @@ export default function ZonesIntervention() {
       }
 
       if (!l.commune) return;
-      const ck = cle(l.commune);
+      /* Nom de géométrie : celui défini dans COMMUNE_GEO si la commune est un homonyme */
+      const ck = cle(COMMUNE_GEO[cleLigne(l)] ?? l.commune);
       const cF = communes.find((c) => cle(nomFeat(c)) === ck && estDans(c, dF));
       if (cF) {
         featCom.set(cleLigne(l), cF);
@@ -928,6 +936,10 @@ export default function ZonesIntervention() {
   /* La carte « Activités environnementales » n'apparaît que pour un projet environnemental choisi */
   const afficherActivites = !vide && !!sel && projetsVue.some((p) => p.type === "environnement");
 
+  /* Le MBV ne concerne que les projets environnementaux (ils ciblent un endroit précis).
+     Les projets de développement travaillent sur la commune entière : pas de MBV pour eux. */
+  const avecMbv = lignesCommunes.some((l) => l.type === "environnement");
+
   /* Lignes sans doublon */
   const lignesTableau = useMemo(() => {
     const vues = new Set<string>();
@@ -976,11 +988,12 @@ export default function ZonesIntervention() {
   const pourcentage = (sup: number | null, mbv: number | undefined) =>
     sup && sup > 0 && mbv != null ? (mbv / sup) * 100 : null;
 
+  /* Totaux : le MBV n'est cumulé que pour les lignes de projets environnementaux */
   const totaux = lignesCommunes.reduce(
     (acc, l) => {
       const sup = surfaceDe(l);
       acc.surface += sup ?? 0;
-      if (l.mbv_ha != null) {
+      if (l.type === "environnement" && l.mbv_ha != null) {
         acc.mbv += l.mbv_ha;
         acc.supAvecMbv += sup ?? 0;
       }
@@ -1248,19 +1261,20 @@ export default function ZonesIntervention() {
                       <tr>
                         <th>{t.colCommune}</th>
                         <th>{t.colSuperficie}</th>
-                        <th>{t.colMBV}</th>
-                        <th>{t.colPourcentage}</th>
+                        {avecMbv && <th>{t.colMBV}</th>}
+                        {avecMbv && <th>{t.colPourcentage}</th>}
                       </tr>
                     </thead>
                     <tbody>
                       {lignesCommunes.map((l, i) => {
                         const s = surfaceDe(l);
-                        const mbv = l.mbv_ha;
+                        /* MBV affiché uniquement pour un projet environnemental */
+                        const mbv = l.type === "environnement" ? l.mbv_ha : undefined;
                         /* Trait plus épais avant la première commune d'une nouvelle région */
                         const nouvelleRegion = i > 0 && lignesCommunes[i - 1].region !== l.region;
                         return (
                           <tr
-                            key={`${l.region}-${l.district}-${l.commune}`}
+                            key={`${l.region}-${l.district}-${l.commune}-${l.projetId}`}
                             className={`zi-row${nouvelleRegion ? " zi-sep" : ""}`}
                             onClick={() =>
                               choisirZone("commune", cle(l.commune!), cle(l.region), cle(l.district!))
@@ -1268,8 +1282,8 @@ export default function ZonesIntervention() {
                           >
                             <td>{l.commune}</td>
                             <td>{s != null ? fmt(s) : "—"}</td>
-                            <td>{mbv != null ? fmt(mbv) : "—"}</td>
-                            <td>{fmtPct(pourcentage(s, mbv))}</td>
+                            {avecMbv && <td>{mbv != null ? fmt(mbv) : "—"}</td>}
+                            {avecMbv && <td>{fmtPct(pourcentage(s, mbv))}</td>}
                           </tr>
                         );
                       })}
@@ -1278,8 +1292,8 @@ export default function ZonesIntervention() {
                       <tr>
                         <td>{t.total}</td>
                         <td>{fmt(totaux.surface)}</td>
-                        <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>
-                        <td>{fmtPct(pctTotal)}</td>
+                        {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
+                        {avecMbv && <td>{fmtPct(pctTotal)}</td>}
                       </tr>
                     </tfoot>
                   </table>
@@ -1500,3 +1514,4 @@ const CSS = `
   .zi-stats{grid-template-columns:repeat(2,1fr)}
 }
 `;
+</document_content>
