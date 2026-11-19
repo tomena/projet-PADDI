@@ -34,9 +34,18 @@ export interface DashboardConfig {
   extras?: { key: 'cep' | 'feu'; flag: 'is_cep' | 'is_pare_feu'; icon: 'cep' | 'feu' }[];
 }
 
-/* Limites administratives (geoBoundaries), comme sur la page Zones d'intervention */
+/* Limites administratives. Régions : OpenStreetMap (Overpass). Districts et communes : geoBoundaries. */
 type Adm = { properties: Record<string, any>; geometry: { type: string; coordinates: any } };
-type Niv = 'ADM1' | 'ADM2' | 'ADM3';
+type Niv = 'ADM2' | 'ADM3';
+type Pt = [number, number];
+
+/* Les 24 régions actuelles de Madagascar (Vatovavy-Fitovinany scindée, Ambatosoa créée) */
+const REGIONS_REF = [
+  'Analamanga', 'Vakinankaratra', 'Itasy', 'Bongolava', 'Haute Matsiatra', "Amoron'i Mania",
+  'Vatovavy', 'Fitovinany', 'Ihorombe', 'Atsimo Atsinanana', 'Atsinanana', 'Analanjirofo',
+  'Ambatosoa', 'Alaotra Mangoro', 'Boeny', 'Betsiboka', 'Melaky', 'Atsimo Andrefana',
+  'Androy', 'Anosy', 'Menabe', 'Diana', 'Sava', 'Sofia',
+];
 
 /* Couleurs
    - G / STATUT : valeurs « réelles » (hex) utilisées sur la carte Leaflet
@@ -107,6 +116,7 @@ const group = (rows: Parcelle[], key: keyof Parcelle) => {
 const REV = '9469f09';
 const GH = 'wmgeolab/geoBoundaries';
 const CACHE: Partial<Record<Niv, Adm[]>> = {};
+let CACHE_REGIONS: Adm[] | null = null;
 
 const nomAdm = (f: Adm): string =>
   String(
@@ -150,6 +160,7 @@ function estDans(enfant: Adm, parent: Adm): boolean {
   return score >= 5;
 }
 
+/* Districts et communes : geoBoundaries (libre) */
 async function chargerAdm(niv: Niv): Promise<Adm[]> {
   if (CACHE[niv]) return CACHE[niv]!;
   const f = `releaseData/gbOpen/MDG/${niv}/geoBoundaries-MDG-${niv}_simplified.geojson`;
@@ -177,6 +188,96 @@ async function chargerAdm(niv: Niv): Promise<Adm[]> {
     }
   }
   throw new Error(niv);
+}
+
+/* ----- Conversion OpenStreetMap -> GeoJSON (sans bibliothèque externe) ----- */
+
+const memePoint = (a: Pt, b: Pt) => a[0] === b[0] && a[1] === b[1];
+
+/* Assemble des segments (tronçons de contour) en anneaux fermés */
+function assemblerAnneaux(segs: Pt[][]): Pt[][] {
+  const reste = segs.filter((s) => s.length > 1).map((s) => [...s]);
+  const anneaux: Pt[][] = [];
+  while (reste.length) {
+    let anneau: Pt[] = reste.shift()!;
+    let progres = true;
+    while (progres && !memePoint(anneau[0], anneau[anneau.length - 1])) {
+      progres = false;
+      const fin = anneau[anneau.length - 1];
+      for (let i = 0; i < reste.length; i++) {
+        const s = reste[i];
+        if (memePoint(s[0], fin)) {
+          anneau = anneau.concat(s.slice(1));
+        } else if (memePoint(s[s.length - 1], fin)) {
+          anneau = anneau.concat(s.slice(0, -1).reverse());
+        } else {
+          continue;
+        }
+        reste.splice(i, 1);
+        progres = true;
+        break;
+      }
+    }
+    if (anneau.length > 3 && memePoint(anneau[0], anneau[anneau.length - 1])) anneaux.push(anneau);
+  }
+  return anneaux;
+}
+
+/* Relation OSM (out geom) -> polygone GeoJSON, avec trous */
+function relationVersAdm(rel: any): Adm | null {
+  const ext: Pt[][] = [];
+  const int: Pt[][] = [];
+  (rel.members ?? []).forEach((m: any) => {
+    if (m.type !== 'way' || !Array.isArray(m.geometry)) return;
+    const seg: Pt[] = m.geometry.map((p: any) => [p.lon, p.lat] as Pt);
+    if (m.role === 'inner') int.push(seg);
+    else if (m.role === 'outer' || m.role === '') ext.push(seg);
+  });
+  const exterieurs = assemblerAnneaux(ext);
+  const trous = assemblerAnneaux(int);
+  if (!exterieurs.length) return null;
+  const polys = exterieurs.map((o) => [o, ...trous.filter((h) => dansAnneau(h[0][0], h[0][1], o))]);
+  return {
+    properties: { shapeName: String(rel.tags?.name ?? '') },
+    geometry: { type: 'MultiPolygon', coordinates: polys },
+  };
+}
+
+/* Régions : OpenStreetMap via Overpass (libre, à jour). On ne garde que les 24 noms de référence,
+   car OSM peut aussi marquer les provinces au même niveau administratif. */
+const OVERPASS = 'https://overpass-api.de/api/interpreter';
+const REQUETE_REGIONS =
+  '[out:json][timeout:90];' +
+  'area["ISO3166-1"="MG"][admin_level=2]->.pays;' +
+  'relation(area.pays)["boundary"="administrative"]["admin_level"="4"];' +
+  'out geom;';
+
+async function chargerRegions(): Promise<Adm[]> {
+  if (CACHE_REGIONS) return CACHE_REGIONS;
+  const r = await fetch(OVERPASS, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'data=' + encodeURIComponent(REQUETE_REGIONS),
+  });
+  if (!r.ok) throw new Error(`Overpass HTTP ${r.status}`);
+  const data = await r.json();
+  const ref = new Set(REGIONS_REF.map(cle));
+  const vues = new Set<string>();
+  const feats: Adm[] = [];
+  (data.elements ?? []).forEach((rel: any) => {
+    if (rel.type !== 'relation') return;
+    const nom = String(rel.tags?.name ?? '');
+    const k = cle(nom);
+    if (!ref.has(k) || vues.has(k)) return;
+    const adm = relationVersAdm(rel);
+    if (!adm) return;
+    vues.add(k);
+    feats.push(adm);
+  });
+  const manquantes = REGIONS_REF.filter((n) => !vues.has(cle(n)));
+  if (manquantes.length) console.warn('Régions introuvables dans OpenStreetMap :', manquantes);
+  CACHE_REGIONS = feats;
+  return feats;
 }
 
 /* ===================== CARTE : RECADRAGE, ÉCHELLE ===================== */
@@ -360,7 +461,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   useEffect(() => { load(); }, [src]);
   // Limites administratives : chargées une fois ; en cas d'échec, la carte reste sans contours
   useEffect(() => {
-    chargerAdm('ADM1').then(setRegions).catch(() => {});
+    chargerRegions().then(setRegions).catch((e) => console.warn('Régions OSM :', e));
     chargerAdm('ADM2').then(setDistricts).catch(() => {});
     chargerAdm('ADM3').then(setCommunes).catch(() => {});
   }, []);
@@ -374,21 +475,18 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   // Options en cascade : chaque filtre ne tient compte que des autres filtres sélectionnés
   const opts = (k: FilterKey) => [...new Set(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])))].sort();
 
-  /* Géométries administratives de la sélection, trouvées à l'intérieur de leur parent */
+  /* Géométries administratives de la sélection, cherchées à l'intérieur de leur parent
+     (repli sur le nom seul si le parent ne contient pas la zone, ce qui arrive après un redécoupage) */
   const adm = useMemo(() => {
     const rK = f.region ? cle(f.region) : '';
     const dK = f.district ? cle(f.district) : '';
     const cK = f.commune ? cle(f.commune) : '';
     const reg = rK ? regions.find((x) => cle(nomAdm(x)) === rK) : undefined;
-    const dis = dK
-      ? (reg
-          ? districts.find((x) => cle(nomAdm(x)) === dK && estDans(x, reg))
-          : districts.find((x) => cle(nomAdm(x)) === dK))
-      : undefined;
+    const candD = dK ? districts.filter((x) => cle(nomAdm(x)) === dK) : [];
+    const dis = candD.length ? candD.find((x) => reg && estDans(x, reg)) ?? candD[0] : undefined;
     const nomCommune = COMMUNE_GEO[`${rK}|${dK}|${cK}`] ?? f.commune ?? '';
-    const com = cK && dis
-      ? communes.find((x) => cle(nomAdm(x)) === cle(nomCommune) && estDans(x, dis))
-      : undefined;
+    const candC = cK && dis ? communes.filter((x) => cle(nomAdm(x)) === cle(nomCommune)) : [];
+    const com = candC.length ? candC.find((x) => estDans(x, dis!)) ?? candC[0] : undefined;
     return { reg, dis, com };
   }, [f.region, f.district, f.commune, regions, districts, communes]);
 
@@ -398,10 +496,21 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     return cibleAdm ? L.geoJSON(cibleAdm as any).getBounds() : null;
   }, [adm]);
 
+  /* Barres par région : les 24 régions de référence (0 ha si aucune parcelle), puis les régions
+     présentes dans la base sans correspondance dans le référentiel */
+  const regionsData = useMemo(() => {
+    const parNom = new Map(group(rows, 'region').map((d) => [cle(d.name), d.value]));
+    const liste = REGIONS_REF.map((n) => ({ name: n, value: parNom.get(cle(n)) ?? 0 }));
+    const ref = new Set(REGIONS_REF.map(cle));
+    group(rows, 'region')
+      .filter((d) => !ref.has(cle(d.name)))
+      .forEach((d) => liste.push({ name: d.name, value: d.value }));
+    return liste.sort((a, b) => b.value - a.value);
+  }, [rows]);
+
   const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
   const dTot = sum(rows);
   const taux = cible ? (vTot / cible) * 100 : 0;
-  const regionsData = group(rows, 'region');
 
   const ql = q.trim().toLowerCase();
   const table = ql ? rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(ql)) : rows;
@@ -496,15 +605,15 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                 </div>
                 <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
 
-                {/* Ligne 3 : répartition par région, pleine largeur */}
+                {/* Ligne 3 : répartition par région (24 régions), pleine largeur */}
                 <div className="sv-c sv-span">
                   <h4>{t.c.region}</h4>
-                  <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 36 + 30)}>
+                  <ResponsiveContainer width="100%" height={Math.max(220, regionsData.length * 22 + 30)}>
                     <BarChart data={regionsData} layout="vertical" margin={{ left: 0, right: 48 }}>
                       <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
-                      <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
+                      <YAxis dataKey="name" type="category" width={narrow ? 110 : 140} interval={0} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
                       <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
-                      <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
+                      <Bar dataKey="value" fill="var(--gv)" barSize={14} radius={[0, 2, 2, 0]}>
                         <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
                       </Bar>
                     </BarChart>
@@ -525,6 +634,17 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               </div>
               <MapContainer center={MADAGASCAR} zoom={5} scrollWheelZoom={!narrow} className="sv-mapbox">
                 <TileLayer key={base} attribution={BASEMAPS[base].attribution} url={BASEMAPS[base].url} />
+
+                {/* Contours de toutes les régions, en léger */}
+                {regions.length > 0 && (
+                  <GeoJSON
+                    key="toutes-regions"
+                    data={{ type: 'FeatureCollection', features: regions } as any}
+                    style={() => ({ color: COULEUR_REGION, weight: 1, opacity: 0.6, fillOpacity: 0 })}
+                    onEachFeature={(x: any, l: any) => l.bindTooltip(nomAdm(x), { sticky: true, className: 'sv-tip' })}
+                  />
+                )}
+
                 <GeoJSON
                   key={`${mapKey}-${lang}`}
                   data={{ type: 'FeatureCollection', features: filtered } as any}
