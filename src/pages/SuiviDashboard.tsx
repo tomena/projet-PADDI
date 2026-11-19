@@ -48,6 +48,15 @@ const REGIONS_REF = [
   'Androy', 'Anosy', 'Menabe', 'Diana', 'Sava', 'Sofia',
 ];
 
+/* Ancienne région (avant la scission), affichée aussi dans la liste */
+const REGIONS_EXTRA = ['Vatovavy Fitovinany'];
+const COMBINE = 'vatovavyfitovinany';
+/* Variantes de noms : Matsiatra Ambony = Haute Matsiatra */
+const ALIAS_REG: Record<string, string> = {
+  matsiatraambony: 'hautematsiatra',
+  uppermatsiatra: 'hautematsiatra',
+};
+
 const G = '#1b5e20';
 const GV = 'var(--gv)';
 const BAD = 'var(--bad)';
@@ -99,7 +108,23 @@ const dateFmt = (iso: string) => new Date(iso).toLocaleDateString(LOC, { timeZon
 const esc = (s: unknown) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const cle = (s: string) =>
   String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const cleReg = (s: string) => cle(s).replace(/^(region|faritra)/, '');
+const cleReg = (s: string) => {
+  const k = cle(s).replace(/^(region|faritra)/, '');
+  return ALIAS_REG[k] ?? k;
+};
+
+/* Deux noms de région sont équivalents (alias, ou ancienne région fusionnée) */
+const memeRegion = (a: unknown, b: string) => {
+  const x = cleReg(String(a));
+  const y = cleReg(b);
+  if (x === y) return true;
+  const part = ['vatovavy', 'fitovinany'];
+  return (y === COMBINE && part.includes(x)) || (x === COMBINE && part.includes(y));
+};
+/* Nom d'affichage canonique (évite les doublons dans la liste) */
+const nomRegion = (n: string) =>
+  [...REGIONS_REF, ...REGIONS_EXTRA].find((r) => cleReg(r) === cleReg(n)) ?? n;
+
 const trier = (xs: string[]) => [...new Set(xs.filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'));
 /* Fusionne des listes de noms sans doublon (comparaison normalisée), la première occurrence gagne */
 const unir = (...listes: string[][]) => {
@@ -116,7 +141,9 @@ const group = (rows: Parcelle[], key: keyof Parcelle) => {
 };
 /* Les noms administratifs se comparent sans accents ni majuscules ; les autres filtres à l'identique */
 const memeValeur = (k: FilterKey, a: unknown, b: string) =>
-  NOMS_ADM.includes(k) ? cle(String(a)) === cle(b) : String(a) === b;
+  k === 'region' ? memeRegion(a, b)
+  : NOMS_ADM.includes(k) ? cle(String(a)) === cle(b)
+  : String(a) === b;
 
 /* ===================== LIMITES ADMINISTRATIVES ===================== */
 
@@ -257,7 +284,10 @@ function relationVersAdm(rel: any): Adm | null {
   const polys = exterieurs.map((o) => [o, ...trous.filter((h) => dansAnneau(h[0][0], h[0][1], o))]);
   return {
     type: 'Feature',
-    properties: { shapeName: String(rel.tags?.name ?? '') },
+    properties: {
+      shapeName: String(rel.tags?.name ?? ''),
+      noms: [rel.tags?.name, rel.tags?.['name:fr'], rel.tags?.['name:mg'], rel.tags?.['name:en']].filter(Boolean),
+    },
     geometry: { type: 'MultiPolygon', coordinates: polys },
   };
 }
@@ -293,7 +323,27 @@ async function regionsOSM(): Promise<Adm[]> {
   }
 }
 
-/* Régions : on garde les 24 noms de référence.
+/* Tous les noms connus d'une zone (nom principal + variantes OSM) */
+const nomsAdm = (f: Adm): string[] => [nomAdm(f), ...((f.properties.noms as string[]) ?? [])];
+
+function trouverReg(liste: Adm[], nom: string, secours: string[] = []) {
+  const cles = [cleReg(nom), ...secours];
+  for (const k of cles) {
+    const r = liste.find((x) => nomsAdm(x).some((n) => cleReg(n) === k));
+    if (r) return { r, secours: k !== cles[0] };
+  }
+  return null;
+}
+
+function fusionner(a: Adm, b: Adm, nom: string): Adm {
+  return {
+    type: 'Feature',
+    properties: { shapeName: nom },
+    geometry: { type: 'MultiPolygon', coordinates: [...polygones(a), ...polygones(b)] },
+  };
+}
+
+/* Régions : on garde les 24 noms de référence + Vatovavy Fitovinany.
    Contour = OpenStreetMap si disponible, sinon geoBoundaries ADM1 (qui peut ne contenir que 22 régions).
    Une région sans contour reste sélectionnable : la carte zoome alors sur ses parcelles. */
 function chargerRegions(): Promise<Adm[]> {
@@ -304,12 +354,29 @@ function chargerRegions(): Promise<Adm[]> {
       regionsOSM().catch(() => [] as Adm[]),
       chargerAdm('ADM1').catch(() => [] as Adm[]),
     ]);
+    // nom exact d'abord, puis (Vatovavy / Fitovinany) repli sur la région fusionnée
+    const chercher = (nom: string, secours: string[] = []) =>
+      trouverReg(osm, nom) ?? trouverReg(gb, nom) ??
+      (secours.length ? trouverReg(osm, nom, secours) ?? trouverReg(gb, nom, secours) : null);
+
     const out: Adm[] = [];
     REGIONS_REF.forEach((nom) => {
-      const k = cleReg(nom);
-      const src = osm.find((x) => cleReg(nomAdm(x)) === k) ?? gb.find((x) => cleReg(nomAdm(x)) === k);
-      if (src) out.push({ ...src, properties: { ...src.properties, shapeName: nom } });
+      const secours = ['vatovavy', 'fitovinany'].includes(cleReg(nom)) ? [COMBINE] : [];
+      const tr = chercher(nom, secours);
+      if (tr) out.push({ ...tr.r, properties: { ...tr.r.properties, shapeName: nom, comb: tr.secours } });
     });
+
+    // Vatovavy Fitovinany : contour fusionné s'il existe, sinon union de Vatovavy + Fitovinany
+    const nomC = REGIONS_EXTRA[0];
+    const c = chercher(nomC);
+    if (c) {
+      out.push({ ...c.r, properties: { ...c.r.properties, shapeName: nomC, comb: false } });
+    } else {
+      const v = out.find((x) => nomAdm(x) === 'Vatovavy');
+      const fi = out.find((x) => nomAdm(x) === 'Fitovinany');
+      if (v && fi) out.push(fusionner(v, fi, nomC));
+    }
+
     if (!out.length) throw new Error('regions');
     CACHE_REGIONS = out;
     return out;
@@ -367,16 +434,17 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
   );
 }
 
+/* Jauge : plus haute et plus épaisse, occupe tout l'espace restant de la carte */
 function Gauge({ pct }: { pct: number }) {
   const p = Math.max(0, Math.min(100, pct));
   return (
-    <div style={{ height: 110 }}>
-      <ResponsiveContainer>
+    <div style={{ flex: 1, minHeight: 170 }}>
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="65%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none">
+          <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="50%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none">
             <Cell fill="var(--gv)" /><Cell fill="var(--track)" />
           </Pie>
-          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize={14} fontWeight="700" fill="var(--gv)">{fr(pct, 1)} %</text>
+          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize={18} fontWeight="700" fill="var(--gv)">{fr(pct, 1)} %</text>
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -418,6 +486,7 @@ const CSS = `
 .sv-big{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
 .sv-sub{font-size:12px;font-weight:700;text-align:center;margin-top:6px}
 .sv-val{flex:1;display:flex;flex-direction:column;justify-content:center}
+.sv-val.top{justify-content:flex-start;gap:2px}
 .sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center;flex-wrap:wrap}
 .sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
 .sv-map{min-height:480px}
@@ -474,6 +543,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const tp = (s: string) => s.replace(/^(.*?) \((.*)\)$/, (_: string, c: string, sub: string) => `${tv(c)} (${tv(sub)})`);
   const narrow = useNarrow();
   const [geo, setGeo] = useState<Geo | null>(null);
+  const [ver, setVer] = useState(0);
   const [err, setErr] = useState(false);
   const [busy, setBusy] = useState(false);
   const [f, setF] = useState<Record<string, string>>({});
@@ -495,7 +565,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     setBusy(true);
     fetch(src, { cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); })
-      .then(setGeo)
+      .then((g) => { setGeo(g); setVer((v) => v + 1); })
       .catch(() => setErr(true))
       .finally(() => setBusy(false));
   };
@@ -538,8 +608,8 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     const parent = k === 'district' ? 'region' : 'district';
     return new Set(
       feats
-        .filter((x) => !f[parent] || cle(String(x.properties[parent])) === cle(f[parent]))
-        .filter((x) => k === 'district' || !f.region || cle(String(x.properties.region)) === cle(f.region))
+        .filter((x) => !f[parent] || memeValeur(parent, x.properties[parent], f[parent]))
+        .filter((x) => k === 'district' || !f.region || memeValeur('region', x.properties.region, f.region))
         .map((x) => cle(String(x.properties[k])))
         .filter(Boolean)
     );
@@ -575,9 +645,9 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     return communesDistrict.find((x) => cle(nomAdm(x)) === cle(nom));
   }, [f.commune, f.region, f.district, communesDistrict]);
 
-  /* Listes déroulantes : toujours les 24 régions ; districts / communes = contours de la zone + valeurs de la base */
+  /* Listes déroulantes : toujours les 24 régions (+ Vatovavy Fitovinany) ; districts / communes = contours de la zone + valeurs de la base */
   const optsRegion = useMemo(
-    () => unir(REGIONS_REF, opts('region')),
+    () => unir(REGIONS_REF, REGIONS_EXTRA, opts('region').map(nomRegion)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [feats, f]);
   const optsDistrict = useMemo(
@@ -598,9 +668,17 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     return null;
   }, [cGeo, dGeo, rGeo, f.region, f.district, f.commune, filtered]);
 
+  /* Régions cliquables : évite de superposer « Vatovavy Fitovinany » avec Vatovavy et Fitovinany */
+  const combine = regions.some((r) => r.properties.comb);
+  const listeRegions = regions.filter((r) => {
+    const n = nomAdm(r);
+    if (REGIONS_EXTRA.includes(n)) return combine; // fusionnée : seulement si Vatovavy/Fitovinany n'ont pas leur propre contour
+    return !r.properties.comb;
+  });
+
   /* Couche cliquable du niveau suivant */
   const enfants = !f.region
-    ? { liste: regions, niveau: 'region' as FilterKey, couleur: COULEUR_REGION }
+    ? { liste: listeRegions, niveau: 'region' as FilterKey, couleur: COULEUR_REGION }
     : !f.district
     ? { liste: districtsRegion, niveau: 'district' as FilterKey, couleur: COULEUR_DISTRICT }
     : !f.commune
@@ -650,7 +728,8 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     URL.revokeObjectURL(a.href);
   };
 
-  const mapKey = `${filtered.length}-${Math.round(dTot)}`;
+  // Clé complète : la couche des parcelles se redessine à chaque changement de filtre ou rechargement
+  const mapKey = `${ver}-${JSON.stringify(f)}-${filtered.length}-${Math.round(dTot)}`;
   const title = t.title[titleKey];
   const showTitle = !/vue\s+d.ensemble/i.test(title);
 
@@ -732,7 +811,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
 
                   <div className="sv-c">
                     <h4>{t.k.valide}</h4>
-                    <div className="sv-val">
+                    <div className="sv-val top">
                       <div className="sv-big">{fr(vTot)} ha</div>
                       <div className="sv-sub">{t.k.on(fr(cible))}</div>
                       <Gauge pct={taux} />
@@ -839,11 +918,14 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               {admErreurs.length > 0 && (
                 <p className="sv-warn">Limites non chargées : {admErreurs.join(', ')}. Le zoom se fait alors sur les parcelles de la base.</p>
               )}
-              {regChargees && regions.length > 0 && regions.length < REGIONS_REF.length && (
-                <p className="sv-hint">
-                  Contours disponibles pour {regions.length} régions sur {REGIONS_REF.length} : les autres se zooment sur leurs parcelles.
-                </p>
-              )}
+              {regChargees && (() => {
+                const n = regions.filter((r) => REGIONS_REF.includes(nomAdm(r))).length;
+                return n > 0 && n < REGIONS_REF.length && (
+                  <p className="sv-hint">
+                    Contours disponibles pour {n} régions sur {REGIONS_REF.length} : les autres se zooment sur leurs parcelles.
+                  </p>
+                );
+              })()}
             </div>
           </section>
 
