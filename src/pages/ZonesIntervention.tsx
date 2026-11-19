@@ -122,7 +122,7 @@ const FR = {
   colCommune: "Commune",
   colSuperficie: "Superficie (ha)",
   colMBV: "Superficie MBV (ha)",
-  colPourcentage: "Pourcentage",
+  colPourcentage: "Pourcentage d'intervention par rapport à sa commune",
   total: "Total",
   activites: "Activités environnementales",
   aucuneActivite: "Aucune activité renseignée",
@@ -177,7 +177,7 @@ const MG: Dict = {
   colCommune: "Kaominina",
   colSuperficie: "Habetsahana (ha)",
   colMBV: "Habetsahana MBV (ha)",
-  colPourcentage: "Isan-jato",
+  colPourcentage: "Isan-jato amin'ny kaominina misy azy",
   total: "Totaly",
   activites: "Asa ara-tontolo iainana",
   aucuneActivite: "Tsy misy asa voarakitra",
@@ -230,7 +230,7 @@ const EN: Dict = {
   colCommune: "Commune",
   colSuperficie: "Area (ha)",
   colMBV: "MBV area (ha)",
-  colPourcentage: "Percentage",
+  colPourcentage: "Share of the commune covered",
   total: "Total",
   activites: "Environmental activities",
   aucuneActivite: "No activity recorded",
@@ -283,7 +283,7 @@ const DE: Dict = {
   colCommune: "Gemeinde",
   colSuperficie: "Fläche (ha)",
   colMBV: "MBV-Fläche (ha)",
-  colPourcentage: "Prozent",
+  colPourcentage: "Anteil an der Gemeinde",
   total: "Gesamt",
   activites: "Umweltaktivitäten",
   aucuneActivite: "Keine Aktivität erfasst",
@@ -854,8 +854,8 @@ export default function ZonesIntervention() {
     const etiqRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
     /* Fond : uniquement sur le niveau choisi (région, district ou commune) */
     const remplirRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
-    const etiqDistrict = n === "region" || n === "projet" || n === "categorie" || n === "district";
-    const etiqCommune = n === "district" || n === "commune";
+    const etiqDistrict = n === "district";
+    const etiqCommune = n === "commune";
 
     /* Régions : toutes sans recherche, puis seulement celles de la sélection */
     regions
@@ -874,7 +874,7 @@ export default function ZonesIntervention() {
           f,
           { color: couleur, weight: choisie ? 3 : 1.6, fillColor: couleur, fillOpacity: remplirRegion ? 0.18 : 0 },
           nomFeat(f),
-          etiqRegion ? "zi-label-region" : null,
+          etiqRegion && typesRegion.has(k) ? "zi-label-region" : null,
           () => {
             if (n === "region" && regionFeat === f) effacer();
             else choisirZone("region", k);
@@ -1164,7 +1164,7 @@ export default function ZonesIntervention() {
               <>
                 <span className="zi-niveau">{t.niveaux[sel.niveau]}</span>
                 <h2>{libelleDe(sel, t)}</h2>
-                <p className="zi-fil">{contexteDe(sel, t)}</p>
+                {sel.niveau !== "projet" && <p className="zi-fil">{contexteDe(sel, t)}</p>}
               </>
             ) : (
               <p className="zi-fil">{donnees ? t.vueTexte : t.chargement}</p>
@@ -1305,7 +1305,7 @@ export default function ZonesIntervention() {
                         <th>{t.colCommune}</th>
                         <th>{t.colSuperficie}</th>
                         {avecMbv && <th>{t.colMBV}</th>}
-                        {avecMbv && <th>{t.colPourcentage}</th>}
+                        {avecMbv && <th className="zi-th-pct">{t.colPourcentage}</th>}
                       </tr>
                     </thead>
                     <tbody>
@@ -1369,21 +1369,19 @@ export default function ZonesIntervention() {
           </div>
           <div className="zi-mbox">
             <div ref={elMap} className="zi-map" />
-            <div className="zi-lgd">
-              <span><i style={{ borderTopColor: COULEUR_TYPE.environnement }} />{t.catEnv}</span>
-              <span><i style={{ borderTopColor: COULEUR_TYPE.developpement }} />{t.catDev}</span>
-              <span><i style={{ borderTopColor: COULEUR_TYPE.mixte }} />{t.legMixte}</span>
-              <span><i style={{ borderTopColor: COULEUR_HORS }} />{t.legRegion}</span>
-              <span><i className="zi-lg-dis" />{t.legDistrict}</span>
-              <span><i className="zi-lg-com" />{t.legCommune}</span>
-              <span><i className="zi-lg-ap" />{t.legAP}</span>
-            </div>
             {sel && (
               <button type="button" className="zi-reset" onClick={effacer}>
                 <RotateCcw size={14} aria-hidden />
                 {t.vueMada}
               </button>
             )}
+          </div>
+          <div className="zi-legende">
+            <span><i className="zi-lg-reg" />{t.legRegion}</span>
+            <span><i className="zi-lg-dis" />{t.legDistrict}</span>
+            <span><i className="zi-lg-com" />{t.legCommune}</span>
+            <span><i className="zi-lg-ap" />{t.legAP}</span>
+            <span><i className="zi-lg-sel" />{t.legSelection}</span>
           </div>
           <p className="zi-note">{t.note}</p>
         </section>
@@ -1497,6 +1495,7 @@ const CSS = `
 .zi-tbl th{font-weight:500;font-size:11.5px;color:var(--ink3);text-align:right;padding:4px 6px;position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line)}
 .zi-tbl td{padding:5px 6px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
 .zi-tbl th+th,.zi-tbl td+td{border-left:1px solid var(--line)}
+.zi-tbl th.zi-th-pct{white-space:normal;max-width:120px;font-size:10.5px;line-height:1.25;vertical-align:bottom}
 .zi-tbl th:first-child,.zi-tbl td:first-child{text-align:left}
 .zi-tbl tfoot td{font-weight:700;border-top:2px solid var(--line)}
 .zi-tbl tr.zi-sep td{border-top:3px solid var(--ink2)}
@@ -1545,14 +1544,6 @@ const CSS = `
 .zi .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:var(--ink3)!important}
-
-/* Légende superposée à la carte */
-.zi-lgd{position:absolute;left:10px;bottom:30px;z-index:1000;display:flex;flex-direction:column;gap:4px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink2);font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
-.zi-lgd span{display:flex;align-items:center;white-space:nowrap}
-.zi-lgd i{display:inline-block;width:20px;border-top:3px solid currentColor;margin-right:8px;flex:none}
-.zi-lgd .zi-lg-dis{border-top:2px dashed #6d28d9}
-.zi-lgd .zi-lg-com{width:12px;height:12px;border:1px solid #0f766e;background:rgba(20,184,166,.4);margin-left:4px;margin-right:12px}
-.zi-lgd .zi-lg-ap{width:12px;height:12px;border:1.5px solid #16a34a;background:rgba(34,197,94,.3);margin-left:4px;margin-right:12px}
 
 /* Petit écran : la page s'adapte et défile */
 @media (max-width:900px){
