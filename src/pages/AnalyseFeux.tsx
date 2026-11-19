@@ -155,6 +155,29 @@ const MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", 
 const MOIS_KEYS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const YEARS = [2020, 2021, 2022, 2023, 2024, 2025, 2026];
 const MADAGASCAR: L.LatLngBoundsExpression = [[-26, 42.3], [-11.5, 50.9]];
+
+/* ---- Années « à forte pression », par zone (à ajuster ici) ----
+   2018 n'est pas dans la base GeoJSON (qui commence en 2020) : sa valeur 5 km vient de SUPERFICIE_2018. */
+const ANNEES_PRESSION: Record<"5km" | "interieur", number[]> = { "5km": [2018, 2023, 2025], interieur: [2023, 2025] };
+const PRESSION_TXT: Record<string, { def: string; line: (val: string, pct: string) => string }> = {
+  fr: {
+    def: "Années à forte pression : années où les superficies brûlées ont été exceptionnellement élevées. Elles servent de repère pour juger si l'année choisie est ordinaire ou extrême.",
+    line: (v, p) => `en moyenne ${v} ha sur ces années, soit ${p} par rapport à la moyenne 2020-2024.`,
+  },
+  mg: {
+    def: "Taona nahitana tsindry avo : taona nanana velaran-tany may avo tsy ara-dalàna. Fanondroana izy ireo hitsarana raha mahazatra na tafahoatra ny taona voafidy.",
+    line: (v, p) => `salan'isa ${v} ha tamin'ireo taona ireo, na ${p} raha oharina amin'ny salan'isa 2020-2024.`,
+  },
+  en: {
+    def: "High-pressure years: years when burned areas were exceptionally high. They serve as a benchmark to judge whether the selected year is ordinary or extreme.",
+    line: (v, p) => `on average ${v} ha over these years, i.e. ${p} versus the 2020-2024 average.`,
+  },
+  de: {
+    def: "Jahre mit hohem Druck: Jahre mit außergewöhnlich großen verbrannten Flächen. Sie dienen als Maßstab, um zu beurteilen, ob das gewählte Jahr gewöhnlich oder extrem ist.",
+    line: (v, p) => `im Durchschnitt ${v} ha in diesen Jahren, also ${p} gegenüber dem Durchschnitt 2020-2024.`,
+  },
+};
+
 const FONDS: Record<string, { url: string; attr: string }> = {
   topo: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}", attr: "Tiles © Esri" },
   satellite: { url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", attr: "Tiles © Esri" },
@@ -315,6 +338,7 @@ const CSS = `
 .fx-lg-per b{color:#b91c1c;font-size:12px;text-transform:capitalize}
 .fx-lg .fx-lg-sev{justify-content:space-between;margin-top:4px;font-size:10px;color:#64748b}
 .fx-zone{background:var(--surface-3);border:1px solid var(--border-soft);border-radius:10px;padding:6px 8px 2px;margin-bottom:8px}
+.fx-pdesc{margin:2px 0 6px;font-size:11px;line-height:1.45;color:var(--text-2)}
 .fx-zh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:2px}
 .fx-zt{display:flex;align-items:center;gap:6px;color:color-mix(in srgb,#1565c0 70%,var(--text));font-size:12px;font-weight:700}
 .fx-vchip{padding:2px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap}
@@ -448,67 +472,78 @@ const MonthlyChart = ({ data, year, t }: any) => {
   );
 };
 
-const HistoricalChart = ({ zones, year, t }: any) => (
-  <Card title={t.historicalDifference}>
-    {zones.map((z: any) => {
-      const rows = [
-        { nom: String(year), val: z.annee },
-        { nom: t.historicalAverage, val: z.moyenne },
-        { nom: t.highPressureYears, val: z.difficile },
-      ];
-      const v = z.moyenne !== 0 ? ((z.annee - z.moyenne) / z.moyenne) * 100 : 0;
-      const [base, sym] = v > 0 ? ["#dc2626", "▲"] : v < 0 ? ["#2563eb", "▼"] : ["#16a34a", "="];
-      const Icon = z.kind === "5km" ? MapPinned : Trees;
-      return (
-        <div key={z.zone} className="fx-zone">
-          <div className="fx-zh">
-            <span className="fx-zt">
-              <Icon size={14} />
-              {z.zone}
-            </span>
-            <span className="fx-vchip" style={{ color: tonText(base), background: tonBg(base) }} title={t.historicalAverage}>
-              {sym} {v > 0 ? "+" : ""}
-              {v.toFixed(1)} %
-            </span>
+const HistoricalChart = ({ zones, year, t, lang }: any) => {
+  const P = PRESSION_TXT[lang] ?? PRESSION_TXT.fr;
+  return (
+    <Card title={t.historicalDifference}>
+      {zones.map((z: any) => {
+        const rows = [
+          { nom: String(year), val: z.annee },
+          { nom: t.historicalAverage, val: z.moyenne },
+          { nom: t.highPressureYears, val: z.difficile },
+        ];
+        const v = z.moyenne !== 0 ? ((z.annee - z.moyenne) / z.moyenne) * 100 : 0;
+        const vp = z.moyenne !== 0 ? ((z.difficile - z.moyenne) / z.moyenne) * 100 : 0;
+        const [base, sym] = v > 0 ? ["#dc2626", "▲"] : v < 0 ? ["#2563eb", "▼"] : ["#16a34a", "="];
+        const Icon = z.kind === "5km" ? MapPinned : Trees;
+        return (
+          <div key={z.zone} className="fx-zone">
+            <div className="fx-zh">
+              <span className="fx-zt">
+                <Icon size={14} />
+                {z.zone}
+              </span>
+              <span className="fx-vchip" style={{ color: tonText(base), background: tonBg(base) }} title={t.historicalAverage}>
+                {sym} {v > 0 ? "+" : ""}
+                {v.toFixed(1)} %
+              </span>
+            </div>
+            <ResponsiveContainer width="100%" height={104}>
+              <BarChart data={rows} layout="vertical" margin={{ top: 2, right: 10, left: 0, bottom: 2 }} barCategoryGap="18%">
+                <XAxis type="number" hide domain={[0, (m: number) => Math.max(1, m * 1.3)]} />
+                <YAxis type="category" dataKey="nom" width={108} tick={{ fontSize: 11, fill: "var(--text-2)" }} axisLine={false} tickLine={false} />
+                <ReferenceLine x={z.moyenne} stroke="var(--text-3)" strokeDasharray="4 3" />
+                <Bar dataKey="val" barSize={20} radius={[0, 4, 4, 0]} background={{ fill: "var(--track)", radius: 4 }}>
+                  {["#9ca3af", "#EAB308", "#d32f2f"].map((c, i) => (
+                    <Cell key={i} fill={c} />
+                  ))}
+                  <LabelList
+                    dataKey="val"
+                    content={(p: any) => {
+                      const { x, y, width, height, value, index } = p;
+                      const text = `${Math.round(value).toLocaleString("fr-FR")} ha`;
+                      const inside = width > text.length * 6.2 + 16;
+                      return (
+                        <text
+                          x={inside ? x + width - 8 : x + width + 6}
+                          y={y + height / 2}
+                          dy={4}
+                          textAnchor={inside ? "end" : "start"}
+                          fill={inside ? (index === 1 ? "#3f2d00" : "#fff") : "var(--text)"}
+                          fontSize={11}
+                          fontWeight={700}
+                        >
+                          {text}
+                        </text>
+                      );
+                    }}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <p className="fx-pdesc">
+              <b>{t.highPressureYears}</b> ({z.pression.map((p: any) => p.y).join(", ")}) :{" "}
+              {P.line(nHa(Math.round(z.difficile)), `${vp > 0 ? "+" : ""}${vp.toFixed(1)} %`)}
+              <br />
+              {z.pression.map((p: any) => `${p.y} : ${nHa(Math.round(p.v))} ha`).join(" · ")}
+            </p>
           </div>
-          <ResponsiveContainer width="100%" height={104}>
-            <BarChart data={rows} layout="vertical" margin={{ top: 2, right: 10, left: 0, bottom: 2 }} barCategoryGap="18%">
-              <XAxis type="number" hide domain={[0, (m: number) => Math.max(1, m * 1.3)]} />
-              <YAxis type="category" dataKey="nom" width={108} tick={{ fontSize: 11, fill: "var(--text-2)" }} axisLine={false} tickLine={false} />
-              <ReferenceLine x={z.moyenne} stroke="var(--text-3)" strokeDasharray="4 3" />
-              <Bar dataKey="val" barSize={20} radius={[0, 4, 4, 0]} background={{ fill: "var(--track)", radius: 4 }}>
-                {["#9ca3af", "#EAB308", "#d32f2f"].map((c, i) => (
-                  <Cell key={i} fill={c} />
-                ))}
-                <LabelList
-                  dataKey="val"
-                  content={(p: any) => {
-                    const { x, y, width, height, value, index } = p;
-                    const text = `${Math.round(value).toLocaleString("fr-FR")} ha`;
-                    const inside = width > text.length * 6.2 + 16;
-                    return (
-                      <text
-                        x={inside ? x + width - 8 : x + width + 6}
-                        y={y + height / 2}
-                        dy={4}
-                        textAnchor={inside ? "end" : "start"}
-                        fill={inside ? (index === 1 ? "#3f2d00" : "#fff") : "var(--text)"}
-                        fontSize={11}
-                        fontWeight={700}
-                      >
-                        {text}
-                      </text>
-                    );
-                  }}
-                />
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      );
-    })}
-  </Card>
-);
+        );
+      })}
+      <p className="fx-note">{P.def}</p>
+    </Card>
+  );
+};
 
 const RankTick = ({ x, y, payload, index, onPick }: any) => {
   const nom = String(payload.value);
@@ -1230,10 +1265,15 @@ export default function AnalyseFeux() {
 
   const zonesHisto = useMemo(() => {
     const moy = (s: string) => [2020, 2021, 2022, 2023, 2024].reduce((a, y) => a + ha(y, s), 0) / 5;
-    const diff = (s: string, ys: number[]) => ys.reduce((a, y) => a + ha(y, s), 0) / ys.length;
+    // Années à forte pression : valeurs année par année + moyenne (voir ANNEES_PRESSION en haut du fichier)
+    const pression = (s: "5km" | "interieur") => ANNEES_PRESSION[s].map((y) => ({ y, v: ha(y, s) }));
+    const moyP = (s: "5km" | "interieur") => {
+      const p = pression(s);
+      return p.reduce((a, x) => a + x.v, 0) / p.length;
+    };
     return [
-      { kind: "5km", zone: t.peripheral5km, annee: ha(year, "5km"), moyenne: moy("5km"), difficile: diff("5km", [2018, 2023, 2025]) },
-      { kind: "interieur", zone: t.insidePark, annee: ha(year, "interieur"), moyenne: moy("interieur"), difficile: diff("interieur", [2023, 2025]) },
+      { kind: "5km", zone: t.peripheral5km, annee: ha(year, "5km"), moyenne: moy("5km"), difficile: moyP("5km"), pression: pression("5km") },
+      { kind: "interieur", zone: t.insidePark, annee: ha(year, "interieur"), moyenne: moy("interieur"), difficile: moyP("interieur"), pression: pression("interieur") },
     ];
   }, [rowsAP, year, ap, lang]);
 
@@ -1403,7 +1443,7 @@ export default function AnalyseFeux() {
             <div className="fx-left">
               <Gauge variation={variation5km} t={t} />
               <MonthlyChart data={chart1} year={year} t={t} />
-              <HistoricalChart zones={zonesHisto} year={year} t={t} />
+              <HistoricalChart zones={zonesHisto} year={year} t={t} lang={lang} />
               <ImpactChart all={impactAll} ap={ap} t={t} n={topN} setN={setTopN} onPick={setSelCommune} />
             </div>
             <FireMap
