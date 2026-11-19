@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, XAxis, YAxis,
-  Tooltip, CartesianGrid, BarChart, Bar, LabelList, Legend,
+  ResponsiveContainer, PieChart, Pie, Cell, XAxis, YAxis,
+  Tooltip, BarChart, Bar, LabelList,
 } from 'recharts';
-import { MapContainer, TileLayer, GeoJSON, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, GeoJSON } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { RefreshCw, Users, Flame, Download, Search } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -21,6 +20,8 @@ type Feat = { type: 'Feature'; geometry: any; properties: Parcelle };
 type Geo = { type: 'FeatureCollection'; features: Feat[] };
 type FilterKey = 'annee' | 'region' | 'aire_protegee' | 'paysage' | 'district' | 'commune' | 'fokontany' | 'mbv' | 'statut';
 type PageKey = 'agro' | 'foret' | 'global';
+type Base = 'topo' | 'sat' | 'osm';
+
 export interface DashboardConfig {
   titleKey: PageKey;
   enonceKey: PageKey;
@@ -33,8 +34,8 @@ export interface DashboardConfig {
 }
 
 /* Couleurs
-   - G / STATUT : valeurs « réelles » (hex) utilisées sur la carte Leaflet, qui reste claire dans les deux thèmes
-   - GV / STATUT_UI : variables du thème (clair / sombre) pour tout le reste de l'interface */
+   - G / STATUT : valeurs « réelles » (hex) utilisées sur la carte Leaflet
+   - GV / BAD / STATUT_UI : variables du thème (clair / sombre) pour le reste de l'interface */
 const G = '#1b5e20';
 const GV = 'var(--gv)';
 const BAD = 'var(--bad)';
@@ -43,6 +44,25 @@ const STATUT: Record<string, string> = { 'Validé': G, 'En attente': '#FFB300', 
 const STATUT_UI: Record<string, string> = { 'Validé': GV, 'En attente': '#FFB300', 'Rejeté': BAD };
 const FILTERS: FilterKey[] = ['annee', 'region', 'aire_protegee', 'paysage', 'district', 'commune', 'fokontany', 'mbv', 'statut'];
 const ICONS: Record<string, React.ComponentType<any>> = { cep: Users, feu: Flame };
+
+// Fonds de carte : Topographie (ArcGIS), Satellite (ArcGIS), OpenStreetMap
+const BASEMAPS: Record<Base, { label: string; url: string; attribution: string }> = {
+  topo: {
+    label: 'Topographie',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Esri',
+  },
+  sat: {
+    label: 'Satellite',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: 'Esri, Maxar, Earthstar Geographics',
+  },
+  osm: {
+    label: 'OpenStreetMap',
+    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '© OpenStreetMap contributors',
+  },
+};
 
 // Style des info-bulles Recharts (lisibles en clair et en sombre)
 const TIP = {
@@ -76,29 +96,36 @@ const CSS = `
   --line:rgba(255,255,255,.12);--bd:rgba(255,255,255,.2);--track:rgba(255,255,255,.14);
   --gv:#66bb6a;--gb:#2e7d32;--bad:#f87171;--e1:rgba(102,187,106,.14);--e2:rgba(102,187,106,.04);--map-bg:#1b2740}
 .sv *{box-sizing:border-box}
-.sv-h{background:#0b5d1e;color:#fff;padding:10px clamp(12px,2vw,24px);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
-.sv-ha{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.sv-h h2{margin:0;font-size:clamp(15px,2.4vw,22px);line-height:1.2}
-.sv-h button{background:rgba(255,255,255,.12);border:0;border-radius:8px;padding:6px 12px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600}.sv-h button:disabled{opacity:.7;cursor:default}
-.sv-spin{animation:svs 1s linear infinite}@keyframes svs{to{transform:rotate(360deg)}}
 .sv-w{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px);display:grid;gap:var(--g)}
+.sv-hd{max-width:1920px;margin:0 auto;padding:clamp(10px,2vw,24px) clamp(10px,2vw,24px) 0;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;color:var(--txt)}
+.sv-hd h2{margin:0;font-size:clamp(16px,2.4vw,22px);line-height:1.2;color:var(--txt)}
+.sv-ha{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto}
+.sv-hd button{background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;color:var(--txt);cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:600}
+.sv-hd button:disabled{opacity:.7;cursor:default}
+.sv-spin{animation:svs 1s linear infinite}@keyframes svs{to{transform:rotate(360deg)}}
 .sv-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .sv-f label{font-size:12px;font-weight:600;display:flex;flex-direction:column;gap:4px;min-width:0}
 .sv-f select{height:38px;width:100%;min-width:0;border:1px solid var(--bd);border-radius:8px;padding:0 8px;background:var(--card);color:var(--txt)}
-.sv-k{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:var(--g)}
-.sv-r{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:var(--g)}
+.sv-cols{display:grid;grid-template-columns:1fr;gap:var(--g)}
+@media(min-width:1000px){.sv-cols{grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:stretch}}
+.sv-side{display:flex;flex-direction:column;gap:var(--g);min-width:0}
+.sv-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--g)}
+.sv-span{grid-column:1/-1}
+@media(max-width:520px){.sv-grid2{grid-template-columns:1fr}}
 .sv-c{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);min-width:0;display:flex;flex-direction:column}
 .sv-c h4{margin:0 0 10px;text-align:center;color:var(--gv);font-size:14px}
 .sv-e{border-left:6px solid var(--gv);background:linear-gradient(90deg,var(--e1),var(--e2)),var(--card)}
 .sv-e p{margin:0;text-align:center;font-size:14px;line-height:1.6}
-.sv-big{font-size:clamp(20px,2.4vw,30px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
+.sv-big{font-size:clamp(18px,2.2vw,28px);font-weight:800;color:var(--gv);text-align:center;line-height:1.1}
 .sv-sub{font-size:12px;font-weight:700;text-align:center;margin-top:6px}
-.sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center}
+.sv-combo{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
+.sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center;flex-wrap:wrap}
 .sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-.sv-bar{height:8px;background:var(--track);border-radius:4px;overflow:hidden;margin:3px 0 10px}
-.sv-bar b{display:block;height:100%}
-.sv-map{min-height:420px}
-.sv-map .leaflet-container{flex:1;min-height:340px;width:100%;border-radius:8px;z-index:0;background:var(--map-bg)}
+.sv-map{min-height:480px}
+.sv-mapbox{flex:1;min-height:420px;width:100%;border-radius:8px;z-index:0;background:var(--map-bg)}
+.sv-mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.sv-mh h4{margin:0;color:var(--gv);font-size:14px}
+.sv-mh select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
 .sv-tb{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;margin-bottom:10px}
 .sv-tb h4{margin:0}
 .sv-tb input{padding:8px 10px;width:min(100%,220px);border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--txt)}
@@ -106,7 +133,7 @@ const CSS = `
 .sv-t{overflow-x:auto}
 .sv-t table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}
 .sv-t th{background:var(--gb);color:#fff;padding:10px;border-right:1px solid rgba(255,255,255,.3)}
-.sv-t td{padding:10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center}
+.sv-t td{padding:10px;border-bottom:1px solid var(--line);border-right:1px solid var(--line);text-align:center;color:var(--txt)}
 .sv-t td.l{text-align:left}
 .sv-pg{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px}
 .sv-pg div{display:flex;gap:3px;flex-wrap:wrap;align-items:center}
@@ -115,10 +142,8 @@ const CSS = `
 .sv-pg button:disabled{opacity:.4;cursor:default}
 .sv-pg select{height:32px;border:1px solid var(--bd);border-radius:6px;background:var(--card);color:var(--txt);padding:0 6px}
 .sv-msg{padding:40px 16px;text-align:center}
-@media(max-width:520px){.sv-e{grid-column:auto}.sv-pg{justify-content:center}}
+@media(max-width:520px){.sv-pg{justify-content:center}}
 @media(min-width:2200px){.sv{font-size:18px}.sv-c h4{font-size:18px}.sv-t table{font-size:16px}}
-.sv-r3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:var(--g)}
-@media(min-width:1100px){.sv-r3{grid-template-columns:1.4fr 1fr 1fr}.sv-r3.b{grid-template-columns:1.3fr .8fr 1.1fr}}
 @media(prefers-reduced-motion:reduce){.sv *{transition:none!important;animation:none!important}}
 `;
 
@@ -132,16 +157,6 @@ function useNarrow(px = 480) {
     return () => mq.removeEventListener('change', h);
   }, [q]);
   return m;
-}
-
-function FitBounds({ feats }: { feats: Feat[] }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!feats.length) return;
-    const b = L.geoJSON({ type: 'FeatureCollection', features: feats } as any).getBounds();
-    if (b.isValid()) map.fitBounds(b, { padding: [24, 24], maxZoom: 9 });
-  }, [feats, map]);
-  return null;
 }
 
 function Donut({ title, data }: { title: string; data: { name: string; value: number }[] }) {
@@ -174,7 +189,7 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
 function Gauge({ pct }: { pct: number }) {
   const p = Math.max(0, Math.min(100, pct));
   return (
-    <div style={{ height: 90 }}>
+    <div style={{ height: 110 }}>
       <ResponsiveContainer>
         <PieChart>
           <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="65%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none">
@@ -188,7 +203,7 @@ function Gauge({ pct }: { pct: number }) {
 }
 
 export default function SuiviDashboard({ config, src = '/data/parcelles.geojson', headerExtra }: { config: DashboardConfig; src?: string; headerExtra?: React.ReactNode }) {
-  const { titleKey, enonceKey, themes, cible, debut, fin, donuts, extras = [] } = config;
+  const { titleKey, enonceKey, themes, cible, extras = [] } = config;
   const ctx: any = useLanguage() || {};
   const raw = ctx.language ?? ctx.lang ?? ctx.locale;
   const lang: Lang = typeof raw === 'string' && raw in IDX ? (raw as Lang) : 'fr';
@@ -204,6 +219,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [per, setPer] = useState(10);
+  const [base, setBase] = useState<Base>('topo');
 
   const load = () => {
     setErr(false);
@@ -214,7 +230,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
       .catch(() => setErr(true))
       .finally(() => setBusy(false));
   };
-  useEffect(load, [src]);
+  useEffect(() => { load(); }, [src]);
   // « Actualiser » : réinitialise filtres, recherche et pagination, puis recharge les données
   const refresh = () => { setF({}); setQ(''); setPage(1); setPer(10); load(); };
 
@@ -225,29 +241,10 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const opts = (k: FilterKey) => [...new Set(feats.filter((x) => match(x.properties, k)).map((x) => String(x.properties[k])))].sort();
   const gt = (key: keyof Parcelle) => group(rows, key).map((d) => ({ ...d, name: tv(d.name) }));
 
-  const cy = new Date().getFullYear();
-  const nYears = fin - debut + 1;
-  const all = feats.map((x) => x.properties);
   const vTot = sum(rows.filter((r) => r.statut === 'Validé'));
   const dTot = sum(rows);
-  const attendu = cible * Math.max(0, Math.min(1, (cy - debut + 1) / nYears));
-  const ecart = sum(all.filter((r) => r.statut === 'Validé')) - attendu;
-  const prec = rows.length ? rows.reduce((s, r) => s + r.precision_gps_m, 0) / rows.length : 0;
-
-  const base = all.filter((r) => FILTERS.every((k) => k === 'annee' || !f[k] || String(r[k]) === f[k]));
-  const evolution = Array.from({ length: nYears }, (_, i) => {
-    const y = debut + i;
-    const past = y <= cy;
-    return {
-      annee: String(y),
-      declare: past ? Math.round(sum(base.filter((r) => r.annee <= y))) : null,
-      valide: past ? Math.round(sum(base.filter((r) => r.annee <= y && r.statut === 'Validé'))) : null,
-      cible: Math.round((cible * (i + 1)) / nYears),
-    };
-  });
-
+  const taux = cible ? (vTot / cible) * 100 : 0;
   const regions = group(rows, 'region');
-  const statuts = Object.keys(STATUT).map((s) => ({ name: s, value: sum(rows.filter((r) => r.statut === s)) }));
 
   const ql = q.trim().toLowerCase();
   const table = ql ? rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(ql)) : rows;
@@ -271,12 +268,14 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   };
 
   const mapKey = `${filtered.length}-${Math.round(dTot)}`;
+  const title = t.title[titleKey];
+  const showTitle = !/vue\s+d.ensemble/i.test(title);
 
   return (
     <div className="sv">
       <style>{CSS}</style>
-      <header className="sv-h">
-        <h2>{t.title[titleKey]}</h2>
+      <header className="sv-hd">
+        {showTitle ? <h2>{title}</h2> : <span />}
         <div className="sv-ha">
           {headerExtra}
           <button onClick={refresh} disabled={busy} aria-label={t.refresh}>
@@ -301,89 +300,19 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
             ))}
           </section>
 
-          <section className="sv-c sv-e">
-            <h4>{t.enonceTitle}</h4>
-            <p>{t.enonce[enonceKey](fr(cible))}</p>
-          </section>
-
-          <section className="sv-k">
-            <div className="sv-c">
-              <h4>{t.k.valide}</h4>
-              <div className="sv-big">{fr(vTot)} ha</div>
-              <div className="sv-sub">{t.k.on(fr(cible))}</div>
-            </div>
-            <div className="sv-c"><h4>{t.k.taux}</h4><Gauge pct={(vTot / cible) * 100} /></div>
-            <div className="sv-c">
-              <h4>{t.k.ecart}</h4>
-              <div className="sv-big" style={{ color: ecart >= 0 ? GV : BAD }}>{ecart >= 0 ? '+' : ''}{fr(ecart)} ha</div>
-              <div className="sv-sub">{t.k.expected(cy, fr(attendu))}</div>
-            </div>
-            <div className="sv-c">
-              <h4>{t.k.declare}</h4>
-              <div className="sv-big">{fr(dTot)} ha</div>
-              <div className="sv-sub">{t.k.valPct(fr(dTot ? (vTot / dTot) * 100 : 0, 1), fr(rows.length))}</div>
-            </div>
-            {extras.map((x) => {
-              const Ic = ICONS[x.icon] || Users;
-              return (
-                <div className="sv-c" key={x.key}>
-                  <h4>{t.extra[x.key]}</h4>
-                  <div className="sv-big"><Ic size={22} style={{ verticalAlign: -3, marginRight: 8 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
-                </div>
-              );
-            })}
-          </section>
-
-          <section className="sv-r3">
-            <div className="sv-c">
-              <h4>{t.c.region}</h4>
-              <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 36 + 30)}>
-                <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 48 }}>
-                  <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
-                  <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
-                  <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
-                  <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
-                    <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            {donuts.map((key) => <Donut key={key} title={t.donut[key]} data={gt(key)} />)}
-          </section>
-
-          <section className="sv-r3 b">
-            <div className="sv-c">
-              <h4>{t.c.evol}</h4>
-              <ResponsiveContainer width="100%" height={narrow ? 240 : 300}>
-                <LineChart data={evolution} margin={{ left: 0, right: 16, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--line)" />
-                  <XAxis dataKey="annee" tick={{ fontSize: 11, ...TICK }} padding={{ left: 15, right: 15 }} />
-                  <YAxis tick={{ fontSize: 11, ...TICK }} domain={[0, cible]} tickFormatter={(v) => fr(v)} width={64} />
-                  <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--txt2)' }} />
-                  <Line name={t.ev.declare} dataKey="declare" stroke="#FFB300" strokeWidth={2} dot={{ r: 3 }} />
-                  <Line name={t.ev.valide} dataKey="valide" stroke="var(--gv)" strokeWidth={3} dot={{ r: 4 }} />
-                  <Line name={t.ev.cible(fr(cible))} dataKey="cible" stroke="#9e9e9e" strokeDasharray="5 5" dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="sv-c">
-              <h4>{t.c.qual}</h4>
-              {statuts.map((s) => (
-                <div key={s.name}>
-                  <div className="sv-lg" style={{ marginTop: 0 }}>
-                    <span><i style={{ background: STATUT_UI[s.name] }} />{tv(s.name)}</span>
-                    <span><b>{fr(s.value)} ha</b> ({fr(dTot ? (s.value / dTot) * 100 : 0, 1)} %)</span>
-                  </div>
-                  <div className="sv-bar"><b style={{ width: `${dTot ? (s.value / dTot) * 100 : 0}%`, background: STATUT_UI[s.name] }} /></div>
-                </div>
-              ))}
-              <div className="sv-sub">{t.c.prec(fr(prec, 1))}</div>
-            </div>
+          <section className="sv-cols">
+            {/* Partie gauche : carte de localisation centrée sur Madagascar */}
             <div className="sv-c sv-map">
-              <h4>{t.c.map}</h4>
-              <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow}>
-                <TileLayer attribution="Esri" url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}" />
+              <div className="sv-mh">
+                <h4>{t.c.map}</h4>
+                <select value={base} onChange={(e) => setBase(e.target.value as Base)} aria-label="Fond de carte">
+                  {(Object.keys(BASEMAPS) as Base[]).map((b) => (
+                    <option key={b} value={b}>{BASEMAPS[b].label}</option>
+                  ))}
+                </select>
+              </div>
+              <MapContainer center={[-18.9, 47.5]} zoom={5} scrollWheelZoom={!narrow} className="sv-mapbox">
+                <TileLayer key={base} attribution={BASEMAPS[base].attribution} url={BASEMAPS[base].url} />
                 <GeoJSON
                   key={`${mapKey}-${lang}`}
                   data={{ type: 'FeatureCollection', features: filtered } as any}
@@ -393,14 +322,63 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
                     l.bindPopup(`<b>${esc(p.id)}</b><br>${esc(tp(p.pratique))}<br>${esc(p.commune)}, ${esc(p.region)}<br>${fr(p.superficie_ha, 2)} ha · ${esc(tv(p.statut))}`);
                   }}
                 />
-                <FitBounds feats={filtered} />
               </MapContainer>
               <div className="sv-lg" style={{ justifyContent: 'center', gap: 14 }}>
                 {Object.entries(STATUT_UI).map(([s, c]) => <span key={s}><i style={{ background: c }} />{tv(s)}</span>)}
               </div>
             </div>
+
+            {/* Partie droite : énoncé puis cartes de synthèse */}
+            <div className="sv-side">
+              <section className="sv-c sv-e">
+                <h4>{t.enonceTitle}</h4>
+                <p>{t.enonce[enonceKey](fr(cible))}</p>
+              </section>
+
+              <div className="sv-grid2">
+                <div className="sv-c sv-span">
+                  <h4>{`${t.k.valide} · ${t.k.taux}`}</h4>
+                  <div className="sv-combo">
+                    <div>
+                      <div className="sv-big">{fr(vTot)} ha</div>
+                      <div className="sv-sub">{t.k.on(fr(cible))}</div>
+                    </div>
+                    <Gauge pct={taux} />
+                  </div>
+                </div>
+
+                {extras.map((x) => {
+                  const Ic = ICONS[x.icon] || Users;
+                  return (
+                    <div className="sv-c" key={x.key}>
+                      <h4>{t.extra[x.key]}</h4>
+                      <div className="sv-big"><Ic size={20} style={{ verticalAlign: -3, marginRight: 6 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
+                    </div>
+                  );
+                })}
+
+                <div className="sv-span">
+                  <Donut title={t.donut.pratique_cat} data={gt('pratique_cat')} />
+                </div>
+
+                <div className="sv-c sv-span">
+                  <h4>{t.c.region}</h4>
+                  <ResponsiveContainer width="100%" height={Math.max(220, regions.length * 36 + 30)}>
+                    <BarChart data={regions} layout="vertical" margin={{ left: 0, right: 48 }}>
+                      <XAxis type="number" tick={{ fontSize: 11, ...TICK }} tickFormatter={(v) => fr(v)} />
+                      <YAxis dataKey="name" type="category" width={narrow ? 84 : 120} tick={{ fontSize: 11, fontWeight: 700, ...TICK }} />
+                      <Tooltip {...TIP} formatter={(v: any) => `${fr(v)} ha`} />
+                      <Bar dataKey="value" fill="var(--gv)" barSize={20} radius={[0, 2, 2, 0]}>
+                        <LabelList dataKey="value" position="right" formatter={(v: any) => fr(v)} style={{ fontSize: 11, fontWeight: 600, fill: 'var(--txt2)' }} />
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
           </section>
 
+          {/* Bas de page : détails des parcelles */}
           <section className="sv-c">
             <div className="sv-tb">
               <h4>{t.table.title(fr(table.length))}</h4>
