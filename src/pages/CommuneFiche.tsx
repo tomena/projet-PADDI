@@ -179,6 +179,9 @@ const CSS = `
   .fxm-chart-row .fxm-chart{flex:1 1 0;min-width:0}
   .fxm-side-note{flex:0 0 34%;text-align:left!important;margin:0!important;align-self:center;font-size:10.5px!important}
   .fxm-print-line{white-space:nowrap;font-size:10.5px!important}
+  .fxm-chart-row .fxm-chart-main{flex:1 1 0;min-width:0}
+  .fxm-side-lect{flex:0 0 34%;min-width:0}
+  .fxm-side-lect .fxm-lect{margin-top:0!important;border-top:none!important;padding-top:0!important;font-size:10.5px!important;align-self:center}
 }
 `;
 
@@ -487,7 +490,7 @@ export default function CommuneFiche({
 
               <section className="fxm-card">
                 <h3>{T.pts}</h3>
-                {!zone ? (
+                <div className="fxm-chart-row"><div className="fxm-chart-main">{!zone ? (
                   <p className="fxm-note">{T.ptsSans}</p>
                 ) : bilan && bilan.total > 0 ? (
                   <>
@@ -507,7 +510,7 @@ export default function CommuneFiche({
                 ) : (
                   <p className="fxm-note">{T.ptsNo}</p>
                 )}
-                {rap.lectures.satellite && <Lecture title={T.lectLbl} l={rap.lectures.satellite} />}
+</div>{rap.lectures.satellite && <div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.satellite} /></div>}</div>
               </section>
             </div>
 
