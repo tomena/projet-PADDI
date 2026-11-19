@@ -75,7 +75,7 @@ const cleLigne = (l: Ligne) =>
    Ex. : la commune « Marovoay » du district Marovoay (Boeny) correspond à la géométrie « Marosakoa »,
    et non à « Marovoay ville » ni à « Marovoay Banlieue ». */
 const COMMUNE_GEO: Record<string, string> = {
-  "boeny|marovoay|marovoay": "Marosakoa",
+  "boeny|marovoay|marosakoa": "Marovoay",
 };
 
 /* ===================== FONDS DE CARTE (sans clé API) ===================== */
