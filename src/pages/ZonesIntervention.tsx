@@ -780,6 +780,8 @@ export default function ZonesIntervention() {
   const [vide, setVide] = useState(false);
   const [typeFond, setTypeFond] = useState<Fond>("topo");
   const [masques, setMasques] = useState<Set<string>>(new Set());
+  /* Liste ouverte en cliquant sur l'un des compteurs (projets, régions, districts, communes) */
+  const [liste, setListe] = useState<null | "projets" | "regions" | "districts" | "communes">(null);
 
   /* ----- mise à jour (connexion requise, comme le Dashboard) ----- */
   const [showLogin, setShowLogin] = useState(false);
@@ -926,12 +928,14 @@ export default function ZonesIntervention() {
 
   /* ----- actions ----- */
   const choisir = (s: Sel) => {
+    setListe(null);
     setSel(s);
     setVide(false);
     setRequete(libelleDe(s, t));
     setOuvert(false);
   };
   const effacer = () => {
+    setListe(null);
     setSel(null);
     setVide(false);
     setRequete("");
@@ -963,6 +967,7 @@ export default function ZonesIntervention() {
   const saisir = (v: string) => {
     setRequete(v);
     setOuvert(true);
+    setListe(null);
     if (!v) {
       setSel(null);
       setVide(false);
@@ -1556,6 +1561,37 @@ export default function ZonesIntervention() {
     return it;
   })();
 
+  /* ----- contenu de la liste ouverte par un compteur ----- */
+  const elementsListe: { k: string; label: string; sub?: string; go: () => void }[] = (() => {
+    if (!liste) return [];
+    const vus = new Set<string>();
+    const out: { k: string; label: string; sub?: string; go: () => void }[] = [];
+    const add = (k: string, label: string, go: () => void, sub?: string) => {
+      if (vus.has(k)) return;
+      vus.add(k);
+      out.push({ k, label, sub, go });
+    };
+    if (liste === "projets")
+      projetsVue.forEach((p) => add(p.id, p.nom, () => choisirZone("projet", cle(p.id))));
+    if (liste === "regions")
+      actives.forEach((l) => add(cle(l.region), l.region, () => choisirZone("region", cle(l.region))));
+    if (liste === "districts")
+      actives.forEach((l) => {
+        if (l.district)
+          add(`${cle(l.region)}|${cle(l.district)}`, l.district, () => choisirZone("district", cle(l.district!), cle(l.region)), l.region);
+      });
+    if (liste === "communes")
+      lignesCommunes.forEach((l) =>
+        add(
+          cleLigne(l),
+          l.commune!,
+          () => choisirZone("commune", cle(l.commune!), cle(l.region), cle(l.district!)),
+          `${l.district} · ${l.region}`
+        )
+      );
+    return out.sort((a, b) => a.label.localeCompare(b.label, "fr"));
+  })();
+
   const nbRegions = new Set(actives.map((l) => cle(l.region))).size;
   const nbDistricts = new Set(
     actives.filter((l) => l.district).map((l) => `${cle(l.region)}|${cle(l.district!)}`)
@@ -1765,11 +1801,47 @@ export default function ZonesIntervention() {
             )}
 
             <div className="zi-stats">
-              <div><b>{projetsVue.length}</b><span>{t.projets}</span></div>
-              <div><b>{nbRegions}</b><span>{t.regions}</span></div>
-              <div><b>{nbDistricts}</b><span>{t.districts}</span></div>
-              <div><b>{lignesCommunes.length}</b><span>{t.communes}</span></div>
+              {(
+                [
+                  ["projets", projetsVue.length, t.projets],
+                  ["regions", nbRegions, t.regions],
+                  ["districts", nbDistricts, t.districts],
+                  ["communes", lignesCommunes.length, t.communes],
+                ] as const
+              ).map(([k, n, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  className={liste === k ? "on" : ""}
+                  disabled={n === 0}
+                  aria-expanded={liste === k}
+                  title={label}
+                  onClick={() => setListe((l) => (l === k ? null : k))}
+                >
+                  <b>{n}</b>
+                  <span>{label}</span>
+                </button>
+              ))}
             </div>
+            {liste && elementsListe.length > 0 && (
+              <div className="zi-liste">
+                {elementsListe.map((e) => (
+                  <span
+                    key={e.k}
+                    className="zi-chip"
+                    role="button"
+                    tabIndex={0}
+                    onClick={e.go}
+                    onKeyDown={(ev) => {
+                      if (ev.key === "Enter") e.go();
+                    }}
+                  >
+                    {e.label}
+                    {e.sub && <small> · {e.sub}</small>}
+                  </span>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* 1 bis. MBV du projet PADDI correspondant à la sélection */}
@@ -2069,7 +2141,13 @@ const CSS = `
 .zi-chip-environnement{border-color:#65a30d}
 .zi-chip-developpement{border-color:#2563eb}
 .zi-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
-.zi-stats div{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}
+.zi-stats div,.zi-stats button{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}
+.zi-stats button{cursor:pointer;font:inherit;text-align:left;color:inherit}
+.zi-stats button:hover:not(:disabled){background:var(--hover)}
+.zi-stats button.on{border-color:var(--acc);box-shadow:0 0 0 2px color-mix(in srgb,var(--acc) 25%,transparent)}
+.zi-stats button:disabled{opacity:.5;cursor:default}
+.zi-liste{display:flex;flex-wrap:wrap;gap:6px;max-height:150px;overflow:auto;padding-top:8px;border-top:1px solid var(--line)}
+.zi-chip small{color:var(--ink3)}
 .zi-stats b{font-family:Georgia,serif;font-weight:500;font-size:24px;line-height:1.1;color:var(--acc)}
 .zi-stats span{font-size:12px;color:var(--ink3)}
 
