@@ -20,7 +20,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import { DATA, PROP, useGeo, toZones, sameArea, touch } from "../lib/fireGeo";
+import { DATA, PROP, useGeo, toZones, sameArea } from "../lib/fireGeo";
 import ZonesLoginModal from "../components/ZonesLoginModal";
 import ZonesUpdateModal from "../components/ZonesUpdateModal";
 
@@ -28,6 +28,24 @@ import ZonesUpdateModal from "../components/ZonesUpdateModal";
 
 const cle = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+
+/* Noms d'aires protégées : comparaison tolérante (accents, apostrophes droites ou typographiques,
+   espaces, majuscules, nom contenu dans l'autre) + alias à compléter à la main.
+   Clé = nom alternatif écrit en minuscules sans espace ni ponctuation ; valeur = nom usuel de la même façon. */
+const ALIAS_AP: Record<string, string> = {
+  ambohitra: "montagnedambre",
+};
+const canonAP = (v: unknown) => {
+  const k = cle(String(v ?? ""));
+  return ALIAS_AP[k] ?? k;
+};
+const memeNom = (a: unknown, b: unknown): boolean => {
+  const x = canonAP(a), y = canonAP(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  if (x.length >= 6 && y.length >= 6 && (x.includes(y) || y.includes(x))) return true;
+  return !!sameArea(String(a ?? ""), String(b ?? ""));
+};
 
 /* Retire les caractères dangereux avant insertion dans une infobulle HTML */
 const esc = (v: unknown) => String(v ?? "").replace(/[<>&]/g, "");
@@ -845,11 +863,25 @@ export default function ZonesIntervention() {
     mbvF.forEach((f) => {
       const n = String(f.properties.Aire_Prot ?? "").trim();
       if (!n) return;
-      const ex = [...m.keys()].find((k) => sameArea(k, n));
+      const ex = [...m.keys()].find((k) => memeNom(k, n));
       m.set(ex ?? n, f.properties.Region);
     });
     return [...m.entries()].map(([nom, region]) => ({ nom, region }));
   }, [apZ, mbvF]);
+
+  /* Diagnostic (console du navigateur) : noms d'AP qui ne correspondent pas entre les fichiers */
+  useEffect(() => {
+    if (!mbvF.length || !apZ.length) return;
+    const sans = [...new Set(mbvF.map((f) => String(f.properties.Aire_Prot ?? "").trim()))].filter(
+      (n) => n && !apZ.some((z) => memeNom(z.nom, n))
+    );
+    if (sans.length)
+      console.warn("[MBV] Aire_Prot sans AP correspondante dans DATA.aires :", sans, "| AP disponibles :", apZ.map((z) => z.nom));
+    if (periphZ.length) {
+      const sp = apZ.filter((z) => !periphZ.some((p) => memeNom(p.nom, z.nom))).map((z) => z.nom);
+      if (sp.length) console.warn("[Zone tampon] AP sans zone tampon du même nom :", sp, "| zones tampon :", periphZ.map((p) => p.nom));
+    }
+  }, [mbvF, apZ, periphZ]);
 
   const mbvListe = useMemo(
     () =>
@@ -914,7 +946,7 @@ export default function ZonesIntervention() {
   const choisirAP = (nom: unknown) => {
     const n = String(nom ?? "").trim();
     if (!n) return;
-    const s = SUGG.find((x) => x.niveau === "ap" && (x.cle === cle(n) || sameArea(x.label, n)));
+    const s = SUGG.find((x) => x.niveau === "ap" && (x.cle === cle(n) || memeNom(x.label, n)));
     if (s) choisir(s);
   };
 
@@ -993,6 +1025,17 @@ export default function ZonesIntervention() {
   }, [regions, districts, communes, LIGNES]);
 
   /* ----- périmètre ----- */
+  /* MBV d'une aire protégée : même nom, ou, si le nom écrit dans le fichier MBV diffère,
+     MBV située dans le polygone de l'AP (au moins la moitié des points) */
+  const mbvDeAp = (label: string) => {
+    const zs = apZ.filter((z) => memeNom(z.nom, label));
+    return mbvF.filter(
+      (f) =>
+        memeNom(f.properties.Aire_Prot, label) ||
+        zs.some((z) => chevauche(f, z.feature as unknown as Feat, 0.5))
+    );
+  };
+
   const mbvChoisie = useMemo(
     () => (sel?.niveau === "mbv" ? mbvF.find((f) => cleMbv(f) === sel.cle) : undefined),
     [sel, mbvF]
@@ -1013,11 +1056,10 @@ export default function ZonesIntervention() {
     }
     if (sel.niveau === "ap" || sel.niveau === "paysage") {
       /* communes PADDI traversées par les MBV de cette AP ou de ce paysage */
-      const mb = mbvF.filter((f) =>
+      const mb =
         sel.niveau === "ap"
-          ? sameArea(f.properties.Aire_Prot, sel.label)
-          : cle(String(f.properties.Paysage ?? "")) === sel.cle
-      );
+          ? mbvDeAp(sel.label)
+          : mbvF.filter((f) => cle(String(f.properties.Paysage ?? "")) === sel.cle);
       if (!mb.length) return [];
       return LIGNES.filter((l) => {
         if (!l.commune || !estPaddi(l.projetId, l.projet)) return false;
@@ -1026,7 +1068,7 @@ export default function ZonesIntervention() {
       });
     }
     return LIGNES.filter((l) => correspond(l, sel));
-  }, [sel, LIGNES, mbvF, featCom, mbvChoisie, mbvCom]);
+  }, [sel, LIGNES, mbvF, featCom, mbvChoisie, mbvCom, apZ]);
 
   const actives = useMemo<Ligne[]>(
     () => (vide ? [] : sel ? lignes : LIGNES),
@@ -1096,7 +1138,7 @@ export default function ZonesIntervention() {
     if (vide || !sel || !mbvF.length) return [];
     switch (sel.niveau) {
       case "ap":
-        return mbvF.filter((f) => sameArea(f.properties.Aire_Prot, sel.label));
+        return mbvDeAp(sel.label);
       case "region": {
         const p = mbvF.filter((f) => cle(String(f.properties.Region ?? "")) === sel.cle);
         return p.length || !regionFeat ? p : mbvF.filter((f) => chevauche(f, regionFeat, 0.5));
@@ -1129,7 +1171,7 @@ export default function ZonesIntervention() {
       default:
         return [];
     }
-  }, [vide, sel, mbvF, regionFeat, districtFeat, communeFeat, actives, lignes, mbvCom, mbvChoisie]);
+  }, [vide, sel, mbvF, regionFeat, districtFeat, communeFeat, actives, lignes, mbvCom, mbvChoisie, apZ]);
 
   /* AP concernées : celle choisie + celles des MBV affichées */
   const apsConcernes = useMemo(() => {
@@ -1144,18 +1186,40 @@ export default function ZonesIntervention() {
   }, [vide, sel, mbvSel]);
 
   const apZonesSel = useMemo(
-    () => apZ.filter((z) => apsConcernes.some((n) => sameArea(z.nom, n))),
-    [apZ, apsConcernes]
+    () =>
+      apZ.filter(
+        (z) =>
+          apsConcernes.some((n) => memeNom(z.nom, n)) ||
+          mbvSel.some((f) => chevauche(f, z.feature as unknown as Feat, 0.5))
+      ),
+    [apZ, apsConcernes, mbvSel]
   );
 
-  /* Zone tampon 5 km : par nom, sinon par proximité (même logique que la page feux) */
+  /* Zone tampon 5 km de chaque AP concernée : par le nom ; si le nom diffère dans le fichier des périphéries,
+     la zone tampon (la plus petite) dont la boîte englobe celle de l'AP */
   const periphSel = useMemo(() => {
-    if (!apZonesSel.length) return [];
-    const byName = periphZ.filter(
-      (p) => apsConcernes.some((n) => sameArea(p.nom, n)) || apZonesSel.some((a) => sameArea(p.nom, a.nom))
-    );
-    return byName.length ? byName : periphZ.filter((p) => apZonesSel.some((a) => touch(p.bbox, a.bbox)));
-  }, [periphZ, apZonesSel, apsConcernes]);
+    const out: typeof periphZ = [];
+    const tol = 0.02;
+    apZonesSel.forEach((a) => {
+      const parNom = periphZ.filter((p) => memeNom(p.nom, a.nom));
+      if (parNom.length) {
+        parNom.forEach((p) => !out.includes(p) && out.push(p));
+        return;
+      }
+      const aire = (b: number[]) => (b[2] - b[0]) * (b[3] - b[1]);
+      const entoure = periphZ
+        .filter(
+          (p) =>
+            p.bbox[0] <= a.bbox[0] + tol &&
+            p.bbox[1] <= a.bbox[1] + tol &&
+            p.bbox[2] >= a.bbox[2] - tol &&
+            p.bbox[3] >= a.bbox[3] - tol
+        )
+        .sort((x, y) => aire(x.bbox) - aire(y.bbox))[0];
+      if (entoure && !out.includes(entoure)) out.push(entoure);
+    });
+    return out;
+  }, [periphZ, apZonesSel]);
 
   /* ----- carte : création ----- */
   useEffect(() => {
