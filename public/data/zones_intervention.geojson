@@ -305,34 +305,6 @@
         "projet_id": "paddi",
         "projet": "PADDI+",
         "type": "environnement",
-        "region": "Atsimo Atsinanana",
-        "district": "Befotaka",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Atsimo Atsinanana",
-        "district": "Midongy Atsimo",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
         "region": "Anosy",
         "district": "Taolagnaro",
         "commune": null,
