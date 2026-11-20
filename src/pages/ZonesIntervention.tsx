@@ -144,7 +144,7 @@ const FR = {
   communesNon: "Communes non renseignées",
   districtsNon: "Districts non renseignés",
   types: { restauration: "Restauration", reboisement: "Reboisement", autre: "Autres projets environnementaux" },
-  niveaux: { projet: "Projet", categorie: "Catégorie", region: "Région", district: "District", commune: "Commune", ap: "Aire protégée" },
+  niveaux: { projet: "Projet", categorie: "Catégorie", region: "Région", district: "District", commune: "Commune", ap: "Aire protégée", mbv: "Micro-bassin versant" },
   projetCtx: "Projet d'intervention",
   catCtx: "Catégorie de projets",
   catEnv: "Projets environnementaux",
@@ -206,7 +206,7 @@ const MG: Dict = {
   communesNon: "Kaominina tsy voarakitra",
   districtsNon: "Distrika tsy voarakitra",
   types: { restauration: "Fanarenana", reboisement: "Fambolena ala", autre: "Tetikasa hafa momba ny tontolo iainana" },
-  niveaux: { projet: "Tetikasa", categorie: "Sokajy", region: "Faritra", district: "Distrika", commune: "Kaominina", ap: "Faritra arovana" },
+  niveaux: { projet: "Tetikasa", categorie: "Sokajy", region: "Faritra", district: "Distrika", commune: "Kaominina", ap: "Faritra arovana", mbv: "Micro-bassin versant" },
   projetCtx: "Tetikasa fanatanterahana",
   catCtx: "Sokajin'ny tetikasa",
   catEnv: "Tetikasa ara-tontolo iainana",
@@ -266,7 +266,7 @@ const EN: Dict = {
   communesNon: "Communes not recorded",
   districtsNon: "Districts not recorded",
   types: { restauration: "Restoration", reboisement: "Reforestation", autre: "Other environmental projects" },
-  niveaux: { projet: "Project", categorie: "Category", region: "Region", district: "District", commune: "Commune", ap: "Protected area" },
+  niveaux: { projet: "Project", categorie: "Category", region: "Region", district: "District", commune: "Commune", ap: "Protected area", mbv: "Micro-watershed" },
   projetCtx: "Intervention project",
   catCtx: "Project category",
   catEnv: "Environmental projects",
@@ -326,7 +326,7 @@ const DE: Dict = {
   communesNon: "Gemeinden nicht erfasst",
   districtsNon: "Distrikte nicht erfasst",
   types: { restauration: "Wiederherstellung", reboisement: "Aufforstung", autre: "Andere Umweltprojekte" },
-  niveaux: { projet: "Projekt", categorie: "Kategorie", region: "Region", district: "Distrikt", commune: "Gemeinde", ap: "Schutzgebiet" },
+  niveaux: { projet: "Projekt", categorie: "Kategorie", region: "Region", district: "Distrikt", commune: "Gemeinde", ap: "Schutzgebiet", mbv: "Mikro-Einzugsgebiet" },
   projetCtx: "Interventionsprojekt",
   catCtx: "Projektkategorie",
   catEnv: "Umweltprojekte",
@@ -363,7 +363,7 @@ const LOCALE: Record<Lang, string> = { fr: "fr-FR", mg: "fr-FR", en: "en-US", de
 
 /* ===================== RECHERCHE ===================== */
 
-type Niveau = "projet" | "categorie" | "region" | "district" | "commune" | "ap";
+type Niveau = "projet" | "categorie" | "region" | "district" | "commune" | "ap" | "mbv";
 
 type Sel = {
   niveau: Niveau;
@@ -377,12 +377,13 @@ type Sel = {
   districtCle?: string;
   regionNom?: string;
   districtNom?: string;
+  apNom?: string;
 };
 
 /* Arborescence pour le panneau « Zones d'intervention » */
 type Noeud = { nom: string; districts: { nom: string; communes: string[] }[] };
 
-const RANG: Record<Niveau, number> = { categorie: -1, projet: 0, ap: 0.5, region: 1, district: 2, commune: 3 };
+const RANG: Record<Niveau, number> = { categorie: -1, projet: 0, ap: 0.5, mbv: 0.6, region: 1, district: 2, commune: 3 };
 
 const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> = {
   restauration: { couleur: "#65a30d", icone: Sprout },
@@ -393,7 +394,11 @@ const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> 
 const idSug = (s: Sel) => [s.niveau, s.regionCle, s.districtCle, s.cle].join("|");
 
 /* Suggestions : catégories, projets, aires protégées, puis régions, districts et communes */
-const construireSuggestions = (d: Donnees, aps: { nom: string; region?: string }[] = []): Sel[] => {
+const construireSuggestions = (
+  d: Donnees,
+  aps: { nom: string; region?: string }[] = [],
+  mbvs: { nom: string; ap: string; region?: string }[] = []
+): Sel[] => {
   const vues = new Map<string, Sel>();
   const ajouter = (s: Sel) => {
     const k = idSug(s);
@@ -456,11 +461,24 @@ const construireSuggestions = (d: Donnees, aps: { nom: string; region?: string }
       }
     }
   });
+  /* MBV en dernier : un nom identique à une commune ne doit pas la masquer */
+  mbvs.forEach((m) =>
+    ajouter({
+      niveau: "mbv",
+      label: m.nom,
+      cle: cle(`${m.ap}${m.nom}`),
+      recherche: cle(m.nom),
+      apNom: m.ap,
+      regionNom: m.region,
+    })
+  );
   return [...vues.values()];
 };
 
 const contexteDe = (s: Sel, t: Dict) =>
-  s.niveau === "ap"
+  s.niveau === "mbv"
+    ? [s.apNom, s.regionNom].filter(Boolean).join(" · ")
+    : s.niveau === "ap"
     ? `${t.apCtx}${s.regionNom ? ` · ${s.regionNom}` : ""}`
     : s.niveau === "projet"
     ? t.projetCtx
@@ -495,6 +513,7 @@ function correspond(l: Ligne, s: Sel): boolean {
         !!l.commune &&
         cle(l.commune) === s.cle
       );
+    case "mbv":
     case "ap":
       /* L'aire protégée est traitée à part (test spatial avec les MBV) */
       return false;
@@ -606,9 +625,9 @@ function chevauche(enfant: Feat, parent: Feat, seuil = 0.25): boolean {
 /** Commune(s) où se trouve une géométrie (ex. une MBV), calculée avec les limites des communes.
  *  On teste le centre et 12 points ramenés vers l'intérieur (60 %) pour éviter les effets de bord ;
  *  la commune principale est toujours donnée, les autres seulement si elles couvrent au moins 25 % des points. */
-function communesDe(f: Feat, communes: Feat[]): string {
+function communesFeatDe(f: Feat, communes: Feat[]): Feat[] {
   const pts = polygones(f).flatMap((p) => p[0]);
-  if (!pts.length || !communes.length) return "";
+  if (!pts.length || !communes.length) return [];
   const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
   const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
   const n = Math.min(12, pts.length), pas = pts.length / n;
@@ -618,7 +637,7 @@ function communesDe(f: Feat, communes: Feat[]): string {
     echant.push([cx + (p[0] - cx) * 0.6, cy + (p[1] - cy) * 0.6]);
   }
   const [x0, y0, x1, y1] = bboxFeat(f);
-  const hits = new Map<string, number>();
+  const hits = new Map<Feat, number>();
   communes.forEach((c) => {
     const b = bboxFeat(c);
     if (b[0] > x1 || b[2] < x0 || b[1] > y1 || b[3] < y0) return;
@@ -626,14 +645,16 @@ function communesDe(f: Feat, communes: Feat[]): string {
     echant.forEach(([x, y]) => {
       if (contient(x, y, c)) h++;
     });
-    if (h) hits.set(nomFeat(c), (hits.get(nomFeat(c)) ?? 0) + h);
+    if (h) hits.set(c, h);
   });
   return [...hits.entries()]
     .sort((a, b) => b[1] - a[1])
     .filter(([, h], i) => i === 0 || h / echant.length >= 0.25)
-    .map(([nom]) => nom)
-    .join(", ");
+    .map(([c]) => c);
 }
+
+/* Clé d'une MBV : aire protégée + nom */
+const cleMbv = (f: Feat) => cle(`${f.properties.Aire_Prot ?? ""}${f.properties.Nom ?? ""}`);
 
 const CACHE: Partial<Record<Niv, Feat[]>> = {};
 
@@ -767,16 +788,37 @@ export default function ZonesIntervention() {
       .catch((e) => console.error("MBV introuvables :", e));
   }, []);
 
-  /* Commune de chaque MBV : celle de la base si elle existe (champ Commune), sinon calculée
-     d'après les limites des communes (geoBoundaries ADM3) */
-  const mbvCommune = useMemo(() => {
-    const m = new Map<Feat, string>();
+  /* Commune(s) de chaque MBV : géométries calculées d'après les limites des communes (geoBoundaries ADM3).
+     Le nom affiché est celui de la base s'il existe (champ Commune), sinon celui de la commune calculée. */
+  const mbvCom = useMemo(() => {
+    const feats = new Map<Feat, Feat[]>();
+    const noms = new Map<Feat, string>();
     mbvF.forEach((f) => {
+      const fs = communesFeatDe(f, communes);
+      feats.set(f, fs);
       const base = f.properties.Commune ?? f.properties.commune;
-      m.set(f, base ? String(base).trim() : communesDe(f, communes));
+      noms.set(f, base ? String(base).trim() : fs.map(nomFeat).join(", "));
     });
-    return m;
+    return { feats, noms };
   }, [mbvF, communes]);
+  const mbvCommune = mbvCom.noms;
+
+  /* Superficie des MBV cumulée par commune (commune principale de chaque MBV) :
+     c'est la même valeur que celle du tableau « Micro-bassin versant » */
+  const mbvHa = useMemo(() => {
+    const parFeat = new Map<Feat, number>();
+    const parNom = new Map<string, number>();
+    mbvF.forEach((f) => {
+      const sup = Number(f.properties.Superficie) || 0;
+      const base = f.properties.Commune ?? f.properties.commune;
+      if (base) parNom.set(cle(String(base)), (parNom.get(cle(String(base))) ?? 0) + sup);
+      else {
+        const c = mbvCom.feats.get(f)?.[0];
+        if (c) parFeat.set(c, (parFeat.get(c) ?? 0) + sup);
+      }
+    });
+    return { parFeat, parNom };
+  }, [mbvF, mbvCom]);
 
   /* ----- aires protégées et zones tampon 5 km (mêmes données que la page feux) ----- */
   const [airesF] = useGeo(DATA.aires);
@@ -797,7 +839,22 @@ export default function ZonesIntervention() {
     return [...m.entries()].map(([nom, region]) => ({ nom, region }));
   }, [apZ, mbvF]);
 
-  const SUGG = useMemo(() => construireSuggestions(donnees ?? DONNEES_VIDES, apListe), [donnees, apListe]);
+  const mbvListe = useMemo(
+    () =>
+      mbvF
+        .filter((f) => f.properties.Nom)
+        .map((f) => ({
+          nom: String(f.properties.Nom),
+          ap: String(f.properties.Aire_Prot ?? ""),
+          region: f.properties.Region ? String(f.properties.Region) : undefined,
+        })),
+    [mbvF]
+  );
+
+  const SUGG = useMemo(
+    () => construireSuggestions(donnees ?? DONNEES_VIDES, apListe, mbvListe),
+    [donnees, apListe, mbvListe]
+  );
 
   const trouver = (niveau: Niveau, k: string, regionK?: string, districtK?: string) =>
     SUGG.find(
@@ -832,6 +889,15 @@ export default function ZonesIntervention() {
     if (!n) return;
     const s = SUGG.find((x) => x.niveau === "ap" && (x.cle === cle(n) || sameArea(x.label, n)));
     if (s) choisir(s);
+  };
+
+  /* Sélectionne une MBV ; un second clic sur la MBV déjà choisie remonte à son aire protégée */
+  const choisirMBV = (f: Feat) => {
+    const k = cleMbv(f);
+    const s = SUGG.find((x) => x.niveau === "mbv" && x.cle === k);
+    if (!s) return;
+    if (sel?.niveau === "mbv" && sel.cle === k) choisirAP(f.properties.Aire_Prot);
+    else choisir(s);
   };
 
   /* ----- saisie : le panneau suit la recherche ; sans résultat, tout reste vide ----- */
@@ -900,8 +966,24 @@ export default function ZonesIntervention() {
   }, [regions, districts, communes, LIGNES]);
 
   /* ----- périmètre ----- */
+  const mbvChoisie = useMemo(
+    () => (sel?.niveau === "mbv" ? mbvF.find((f) => cleMbv(f) === sel.cle) : undefined),
+    [sel, mbvF]
+  );
+
   const lignes = useMemo(() => {
     if (!sel) return [];
+    if (sel.niveau === "mbv") {
+      /* communes PADDI où se trouve la MBV */
+      if (!mbvChoisie) return [];
+      const cs = mbvCom.feats.get(mbvChoisie) ?? [];
+      const base = mbvChoisie.properties.Commune ?? mbvChoisie.properties.commune;
+      return LIGNES.filter((l) => {
+        if (!l.commune || !estPaddi(l.projetId, l.projet)) return false;
+        const cF = featCom.get(cleLigne(l));
+        return (!!cF && cs.includes(cF)) || (!!base && cle(String(base)) === cle(l.commune));
+      });
+    }
     if (sel.niveau === "ap") {
       /* communes PADDI traversées par les MBV de cette AP */
       const mb = mbvF.filter((f) => sameArea(f.properties.Aire_Prot, sel.label));
@@ -913,7 +995,7 @@ export default function ZonesIntervention() {
       });
     }
     return LIGNES.filter((l) => correspond(l, sel));
-  }, [sel, LIGNES, mbvF, featCom]);
+  }, [sel, LIGNES, mbvF, featCom, mbvChoisie, mbvCom]);
 
   const actives = useMemo<Ligne[]>(
     () => (vide ? [] : sel ? lignes : LIGNES),
@@ -988,17 +1070,33 @@ export default function ZonesIntervention() {
         const p = mbvF.filter((f) => cle(String(f.properties.Region ?? "")) === sel.cle);
         return p.length || !regionFeat ? p : mbvF.filter((f) => chevauche(f, regionFeat, 0.5));
       }
-      case "district":
-        return districtFeat ? mbvF.filter((f) => chevauche(f, districtFeat)) : [];
+      case "district": {
+        if (!districtFeat) return [];
+        const nomsDis = new Set(lignes.filter((l) => l.commune).map((l) => cle(l.commune!)));
+        return mbvF.filter((f) => {
+          const base = f.properties.Commune ?? f.properties.commune;
+          if (base) return nomsDis.has(cle(String(base)));
+          const c = mbvCom.feats.get(f)?.[0];
+          return c ? chevauche(c, districtFeat, 0.5) : chevauche(f, districtFeat);
+        });
+      }
       case "commune":
-        return communeFeat ? mbvF.filter((f) => chevauche(f, communeFeat)) : [];
+        /* MBV dont la commune principale est celle choisie (même règle que la colonne « Superficie MBV ») */
+        return communeFeat
+          ? mbvF.filter((f) => {
+              const base = f.properties.Commune ?? f.properties.commune;
+              return base ? cle(String(base)) === sel.cle : mbvCom.feats.get(f)?.[0] === communeFeat;
+            })
+          : [];
+      case "mbv":
+        return mbvChoisie ? [mbvChoisie] : [];
       case "projet":
       case "categorie":
         return actives.some((l) => estPaddi(l.projetId, l.projet)) ? mbvF : [];
       default:
         return [];
     }
-  }, [vide, sel, mbvF, regionFeat, districtFeat, communeFeat, actives]);
+  }, [vide, sel, mbvF, regionFeat, districtFeat, communeFeat, actives, lignes, mbvCom, mbvChoisie]);
 
   /* AP concernées : celle choisie + celles des MBV affichées */
   const apsConcernes = useMemo(() => {
@@ -1100,7 +1198,12 @@ export default function ZonesIntervention() {
         const p = f.properties;
         const l = L.geoJSON(f as any, {
           pane: "zi-mbv",
-          style: { color: "#0369a1", weight: 1.5, fillColor: "#38bdf8", fillOpacity: 0.45 },
+          style: {
+            color: "#0369a1",
+            weight: sel?.niveau === "mbv" ? 3 : 1.5,
+            fillColor: "#38bdf8",
+            fillOpacity: sel?.niveau === "mbv" ? 0.55 : 0.45,
+          },
         });
         const com = mbvCommune.get(f) ?? "";
         l.bindTooltip(
@@ -1109,9 +1212,27 @@ export default function ZonesIntervention() {
             `<br/>${esc(p.Aire_Prot)} · ${esc(p.Region)}`,
           { sticky: true, className: "zi-hover" }
         );
-        l.on("click", () => choisirAP(p.Aire_Prot));
+        l.on("click", () => choisirMBV(f));
         l.addTo(g);
       });
+    }
+
+    /* MBV choisie : seule la limite de sa commune reste (région et district disparaissent) */
+    if (!vide && sel?.niveau === "mbv") {
+      (mbvChoisie ? mbvCom.feats.get(mbvChoisie) ?? [] : []).forEach((c) =>
+        contour(
+          g,
+          c,
+          { color: "#0f766e", weight: 2.5, fillOpacity: 0 },
+          nomFeat(c),
+          "zi-label-commune",
+          () => {
+            const l = ligneCom.get(c);
+            if (l && l.district && l.commune) choisirZone("commune", cle(l.commune), cle(l.region), cle(l.district));
+          }
+        )
+      );
+      return;
     }
 
     /* Recherche sans résultat, ou sélection sans zone renseignée : aucune limite administrative */
@@ -1126,7 +1247,10 @@ export default function ZonesIntervention() {
     const etiqCommune = n === "commune" || n === "ap";
 
     /* Régions : toutes sans recherche, puis seulement celles de la sélection */
-    regions
+    /* Chaque niveau cache la limite de son parent :
+       région visible seulement en vue générale, projet, catégorie ou région choisie ;
+       district visible seulement jusqu'au niveau district ; commune ensuite (district, commune, AP) */
+    (n === "vue" || n === "region" || n === "projet" || n === "categorie" ? regions : [])
       .filter((f) => n === "vue" || actRegKeys.has(cle(nomFeat(f))))
       .forEach((f) => {
         const k = cle(nomFeat(f));
@@ -1151,7 +1275,7 @@ export default function ZonesIntervention() {
       });
 
     /* Districts de la sélection (limites sans fond) */
-    if (n !== "vue") {
+    if (n === "region" || n === "district" || n === "projet" || n === "categorie") {
       districts
         .filter((d) => actDisSet.has(d))
         .forEach((d) => {
@@ -1206,7 +1330,7 @@ export default function ZonesIntervention() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, mbvCommune, apZonesSel, periphSel, SUGG]);
+  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, mbvCommune, mbvChoisie, mbvCom, apZonesSel, periphSel, SUGG]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -1218,6 +1342,7 @@ export default function ZonesIntervention() {
     }
     let liste: Feat[] = [];
     if (sel.niveau === "projet" || sel.niveau === "categorie") liste = regionsProjet;
+    else if (sel.niveau === "mbv") liste = mbvSel;
     else if (sel.niveau === "ap") {
       liste = [...apZonesSel, ...periphSel].map((z) => z.feature as Feat);
       if (!liste.length) liste = mbvSel;
@@ -1228,7 +1353,7 @@ export default function ZonesIntervention() {
     }
     if (!liste.length) return;
     const bounds = liste.map((f) => L.geoJSON(f as any).getBounds()).reduce((a, b) => a.extend(b));
-    m.flyToBounds(bounds, { padding: [40, 40], maxZoom: sel.niveau === "commune" ? 11 : 9, duration: 0.9 });
+    m.flyToBounds(bounds, { padding: [40, 40], maxZoom: sel.niveau === "mbv" ? 13 : sel.niveau === "commune" ? 11 : 9, duration: 0.9 });
   }, [sel, regionsProjet, regionFeat, districtFeat, communeFeat, apZonesSel, periphSel, mbvSel]);
 
   /* ----- données du panneau ----- */
@@ -1305,13 +1430,26 @@ export default function ZonesIntervention() {
   const pourcentage = (sup: number | null, mbv: number | undefined) =>
     sup && sup > 0 && mbv != null ? (mbv / sup) * 100 : null;
 
+  /* Superficie MBV d'une commune : pour PADDI, somme des superficies du tableau « Micro-bassin versant »
+     (fichier paddi_mbv.geojson), donc identique à ce tableau ; pour les autres projets, valeur de la base */
+  const mbvDe = (l: Ligne): number | undefined => {
+    if (l.type !== "environnement") return undefined;
+    if (estPaddi(l.projetId, l.projet) && mbvF.length > 0 && communes.length > 0) {
+      const cF = featCom.get(cleLigne(l));
+      const v = (cF ? mbvHa.parFeat.get(cF) ?? 0 : 0) + (mbvHa.parNom.get(cle(l.commune ?? "")) ?? 0);
+      return v > 0 ? v : undefined;
+    }
+    return l.mbv_ha;
+  };
+
   /* Totaux : le MBV n'est cumulé que pour les lignes de projets environnementaux */
   const totaux = lignesCommunes.reduce(
     (acc, l) => {
       const sup = surfaceDe(l);
+      const mbvL = mbvDe(l);
       acc.surface += sup ?? 0;
-      if (l.type === "environnement" && l.mbv_ha != null) {
-        acc.mbv += l.mbv_ha;
+      if (mbvL != null) {
+        acc.mbv += mbvL;
         acc.supAvecMbv += sup ?? 0;
       }
       return acc;
@@ -1521,7 +1659,7 @@ export default function ZonesIntervention() {
                           String(a.properties.Nom).localeCompare(String(b.properties.Nom))
                       )
                       .map((f, i) => (
-                        <tr key={i} className="zi-row" onClick={() => choisirAP(f.properties.Aire_Prot)}>
+                        <tr key={i} className="zi-row" onClick={() => choisirMBV(f)}>
                           <td className="zi-l">{f.properties.Nom}</td>
                           <td className="zi-l">{f.properties.Paysage ?? "—"}</td>
                           <td className="zi-l">{mbvCommune.get(f) || "—"}</td>
@@ -1625,7 +1763,7 @@ export default function ZonesIntervention() {
                       {lignesCommunes.map((l, i) => {
                         const s = surfaceDe(l);
                         /* MBV affiché uniquement pour un projet environnemental */
-                        const mbv = l.type === "environnement" ? l.mbv_ha : undefined;
+                        const mbv = mbvDe(l);
                         /* Trait plus épais avant la première commune d'une nouvelle région */
                         const nouvelleRegion = i > 0 && lignesCommunes[i - 1].region !== l.region;
                         return (
