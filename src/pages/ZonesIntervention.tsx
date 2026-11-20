@@ -159,8 +159,9 @@ const FR = {
   legPeriph: "Zone tampon 5 km",
   legMixte: "Environnement et développement",
   legSelection: "Sélection",
-  mbvTitre: "MBV du projet PADDI",
-  colMbv: "MBV",
+  mbvTitre: "Micro-bassin versant du projet PADDI",
+  colMbv: "Micro-bassin versant",
+  colPaysage: "Paysage",
   colAP: "Aire protégée",
   carteAria: "Carte des zones d'intervention",
   carteTitre: "Madagascar : zones d'intervention",
@@ -220,8 +221,9 @@ const MG: Dict = {
   legPeriph: "Faritra manodidina 5 km",
   legMixte: "Tontolo iainana sy fampandrosoana",
   legSelection: "Voafantina",
-  mbvTitre: "MBV an'ny tetikasa PADDI",
-  colMbv: "MBV",
+  mbvTitre: "Micro-bassin versant an'ny tetikasa PADDI",
+  colMbv: "Micro-bassin versant",
+  colPaysage: "Paysage",
   colAP: "Faritra arovana",
   carteAria: "Sarintanin'ny faritra fanatanterahana",
   carteTitre: "Madagasikara: faritra fanatanterahana",
@@ -279,8 +281,9 @@ const EN: Dict = {
   legPeriph: "5 km buffer zone",
   legMixte: "Environment and development",
   legSelection: "Selection",
-  mbvTitre: "PADDI project MBV",
-  colMbv: "MBV",
+  mbvTitre: "PADDI project micro-watershed",
+  colMbv: "Micro-watershed",
+  colPaysage: "Landscape",
   colAP: "Protected area",
   carteAria: "Intervention zones map",
   carteTitre: "Madagascar: intervention zones",
@@ -338,8 +341,9 @@ const DE: Dict = {
   legPeriph: "5-km-Pufferzone",
   legMixte: "Umwelt und Entwicklung",
   legSelection: "Auswahl",
-  mbvTitre: "MBV des PADDI-Projekts",
-  colMbv: "MBV",
+  mbvTitre: "Mikro-Einzugsgebiet des PADDI-Projekts",
+  colMbv: "Mikro-Einzugsgebiet",
+  colPaysage: "Landschaft",
   colAP: "Schutzgebiet",
   carteAria: "Karte der Interventionsgebiete",
   carteTitre: "Madagaskar: Interventionsgebiete",
@@ -599,6 +603,38 @@ function chevauche(enfant: Feat, parent: Feat, seuil = 0.25): boolean {
   return ok / n >= seuil;
 }
 
+/** Commune(s) où se trouve une géométrie (ex. une MBV), calculée avec les limites des communes.
+ *  On teste le centre et 12 points ramenés vers l'intérieur (60 %) pour éviter les effets de bord ;
+ *  la commune principale est toujours donnée, les autres seulement si elles couvrent au moins 25 % des points. */
+function communesDe(f: Feat, communes: Feat[]): string {
+  const pts = polygones(f).flatMap((p) => p[0]);
+  if (!pts.length || !communes.length) return "";
+  const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+  const n = Math.min(12, pts.length), pas = pts.length / n;
+  const echant: [number, number][] = [[cx, cy]];
+  for (let i = 0; i < n; i++) {
+    const p = pts[Math.floor(i * pas)];
+    echant.push([cx + (p[0] - cx) * 0.6, cy + (p[1] - cy) * 0.6]);
+  }
+  const [x0, y0, x1, y1] = bboxFeat(f);
+  const hits = new Map<string, number>();
+  communes.forEach((c) => {
+    const b = bboxFeat(c);
+    if (b[0] > x1 || b[2] < x0 || b[1] > y1 || b[3] < y0) return;
+    let h = 0;
+    echant.forEach(([x, y]) => {
+      if (contient(x, y, c)) h++;
+    });
+    if (h) hits.set(nomFeat(c), (hits.get(nomFeat(c)) ?? 0) + h);
+  });
+  return [...hits.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, h], i) => i === 0 || h / echant.length >= 0.25)
+    .map(([nom]) => nom)
+    .join(", ");
+}
+
 const CACHE: Partial<Record<Niv, Feat[]>> = {};
 
 async function charger(niv: Niv): Promise<Feat[]> {
@@ -730,6 +766,17 @@ export default function ZonesIntervention() {
       )
       .catch((e) => console.error("MBV introuvables :", e));
   }, []);
+
+  /* Commune de chaque MBV : celle de la base si elle existe (champ Commune), sinon calculée
+     d'après les limites des communes (geoBoundaries ADM3) */
+  const mbvCommune = useMemo(() => {
+    const m = new Map<Feat, string>();
+    mbvF.forEach((f) => {
+      const base = f.properties.Commune ?? f.properties.commune;
+      m.set(f, base ? String(base).trim() : communesDe(f, communes));
+    });
+    return m;
+  }, [mbvF, communes]);
 
   /* ----- aires protégées et zones tampon 5 km (mêmes données que la page feux) ----- */
   const [airesF] = useGeo(DATA.aires);
@@ -1055,8 +1102,11 @@ export default function ZonesIntervention() {
           pane: "zi-mbv",
           style: { color: "#0369a1", weight: 1.5, fillColor: "#38bdf8", fillOpacity: 0.45 },
         });
+        const com = mbvCommune.get(f) ?? "";
         l.bindTooltip(
-          `<b>${esc(p.Nom)}</b><br/>${fmt(Number(p.Superficie) || 0)} ha<br/>${esc(p.Aire_Prot)} · ${esc(p.Region)}`,
+          `<b>${esc(p.Nom)}</b><br/>${fmt(Number(p.Superficie) || 0)} ha` +
+            `<br/>${esc(p.Paysage)}${com ? ` · ${esc(com)}` : ""}` +
+            `<br/>${esc(p.Aire_Prot)} · ${esc(p.Region)}`,
           { sticky: true, className: "zi-hover" }
         );
         l.on("click", () => choisirAP(p.Aire_Prot));
@@ -1114,7 +1164,8 @@ export default function ZonesIntervention() {
               weight: choisi ? 2.5 : 1.2,
               dashArray: "4 3",
               fillColor: "#a78bfa",
-              fillOpacity: n === "district" && choisi ? 0.3 : 0,
+              /* Le fond du district disparaît : ce sont ses communes qui sont remplies */
+              fillOpacity: 0,
             },
             nomFeat(d),
             etiqDistrict ? "zi-label-district" : null,
@@ -1139,8 +1190,10 @@ export default function ZonesIntervention() {
           {
             color: choisie ? "#dc2626" : "#0f766e",
             weight: choisie ? 2.5 : 1,
-            fillColor: choisie ? "#0d9488" : "#14b8a6",
-            fillOpacity: choisie ? 0.5 : 0,
+            fillColor: "#14b8a6",
+            /* Communes remplies (district ou AP choisi) ; la commune choisie n'a plus de fond,
+               seule sa limite reste, pour voir les MBV et le fond de carte */
+            fillOpacity: n === "commune" ? 0 : 0.2,
           },
           nomFeat(c),
           etiqCommune ? "zi-label-commune" : null,
@@ -1153,7 +1206,7 @@ export default function ZonesIntervention() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, apZonesSel, periphSel, SUGG]);
+  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, mbvCommune, apZonesSel, periphSel, SUGG]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -1453,8 +1506,10 @@ export default function ZonesIntervention() {
                 <table className="zi-tbl">
                   <thead>
                     <tr>
-                      <th>{t.colMbv}</th>
-                      <th>{t.colAP}</th>
+                      <th className="zi-l">{t.colMbv}</th>
+                      <th className="zi-l">{t.colPaysage}</th>
+                      <th className="zi-l">{t.colCommune}</th>
+                      <th className="zi-l">{t.colAP}</th>
                       <th>{t.colSuperficie}</th>
                     </tr>
                   </thead>
@@ -1467,8 +1522,10 @@ export default function ZonesIntervention() {
                       )
                       .map((f, i) => (
                         <tr key={i} className="zi-row" onClick={() => choisirAP(f.properties.Aire_Prot)}>
-                          <td>{f.properties.Nom}</td>
-                          <td>{f.properties.Aire_Prot}</td>
+                          <td className="zi-l">{f.properties.Nom}</td>
+                          <td className="zi-l">{f.properties.Paysage ?? "—"}</td>
+                          <td className="zi-l">{mbvCommune.get(f) || "—"}</td>
+                          <td className="zi-l">{f.properties.Aire_Prot}</td>
                           <td>{fmt(Number(f.properties.Superficie) || 0)}</td>
                         </tr>
                       ))}
@@ -1755,7 +1812,7 @@ const CSS = `
 .zi-tbl td{padding:5px 6px;border-top:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums}
 .zi-tbl th+th,.zi-tbl td+td{border-left:1px solid var(--line)}
 .zi-tbl th.zi-th-pct{white-space:normal;max-width:120px;font-size:10.5px;line-height:1.25;vertical-align:bottom}
-.zi-tbl th:first-child,.zi-tbl td:first-child{text-align:left}
+.zi-tbl th:first-child,.zi-tbl td:first-child,.zi-tbl th.zi-l,.zi-tbl td.zi-l{text-align:left}
 .zi-tbl tfoot td{font-weight:700;border-top:2px solid var(--line)}
 .zi-tbl tr.zi-sep td{border-top:3px solid var(--ink2)}
 .zi-row{cursor:pointer}
