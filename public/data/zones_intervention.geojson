@@ -1,7 +1,7 @@
 {
   "type": "FeatureCollection",
   "name": "zones_intervention",
-  "mise_a_jour": "2026-11-19",
+  "mise_a_jour": "2026-11-20",
   "projets": [
     {
       "id": "paddi",
@@ -532,6 +532,76 @@
         "region": "Atsimo-Atsinanana",
         "district": "Vangaindrano",
         "commune": "Ambatolava",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Midongy-Atsimo",
+        "commune": "Ankazovelo",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Midongy-Atsimo",
+        "commune": "Nosifeno",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Midongy-Atsimo",
+        "commune": "Andranolalina",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Befotaka",
+        "commune": "Befotaka Sud",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Atsimo-Atsinanana",
+        "district": "Befotaka",
+        "commune": "Antaninarenina",
         "mbv_ha": null,
         "activites": []
       }
