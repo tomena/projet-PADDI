@@ -456,48 +456,6 @@
       "type": "Feature",
       "geometry": null,
       "properties": {
-        "projet_id": "prada",
-        "projet": "PrADA",
-        "type": "developpement",
-        "region": "Atsimo Atsinanana",
-        "district": "Vangaindrano",
-        "commune": "Manambondro",
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "prada",
-        "projet": "PrADA",
-        "type": "developpement",
-        "region": "Atsimo Atsinanana",
-        "district": "Manakara",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "prada",
-        "projet": "PrADA",
-        "type": "developpement",
-        "region": "Atsimo Atsinanana",
-        "district": "Farafangana",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
         "projet_id": "paddi",
         "projet": "PADDI+",
         "type": "environnement",
