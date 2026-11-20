@@ -1303,12 +1303,17 @@ export default function ZonesIntervention() {
           },
         });
         const com = mbvCommune.get(f) ?? "";
-        l.bindTooltip(
-          `<b>${esc(p.Nom)}</b><br/>${fmt(Number(p.Superficie) || 0)} ha` +
-            `<br/>${esc(p.Paysage)}${com ? ` · ${esc(com)}` : ""}` +
-            `<br/>${esc(p.Aire_Prot)} · ${esc(p.Region)}`,
-          { sticky: true, className: "zi-hover" }
-        );
+        if (sel?.niveau === "mbv") {
+          /* MBV choisie : son nom reste affiché au centre de la carte */
+          l.bindTooltip(esc(p.Nom), { permanent: true, direction: "center", className: "zi-label zi-label-mbv" });
+        } else {
+          l.bindTooltip(
+            `<b>${esc(p.Nom)}</b><br/>${fmt(Number(p.Superficie) || 0)} ha` +
+              `<br/>${esc(p.Paysage)}${com ? ` · ${esc(com)}` : ""}` +
+              `<br/>${esc(p.Aire_Prot)} · ${esc(p.Region)}`,
+            { sticky: true, className: "zi-hover" }
+          );
+        }
         l.on("click", () => choisirMBV(f));
         l.addTo(g);
       });
@@ -1773,7 +1778,7 @@ export default function ZonesIntervention() {
               <div className="zi-cardh">
                 <h3>{t.mbvTitre}</h3>
                 <span className="zi-regname">
-                  {mbvSel.length} · {fmt(mbvSel.reduce((s, f) => s + (Number(f.properties.Superficie) || 0), 0))} ha
+                  {mbvSel.length} MBV · {fmt(mbvSel.reduce((s, f) => s + (Number(f.properties.Superficie) || 0), 0))} ha
                 </span>
               </div>
               <div style={{ maxHeight: 150, overflow: "auto" }}>
@@ -2134,6 +2139,7 @@ const CSS = `
 .zi-label-region{color:#c2410c!important}
 .zi-label-district{color:#6d28d9!important}
 .zi-label-commune{color:#0f766e!important}
+.zi-label-mbv{color:#0369a1!important;font-size:12.5px!important}
 .leaflet-tooltip.zi-hover{background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:12px}
 .leaflet-tooltip.zi-hover::before{display:none}
 .zi .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
