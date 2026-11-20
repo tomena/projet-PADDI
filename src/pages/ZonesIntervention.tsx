@@ -3,6 +3,13 @@
  * Les données (projets, régions, districts, communes, activités, MBV) sont lues depuis
  * public/data/zones_intervention.geojson. La mise à jour se fait par le bouton « Mettre à jour »
  * (connexion requise), via ZonesUpdateModal.
+ *
+ * Nouveautés :
+ *  - MBV du projet PADDI, lues depuis public/data/paddi_mbv.geojson
+ *    (affichées selon l'AP, la région, le district, la commune ou le projet choisi) ;
+ *  - niveau de recherche « Aire protégée » ;
+ *  - aires protégées et zone tampon 5 km (mêmes fichiers que la page feux : DATA.aires, DATA.peripheries).
+ *
  * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
  * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
  * Dépendances : leaflet, @types/leaflet, lucide-react, ../context/LanguageContext, ../lib/fireGeo,
@@ -13,7 +20,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
-import { DATA, PROP, useGeo, toZones } from "../lib/fireGeo";
+import { DATA, PROP, useGeo, toZones, sameArea, touch } from "../lib/fireGeo";
 import ZonesLoginModal from "../components/ZonesLoginModal";
 import ZonesUpdateModal from "../components/ZonesUpdateModal";
 
@@ -22,10 +29,14 @@ import ZonesUpdateModal from "../components/ZonesUpdateModal";
 const cle = (s: string) =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
 
+/* Retire les caractères dangereux avant insertion dans une infobulle HTML */
+const esc = (v: unknown) => String(v ?? "").replace(/[<>&]/g, "");
+
 /* ===================== TYPES ET DONNÉES ===================== */
 
-/* Fichier des données (lecture) et route d'enregistrement (écriture, avec jeton) */
+/* Fichiers des données (lecture) et route d'enregistrement (écriture, avec jeton) */
 const DATA_URL = "/data/zones_intervention.geojson";
+const MBV_URL = "/data/paddi_mbv.geojson";
 const SAUVEGARDE_URL = "/api/import?type=zones";
 
 type TypeActivite = "restauration" | "reboisement" | "autre";
@@ -48,6 +59,9 @@ type Ligne = {
 type Donnees = { projets: ProjetMeta[]; lignes: Ligne[] };
 
 const LIGNES_VIDES: Ligne[] = [];
+
+/* Le projet est-il PADDI ? (reconnu par son id ou son nom, « PADDI+ » inclus) */
+const estPaddi = (id: string, nom: string) => cle(id).includes("paddi") || cle(nom).includes("paddi");
 
 /* Transforme le GeoJSON en données utilisables par la page */
 const construireDonnees = (geo: any): Donnees => ({
@@ -104,14 +118,14 @@ const FONDS: Record<Fond, { url: string; attr: string; maxZoom: number }> = {
 const FR = {
   titre: "Zones d'intervention des projets",
   sousTitre: "Localisation des régions, districts et communes où interviennent les projets",
-  recherche: "Projet, catégorie, région, district ou commune (ex. PADDI+, environnement, Boeny)",
+  recherche: "Projet, catégorie, aire protégée, région, district ou commune (ex. PADDI+, Ankarana, Boeny)",
   rechercheAria: "Rechercher une zone d'intervention",
   effacer: "Effacer",
   retirer: "Retirer de la liste",
   update: "Mettre à jour",
   vueMada: "Vue Madagascar",
   vueTitre: "Zones d'intervention",
-  vueTexte: "Recherchez un projet, une catégorie, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
+  vueTexte: "Recherchez un projet, une catégorie, une aire protégée, une région, un district ou une commune, ou cliquez sur un projet ci-dessous.",
   chargement: "Chargement des données…",
   aucunResultat: "Aucun résultat pour cette recherche.",
   projets: "Projets",
@@ -130,18 +144,24 @@ const FR = {
   communesNon: "Communes non renseignées",
   districtsNon: "Districts non renseignés",
   types: { restauration: "Restauration", reboisement: "Reboisement", autre: "Autres projets environnementaux" },
-  niveaux: { projet: "Projet", categorie: "Catégorie", region: "Région", district: "District", commune: "Commune" },
+  niveaux: { projet: "Projet", categorie: "Catégorie", region: "Région", district: "District", commune: "Commune", ap: "Aire protégée" },
   projetCtx: "Projet d'intervention",
   catCtx: "Catégorie de projets",
   catEnv: "Projets environnementaux",
   catDev: "Projets de développement",
   regionCtx: "Région",
+  apCtx: "Aire protégée",
   legRegion: "Région",
   legDistrict: "District",
   legCommune: "Commune",
   legAP: "Aire protégée",
+  legMbv: "MBV (PADDI)",
+  legPeriph: "Zone tampon 5 km",
   legMixte: "Environnement et développement",
   legSelection: "Sélection",
+  mbvTitre: "MBV du projet PADDI",
+  colMbv: "MBV",
+  colAP: "Aire protégée",
   carteAria: "Carte des zones d'intervention",
   carteTitre: "Madagascar : zones d'intervention",
   projetsConcernes: "Projets concernés",
@@ -159,14 +179,14 @@ type Dict = typeof FR;
 const MG: Dict = {
   titre: "Faritra fanatanterahan'ny tetikasa",
   sousTitre: "Fitoerana ny faritra, distrika sy kaominina misy ny tetikasa",
-  recherche: "Tetikasa, sokajy, faritra, distrika na kaominina (ohatra: PADDI+, tontolo iainana, Boeny)",
+  recherche: "Tetikasa, sokajy, faritra arovana, faritra, distrika na kaominina (ohatra: PADDI+, Ankarana, Boeny)",
   rechercheAria: "Hitady faritra fanatanterahana",
   effacer: "Esory",
   retirer: "Esorina amin'ny lisitra",
   update: "Havaozina",
   vueMada: "Madagasikara manontolo",
   vueTitre: "Faritra fanatanterahana",
-  vueTexte: "Hitady tetikasa, sokajy, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
+  vueTexte: "Hitady tetikasa, sokajy, faritra arovana, faritra, distrika na kaominina, na tsindrio ny tetikasa etsy ambany.",
   chargement: "Mampidina ny angon-drakitra…",
   aucunResultat: "Tsy misy valiny ho an'ity fikarohana ity.",
   projets: "Tetikasa",
@@ -185,18 +205,24 @@ const MG: Dict = {
   communesNon: "Kaominina tsy voarakitra",
   districtsNon: "Distrika tsy voarakitra",
   types: { restauration: "Fanarenana", reboisement: "Fambolena ala", autre: "Tetikasa hafa momba ny tontolo iainana" },
-  niveaux: { projet: "Tetikasa", categorie: "Sokajy", region: "Faritra", district: "Distrika", commune: "Kaominina" },
+  niveaux: { projet: "Tetikasa", categorie: "Sokajy", region: "Faritra", district: "Distrika", commune: "Kaominina", ap: "Faritra arovana" },
   projetCtx: "Tetikasa fanatanterahana",
   catCtx: "Sokajin'ny tetikasa",
   catEnv: "Tetikasa ara-tontolo iainana",
   catDev: "Tetikasa fampandrosoana",
   regionCtx: "Faritra",
+  apCtx: "Faritra arovana",
   legRegion: "Faritra",
   legDistrict: "Distrika",
   legCommune: "Kaominina",
   legAP: "Faritra arovana",
+  legMbv: "MBV (PADDI)",
+  legPeriph: "Faritra manodidina 5 km",
   legMixte: "Tontolo iainana sy fampandrosoana",
   legSelection: "Voafantina",
+  mbvTitre: "MBV an'ny tetikasa PADDI",
+  colMbv: "MBV",
+  colAP: "Faritra arovana",
   carteAria: "Sarintanin'ny faritra fanatanterahana",
   carteTitre: "Madagasikara: faritra fanatanterahana",
   projetsConcernes: "Tetikasa voakasika",
@@ -212,14 +238,14 @@ const MG: Dict = {
 const EN: Dict = {
   titre: "Project intervention zones",
   sousTitre: "Location of the regions, districts and communes where the projects operate",
-  recherche: "Project, category, region, district or commune (e.g. PADDI+, environment, Boeny)",
+  recherche: "Project, category, protected area, region, district or commune (e.g. PADDI+, Ankarana, Boeny)",
   rechercheAria: "Search an intervention zone",
   effacer: "Clear",
   retirer: "Remove from list",
   update: "Update",
   vueMada: "Madagascar view",
   vueTitre: "Intervention zones",
-  vueTexte: "Search for a project, category, region, district or commune, or click a project below.",
+  vueTexte: "Search for a project, category, protected area, region, district or commune, or click a project below.",
   chargement: "Loading data…",
   aucunResultat: "No result for this search.",
   projets: "Projects",
@@ -238,18 +264,24 @@ const EN: Dict = {
   communesNon: "Communes not recorded",
   districtsNon: "Districts not recorded",
   types: { restauration: "Restoration", reboisement: "Reforestation", autre: "Other environmental projects" },
-  niveaux: { projet: "Project", categorie: "Category", region: "Region", district: "District", commune: "Commune" },
+  niveaux: { projet: "Project", categorie: "Category", region: "Region", district: "District", commune: "Commune", ap: "Protected area" },
   projetCtx: "Intervention project",
   catCtx: "Project category",
   catEnv: "Environmental projects",
   catDev: "Development projects",
   regionCtx: "Region",
+  apCtx: "Protected area",
   legRegion: "Region",
   legDistrict: "District",
   legCommune: "Commune",
   legAP: "Protected area",
+  legMbv: "MBV (PADDI)",
+  legPeriph: "5 km buffer zone",
   legMixte: "Environment and development",
   legSelection: "Selection",
+  mbvTitre: "PADDI project MBV",
+  colMbv: "MBV",
+  colAP: "Protected area",
   carteAria: "Intervention zones map",
   carteTitre: "Madagascar: intervention zones",
   projetsConcernes: "Projects involved",
@@ -265,14 +297,14 @@ const EN: Dict = {
 const DE: Dict = {
   titre: "Interventionsgebiete der Projekte",
   sousTitre: "Lage der Regionen, Distrikte und Gemeinden, in denen die Projekte tätig sind",
-  recherche: "Projekt, Kategorie, Region, Distrikt oder Gemeinde (z. B. PADDI+, Umwelt, Boeny)",
+  recherche: "Projekt, Kategorie, Schutzgebiet, Region, Distrikt oder Gemeinde (z. B. PADDI+, Ankarana, Boeny)",
   rechercheAria: "Interventionsgebiet suchen",
   effacer: "Leeren",
   retirer: "Aus der Liste entfernen",
   update: "Aktualisieren",
   vueMada: "Ansicht Madagaskar",
   vueTitre: "Interventionsgebiete",
-  vueTexte: "Suchen Sie ein Projekt, eine Kategorie, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
+  vueTexte: "Suchen Sie ein Projekt, eine Kategorie, ein Schutzgebiet, eine Region, einen Distrikt oder eine Gemeinde, oder klicken Sie unten auf ein Projekt.",
   chargement: "Daten werden geladen…",
   aucunResultat: "Kein Ergebnis für diese Suche.",
   projets: "Projekte",
@@ -291,18 +323,24 @@ const DE: Dict = {
   communesNon: "Gemeinden nicht erfasst",
   districtsNon: "Distrikte nicht erfasst",
   types: { restauration: "Wiederherstellung", reboisement: "Aufforstung", autre: "Andere Umweltprojekte" },
-  niveaux: { projet: "Projekt", categorie: "Kategorie", region: "Region", district: "Distrikt", commune: "Gemeinde" },
+  niveaux: { projet: "Projekt", categorie: "Kategorie", region: "Region", district: "Distrikt", commune: "Gemeinde", ap: "Schutzgebiet" },
   projetCtx: "Interventionsprojekt",
   catCtx: "Projektkategorie",
   catEnv: "Umweltprojekte",
   catDev: "Entwicklungsprojekte",
   regionCtx: "Region",
+  apCtx: "Schutzgebiet",
   legRegion: "Region",
   legDistrict: "Distrikt",
   legCommune: "Gemeinde",
   legAP: "Schutzgebiet",
+  legMbv: "MBV (PADDI)",
+  legPeriph: "5-km-Pufferzone",
   legMixte: "Umwelt und Entwicklung",
   legSelection: "Auswahl",
+  mbvTitre: "MBV des PADDI-Projekts",
+  colMbv: "MBV",
+  colAP: "Schutzgebiet",
   carteAria: "Karte der Interventionsgebiete",
   carteTitre: "Madagaskar: Interventionsgebiete",
   projetsConcernes: "Beteiligte Projekte",
@@ -321,7 +359,7 @@ const LOCALE: Record<Lang, string> = { fr: "fr-FR", mg: "fr-FR", en: "en-US", de
 
 /* ===================== RECHERCHE ===================== */
 
-type Niveau = "projet" | "categorie" | "region" | "district" | "commune";
+type Niveau = "projet" | "categorie" | "region" | "district" | "commune" | "ap";
 
 type Sel = {
   niveau: Niveau;
@@ -340,7 +378,7 @@ type Sel = {
 /* Arborescence pour le panneau « Zones d'intervention » */
 type Noeud = { nom: string; districts: { nom: string; communes: string[] }[] };
 
-const RANG: Record<Niveau, number> = { categorie: -1, projet: 0, region: 1, district: 2, commune: 3 };
+const RANG: Record<Niveau, number> = { categorie: -1, projet: 0, ap: 0.5, region: 1, district: 2, commune: 3 };
 
 const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> = {
   restauration: { couleur: "#65a30d", icone: Sprout },
@@ -350,8 +388,8 @@ const TYPE_ICONE: Record<TypeActivite, { couleur: string; icone: typeof Leaf }> 
 
 const idSug = (s: Sel) => [s.niveau, s.regionCle, s.districtCle, s.cle].join("|");
 
-/* Suggestions : catégories, projets, puis régions, districts et communes présents dans les données */
-const construireSuggestions = (d: Donnees): Sel[] => {
+/* Suggestions : catégories, projets, aires protégées, puis régions, districts et communes */
+const construireSuggestions = (d: Donnees, aps: { nom: string; region?: string }[] = []): Sel[] => {
   const vues = new Map<string, Sel>();
   const ajouter = (s: Sel) => {
     const k = idSug(s);
@@ -381,6 +419,9 @@ const construireSuggestions = (d: Donnees): Sel[] => {
       recherche: [p.nom, ...p.alias].map(cle).join(" "),
       projetId: p.id,
     })
+  );
+  aps.forEach((a) =>
+    ajouter({ niveau: "ap", label: a.nom, cle: cle(a.nom), recherche: cle(a.nom), regionNom: a.region })
   );
   d.lignes.forEach((l) => {
     const rk = cle(l.region);
@@ -415,7 +456,9 @@ const construireSuggestions = (d: Donnees): Sel[] => {
 };
 
 const contexteDe = (s: Sel, t: Dict) =>
-  s.niveau === "projet"
+  s.niveau === "ap"
+    ? `${t.apCtx}${s.regionNom ? ` · ${s.regionNom}` : ""}`
+    : s.niveau === "projet"
     ? t.projetCtx
     : s.niveau === "categorie"
     ? t.catCtx
@@ -448,6 +491,9 @@ function correspond(l: Ligne, s: Sel): boolean {
         !!l.commune &&
         cle(l.commune) === s.cle
       );
+    case "ap":
+      /* L'aire protégée est traitée à part (test spatial avec les MBV) */
+      return false;
   }
 }
 
@@ -516,6 +562,41 @@ function surfaceHa(f: Feat): number {
     0
   );
   return km2 * 100;
+}
+
+/* Boîte englobante d'une géométrie (mise en cache) */
+const bboxCache = new WeakMap<Feat, [number, number, number, number]>();
+const bboxFeat = (f: Feat): [number, number, number, number] => {
+  let b = bboxCache.get(f);
+  if (!b) {
+    let x0 = 180, y0 = 90, x1 = -180, y1 = -90;
+    polygones(f).forEach((p) =>
+      p[0].forEach(([x, y]) => {
+        if (x < x0) x0 = x;
+        if (x > x1) x1 = x;
+        if (y < y0) y0 = y;
+        if (y > y1) y1 = y;
+      })
+    );
+    b = [x0, y0, x1, y1];
+    bboxCache.set(f, b);
+  }
+  return b;
+};
+
+/** Vrai si au moins `seuil` des points échantillonnés de `enfant` sont dans `parent`. */
+function chevauche(enfant: Feat, parent: Feat, seuil = 0.25): boolean {
+  const a = bboxFeat(enfant), b = bboxFeat(parent);
+  if (a[0] > b[2] || a[2] < b[0] || a[1] > b[3] || a[3] < b[1]) return false;
+  const pts = polygones(enfant).flatMap((p) => p[0]);
+  if (!pts.length) return false;
+  const n = Math.min(16, pts.length), pas = pts.length / n;
+  let ok = 0;
+  for (let i = 0; i < n; i++) {
+    const p = pts[Math.floor(i * pas)];
+    if (contient(p[0], p[1], parent)) ok++;
+  }
+  return ok / n >= seuil;
 }
 
 const CACHE: Partial<Record<Niv, Feat[]>> = {};
@@ -590,6 +671,10 @@ export default function ZonesIntervention() {
   const lang: Lang = (["fr", "mg", "en", "de"] as string[]).includes(brut as string) ? (brut as Lang) : "fr";
   const t = T[lang];
 
+  const fmt = (n: number) => Math.round(n).toLocaleString(LOCALE[lang]);
+  const fmtPct = (p: number | null) =>
+    p != null ? `${p.toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 })} %` : "—";
+
   const elMap = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const couche = useRef<L.LayerGroup | null>(null);
@@ -631,7 +716,41 @@ export default function ZonesIntervention() {
 
   const PROJETS = donnees?.projets ?? [];
   const LIGNES = donnees?.lignes ?? LIGNES_VIDES;
-  const SUGG = useMemo(() => construireSuggestions(donnees ?? DONNEES_VIDES), [donnees]);
+
+  /* ----- MBV du projet PADDI (fichier public/data/paddi_mbv.geojson) ----- */
+  const [mbvF, setMbvF] = useState<Feat[]>([]);
+  useEffect(() => {
+    fetch(MBV_URL)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((j) =>
+        setMbvF(((j.features ?? []) as Feat[]).filter((f) => f?.geometry && /Polygon/.test(f.geometry.type)))
+      )
+      .catch((e) => console.error("MBV introuvables :", e));
+  }, []);
+
+  /* ----- aires protégées et zones tampon 5 km (mêmes données que la page feux) ----- */
+  const [airesF] = useGeo(DATA.aires);
+  const [periphF] = useGeo(DATA.peripheries);
+  const apZ = useMemo(() => toZones(airesF, PROP.ap, ""), [airesF]);
+  const periphZ = useMemo(() => toZones(periphF, PROP.periph, ""), [periphF]);
+
+  /* Liste des AP pour la recherche (AP du fichier des aires + AP citées dans les MBV) */
+  const apListe = useMemo(() => {
+    const m = new Map<string, string | undefined>();
+    apZ.forEach((z) => m.set(String(z.nom), undefined));
+    mbvF.forEach((f) => {
+      const n = String(f.properties.Aire_Prot ?? "").trim();
+      if (!n) return;
+      const ex = [...m.keys()].find((k) => sameArea(k, n));
+      m.set(ex ?? n, f.properties.Region);
+    });
+    return [...m.entries()].map(([nom, region]) => ({ nom, region }));
+  }, [apZ, mbvF]);
+
+  const SUGG = useMemo(() => construireSuggestions(donnees ?? DONNEES_VIDES, apListe), [donnees, apListe]);
 
   const trouver = (niveau: Niveau, k: string, regionK?: string, districtK?: string) =>
     SUGG.find(
@@ -641,10 +760,6 @@ export default function ZonesIntervention() {
         (regionK === undefined || s.regionCle === regionK) &&
         (districtK === undefined || s.districtCle === districtK)
     );
-
-  /* ----- aires protégées (mêmes données que la page feux) ----- */
-  const [airesF] = useGeo(DATA.aires);
-  const apZ = useMemo(() => toZones(airesF, PROP.ap, ""), [airesF]);
 
   /* ----- actions ----- */
   const choisir = (s: Sel) => {
@@ -662,6 +777,13 @@ export default function ZonesIntervention() {
   };
   const choisirZone = (niveau: Niveau, k: string, rk?: string, dk?: string) => {
     const s = trouver(niveau, k, rk, dk);
+    if (s) choisir(s);
+  };
+  /* Sélectionne une aire protégée à partir de son nom (tolère les petites différences d'écriture) */
+  const choisirAP = (nom: unknown) => {
+    const n = String(nom ?? "").trim();
+    if (!n) return;
+    const s = SUGG.find((x) => x.niveau === "ap" && (x.cle === cle(n) || sameArea(x.label, n)));
     if (s) choisir(s);
   };
 
@@ -696,13 +818,6 @@ export default function ZonesIntervention() {
       .slice(0, 8);
   }, [requete, masques, SUGG]);
 
-  /* ----- périmètre ----- */
-  const lignes = useMemo(() => (sel ? LIGNES.filter((l) => correspond(l, sel)) : []), [sel, LIGNES]);
-  const actives = useMemo<Ligne[]>(
-    () => (vide ? [] : sel ? lignes : LIGNES),
-    [vide, sel, lignes, LIGNES]
-  );
-
   /* ----- correspondance géographique : chaque district et commune est trouvé À L'INTÉRIEUR
          de sa région et de son district, pour éviter les homonymes ailleurs dans le pays ----- */
   const { featDis, featCom, ligneDis, ligneCom } = useMemo(() => {
@@ -736,6 +851,27 @@ export default function ZonesIntervention() {
     });
     return { featDis, featCom, ligneDis, ligneCom };
   }, [regions, districts, communes, LIGNES]);
+
+  /* ----- périmètre ----- */
+  const lignes = useMemo(() => {
+    if (!sel) return [];
+    if (sel.niveau === "ap") {
+      /* communes PADDI traversées par les MBV de cette AP */
+      const mb = mbvF.filter((f) => sameArea(f.properties.Aire_Prot, sel.label));
+      if (!mb.length) return [];
+      return LIGNES.filter((l) => {
+        if (!l.commune || !estPaddi(l.projetId, l.projet)) return false;
+        const cF = featCom.get(cleLigne(l));
+        return !!cF && mb.some((m) => chevauche(m, cF));
+      });
+    }
+    return LIGNES.filter((l) => correspond(l, sel));
+  }, [sel, LIGNES, mbvF, featCom]);
+
+  const actives = useMemo<Ligne[]>(
+    () => (vide ? [] : sel ? lignes : LIGNES),
+    [vide, sel, lignes, LIGNES]
+  );
 
   /* Zones à dessiner : uniquement celles des lignes de la sélection en cours */
   const actRegKeys = useMemo(() => new Set(actives.map((l) => cle(l.region))), [actives]);
@@ -795,12 +931,62 @@ export default function ZonesIntervention() {
     return regions.filter((f) => ids.has(cle(nomFeat(f))));
   }, [lignes, regions]);
 
+  /* ----- MBV à afficher selon la sélection ----- */
+  const mbvSel = useMemo<Feat[]>(() => {
+    if (vide || !sel || !mbvF.length) return [];
+    switch (sel.niveau) {
+      case "ap":
+        return mbvF.filter((f) => sameArea(f.properties.Aire_Prot, sel.label));
+      case "region": {
+        const p = mbvF.filter((f) => cle(String(f.properties.Region ?? "")) === sel.cle);
+        return p.length || !regionFeat ? p : mbvF.filter((f) => chevauche(f, regionFeat, 0.5));
+      }
+      case "district":
+        return districtFeat ? mbvF.filter((f) => chevauche(f, districtFeat)) : [];
+      case "commune":
+        return communeFeat ? mbvF.filter((f) => chevauche(f, communeFeat)) : [];
+      case "projet":
+      case "categorie":
+        return actives.some((l) => estPaddi(l.projetId, l.projet)) ? mbvF : [];
+      default:
+        return [];
+    }
+  }, [vide, sel, mbvF, regionFeat, districtFeat, communeFeat, actives]);
+
+  /* AP concernées : celle choisie + celles des MBV affichées */
+  const apsConcernes = useMemo(() => {
+    const noms = new Set<string>();
+    if (vide || !sel) return [] as string[];
+    if (sel.niveau === "ap") noms.add(sel.label);
+    mbvSel.forEach((f) => {
+      const n = String(f.properties.Aire_Prot ?? "").trim();
+      if (n) noms.add(n);
+    });
+    return [...noms];
+  }, [vide, sel, mbvSel]);
+
+  const apZonesSel = useMemo(
+    () => apZ.filter((z) => apsConcernes.some((n) => sameArea(z.nom, n))),
+    [apZ, apsConcernes]
+  );
+
+  /* Zone tampon 5 km : par nom, sinon par proximité (même logique que la page feux) */
+  const periphSel = useMemo(() => {
+    if (!apZonesSel.length) return [];
+    const byName = periphZ.filter(
+      (p) => apsConcernes.some((n) => sameArea(p.nom, n)) || apZonesSel.some((a) => sameArea(p.nom, a.nom))
+    );
+    return byName.length ? byName : periphZ.filter((p) => apZonesSel.some((a) => touch(p.bbox, a.bbox)));
+  }, [periphZ, apZonesSel, apsConcernes]);
+
   /* ----- carte : création ----- */
   useEffect(() => {
     const m = L.map(elMap.current!, { zoomControl: false }).fitBounds(MADA);
     L.control.zoom({ position: "bottomright" }).addTo(m);
     L.control.scale({ imperial: false, position: "bottomleft" }).addTo(m);
     m.createPane("zi-ap").style.zIndex = "450";
+    m.createPane("zi-per").style.zIndex = "445";
+    m.createPane("zi-mbv").style.zIndex = "460";
     couche.current = L.layerGroup().addTo(m);
     map.current = m;
     const ro = new ResizeObserver(() => m.invalidateSize());
@@ -835,27 +1021,59 @@ export default function ZonesIntervention() {
     if (!g) return;
     g.clearLayers();
 
-    /* Aires protégées : limites comme sur la page feux */
+    /* Aires protégées : celles concernées par la sélection sont mises en avant */
     apZ.forEach((z) => {
+      const conc = apZonesSel.includes(z);
       L.geoJSON(z.feature as any, {
         pane: "zi-ap",
         interactive: true,
-        style: { color: "#16a34a", weight: 1.2, fillColor: "#22c55e", fillOpacity: 0.1 },
+        style: {
+          color: conc ? "#14532d" : "#16a34a",
+          weight: conc ? 3 : 1.2,
+          fillColor: "#22c55e",
+          fillOpacity: conc ? 0.2 : 0.1,
+        },
       })
         .bindTooltip(String(z.nom), { sticky: true, className: "zi-hover" })
         .addTo(g);
     });
 
+    /* Zone tampon 5 km */
+    periphSel.forEach((z) =>
+      L.geoJSON(z.feature as any, {
+        pane: "zi-per",
+        interactive: false,
+        style: { color: "#ea580c", weight: 1.5, dashArray: "5 4", fillColor: "#fb923c", fillOpacity: 0.12 },
+      }).addTo(g)
+    );
+
+    /* MBV du projet PADDI (cliquer sur une MBV sélectionne son aire protégée) */
+    if (!vide) {
+      mbvSel.forEach((f) => {
+        const p = f.properties;
+        const l = L.geoJSON(f as any, {
+          pane: "zi-mbv",
+          style: { color: "#0369a1", weight: 1.5, fillColor: "#38bdf8", fillOpacity: 0.45 },
+        });
+        l.bindTooltip(
+          `<b>${esc(p.Nom)}</b><br/>${fmt(Number(p.Superficie) || 0)} ha<br/>${esc(p.Aire_Prot)} · ${esc(p.Region)}`,
+          { sticky: true, className: "zi-hover" }
+        );
+        l.on("click", () => choisirAP(p.Aire_Prot));
+        l.addTo(g);
+      });
+    }
+
     /* Recherche sans résultat, ou sélection sans zone renseignée : aucune limite administrative */
     if (vide || (sel && actives.length === 0)) return;
 
     const n = sel?.niveau ?? "vue";
-    const versCommunes = n === "district" || n === "commune";
+    const versCommunes = n === "district" || n === "commune" || n === "ap";
     const etiqRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
     /* Fond : uniquement sur le niveau choisi (région, district ou commune) */
     const remplirRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
     const etiqDistrict = n === "district";
-    const etiqCommune = n === "commune";
+    const etiqCommune = n === "commune" || n === "ap";
 
     /* Régions : toutes sans recherche, puis seulement celles de la sélection */
     regions
@@ -910,7 +1128,7 @@ export default function ZonesIntervention() {
         });
     }
 
-    /* Communes : uniquement quand un district (ou une commune) est choisi */
+    /* Communes : quand un district, une commune ou une AP est choisi */
     if (versCommunes) {
       actComSet.forEach((c) => {
         const choisie = n === "commune" && communeFeat === c;
@@ -935,7 +1153,7 @@ export default function ZonesIntervention() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion]);
+  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, apZonesSel, periphSel, SUGG]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -947,7 +1165,10 @@ export default function ZonesIntervention() {
     }
     let liste: Feat[] = [];
     if (sel.niveau === "projet" || sel.niveau === "categorie") liste = regionsProjet;
-    else {
+    else if (sel.niveau === "ap") {
+      liste = [...apZonesSel, ...periphSel].map((z) => z.feature as Feat);
+      if (!liste.length) liste = mbvSel;
+    } else {
       const cible =
         sel.niveau === "commune" ? communeFeat : sel.niveau === "district" ? districtFeat : regionFeat;
       if (cible) liste = [cible];
@@ -955,7 +1176,7 @@ export default function ZonesIntervention() {
     if (!liste.length) return;
     const bounds = liste.map((f) => L.geoJSON(f as any).getBounds()).reduce((a, b) => a.extend(b));
     m.flyToBounds(bounds, { padding: [40, 40], maxZoom: sel.niveau === "commune" ? 11 : 9, duration: 0.9 });
-  }, [sel, regionsProjet, regionFeat, districtFeat, communeFeat]);
+  }, [sel, regionsProjet, regionFeat, districtFeat, communeFeat, apZonesSel, periphSel, mbvSel]);
 
   /* ----- données du panneau ----- */
   const lignesCommunes = useMemo(() => actives.filter((l) => !!l.commune && !!l.district), [actives]);
@@ -979,7 +1200,7 @@ export default function ZonesIntervention() {
   /* La carte « Activités environnementales » n'apparaît que pour un projet environnemental choisi */
   const afficherActivites = !vide && !!sel && projetsVue.some((p) => p.type === "environnement");
 
-  /* Le MBV ne concerne que les projets environnementaux (ils ciblent un endroit précis).
+  /* Le MBV (colonne du tableau) ne concerne que les projets environnementaux (ils ciblent un endroit précis).
      Les projets de développement travaillent sur la commune entière : pas de MBV pour eux. */
   const avecMbv = lignesCommunes.some((l) => l.type === "environnement");
 
@@ -1046,9 +1267,6 @@ export default function ZonesIntervention() {
   );
   const pctTotal = totaux.supAvecMbv > 0 ? (totaux.mbv / totaux.supAvecMbv) * 100 : null;
 
-  const fmt = (n: number) => Math.round(n).toLocaleString(LOCALE[lang]);
-  const fmtPct = (p: number | null) =>
-    p != null ? `${p.toLocaleString(LOCALE[lang], { maximumFractionDigits: 1 })} %` : "—";
   const compte = (ty: TypeActivite) => activites.filter((a) => a.type === ty).length;
 
   /* Bloc d'un district et de ses communes */
@@ -1222,6 +1440,44 @@ export default function ZonesIntervention() {
             </div>
           </section>
 
+          {/* 1 bis. MBV du projet PADDI correspondant à la sélection */}
+          {mbvSel.length > 0 && (
+            <section className="zi-card">
+              <div className="zi-cardh">
+                <h3>{t.mbvTitre}</h3>
+                <span className="zi-regname">
+                  {mbvSel.length} · {fmt(mbvSel.reduce((s, f) => s + (Number(f.properties.Superficie) || 0), 0))} ha
+                </span>
+              </div>
+              <div style={{ maxHeight: 150, overflow: "auto" }}>
+                <table className="zi-tbl">
+                  <thead>
+                    <tr>
+                      <th>{t.colMbv}</th>
+                      <th>{t.colAP}</th>
+                      <th>{t.colSuperficie}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...mbvSel]
+                      .sort(
+                        (a, b) =>
+                          String(a.properties.Aire_Prot).localeCompare(String(b.properties.Aire_Prot)) ||
+                          String(a.properties.Nom).localeCompare(String(b.properties.Nom))
+                      )
+                      .map((f, i) => (
+                        <tr key={i} className="zi-row" onClick={() => choisirAP(f.properties.Aire_Prot)}>
+                          <td>{f.properties.Nom}</td>
+                          <td>{f.properties.Aire_Prot}</td>
+                          <td>{fmt(Number(f.properties.Superficie) || 0)}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           {/* 2. Activités environnementales (seulement pour les projets environnementaux) */}
           {afficherActivites && (
             <section className="zi-card">
@@ -1381,6 +1637,8 @@ export default function ZonesIntervention() {
             <span><i className="zi-lg-dis" />{t.legDistrict}</span>
             <span><i className="zi-lg-com" />{t.legCommune}</span>
             <span><i className="zi-lg-ap" />{t.legAP}</span>
+            <span><i className="zi-lg-mbv" />{t.legMbv}</span>
+            <span><i className="zi-lg-per" />{t.legPeriph}</span>
             <span><i className="zi-lg-sel" />{t.legSelection}</span>
           </div>
           <p className="zi-note">{t.note}</p>
@@ -1449,6 +1707,7 @@ const CSS = `
 .zi-badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--acc-soft);color:var(--acc);white-space:nowrap}
 .zi-badge.categorie{background:#dbeafe;color:#1e40af}
 .zi-badge.projet{background:#fde68a;color:#78350f}
+.zi-badge.ap{background:#dcfce7;color:#166534}
 .zi-badge.region{background:#ffedd5;color:#9a3412}
 .zi-badge.district{background:#ede9fe;color:#5b21b6}
 .zi-badge.commune{background:#ccfbf1;color:#115e59}
@@ -1530,6 +1789,8 @@ const CSS = `
 .zi-lg-dis{background:#a78bfa;border:1.5px solid #7c3aed}
 .zi-lg-com{background:#14b8a6;border:1px solid #0f766e}
 .zi-lg-ap{background:#22c55e;opacity:.5;border:1.5px solid #16a34a}
+.zi-lg-mbv{background:#38bdf8;border:1.5px solid #0369a1}
+.zi-lg-per{background:#fb923c;opacity:.6;border:1.5px dashed #ea580c}
 .zi-lg-sel{background:#f97316;border:2px solid #dc2626}
 .zi-note{font-size:11.5px;color:var(--ink3);line-height:1.4;margin:0;padding:6px 14px 8px}
 
