@@ -1,7 +1,4 @@
 import React, { useMemo } from 'react';
-import {
-  ResponsiveContainer, ComposedChart, Line, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
-} from 'recharts';
 import type { Parcelle } from './SuiviDashboard';
 
 /* Seuils de lecture (hypothèses à valider avec l'équipe S&E) */
@@ -54,17 +51,6 @@ export default function OodaPanel({ rows, cible, debut, fin, filtre }: Props) {
     rows.forEach((r) => { parPratique[r.pratique_cat] = (parPratique[r.pratique_cat] || 0) + r.superficie_ha; });
     const pratiquePrincipale = Object.entries(parPratique).sort((x, y) => y[1] - x[1])[0];
 
-    const annees: any[] = [];
-    for (let y = debut; y <= fin; y++) {
-      const passe = y <= now.getFullYear();
-      annees.push({
-        annee: String(y),
-        objectif: Math.round((cible * (y + 1 - debut)) / duree),
-        valide: passe ? Math.round(sum(rows.filter((r) => r.statut === 'Validé' && r.annee <= y))) : null,
-        declare: passe ? Math.round(sum(rows.filter((r) => r.annee <= y))) : null,
-      });
-    }
-
     return {
       valide, attente, rejete, total, attendu, ratio, rythmeReel, rythmeRequis, ecoule, restant,
       pAttente: total ? attente / total : 0,
@@ -75,7 +61,6 @@ export default function OodaPanel({ rows, cible, debut, fin, filtre }: Props) {
       topRegion: top[0],
       pTop3: total ? top3 / total : 0,
       pratiquePrincipale,
-      annees,
     };
   }, [rows, cible, debut, fin]);
 
@@ -131,7 +116,7 @@ export default function OodaPanel({ rows, cible, debut, fin, filtre }: Props) {
   );
 
   return (
-    <section className="sv-c ooda" aria-label="Analyse OODA">
+    <section className="sv-c sv-span ooda" aria-label="Analyse OODA">
       <style>{CSS}</style>
 
       {!fiable && (
@@ -155,7 +140,6 @@ export default function OodaPanel({ rows, cible, debut, fin, filtre }: Props) {
           <h4><i>2</i> Orienter <small>Qu'est-ce que cela signifie ?</small></h4>
           {comparable ? (
             <>
-              {KPI('Trajectoire', verdict, `Attendu à ce jour : ${fr(a.attendu)} ha · réalisé ${fr(a.ratio * 100, 0)} %`, statut)}
               {KPI('Rythme annuel', `${fr(a.rythmeReel)} → ${fr(a.rythmeRequis)} ha/an`, 'réel → requis pour atteindre la cible', a.rythmeRequis > a.rythmeReel * 1.2 ? 'warn' : 'ok')}
             </>
           ) : KPI('Part de la sélection', `${fr((a.total / (cible || 1)) * 100, 1)} %`, 'du total déclaré / cible')}
@@ -192,36 +176,14 @@ export default function OodaPanel({ rows, cible, debut, fin, filtre }: Props) {
         </div>
       </div>
 
-      {/* Trajectoire cumulée */}
-      <div className="ooda-chart">
-        <h4>Trajectoire cumulée vs objectif linéaire ({debut}–{fin})</h4>
-        <div style={{ height: 240 }}>
-          <ResponsiveContainer>
-            <ComposedChart data={a.annees} margin={{ left: 0, right: 16, top: 8 }}>
-              <CartesianGrid stroke="var(--line)" strokeDasharray="3 3" />
-              <XAxis dataKey="annee" tick={{ fill: 'var(--txt2)', fontSize: 11 }} />
-              <YAxis tick={{ fill: 'var(--txt2)', fontSize: 11 }} tickFormatter={(v) => fr(v)} width={60} />
-              <Tooltip
-                contentStyle={{ background: 'var(--card)', border: '1px solid var(--line)', borderRadius: 8, color: 'var(--txt)' }}
-                formatter={(v: any) => (v == null ? '—' : `${fr(v)} ha`)}
-              />
-              <Legend />
-              <Area type="monotone" dataKey="declare" name="Déclaré (cumul)" stroke="#FFB300" fill="#FFB300" fillOpacity={0.15} connectNulls={false} />
-              <Line type="monotone" dataKey="valide" name="Validé (cumul)" stroke="var(--gv)" strokeWidth={3} dot connectNulls={false} />
-              <Line type="monotone" dataKey="objectif" name="Objectif linéaire" stroke="var(--bad)" strokeWidth={2} strokeDasharray="6 4" dot={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
     </section>
   );
 }
 
 const CSS = `
 .ooda{gap:12px}
-.ooda-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--g)}
-@media(max-width:1300px){.ooda-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:640px){.ooda-grid{grid-template-columns:1fr}}
+.ooda-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--g)}
+@media(max-width:520px){.ooda-grid{grid-template-columns:1fr}}
 .ooda-col{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .ooda-col h4{margin:0;text-align:left;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ooda-col h4 i{font-style:normal;background:var(--gb);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:12px}
@@ -237,5 +199,4 @@ const CSS = `
 .ooda-tab td{padding:5px;border-bottom:1px solid var(--line);color:var(--txt);vertical-align:top}
 .ooda-note{margin:0;font-size:11px;color:var(--mut)}
 .ooda-note.bad{color:var(--bad);font-weight:600}
-.ooda-chart h4{margin:0 0 6px}
 `;
