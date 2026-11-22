@@ -19,7 +19,7 @@ export interface Parcelle {
   statut: string; precision_gps_m: number; is_cep: boolean; is_pare_feu: boolean;
 }
 type Feat = { type: 'Feature'; geometry: any; properties: Parcelle };
-type Geo = { type: 'FeatureCollection'; features: Feat[] };
+type Geo = { type: 'FeatureCollection'; features: Feat[]; metadata?: any };
 type FilterKey = 'annee' | 'aire_protegee' | 'region' | 'district' | 'commune' | 'paysage' | 'mbv' | 'statut';
 type PageKey = 'agro' | 'foret' | 'global';
 type Base = 'topo' | 'sat' | 'osm';
@@ -432,18 +432,18 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
   );
 }
 
-/* Jauge réduite : la valeur validée est dans l'anneau, le pourcentage dessous */
+/* Jauge : même taille et même épaisseur que le donut « Répartition » (hauteur 200, 55 % / 85 %) */
 function Gauge({ value, pct }: { value: number; pct: number }) {
   const p = Math.max(0, Math.min(100, pct));
   return (
-    <div style={{ height: 140, width: '100%', maxWidth: 200, margin: '0 auto' }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div style={{ height: 200 }}>
+      <ResponsiveContainer>
         <PieChart>
-          <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="64%" outerRadius="92%" startAngle={90} endAngle={-270} stroke="none">
+          <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="55%" outerRadius="85%" startAngle={90} endAngle={-270} stroke="var(--card)">
             <Cell fill="var(--gv)" /><Cell fill="var(--track)" />
           </Pie>
-          <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" fontSize={15} fontWeight="700" fill="var(--gv)">{fr(value)} ha</text>
-          <text x="50%" y="60%" textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="var(--mut)">{fr(pct, 1)} %</text>
+          <text x="50%" y="48%" textAnchor="middle" fontSize={15} fontWeight="700" fill="var(--gv)">{fr(value)} ha</text>
+          <text x="50%" y="58%" textAnchor="middle" fontSize={11} fill="var(--mut)">{fr(pct, 1)} %</text>
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -745,6 +745,15 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     if (!x) return null;
     const Ic = ICONS[x.icon] || Users;
     const now = sum(rows.filter((r) => r[x.flag]));
+    // Planifié : lu dans la base (metadata.planifie[thème][cep | pare_feu]), somme des thèmes de la vue ;
+    // à défaut, valeur éventuelle de la config. Il ne peut jamais être inférieur à l'actuel.
+    const cleP = x.flag === 'is_cep' ? 'cep' : 'pare_feu';
+    const pl = geo?.metadata?.planifie;
+    const dep = themes.map((th) => pl?.[th]?.[cleP]);
+    const prevu = dep.length && dep.every((v) => typeof v === 'number')
+      ? (dep as number[]).reduce((a, b) => a + b, 0)
+      : x.planifie;
+    const plan = prevu != null ? Math.max(prevu, now) : undefined;
     return (
       <div className="sv-c" key={x.key}>
         <h4>{t.extra[x.key]}</h4>
@@ -755,7 +764,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
           </div>
           <div className="sv-ex-sep" aria-hidden="true" />
           <div className="sv-ex-plan">
-            <b>{x.planifie != null ? `${fr(x.planifie)} ha` : '—'}</b>
+            <b>{plan != null ? `${fr(plan)} ha` : '—'}</b>
             <small>{O.plan}</small>
           </div>
         </div>
