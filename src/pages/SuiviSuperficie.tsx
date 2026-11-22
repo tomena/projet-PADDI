@@ -15,9 +15,17 @@ const ICONS: Record<PageKey, LucideIcon> = {
   foret: Trees,
 };
 
-const extras: DashboardConfig['extras'] = [
-  { key: 'cep', flag: 'is_cep', icon: 'cep' },
-  { key: 'feu', flag: 'is_pare_feu', icon: 'feu' },
+/* Superficies planifiées (en ha) pour les pare-feux et les CEP, par vue.
+   À renseigner : tant qu'une valeur est `undefined`, la carte affiche « — ». */
+const PLAN: Record<PageKey, { feu?: number; cep?: number }> = {
+  global: { feu: undefined, cep: undefined },
+  agro: { feu: undefined, cep: undefined },
+  foret: { feu: undefined, cep: undefined },
+};
+
+const extrasPour = (k: PageKey): DashboardConfig['extras'] => [
+  { key: 'cep', flag: 'is_cep', icon: 'cep', planifie: PLAN[k].cep },
+  { key: 'feu', flag: 'is_pare_feu', icon: 'feu', planifie: PLAN[k].feu },
 ];
 
 const CONFIGS: Record<PageKey, DashboardConfig> = {
@@ -29,7 +37,7 @@ const CONFIGS: Record<PageKey, DashboardConfig> = {
     debut: 2025,
     fin: 2030,
     donuts: ['theme_label', 'pratique_cat'],
-    extras,
+    extras: extrasPour('global'),
   },
   agro: {
     titleKey: 'agro',
@@ -39,7 +47,7 @@ const CONFIGS: Record<PageKey, DashboardConfig> = {
     debut: 2025,
     fin: 2030,
     donuts: ['type_terrain', 'pratique_cat'],
-    extras,
+    extras: extrasPour('agro'),
   },
   foret: {
     titleKey: 'foret',
@@ -49,7 +57,7 @@ const CONFIGS: Record<PageKey, DashboardConfig> = {
     debut: 2025,
     fin: 2030,
     donuts: ['type_terrain', 'pratique_cat'],
-    extras,
+    extras: extrasPour('foret'),
   },
 };
 
