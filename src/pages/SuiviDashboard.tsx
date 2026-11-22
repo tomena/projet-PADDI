@@ -10,7 +10,7 @@ import { RefreshCw, Users, Flame, Download, Search } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { T, V, IDX, LOCALES } from '../i18n/suivi';
 import type { Lang } from '../i18n/suivi';
-import { OODA } from '../i18n/suiviOoda';
+import { X } from '../i18n/suiviExtra';
 
 export interface Parcelle {
   id: string; utilisateur: string; theme: string; theme_label: string; pratique: string; pratique_cat: string;
@@ -32,7 +32,7 @@ export interface DashboardConfig {
   debut: number;
   fin: number;
   donuts: ('type_terrain' | 'pratique_cat' | 'theme_label')[];
-  extras?: { key: 'cep' | 'feu'; flag: 'is_cep' | 'is_pare_feu'; icon: 'cep' | 'feu' }[];
+  extras?: { key: 'cep' | 'feu'; flag: 'is_cep' | 'is_pare_feu'; icon: 'cep' | 'feu'; planifie?: number }[];
 }
 
 /* Limites administratives.
@@ -64,7 +64,6 @@ const BAD = 'var(--bad)';
 const PAL = ['#2e7d32', '#66bb6a', '#D4E157', '#FFB300', '#64B5F6', '#a5d6a7', '#8d6e63'];
 const STATUT: Record<string, string> = { 'Validé': G, 'En attente': '#FFB300', 'Rejeté': '#c62828' };
 const STATUT_UI: Record<string, string> = { 'Validé': GV, 'En attente': '#FFB300', 'Rejeté': BAD };
-const NIV = { ok: 'var(--gv)', warn: '#FFB300', bad: 'var(--bad)' };
 const COULEUR_REGION = '#ea580c';
 const COULEUR_DISTRICT = '#7c3aed';
 const COULEUR_COMMUNE = '#dc2626';
@@ -433,17 +432,18 @@ function Donut({ title, data }: { title: string; data: { name: string; value: nu
   );
 }
 
-/* Jauge : plus haute et plus épaisse, occupe tout l'espace restant de la carte */
-function Gauge({ pct }: { pct: number }) {
+/* Jauge réduite : la valeur validée est dans l'anneau, le pourcentage dessous */
+function Gauge({ value, pct }: { value: number; pct: number }) {
   const p = Math.max(0, Math.min(100, pct));
   return (
-    <div style={{ flex: 1, minHeight: 170 }}>
+    <div style={{ height: 140, width: '100%', maxWidth: 200, margin: '0 auto' }}>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
-          <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="50%" outerRadius="95%" startAngle={90} endAngle={-270} stroke="none">
+          <Pie data={[{ v: p }, { v: 100 - p }]} dataKey="v" innerRadius="64%" outerRadius="92%" startAngle={90} endAngle={-270} stroke="none">
             <Cell fill="var(--gv)" /><Cell fill="var(--track)" />
           </Pie>
-          <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" fontSize={18} fontWeight="700" fill="var(--gv)">{fr(pct, 1)} %</text>
+          <text x="50%" y="46%" textAnchor="middle" dominantBaseline="middle" fontSize={15} fontWeight="700" fill="var(--gv)">{fr(value)} ha</text>
+          <text x="50%" y="60%" textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="var(--mut)">{fr(pct, 1)} %</text>
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -488,12 +488,13 @@ const CSS = `
 .sv-val.top{justify-content:flex-start;gap:2px}
 .sv-lg{display:flex;justify-content:space-between;gap:8px;font-size:12px;margin-top:6px;align-items:center;flex-wrap:wrap}
 .sv-lg i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
-.sv-kv{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--txt2);margin-bottom:10px}
-.sv-kv b{font-size:clamp(14px,1.3vw,17px);color:var(--gv);line-height:1.2}
-.sv-kv small{color:var(--mut)}
-.sv-dec{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
-.sv-dec li{border-left:4px solid;padding:4px 8px;background:var(--e2);border-radius:0 6px 6px 0;font-size:12px;display:flex;flex-direction:column;gap:2px}
-.sv-dec li b{color:var(--txt)}
+.sv-ex{flex:1;display:flex;align-items:center;justify-content:center;gap:clamp(10px,1.5vw,18px);flex-wrap:wrap}
+.sv-ex-now{display:flex;align-items:center;gap:8px;color:var(--gv)}
+.sv-ex b{display:block;font-size:clamp(16px,1.9vw,24px);font-weight:800;line-height:1.1}
+.sv-ex-now b{color:var(--gv)}
+.sv-ex-plan b{color:var(--txt2)}
+.sv-ex small{display:block;font-size:11px;font-weight:600;color:var(--mut);margin-top:2px}
+.sv-ex-sep{align-self:stretch;width:2px;min-height:44px;background:var(--line);border-radius:2px}
 .sv-map{min-height:480px}
 .sv-mapbox{flex:1;min-height:420px;width:100%;border-radius:8px;z-index:0;background:var(--map-bg)}
 .sv-mh{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
@@ -543,7 +544,7 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   const raw = ctx.language ?? ctx.lang ?? ctx.locale;
   const lang: Lang = typeof raw === 'string' && raw in IDX ? (raw as Lang) : 'fr';
   const t = T[lang];
-  const O = OODA[lang] ?? OODA.fr;
+  const O = X[lang] ?? X.fr;
   LOC = LOCALES[lang];
   const tv = (s: string) => (V[s] ? V[s][IDX[lang]] : s);
   const tp = (s: string) => s.replace(/^(.*?) \((.*)\)$/, (_: string, c: string, sub: string) => `${tv(c)} (${tv(sub)})`);
@@ -713,37 +714,6 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
   // Les données de superficie ne s'affichent que si la sélection en contient dans la base
   const aDonnees = rows.length > 0;
 
-  /* ===== Indicateurs OODA : Observer, Orienter, Décider, Agir ===== */
-  const attTot = sum(rows.filter((r) => r.statut === 'En attente'));
-  const rejTot = sum(rows.filter((r) => r.statut === 'Rejeté'));
-  const pAtt = dTot ? attTot / dTot : 0;
-  const pRej = dTot ? rejTot / dTot : 0;
-  const pGps = rows.length ? rows.filter((r) => r.precision_gps_m > 10).length / rows.length : 0;
-  const filtreActif = Object.values(f).some(Boolean);
-
-  const maintenant = new Date();
-  const duree = config.fin + 1 - config.debut;
-  const ecoule = Math.min(duree, Math.max(0, maintenant.getFullYear() + maintenant.getMonth() / 12 - config.debut));
-  const restant = Math.max(0.01, duree - ecoule);
-  const attendu = (cible * ecoule) / duree;
-  const rythmeReel = ecoule > 0 ? vTot / ecoule : 0;
-  const rythmeRequis = Math.max(0, cible - vTot) / restant;
-
-  const pTop3 = dTot ? regionsData.slice(0, 3).reduce((s, d) => s + d.value, 0) / dTot : 0;
-  const pratDom = group(rows, 'pratique_cat')[0];
-
-  const decisions: { niv: 'ok' | 'warn' | 'bad'; titre: string; action: string; qui: string; delai: string }[] = [];
-  if (!filtreActif && ecoule > 0 && vTot < attendu * 0.95) {
-    decisions.push(vTot + attTot >= attendu
-      ? { niv: 'warn', titre: O.adminT, action: O.adminA(fr(attTot)), qui: O.whoValid, delai: O.w30 }
-      : { niv: 'bad', titre: O.realT, action: O.realA(fr(rythmeRequis), fr(rythmeReel)), qui: O.whoPartners, delai: O.wQuarter });
-  }
-  if (pAtt > 0.2) decisions.push({ niv: 'warn', titre: O.waitT, action: O.waitA(fr(pAtt * 100)), qui: O.whoSE, delai: O.w30 });
-  if (pRej > 0.1) decisions.push({ niv: 'bad', titre: O.rejT, action: O.rejA(fr(pRej * 100)), qui: O.whoField, delai: O.w60 });
-  if (pGps > 0.25) decisions.push({ niv: 'warn', titre: O.gpsT, action: O.gpsA(fr(pGps * 100)), qui: O.whoGis, delai: O.w60 });
-  if (pTop3 > 0.5 && regionsData.length > 3) decisions.push({ niv: 'warn', titre: O.concT, action: O.concA(fr(pTop3 * 100)), qui: O.whoRegional, delai: O.wPlan });
-  if (!decisions.length) decisions.push({ niv: 'ok', titre: O.noneT, action: O.noneA, qui: O.whoTeam, delai: O.wMonthly });
-
   const ql = q.trim().toLowerCase();
   const table = ql ? rows.filter((r) => Object.values(r).join(' ').toLowerCase().includes(ql)) : rows;
   const pages = Math.max(1, Math.ceil(table.length / per));
@@ -774,11 +744,20 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
     const x = extras.find((e) => e.key === key);
     if (!x) return null;
     const Ic = ICONS[x.icon] || Users;
+    const now = sum(rows.filter((r) => r[x.flag]));
     return (
       <div className="sv-c" key={x.key}>
         <h4>{t.extra[x.key]}</h4>
-        <div className="sv-val">
-          <div className="sv-big"><Ic size={20} style={{ verticalAlign: -3, marginRight: 6 }} />{fr(sum(rows.filter((r) => r[x.flag])))} ha</div>
+        <div className="sv-ex">
+          <div className="sv-ex-now">
+            <Ic size={28} />
+            <div><b>{fr(now)} ha</b><small>{O.now}</small></div>
+          </div>
+          <div className="sv-ex-sep" aria-hidden="true" />
+          <div className="sv-ex-plan">
+            <b>{x.planifie != null ? `${fr(x.planifie)} ha` : '—'}</b>
+            <small>{O.plan}</small>
+          </div>
         </div>
       </div>
     );
@@ -848,66 +827,12 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
 
                   <div className="sv-c">
                     <h4>{t.k.valide}</h4>
-                    <div className="sv-val top">
-                      <div className="sv-big">{fr(vTot)} ha</div>
+                    <div className="sv-val">
+                      <Gauge value={vTot} pct={taux} />
                       <div className="sv-sub">{t.k.on(fr(cible))}</div>
-                      <Gauge pct={taux} />
                     </div>
                   </div>
                   <Donut title={t.donut.pratique_cat} data={group(rows, 'pratique_cat').map((d) => ({ ...d, name: tv(d.name) }))} />
-
-                  {/* 1 · Observer */}
-                  <div className="sv-c">
-                    <h4>1 · {O.obs}</h4>
-                    <div className="sv-kv"><span>{O.declared}</span><b>{fr(dTot)} ha</b><small>{O.parcels(fr(rows.length), fr(rows.length ? dTot / rows.length : 0, 1))}</small></div>
-                    <div className="sv-kv"><span>{O.validated}</span><b>{fr(vTot)} ha</b><small>{O.ofDeclared(fr(dTot ? (vTot / dTot) * 100 : 0))}</small></div>
-                    <div className="sv-kv"><span>{O.pendRej}</span><b>{fr(attTot)} / {fr(rejTot)} ha</b></div>
-                  </div>
-
-                  {/* 2 · Orienter */}
-                  <div className="sv-c">
-                    <h4>2 · {O.ori}</h4>
-                    {rows.length < 30 && <p className="sv-warn" style={{ margin: '0 0 8px', textAlign: 'left' }}>{O.lowN(rows.length)}</p>}
-                    {!filtreActif && (
-                      <div className="sv-kv"><span>{O.rhythm}</span>
-                        <b style={{ color: rythmeRequis > rythmeReel * 1.2 ? NIV.warn : NIV.ok }}>{fr(rythmeReel)} → {fr(rythmeRequis)} ha/{lang === 'de' ? 'Jahr' : lang === 'en' ? 'yr' : lang === 'mg' ? 'taona' : 'an'}</b>
-                      </div>
-                    )}
-                    <div className="sv-kv"><span>{O.quality}</span>
-                      <b style={{ color: pRej > 0.1 || pGps > 0.25 ? NIV.warn : NIV.ok }}>{O.qualityVal(fr(pRej * 100), fr(pGps * 100))}</b>
-                    </div>
-                    {regionsData[0] && (
-                      <div className="sv-kv"><span>{O.conc}</span><b>{regionsData[0].name} : {fr((regionsData[0].value / (dTot || 1)) * 100)} %</b><small>{O.top3(fr(pTop3 * 100))}</small></div>
-                    )}
-                    {pratDom && (
-                      <div className="sv-kv"><span>{O.dominant}</span><b>{tv(pratDom.name)}</b><small>{O.ofArea(fr((pratDom.value / (dTot || 1)) * 100))}</small></div>
-                    )}
-                  </div>
-
-                  {/* 3 · Décider */}
-                  <div className="sv-c">
-                    <h4>3 · {O.dec}</h4>
-                    <ol className="sv-dec">
-                      {decisions.map((d, i) => (
-                        <li key={i} style={{ borderLeftColor: NIV[d.niv] }}><b>{d.titre}</b><span>{d.action}</span></li>
-                      ))}
-                    </ol>
-                  </div>
-
-                  {/* 4 · Agir */}
-                  <div className="sv-c">
-                    <h4>4 · {O.act}</h4>
-                    <div className="sv-t">
-                      <table style={{ minWidth: 0, fontSize: 12 }}>
-                        <thead><tr>{O.cols.map((h) => <th key={h}>{h}</th>)}</tr></thead>
-                        <tbody>
-                          {decisions.map((d, i) => (
-                            <tr key={i}><td className="l">{d.titre}</td><td className="l">{d.qui}</td><td>{d.delai}</td></tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
 
                   {regionsData.length > 0 && (
                     <div className="sv-c sv-span">
