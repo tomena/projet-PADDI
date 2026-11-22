@@ -15,23 +15,10 @@ const ICONS: Record<PageKey, LucideIcon> = {
   foret: Trees,
 };
 
-/* Superficies planifiées (en ha) pour les pare-feux et les CEP, par vue.
-   À renseigner : tant qu'une valeur est `undefined`, la carte affiche « — ». */
-const AGRO = { feu: 500, cep: 400 };   // à remplacer par vos valeurs
-const FORET = { feu: 700, cep: 400 };  // à remplacer par vos valeurs
-
-const add = (a?: number, b?: number) =>
-  a == null || b == null ? undefined : a + b;
-
-const PLAN: Record<PageKey, { feu?: number; cep?: number }> = {
-  global: { feu: add(AGRO.feu, FORET.feu), cep: add(AGRO.cep, FORET.cep) },
-  agro: AGRO,
-  foret: FORET,
-};
-
-const extrasPour = (k: PageKey): DashboardConfig['extras'] => [
-  { key: 'cep', flag: 'is_cep', icon: 'cep', planifie: PLAN[k].cep },
-  { key: 'feu', flag: 'is_pare_feu', icon: 'feu', planifie: PLAN[k].feu },
+/* Les superficies planifiées (pare-feux, CEP) sont lues dans la base : metadata.planifie du GeoJSON. */
+const extras: DashboardConfig['extras'] = [
+  { key: 'cep', flag: 'is_cep', icon: 'cep' },
+  { key: 'feu', flag: 'is_pare_feu', icon: 'feu' },
 ];
 
 const CONFIGS: Record<PageKey, DashboardConfig> = {
@@ -43,7 +30,7 @@ const CONFIGS: Record<PageKey, DashboardConfig> = {
     debut: 2025,
     fin: 2030,
     donuts: ['theme_label', 'pratique_cat'],
-    extras: extrasPour('global'),
+    extras,
   },
   agro: {
     titleKey: 'agro',
@@ -53,7 +40,7 @@ const CONFIGS: Record<PageKey, DashboardConfig> = {
     debut: 2025,
     fin: 2030,
     donuts: ['type_terrain', 'pratique_cat'],
-    extras: extrasPour('agro'),
+    extras,
   },
   foret: {
     titleKey: 'foret',
@@ -63,7 +50,7 @@ const CONFIGS: Record<PageKey, DashboardConfig> = {
     debut: 2025,
     fin: 2030,
     donuts: ['type_terrain', 'pratique_cat'],
-    extras: extrasPour('foret'),
+    extras,
   },
 };
 
