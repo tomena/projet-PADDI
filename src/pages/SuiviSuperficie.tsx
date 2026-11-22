@@ -17,10 +17,16 @@ const ICONS: Record<PageKey, LucideIcon> = {
 
 /* Superficies planifiées (en ha) pour les pare-feux et les CEP, par vue.
    À renseigner : tant qu'une valeur est `undefined`, la carte affiche « — ». */
+const AGRO = { feu: 500, cep: 400 };   // à remplacer par vos valeurs
+const FORET = { feu: 700, cep: 400 };  // à remplacer par vos valeurs
+
+const add = (a?: number, b?: number) =>
+  a == null || b == null ? undefined : a + b;
+
 const PLAN: Record<PageKey, { feu?: number; cep?: number }> = {
-  global: { feu: undefined, cep: undefined },
-  agro: { feu: undefined, cep: undefined },
-  foret: { feu: undefined, cep: undefined },
+  global: { feu: add(AGRO.feu, FORET.feu), cep: add(AGRO.cep, FORET.cep) },
+  agro: AGRO,
+  foret: FORET,
 };
 
 const extrasPour = (k: PageKey): DashboardConfig['extras'] => [
