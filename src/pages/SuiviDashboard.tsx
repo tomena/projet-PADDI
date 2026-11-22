@@ -10,6 +10,7 @@ import { RefreshCw, Users, Flame, Download, Search } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { T, V, IDX, LOCALES } from '../i18n/suivi';
 import type { Lang } from '../i18n/suivi';
+import OodaPanel from './OodaPanel';
 
 export interface Parcelle {
   id: string; utilisateur: string; theme: string; theme_label: string; pratique: string; pratique_cat: string;
@@ -794,6 +795,16 @@ export default function SuiviDashboard({ config, src = '/data/parcelles.geojson'
               </label>
             ))}
           </section>
+
+          {aDonnees && (
+              <OodaPanel
+                rows={rows}
+                cible={cible}
+                debut={config.debut}
+                fin={config.fin}
+                filtre={Object.values(f).some(Boolean)}
+              />
+            )}
 
           <section className="sv-cols">
             {/* Partie gauche : énoncé et cartes d'information */}
