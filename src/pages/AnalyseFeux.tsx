@@ -163,8 +163,7 @@ const RT: any = {
       `En ${d.year}, ${fmtHa(d.total)} ont brûlé dans les communes riveraines de l'aire protégée ${d.ap}, dont ${fmtHa(d.p5)} en périphérie (rayon de 5 km) et ${fmtHa(d.inside)} à l'intérieur de l'aire protégée.` +
       (d.evo !== null ? ` Par rapport à ${d.year - 1}, les superficies brûlées dans les communes ${d.evo >= 0 ? "augmentent" : "diminuent"} de ${Math.abs(d.evo).toFixed(1)} %.` : "") +
       (d.top ? ` La commune la plus touchée est ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
-      ` En périphérie, la superficie brûlée est ${d.vari === 0 ? "égale" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "supérieure" : "inférieure"}`} à la moyenne de référence 2020–2024.` +
-      ` ${d.fires} feu${d.fires > 1 ? "x" : ""} actif${d.fires > 1 ? "s" : ""} détecté${d.fires > 1 ? "s" : ""} au cours des ${d.hours} dernières heures.`,
+      ` En périphérie, la superficie brûlée est ${d.vari === 0 ? "égale" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "supérieure" : "inférieure"}`} à la moyenne de référence 2020–2024.`,
   },
   en: {
     exportPdf: "Export PDF", reportTitle: "Fire analysis report", preview: "Report preview",
@@ -180,8 +179,7 @@ const RT: any = {
       `In ${d.year}, ${fmtHa(d.total)} burned in the communes surrounding the ${d.ap} protected area, of which ${fmtHa(d.p5)} in the 5 km periphery and ${fmtHa(d.inside)} inside the protected area.` +
       (d.evo !== null ? ` Compared with ${d.year - 1}, burned area in the communes ${d.evo >= 0 ? "increased" : "decreased"} by ${Math.abs(d.evo).toFixed(1)} %.` : "") +
       (d.top ? ` The most affected commune is ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
-      ` In the periphery, the burned area is ${d.vari === 0 ? "equal to" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "above" : "below"}`} the 2020–2024 reference average.` +
-      ` ${d.fires} active fire${d.fires > 1 ? "s were" : " was"} detected during the last ${d.hours} hours.`,
+      ` In the periphery, the burned area is ${d.vari === 0 ? "equal to" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "above" : "below"}`} the 2020–2024 reference average.`,
   },
   de: {
     exportPdf: "PDF exportieren", reportTitle: "Brandanalysebericht", preview: "Berichtsvorschau",
@@ -197,8 +195,7 @@ const RT: any = {
       `Im Jahr ${d.year} verbrannten in den an das Schutzgebiet ${d.ap} angrenzenden Gemeinden ${fmtHa(d.total)}, davon ${fmtHa(d.p5)} im 5-km-Umfeld und ${fmtHa(d.inside)} innerhalb des Schutzgebiets.` +
       (d.evo !== null ? ` Gegenüber ${d.year - 1} ist die verbrannte Fläche in den Gemeinden um ${Math.abs(d.evo).toFixed(1)} % ${d.evo >= 0 ? "gestiegen" : "gesunken"}.` : "") +
       (d.top ? ` Am stärksten betroffen ist die Gemeinde ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
-      ` Im Umfeld liegt die verbrannte Fläche ${d.vari === 0 ? "auf dem Niveau" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "über" : "unter"}`} dem Referenzdurchschnitt 2020–2024.` +
-      ` In den letzten ${d.hours} Stunden wurden ${d.fires} aktive Brände erkannt.`,
+      ` Im Umfeld liegt die verbrannte Fläche ${d.vari === 0 ? "auf dem Niveau" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "über" : "unter"}`} dem Referenzdurchschnitt 2020–2024.`,
   },
   mg: {
     exportPdf: "Alefa PDF", reportTitle: "Tatitra momba ny fanadihadiana ny doro", preview: "Topimaso ny tatitra",
@@ -214,8 +211,7 @@ const RT: any = {
       `Tamin'ny taona ${d.year}, ${fmtHa(d.total)} no may tao amin'ny kaominina manodidina ny faritra arovana ${d.ap}, anisan'izany ${fmtHa(d.p5)} manodidina (5 km) ary ${fmtHa(d.inside)} ao anatin'ny faritra arovana.` +
       (d.evo !== null ? ` Raha oharina amin'ny ${d.year - 1}, ${d.evo >= 0 ? "nitombo" : "nihena"} ${Math.abs(d.evo).toFixed(1)} % ny velaran-tany may.` : "") +
       (d.top ? ` Ny kaominina tena voakasika dia ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
-      ` Manodidina, ${d.vari === 0 ? "mitovy amin'ny" : `${d.vari > 0 ? "mihoatra" : "latsaka"} ny ${Math.abs(d.vari)} % amin'ny`} salan'isa fanondroana 2020–2024 ny velaran-tany may.` +
-      ` Doro mavitrika ${d.fires} no hita tao anatin'ny ora ${d.hours} farany.`,
+      ` Manodidina, ${d.vari === 0 ? "mitovy amin'ny" : `${d.vari > 0 ? "mihoatra" : "latsaka"} ny ${Math.abs(d.vari)} % amin'ny`} salan'isa fanondroana 2020–2024 ny velaran-tany may.`,
   },
 };
 const LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
