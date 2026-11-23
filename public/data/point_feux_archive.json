@@ -1,6 +1,9 @@
 {
 "version": 1,
 "entrees": {
+"2025-10": {
+"ankarafantsika__marosakoa": {"ap":"Ankarafantsika","commune":"Marosakoa","jours":[33,162,114,24,27,114,122,82,19,3,2,3,44,105,96,60,7,133,71,69,221,12,16,89,163,75,57,49,6,0,5],"maj":"2026-11-23T12:44:49.721Z","definitif":true}
+},
 "2025-12": {
 "ankarafantsika__marosakoa": {"ap":"Ankarafantsika","commune":"Marosakoa","jours":[0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1],"maj":"2026-11-23T12:33:02.913Z","definitif":true}
 },
