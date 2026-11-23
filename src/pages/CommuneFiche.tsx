@@ -64,6 +64,8 @@ const PT: Record<string, Record<string, string>> = {
     calErr: "Archive FIRMS indisponible",
     calAuto: "Aucun mois choisi (année entière) : choisissez un mois sur la carte de l'Analyse de feux.",
     pointsMois: "Points du mois",
+    calSrcBase: "Données lues dans la base de sauvegarde (aucun appel à FIRMS).",
+    calSrcFirms: "Données récupérées sur NASA FIRMS puis enregistrées dans la base.",
     calNote: "Nombre de points de feux par jour dans la commune : archive NASA FIRMS (VIIRS S-NPP, NOAA-20, NOAA-21) du début du mois, complétée par les points récents de l'application. « – » : jour à venir ou donnée indisponible.",
   },
   en: {
@@ -92,6 +94,8 @@ const PT: Record<string, Record<string, string>> = {
     calErr: "FIRMS archive unavailable",
     calAuto: "No month selected (full year): pick a month on the map of the fire analysis page.",
     pointsMois: "Points in the month",
+    calSrcBase: "Data read from the saved database (no FIRMS call).",
+    calSrcFirms: "Data retrieved from NASA FIRMS and saved to the database.",
     calNote: "Fire points per day in the commune: NASA FIRMS archive (VIIRS S-NPP, NOAA-20, NOAA-21) from the start of the month, completed by the application's recent points. “–”: future day or data unavailable.",
   },
   de: {
@@ -120,6 +124,8 @@ const PT: Record<string, Record<string, string>> = {
     calErr: "FIRMS-Archiv nicht verfügbar",
     calAuto: "Kein Monat gewählt (ganzes Jahr): Monat auf der Karte der Brandanalyse wählen.",
     pointsMois: "Punkte im Monat",
+    calSrcBase: "Daten aus der Sicherungsdatenbank gelesen (kein FIRMS-Aufruf).",
+    calSrcFirms: "Daten von NASA FIRMS abgerufen und in der Datenbank gespeichert.",
     calNote: "Brandpunkte pro Tag in der Gemeinde: NASA-FIRMS-Archiv (VIIRS S-NPP, NOAA-20, NOAA-21) ab Monatsbeginn, ergänzt durch die aktuellen Punkte der Anwendung. „–“: zukünftiger Tag oder Daten nicht verfügbar.",
   },
 };
@@ -263,21 +269,24 @@ const Lecture = ({ title, l }: { title: string; l: LectureT }) => (
   </div>
 );
 
-/* ============================ ARCHIVE NASA FIRMS ============================ */
-// Appel via le dispatcher d'API (type=firms-archive -> server/firms-archive.ts) : la clé FIRMS_MAP_KEY reste côté serveur
+/* ============================ ARCHIVE NASA FIRMS + BASE DE SAUVEGARDE ============================ */
+// Dispatcher d'API (type=firms-archive -> server/firms-archive.ts) : la clé FIRMS_MAP_KEY reste côté serveur
 // ⚠ Remplacer "/api/import" par le vrai chemin du fichier api/*.ts qui contient le dispatcher
 const FIRMS_API = "/api/import?type=firms-archive";
 // SP = archive validée (retard de quelques mois), NRT = quasi temps réel (jours récents) : on interroge les deux et on fusionne
 const FIRMS_SOURCES = ["VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"];
 
 type FirmsPt = { t: number; lat: number; lon: number };
-// Clé de dédoublonnage : même détection vue par SP et NRT, ou par l'archive et par l'application
+// Clé de dédoublonnage : même détection vue par SP et NRT (position ~100 m, bloc de 3 h)
 const ptKey = (p: FirmsPt) => `${p.lat.toFixed(3)}_${p.lon.toFixed(3)}_${Math.floor(p.t / (3 * 3600e3))}`;
-const firmsCache = new Map<string, Promise<FirmsPt[]>>();
+type MoisFirms = { pts: FirmsPt[]; complet: boolean };
+type Sauvegarde = { jours: number[]; maj: string; definitif: boolean };
+type JoursRes = { jours: number[]; origine: "base" | "firms" };
+const firmsCache = new Map<string, Promise<MoisFirms>>();
 
 // Une requête = au plus 5 jours (limite sûre de l'API) pour un rectangle donné
 const firmsChunk = async (source: string, bbox: string, day: string, n: number): Promise<FirmsPt[]> => {
-  const res = await fetch(`${FIRMS_API}&source=${source}&bbox=${bbox}&day=${day}&n=${n}`);
+  const res = await fetch(`${FIRMS_API}&op=fetch&source=${source}&bbox=${bbox}&day=${day}&n=${n}`);
   const txt = (await res.text()).trim();
   if (!res.ok) throw new Error(txt.slice(0, 120) || `FIRMS ${res.status}`);
   if (!txt.toLowerCase().startsWith("latitude")) throw new Error(txt.slice(0, 120) || "FIRMS");
@@ -295,39 +304,73 @@ const firmsChunk = async (source: string, bbox: string, day: string, n: number):
   return out;
 };
 
-// Tous les points d'un mois dans un rectangle (mis en cache pour la session)
-const fetchFirmsMonth = (bbox: string, year: number, month: number): Promise<FirmsPt[]> => {
+// Tous les points d'un mois dans un rectangle (cache mémoire pour la session).
+// « complet » = aucune source n'a échoué : seul un résultat complet peut être sauvegardé dans la base.
+const fetchFirmsMonth = (bbox: string, year: number, month: number): Promise<MoisFirms> => {
   const k = `${bbox}|${year}-${month}`;
   let p = firmsCache.get(k);
   if (!p) {
     const today = Math.floor(Date.now() / DAY) * DAY;
     const start = Date.UTC(year, month, 1);
     const end = Math.min(Date.UTC(year, month + 1, 0), today);
-    const jobs: Promise<FirmsPt[]>[] = [];
+    const jobs: Promise<MoisFirms>[] = [];
     for (let d = start; d <= end; d += 5 * DAY) {
       const n = Math.min(5, Math.floor((end - d) / DAY) + 1);
       const day = new Date(d).toISOString().slice(0, 10);
-      // toutes les sources en parallèle ; une source en échec n'empêche pas les autres (erreur seulement si toutes échouent)
       jobs.push(
         Promise.allSettled(FIRMS_SOURCES.map((src) => firmsChunk(src, bbox, day, n))).then((rs) => {
           const ok = rs.filter((r): r is PromiseFulfilledResult<FirmsPt[]> => r.status === "fulfilled");
           if (!ok.length) throw (rs[0] as PromiseRejectedResult).reason;
-          return ok.flatMap((r) => r.value);
+          return { pts: ok.flatMap((r) => r.value), complet: ok.length === rs.length };
         })
       );
     }
     p = Promise.all(jobs).then((a) => {
       const uniq = new Map<string, FirmsPt>();
-      a.flat().forEach((pt) => {
-        const x = new Date(pt.t);
-        if (x.getUTCFullYear() === year && x.getUTCMonth() === month && !uniq.has(ptKey(pt))) uniq.set(ptKey(pt), pt);
-      });
-      return Array.from(uniq.values());
+      a.forEach((c) =>
+        c.pts.forEach((pt) => {
+          const x = new Date(pt.t);
+          if (x.getUTCFullYear() === year && x.getUTCMonth() === month && !uniq.has(ptKey(pt))) uniq.set(ptKey(pt), pt);
+        })
+      );
+      return { pts: Array.from(uniq.values()), complet: a.every((c) => c.complet) };
     });
     p.catch(() => firmsCache.delete(k));
     firmsCache.set(k, p);
   }
   return p;
+};
+
+// Une sauvegarde reste valable : indéfiniment si « définitive » (archive validée) ; sinon quelques heures (mois en cours) ou quelques jours
+const sauvegardeValide = (s: Sauvegarde, year: number, month: number, now: number) => {
+  if (s.definitif) return true;
+  const d = new Date(now);
+  const courant = year === d.getUTCFullYear() && month === d.getUTCMonth();
+  return now - Date.parse(s.maj) < (courant ? 3 : 24 * 7) * 3600e3;
+};
+
+// Nombre de points par jour pour une commune et un mois : base de sauvegarde d'abord, sinon FIRMS puis enregistrement dans la base
+const chargerJours = async (ap: string, commune: string, year: number, month: number, bbox: string, zone: Zone, now: number): Promise<JoursRes> => {
+  const qs = `&ap=${encodeURIComponent(ap)}&commune=${encodeURIComponent(commune)}&year=${year}&month=${month + 1}`;
+  try {
+    const r = await fetch(`${FIRMS_API}&op=get${qs}`);
+    if (r.ok) {
+      const s = (await r.json()) as Sauvegarde;
+      if (Array.isArray(s.jours) && sauvegardeValide(s, year, month, now)) return { jours: s.jours, origine: "base" };
+    }
+  } catch { /* base injoignable : on passe à FIRMS */ }
+
+  const { pts, complet } = await fetchFirmsMonth(bbox, year, month);
+  const jours: number[] = Array(new Date(Date.UTC(year, month + 1, 0)).getUTCDate()).fill(0);
+  pts.forEach((pt) => { if (inZone(pt.lon, pt.lat, zone)) jours[new Date(pt.t).getUTCDate() - 1]++; });
+  if (complet) {
+    fetch(`${FIRMS_API}&op=save`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ap, commune, year, month: month + 1, jours }),
+    }).catch(() => { /* la sauvegarde n'est pas bloquante */ });
+  }
+  return { jours, origine: "firms" };
 };
 
 export default function CommuneFiche({
@@ -381,57 +424,59 @@ export default function CommuneFiche({
   }));
   const heatMax = Math.max(0, ...analyse.heat.flatMap((r) => r.mois.map((v) => v ?? 0)));
 
-  // ===== Calendrier des points de feux : mois choisi dans l'Analyse de feux, points issus de l'archive NASA FIRMS =====
+  // ===== Calendrier des points de feux : mois choisi dans l'Analyse de feux =====
+  // Base de sauvegarde d'abord ; sinon archive NASA FIRMS (puis enregistrement dans la base)
   const nowD = new Date(now);
   const moisPage = monthSel != null && monthSel >= 0;
   const calMois = moisPage ? (monthSel as number) : year === nowD.getUTCFullYear() ? nowD.getUTCMonth() : 11;
   // Rectangle de la commune (légèrement élargi) ; le contour exact est appliqué ensuite avec inZone
   const bboxKey = zone ? (zone.bbox as number[]).map((v, k) => (k < 2 ? v - 0.01 : v + 0.01).toFixed(4)).join(",") : "";
-  const [firms, setFirms] = useState<{ pts: FirmsPt[] | null; err: string | null; loading: boolean }>({ pts: null, err: null, loading: false });
+  const [firms, setFirms] = useState<{ jours: number[] | null; origine: "base" | "firms" | null; err: string | null; loading: boolean }>(
+    { jours: null, origine: null, err: null, loading: false }
+  );
   useEffect(() => {
-    if (!bboxKey) { setFirms({ pts: null, err: null, loading: false }); return; }
+    if (!zone || !bboxKey) { setFirms({ jours: null, origine: null, err: null, loading: false }); return; }
     let off = false;
-    setFirms({ pts: null, err: null, loading: true });
-    fetchFirmsMonth(bboxKey, year, calMois)
-      .then((pts) => { if (!off) setFirms({ pts, err: null, loading: false }); })
-      .catch((e) => { if (!off) setFirms({ pts: null, err: String(e?.message ?? e), loading: false }); });
+    setFirms({ jours: null, origine: null, err: null, loading: true });
+    chargerJours(ap, commune, year, calMois, bboxKey, zone, Date.now())
+      .then((r) => { if (!off) setFirms({ jours: r.jours, origine: r.origine, err: null, loading: false }); })
+      .catch((e) => { if (!off) setFirms({ jours: null, origine: null, err: String(e?.message ?? e), loading: false }); });
     return () => { off = true; };
-  }, [bboxKey, year, calMois]);
+  }, [bboxKey, ap, commune, year, calMois]);
 
-  // Points du mois dans la commune : archive FIRMS (début du mois -> jusqu'aux dernières heures) + points récents de l'application
-  const ptsMois = useMemo(() => {
-    const m = new Map<string, FirmsPt>();
-    const add = (pt: FirmsPt) => { const k = ptKey(pt); if (!m.has(k)) m.set(k, pt); };
-    if (zone && firms.pts) firms.pts.forEach((pt) => { if (inZone(pt.lon, pt.lat, zone)) add(pt); });
+  // Points récents de l'application (fenêtre 24/48/72 h) comptés par jour pour le mois affiché
+  const appJours = useMemo(() => {
+    const n: number[] = Array(new Date(Date.UTC(year, calMois + 1, 0)).getUTCDate()).fill(0);
     pointsZone.forEach((f) => {
-      const t = toMs(f.t), d = new Date(t);
-      if (Number.isFinite(t) && d.getUTCFullYear() === year && d.getUTCMonth() === calMois) add({ t, lat: f.lat, lon: f.lon });
+      const d = new Date(toMs(f.t));
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === calMois) n[d.getUTCDate() - 1]++;
     });
-    return Array.from(m.values());
-  }, [zone, firms.pts, pointsZone, year, calMois]);
+    return n;
+  }, [pointsZone, year, calMois]);
+
   const cal = useMemo(() => {
-    const nJours = new Date(Date.UTC(year, calMois + 1, 0)).getUTCDate();
-    const n: number[] = Array(nJours).fill(0);
-    ptsMois.forEach((p) => { n[new Date(p.t).getUTCDate() - 1]++; });
-    // Jour sans donnée : archive pas encore chargée (ou en erreur), ou jour à venir
-    // Un jour est « sans donnée » s'il est à venir, ou si ni l'archive ni la fenêtre récente de l'application ne le couvrent
+    const nJours = appJours.length;
+    // Par jour : le plus grand des deux comptages (base/FIRMS et application), pour ne pas compter deux fois la même détection
+    const n: number[] = Array.from({ length: nJours }, (_, j) => Math.max(firms.jours?.[j] ?? 0, appJours[j]));
+    // Un jour est « sans donnée » s'il est à venir, ou si ni la base/FIRMS ni la fenêtre récente de l'application ne le couvrent
     const debutRecent = now - hours * 3.6e6;
     const sansDonnee = (j: number) => {
       const d0 = Date.UTC(year, calMois, j + 1);
-      return d0 > now || (!firms.pts && d0 + DAY <= debutRecent);
+      return d0 > now || (!firms.jours && d0 + DAY <= debutRecent);
     };
     const premier = (new Date(Date.UTC(year, calMois, 1)).getUTCDay() + 6) % 7; // lundi = 0
     const total = n.reduce((a, b) => a + b, 0);
     const max = Math.max(0, ...n);
     return { n, nJours, premier, sansDonnee, total, max, actifs: n.filter((v) => v > 0).length, pic: max > 0 ? n.indexOf(max) + 1 : 0 };
-  }, [ptsMois, firms.pts, year, calMois, now, hours]);
+  }, [appJours, firms.jours, year, calMois, now, hours]);
   const joursSem = Array.from({ length: 7 }, (_, i) =>
     new Date(Date.UTC(2024, 0, 1 + i)).toLocaleDateString(loc, { weekday: "short", timeZone: "UTC" }));
 
-  // Dates des points pour l'en-tête du PDF : points du mois (FIRMS) si disponibles, sinon points récents
-  const datesPoints = ptsMois.map((p) => p.t).filter((v) => Number.isFinite(v));
-  const premierPoint = datesPoints.length ? Math.min(...datesPoints) : null;
-  const dernierPoint = datesPoints.length ? Math.max(...datesPoints) : null;
+  // Dates pour l'en-tête du PDF : premier et dernier jour du mois avec au moins un point de feu
+  const dFmt = (ms: number) => new Date(ms).toLocaleDateString(loc, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "UTC" });
+  const joursFeu = cal.n.map((v, i) => (v > 0 ? i : -1)).filter((i) => i >= 0);
+  const premierPoint = joursFeu.length ? Date.UTC(year, calMois, joursFeu[0] + 1) : null;
+  const dernierPoint = joursFeu.length ? Date.UTC(year, calMois, joursFeu[joursFeu.length - 1] + 1) : null;
 
   // Export PDF : passe par la boîte d'impression du navigateur (« Enregistrer au format PDF »)
   const exportPdf = () => {
@@ -466,12 +511,12 @@ export default function CommuneFiche({
           <p className="fxm-print-line">
             <b>{P.pointsDate} :</b>{" "}
             {premierPoint != null && dernierPoint != null
-              ? `${P.pointsDu} ${dtFmt(premierPoint)} ${P.pointsAu} ${dtFmt(dernierPoint)}`
+              ? `${P.pointsDu} ${dFmt(premierPoint)} ${P.pointsAu} ${dFmt(dernierPoint)}`
               : P.pointsNone}
-            {dernierPoint != null && <>{" · "}<b>{P.dernier} :</b> {dtFmt(dernierPoint)}</>}
+            {dernierPoint != null && <>{" · "}<b>{P.dernier} :</b> {dFmt(dernierPoint)}</>}
             {" · "}<b>{P.fenetre} :</b> {hours} {P.heures}
             {bilan ? <>{" · "}<b>{P.total} :</b> {n0(bilan.total)}</> : null}
-            {zone ? <>{" · "}<b>{P.pointsMois} :</b> {n0(ptsMois.length)}</> : null}
+            {zone ? <>{" · "}<b>{P.pointsMois} :</b> {n0(cal.total)}</> : null}
           </p>
           <p>
             {superficieHa != null && <><b>{P.superficie} :</b> {fmt(superficieHa)} · </>}
@@ -689,7 +734,7 @@ export default function CommuneFiche({
                         </tbody>
                       </table>
                     </div>
-                    {(firms.pts || ptsMois.length > 0) && (
+                    {(firms.jours || cal.total > 0) && (
                       <p className="fxm-note">
                         {cal.total > 0
                           ? `${n0(cal.total)} ${P.calTotal} · ${cal.actifs} ${P.calJours} · ${P.calPic} : ${cal.pic}/${calMois + 1} (${cal.max})`
@@ -697,6 +742,7 @@ export default function CommuneFiche({
                       </p>
                     )}
                     <p className="fxm-note">{P.calNote}</p>
+                    {firms.origine && <p className="fxm-note">{firms.origine === "base" ? P.calSrcBase : P.calSrcFirms}</p>}
                     {!moisPage && <p className="fxm-note">{P.calAuto}</p>}
                   </>
                 )}
