@@ -188,8 +188,10 @@ const CSS = `
 .fxm-heat td{min-width:34px;padding:4px 2px;border-radius:4px;font-variant-numeric:tabular-nums}
 .fxm-cal{table-layout:fixed;height:100%}
 .fxm-cal td{min-width:0;height:34px;padding:2px 4px;vertical-align:top}
-.fxm-grid-eq{align-items:stretch!important}
-.fxm-grid-eq>.fxm-card{display:flex;flex-direction:column}
+.fxm-charts{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:10px}
+@media(min-width:760px){.fxm-charts{grid-template-columns:1fr 1fr;align-items:stretch}}
+.fxm-trio{display:contents}
+.fxm-calcard{display:flex;flex-direction:column}
 .fxm-calcard .fxm-chart-row{flex:1;display:flex;flex-direction:column}
 .fxm-calcard .fxm-chart-main{flex:1;display:flex;flex-direction:column}
 .fxm-calcard .fxm-heatw{flex:1}
@@ -224,6 +226,17 @@ const CSS = `
   .fxm-kpi small{font-size:9px}
   .fxm-noprint-pdf{display:none!important}
   .fxm-grid{gap:8px}
+  .fxm-charts{display:block;margin-bottom:8px}
+  .fxm-charts>.fxm-card{margin-bottom:8px}
+  /* historique en pleine largeur, puis carte année × mois et calendrier côte à côte, le tout sur une seule page */
+  .fxm-trio{display:grid;grid-template-columns:1fr 1fr;gap:8px;break-inside:avoid;page-break-inside:avoid}
+  .fxm-trio>.fxm-card:first-child{grid-column:1 / -1}
+  .fxm-trio .fxm-heatw{overflow:visible}
+  .fxm-trio .fxm-heat{border-spacing:1px}
+  .fxm-trio .fxm-heat td{min-width:0;padding:3px 0;font-size:8.5px}
+  .fxm-trio .fxm-heat th{padding:2px 0;font-size:8.5px}
+  .fxm-trio .fxm-cal td{height:30px}
+  .fxm-trio .fxm-lect{font-size:10px!important}
   .fxm-card,.fxm-syn,.fxm-info{break-inside:avoid;page-break-inside:avoid}
   .fxm-chart-row{display:flex;gap:10px;align-items:stretch}
   .fxm-chart-row .fxm-chart{flex:1 1 0;min-width:0}
@@ -612,7 +625,7 @@ export default function CommuneFiche({
             )}
 
             {/* ===== Graphes et lecture ===== */}
-            <div className="fxm-grid">
+            <div className="fxm-charts">
               <section className="fxm-card">
                 <h3>{T.mens}</h3>
                 <div className="fxm-chips">
@@ -636,6 +649,8 @@ export default function CommuneFiche({
 </div><div className="fxm-side-col"><p className="fxm-note fxm-side-note">{T.mensNote}</p><div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.mensuel} /></div></div></div>
               </section>
 
+              {/* Historique + carte année × mois + calendrier : toujours sur la même page dans le PDF */}
+              <div className="fxm-trio">
               <section className="fxm-card">
                 <h3>{T.hist}</h3>
                 <div className="fxm-chart-row"><div className="fxm-chart-main">
@@ -660,9 +675,7 @@ export default function CommuneFiche({
 </div><div className="fxm-side-col"><p className="fxm-note fxm-side-note">{T.histNote}</p><div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.historique} /></div></div>
                 </div>
               </section>
-            </div>
 
-            <div className="fxm-grid fxm-grid-eq">
               <section className="fxm-card">
                 <h3>{T.heat}</h3>
                 <div className="fxm-heatw">
@@ -748,6 +761,7 @@ export default function CommuneFiche({
                 )}
 </div>{rap.lectures.satellite && <div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.satellite} /></div>}</div>
               </section>
+              </div>
             </div>
 
             {/* ===== Actions recommandées ===== */}
