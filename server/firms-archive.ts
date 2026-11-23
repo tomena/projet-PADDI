@@ -9,15 +9,15 @@
  *   get   : lit dans la base de sauvegarde le nombre de points par jour d'une commune et d'un mois
  *   save  : enregistre ce nombre de points par jour (POST JSON)
  *
- * Base de sauvegarde = fichiers JSON dans GitHub (comme update-feux), un fichier par mois :
- *   public/data/point_feux_archive/2025-09.json
- *   { "version": 1, "entrees": { "ankarafantsika__marovoay": { ap, commune, jours:[..], maj, definitif } } }
- * Ils sont écrits sur une BRANCHE DÉDIÉE (data-archive) pour ne pas relancer le déploiement de la branche principale.
+ * Base de sauvegarde = UN SEUL fichier JSON dans GitHub (comme update-feux) :
+ *   public/data/point_feux_archive.json
+ *   { "version": 1, "entrees": { "2025-09": { "ankarafantsika__marovoay": { ap, commune, jours:[..], maj, definitif } } } }
+ * Il est écrit sur une BRANCHE DÉDIÉE (data-archive) pour ne pas relancer le déploiement de la branche principale.
  *
  * Variables d'environnement (les 4 premières existent déjà pour update-feux) :
  *   GITHUB_TOKEN, GITHUB_OWNER, GITHUB_REPO, GITHUB_BRANCH, FIRMS_MAP_KEY
  *   GITHUB_ARCHIVE_BRANCH  (optionnelle) défaut : data-archive
- *   FEUX_ARCHIVE_DIR       (optionnelle) défaut : public/data/point_feux_archive
+ *   FEUX_ARCHIVE_PATH      (optionnelle) défaut : public/data/point_feux_archive.json
  * ===================================================================== */
 
 const SOURCES = new Set([
@@ -34,7 +34,7 @@ const slug = (v: unknown) =>
   String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
 
 type Entree = { ap: string; commune: string; jours: number[]; maj: string; definitif: boolean };
-type FichierMois = { version: 1; entrees: Record<string, Entree> };
+type Fichier = { version: 1; entrees: Record<string, Record<string, Entree>> }; // mois -> commune -> entrée
 
 /* ---------- Paramètres communs ---------- */
 function cible(ap: string, commune: string, year: number, month: number) {
@@ -48,24 +48,49 @@ function configGithub() {
   const token = process.env.GITHUB_TOKEN, owner = process.env.GITHUB_OWNER, repo = process.env.GITHUB_REPO, base = process.env.GITHUB_BRANCH;
   if (!token || !owner || !repo || !base) return null;
   const archive = process.env.GITHUB_ARCHIVE_BRANCH || "data-archive";
-  const dir = (process.env.FEUX_ARCHIVE_DIR || "public/data/point_feux_archive").replace(/\/+$/, "");
+  const path = process.env.FEUX_ARCHIVE_PATH || "public/data/point_feux_archive.json";
   const headers = { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28" };
   const api = `https://api.github.com/repos/${owner}/${repo}`;
-  return { base, archive, dir, headers, api };
+  const url = `${api}/contents/` + path.split("/").map(encodeURIComponent).join("/");
+  return { base, archive, headers, api, url };
 }
 type Gh = NonNullable<ReturnType<typeof configGithub>>;
 
-const urlFichier = (g: Gh, mois: string) =>
-  `${g.api}/contents/` + `${g.dir}/${mois}.json`.split("/").map(encodeURIComponent).join("/");
+const vide = (): Fichier => ({ version: 1, entrees: {} });
+// Mémoire de l'instance (tant qu'elle reste chaude) : évite de retélécharger tout le fichier si son SHA n'a pas changé
+let memo: { sha: string; data: Fichier } | null = null;
 
-// Lit le fichier d'un mois sur la branche d'archive : { sha, data } ou null s'il n'existe pas encore
-async function lireMois(g: Gh, mois: string): Promise<{ sha: string; data: FichierMois } | null> {
-  const r = await fetch(`${urlFichier(g, mois)}?ref=${encodeURIComponent(g.archive)}`, { headers: g.headers, cache: "no-store" });
-  if (r.status === 404) return null;
-  if (!r.ok) throw new Error(`Lecture GitHub impossible (${r.status}).`);
-  const j = await r.json();
-  const data = JSON.parse(Buffer.from(String(j.content ?? ""), "base64").toString("utf8")) as FichierMois;
-  return { sha: j.sha, data: data && typeof data.entrees === "object" ? data : { version: 1, entrees: {} } };
+// Lit le fichier d'archive sur la branche d'archive : { sha, data } ou null s'il n'existe pas encore
+async function lireFichier(g: Gh): Promise<{ sha: string; data: Fichier } | null> {
+  const meta = await fetch(`${g.url}?ref=${encodeURIComponent(g.archive)}`, { headers: g.headers, cache: "no-store" });
+  if (meta.status === 404) return null;
+  if (!meta.ok) throw new Error(`Lecture GitHub impossible (${meta.status}).`);
+  const j = await meta.json();
+  if (memo && memo.sha === j.sha) return memo;
+  let texte: string;
+  if (j.content && j.encoding === "base64") {
+    texte = Buffer.from(String(j.content), "base64").toString("utf8");
+  } else {
+    // fichier de plus de 1 Mo : contenu brut
+    const brut = await fetch(`${g.url}?ref=${encodeURIComponent(g.archive)}`, {
+      headers: { ...g.headers, Accept: "application/vnd.github.raw+json" }, cache: "no-store",
+    });
+    if (!brut.ok) throw new Error(`Lecture du fichier d'archive impossible (${brut.status}).`);
+    texte = await brut.text();
+  }
+  const parsed = JSON.parse(texte) as Fichier;
+  const data = parsed && typeof parsed.entrees === "object" ? parsed : vide();
+  memo = { sha: j.sha, data };
+  return memo;
+}
+
+// Une entrée par ligne, mois et communes triés : l'historique Git reste lisible
+function serialiser(d: Fichier): string {
+  const mois = Object.keys(d.entrees).sort().map((m) => {
+    const lignes = Object.keys(d.entrees[m]).sort().map((k) => `${JSON.stringify(k)}: ${JSON.stringify(d.entrees[m][k])}`);
+    return `${JSON.stringify(m)}: {\n${lignes.join(",\n")}\n}`;
+  });
+  return `{\n"version": 1,\n"entrees": {\n${mois.join(",\n")}\n}\n}\n`;
 }
 
 // Crée la branche d'archive à partir de la branche principale si elle n'existe pas
@@ -113,8 +138,8 @@ async function opGet(req: any, res: any) {
   if (!c) return res.status(400).json({ error: "Paramètres invalides" });
   const g = configGithub();
   if (!g) return res.status(500).json({ error: "Configuration GitHub incomplète." });
-  const f = await lireMois(g, c.mois);
-  const e = f?.data.entrees[c.cle];
+  const f = await lireFichier(g);
+  const e = f?.data.entrees[c.mois]?.[c.cle];
   if (!e) return res.status(404).json({ error: "absent" });
   res.setHeader("Cache-Control", "no-store");
   return res.status(200).json(e);
@@ -145,26 +170,30 @@ async function opSave(req: any, res: any) {
   const entree: Entree = { ap, commune, jours, maj: new Date().toISOString(), definitif: Date.now() > finMois + DELAI_DEFINITIF_JOURS * DAY };
 
   // Plusieurs communes peuvent s'enregistrer en même temps : en cas de conflit (SHA périmé), on relit, on refusionne et on réessaie
-  for (let essai = 0; essai < 4; essai++) {
-    const f = await lireMois(g, c.mois);
-    const data: FichierMois = f?.data ?? { version: 1, entrees: {} };
-    const avant = data.entrees[c.cle];
+  for (let essai = 0; essai < 5; essai++) {
+    const f = await lireFichier(g);
+    const data: Fichier = f ? { version: 1, entrees: { ...f.data.entrees } } : vide();
+    const mois: Record<string, Entree> = { ...(data.entrees[c.mois] ?? {}) };
+    const avant = mois[c.cle];
     if (avant && avant.definitif && avant.jours.join() === jours.join()) return res.status(200).json({ ok: true, inchange: true });
-    data.entrees[c.cle] = entree;
-    // clés triées : historique Git lisible
-    const tri: FichierMois = { version: 1, entrees: Object.fromEntries(Object.entries(data.entrees).sort(([a], [b]) => a.localeCompare(b))) };
+    mois[c.cle] = entree;
+    data.entrees[c.mois] = mois;
 
-    const put = await fetch(urlFichier(g, c.mois), {
+    const put = await fetch(g.url, {
       method: "PUT",
       headers: { ...g.headers, "Content-Type": "application/json" },
       body: JSON.stringify({
         message: `Archive points de feux ${c.mois} : ${commune} (${ap})`,
-        content: Buffer.from(JSON.stringify(tri, null, 1) + "\n", "utf8").toString("base64"),
+        content: Buffer.from(serialiser(data), "utf8").toString("base64"),
         ...(f ? { sha: f.sha } : {}),
         branch: g.archive,
       }),
     });
-    if (put.ok) return res.status(200).json({ ok: true });
+    if (put.ok) {
+      memo = { sha: (await put.json())?.content?.sha ?? "", data };
+      return res.status(200).json({ ok: true });
+    }
+    memo = null;
     if (put.status !== 409 && put.status !== 422) throw new Error(`GitHub a refusé l'enregistrement (${put.status}).`);
     await new Promise((r) => setTimeout(r, 300 * (essai + 1)));
   }
