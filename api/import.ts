@@ -5,6 +5,7 @@ import importDecaissement from "../server/import-decaissement.js";
 import importIndicateurs from "../server/import-indicateurs.js";
 import osmTerritoire from "../server/osm-territoire.js";
 import zonesIntervention from "../server/zones-intervention.js";
+import firmsArchive from "../server/firms-archive.js";
 
 type Handler = (req: any, res: any) => unknown;
 
@@ -16,6 +17,7 @@ const types: Record<string, Handler> = {
   indicateurs: importIndicateurs,
   osm: osmTerritoire,
   zones: zonesIntervention,
+  "firms-archive": firmsArchive,
 };
 
 export default function handler(req: any, res: any) {
