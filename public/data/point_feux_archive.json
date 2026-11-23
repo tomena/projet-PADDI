@@ -28,6 +28,7 @@
 "montagne-d-ambre__antsahampano": {"ap":"Montagne d'Ambre","commune":"Antsahampano","jours":[0,0,0,0,3,0,0,0,19,0,3,0,2,24,8,8,1,8,0,8,8,0,1,2,0,8,39,16,2,13],"maj":"2026-11-23T14:28:17.419Z","definitif":false}
 },
 "2026-10": {
+"andohahela__ankaramena": {"ap":"Andohahela","commune":"Ankaramena","jours":[0,0,0,0,0,0,0,0,0,0,0,0,0,10,0,1,0,1,1,2,3,1,0,0,0,3,0,0,0,0,0],"maj":"2026-11-23T14:47:33.537Z","definitif":false},
 "andohahela__enaniliha": {"ap":"Andohahela","commune":"Enaniliha","jours":[0,0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,3,1,1,0,2,1,0,0,5,0,0,0,0,0],"maj":"2026-11-23T14:45:42.532Z","definitif":false},
 "andohahela__isaka-ivondro": {"ap":"Andohahela","commune":"Isaka Ivondro","jours":[0,0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,2,2,1,1,0,0,0,0,1,2,0,0,0,0],"maj":"2026-11-23T14:46:08.152Z","definitif":false},
 "andohahela__mandiso": {"ap":"Andohahela","commune":"Mandiso","jours":[0,0,0,0,0,0,0,0,0,0,0,0,0,2,4,3,0,0,2,5,8,4,0,0,0,0,3,0,0,0,0],"maj":"2026-11-23T14:44:45.197Z","definitif":false},
