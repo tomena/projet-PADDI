@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect, useRef, useContext, createContext } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import {
   Flame, Trees, MapPinned, MapPin, Calendar, Trophy, Medal,
-  TrendingUp, TrendingDown, BarChart3, Globe2, RefreshCw,
+  TrendingUp, TrendingDown, BarChart3, Globe2, RefreshCw, FileDown, Printer, X,
 } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, Area, Line, BarChart, Bar, XAxis, YAxis,
@@ -146,6 +147,79 @@ const txt: any = {
   },
 };
 
+/* ============================ TEXTES DU RAPPORT PDF ============================ */
+const RT: any = {
+  fr: {
+    exportPdf: "Exporter PDF", reportTitle: "Rapport d'analyse des feux", preview: "Aperçu du rapport",
+    save: "Enregistrer en PDF", close: "Fermer", mapLoading: "Chargement de la carte…",
+    tip: "Dans la fenêtre d'impression : destination « Enregistrer au format PDF », format A4, et désactivez « En-têtes et pieds de page ».",
+    generated: "Généré le",
+    secSummary: "Synthèse", secKpi: "Indicateurs clés", secMonthly: "Évolution mensuelle", secHisto: "Comparaison à la moyenne historique",
+    secImpact: "Impact par commune", secMap: "Cartographie",
+    colRank: "N°", colCommune: "Commune", colMonth: "Mois", colShare: "Part de l'AP", colDiff: "Écart (ha)", colDiffPct: "Écart %",
+    mapNote: (h: number, n: number, p: string) => `Carte : superficies brûlées par commune ${p}. ${n} feu${n > 1 ? "x" : ""} actif${n > 1 ? "s" : ""} détecté${n > 1 ? "s" : ""} par satellite sur les ${h} dernières heures.`,
+    source: "Source : base de suivi des feux (superficies brûlées, en hectares) et détections satellites des feux actifs.",
+    summary: (d: any) =>
+      `En ${d.year}, ${fmtHa(d.total)} ont brûlé dans les communes riveraines de l'aire protégée ${d.ap}, dont ${fmtHa(d.p5)} en périphérie (rayon de 5 km) et ${fmtHa(d.inside)} à l'intérieur de l'aire protégée.` +
+      (d.evo !== null ? ` Par rapport à ${d.year - 1}, les superficies brûlées dans les communes ${d.evo >= 0 ? "augmentent" : "diminuent"} de ${Math.abs(d.evo).toFixed(1)} %.` : "") +
+      (d.top ? ` La commune la plus touchée est ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
+      ` En périphérie, la superficie brûlée est ${d.vari === 0 ? "égale" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "supérieure" : "inférieure"}`} à la moyenne de référence 2020–2024.` +
+      ` ${d.fires} feu${d.fires > 1 ? "x" : ""} actif${d.fires > 1 ? "s" : ""} détecté${d.fires > 1 ? "s" : ""} au cours des ${d.hours} dernières heures.`,
+  },
+  en: {
+    exportPdf: "Export PDF", reportTitle: "Fire analysis report", preview: "Report preview",
+    save: "Save as PDF", close: "Close", mapLoading: "Loading map…",
+    tip: "In the print dialog: destination “Save as PDF”, A4 paper size, and turn off “Headers and footers”.",
+    generated: "Generated on",
+    secSummary: "Summary", secKpi: "Key indicators", secMonthly: "Monthly trend", secHisto: "Comparison with the historical average",
+    secImpact: "Impact by commune", secMap: "Mapping",
+    colRank: "No.", colCommune: "Commune", colMonth: "Month", colShare: "Share of PA", colDiff: "Change (ha)", colDiffPct: "Change %",
+    mapNote: (h: number, n: number, p: string) => `Map: burned area per commune ${p}. ${n} active fire${n > 1 ? "s" : ""} detected by satellite over the last ${h} hours.`,
+    source: "Source: fire monitoring database (burned area, in hectares) and satellite detections of active fires.",
+    summary: (d: any) =>
+      `In ${d.year}, ${fmtHa(d.total)} burned in the communes surrounding the ${d.ap} protected area, of which ${fmtHa(d.p5)} in the 5 km periphery and ${fmtHa(d.inside)} inside the protected area.` +
+      (d.evo !== null ? ` Compared with ${d.year - 1}, burned area in the communes ${d.evo >= 0 ? "increased" : "decreased"} by ${Math.abs(d.evo).toFixed(1)} %.` : "") +
+      (d.top ? ` The most affected commune is ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
+      ` In the periphery, the burned area is ${d.vari === 0 ? "equal to" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "above" : "below"}`} the 2020–2024 reference average.` +
+      ` ${d.fires} active fire${d.fires > 1 ? "s were" : " was"} detected during the last ${d.hours} hours.`,
+  },
+  de: {
+    exportPdf: "PDF exportieren", reportTitle: "Brandanalysebericht", preview: "Berichtsvorschau",
+    save: "Als PDF speichern", close: "Schließen", mapLoading: "Karte wird geladen…",
+    tip: "Im Druckdialog: Ziel „Als PDF speichern“, Format A4, und „Kopf- und Fußzeilen“ deaktivieren.",
+    generated: "Erstellt am",
+    secSummary: "Zusammenfassung", secKpi: "Wichtigste Kennzahlen", secMonthly: "Monatliche Entwicklung", secHisto: "Vergleich mit dem historischen Durchschnitt",
+    secImpact: "Auswirkungen je Gemeinde", secMap: "Kartografie",
+    colRank: "Nr.", colCommune: "Gemeinde", colMonth: "Monat", colShare: "Anteil am SG", colDiff: "Differenz (ha)", colDiffPct: "Differenz %",
+    mapNote: (h: number, n: number, p: string) => `Karte: verbrannte Fläche je Gemeinde ${p}. ${n} aktive${n > 1 ? " Brände" : "r Brand"} per Satellit in den letzten ${h} Stunden erkannt.`,
+    source: "Quelle: Brandüberwachungsdatenbank (verbrannte Fläche in Hektar) und Satellitenerkennung aktiver Brände.",
+    summary: (d: any) =>
+      `Im Jahr ${d.year} verbrannten in den an das Schutzgebiet ${d.ap} angrenzenden Gemeinden ${fmtHa(d.total)}, davon ${fmtHa(d.p5)} im 5-km-Umfeld und ${fmtHa(d.inside)} innerhalb des Schutzgebiets.` +
+      (d.evo !== null ? ` Gegenüber ${d.year - 1} ist die verbrannte Fläche in den Gemeinden um ${Math.abs(d.evo).toFixed(1)} % ${d.evo >= 0 ? "gestiegen" : "gesunken"}.` : "") +
+      (d.top ? ` Am stärksten betroffen ist die Gemeinde ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
+      ` Im Umfeld liegt die verbrannte Fläche ${d.vari === 0 ? "auf dem Niveau" : `${Math.abs(d.vari)} % ${d.vari > 0 ? "über" : "unter"}`} dem Referenzdurchschnitt 2020–2024.` +
+      ` In den letzten ${d.hours} Stunden wurden ${d.fires} aktive Brände erkannt.`,
+  },
+  mg: {
+    exportPdf: "Alefa PDF", reportTitle: "Tatitra momba ny fanadihadiana ny doro", preview: "Topimaso ny tatitra",
+    save: "Tehirizo ho PDF", close: "Hidio", mapLoading: "Mitondra ny sarintany…",
+    tip: "Ao amin'ny varavarankelin'ny pirinty : safidio ny « Save as PDF », A4, ary esory ny « Headers and footers ».",
+    generated: "Noforonina tamin'ny",
+    secSummary: "Famintinana", secKpi: "Mari-pamantarana lehibe", secMonthly: "Fiovana isam-bolana", secHisto: "Fampitahana amin'ny salan'isa ara-tantara",
+    secImpact: "Fiantraikany isaky ny kaominina", secMap: "Sarintany",
+    colRank: "Laharana", colCommune: "Kaominina", colMonth: "Volana", colShare: "Ampahany amin'ny AP", colDiff: "Elanelana (ha)", colDiffPct: "Elanelana %",
+    mapNote: (h: number, n: number, p: string) => `Sarintany : velaran-tany may isaky ny kaominina ${p}. Doro mavitrika ${n} no hita avy amin'ny zanabolana tao anatin'ny ora ${h} farany.`,
+    source: "Loharano : angona fanaraha-maso ny doro (velaran-tany may, amin'ny hektara) sy fanamarihana avy amin'ny zanabolana.",
+    summary: (d: any) =>
+      `Tamin'ny taona ${d.year}, ${fmtHa(d.total)} no may tao amin'ny kaominina manodidina ny faritra arovana ${d.ap}, anisan'izany ${fmtHa(d.p5)} manodidina (5 km) ary ${fmtHa(d.inside)} ao anatin'ny faritra arovana.` +
+      (d.evo !== null ? ` Raha oharina amin'ny ${d.year - 1}, ${d.evo >= 0 ? "nitombo" : "nihena"} ${Math.abs(d.evo).toFixed(1)} % ny velaran-tany may.` : "") +
+      (d.top ? ` Ny kaominina tena voakasika dia ${d.top.commune} (${fmtHa(d.top.total)}).` : "") +
+      ` Manodidina, ${d.vari === 0 ? "mitovy amin'ny" : `${d.vari > 0 ? "mihoatra" : "latsaka"} ny ${Math.abs(d.vari)} % amin'ny`} salan'isa fanondroana 2020–2024 ny velaran-tany may.` +
+      ` Doro mavitrika ${d.fires} no hita tao anatin'ny ora ${d.hours} farany.`,
+  },
+};
+const LOCALES: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE", mg: "fr-FR" };
+
 /* ============================ CONSTANTES ============================ */
 const SUPERFICIE_2018: Record<string, number> = {
   Analamerana: 2809.96, Andohahela: 5584.04, Ankarafantsika: 18496.4, Ankarana: 5812.0,
@@ -201,6 +275,7 @@ const same = (a: any, b: any) => String(a).trim() === String(b).trim();
 const src = (p: any) => String(p.Source).trim().toLowerCase();
 const fmtHa = (v: number) => v.toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " ha";
 const nHa = (v: number) => v.toLocaleString("fr-FR");
+const f1 = (v: number) => v.toLocaleString("fr-FR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const compact = (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}k` : String(Math.round(v)));
 
 // Similarité de noms (bigrammes)
@@ -262,11 +337,13 @@ const CSS = `
 .fx-logo svg.f{position:absolute;right:-5px;bottom:-5px;background:var(--surface);border-radius:50%;padding:3px}
 .fx-h1{margin:0;color:var(--bleu);font-size:clamp(17px,2.4vw,24px);font-weight:700;line-height:1.2}
 .fx-sub{margin:2px 0 0;font-size:12px;color:var(--text-3)}
-.fx-filters{display:flex;flex-wrap:wrap;gap:10px}
+.fx-filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
 .fx-f{display:flex;flex-direction:column;gap:4px;min-width:130px;flex:1 1 130px}
 .fx-f label{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--text-2)}
 .fx select,.fx-sel{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface-3);color:var(--text);font-weight:600;font-size:12px;cursor:pointer}
 .fx select:focus-visible,.fx input:focus-visible,.fx button:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+.fx-pdf{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:9px 14px;border-radius:8px;border:0;background:#0b4ea2;color:#fff;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap}
+.fx-pdf:hover{background:#093f84}
 .fx-rank{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-bottom:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:12px;font-size:12px}
 .fx-rank-t{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--bleu);font-size:13px;flex:1 1 280px}
 .fx-rank-i{display:flex;align-items:center;gap:6px}
@@ -331,7 +408,61 @@ const CSS = `
 @media(prefers-reduced-motion:reduce){.fx *{transition:none!important}}
 `;
 
+/* ---- Styles du rapport PDF (injectés uniquement quand le rapport est ouvert) ---- */
+const REPORT_CSS = `
+.fxr-portal{position:fixed;inset:0;z-index:9999;overflow:auto;background:#475569;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.fxr-portal,.fxr-portal *{-webkit-print-color-adjust:exact;print-color-adjust:exact;box-sizing:border-box}
+.fxr-bar{position:sticky;top:0;z-index:2000;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 16px;background:#0f172a;color:#fff;font-size:13px}
+.fxr-bar b{font-size:14px}
+.fxr-tip{margin-top:2px;font-size:11px;color:#cbd5e1;max-width:640px}
+.fxr-actions{display:flex;gap:8px}
+.fxr-actions button{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#fff;font-weight:700;font-size:12px;cursor:pointer}
+.fxr-actions button.p{background:#0b4ea2;border-color:#0b4ea2}
+.fxr-actions button:disabled{opacity:.65;cursor:wait}
+
+.fxr-paper{width:210mm;min-height:0;margin:18px auto;padding:12mm;background:#fff;color:#0f172a;box-shadow:0 4px 24px rgba(0,0,0,.4);
+  --text:#0f172a;--text-2:#334155;--text-3:#64748b;--surface:#fff;--surface-2:#fff;--surface-3:#f8fafc;--border:#e2e8f0;--border-soft:#e2e8f0;--track:#f1f5f9}
+.fxr-cover{display:flex;align-items:center;gap:16px;padding:18px 20px;margin-bottom:14px;border-radius:12px;color:#fff;background:linear-gradient(135deg,#0b4ea2,#1d78d6)}
+.fxr-cover .fx-logo{width:64px;height:64px;background:rgba(255,255,255,.18)}
+.fxr-kick{font-size:12px;font-weight:600;opacity:.9}
+.fxr-cover h1{margin:2px 0 4px;font-size:30px;line-height:1.1;font-weight:800}
+.fxr-cs{font-size:13px;opacity:.95}
+.fxr-meta{margin-left:auto;text-align:right;font-size:11px;line-height:1.5;opacity:.9}
+.fxr-ph{display:flex;justify-content:space-between;gap:12px;padding-bottom:6px;margin-bottom:10px;border-bottom:2px solid #0b4ea2;font-size:10.5px;color:#64748b;font-weight:600}
+.fxr-h2{margin:14px 0 8px;font-size:15px;font-weight:800;color:#0b4ea2}
+.fxr-p{margin:0;padding:10px 14px;font-size:12.5px;line-height:1.65;background:#f1f5f9;border-left:4px solid #0b4ea2;border-radius:0 8px 8px 0}
+.fxr-paper .fx-kpis{grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:0}
+.fxr-paper .fx-kpi{min-height:84px;box-shadow:none;break-inside:avoid}
+.fxr-paper .fx-card{box-shadow:none;break-inside:avoid;margin-bottom:10px}
+.fxr-paper .fx-chart{cursor:default;height:240px}
+.fxr-paper .fx-rank{margin:10px 0 0;break-inside:avoid}
+.fxr-paper svg g{transition:none!important}
+.fxr-tb{width:100%;border-collapse:collapse;font-size:11px;break-inside:avoid}
+.fxr-tb th{padding:6px 8px;text-align:right;background:#0b4ea2;color:#fff;font-weight:700}
+.fxr-tb td{padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0}
+.fxr-tb th.l,.fxr-tb td.l{text-align:left}
+.fxr-tb tbody tr:nth-child(even){background:#f8fafc}
+.fxr-tb tfoot td{font-weight:800;background:#e2e8f0;border-bottom:0}
+.fxr-up{color:#b91c1c;font-weight:700}
+.fxr-down{color:#15803d;font-weight:700}
+.fxr-foot{margin-top:12px;padding-top:6px;border-top:1px solid #cbd5e1;font-size:10px;color:#64748b}
+@media screen{.fxr-pb{margin-top:12mm;padding-top:12mm;border-top:2px dashed #cbd5e1}}
+
+@page{size:A4 portrait;margin:12mm 12mm 14mm;@bottom-right{content:counter(page);font:9pt system-ui,sans-serif;color:#64748b}}
+@media print{
+  html,body{background:#fff!important;height:auto!important;overflow:visible!important}
+  body.fx-printing>*:not(.fxr-portal){display:none!important}
+  .fxr-portal{position:static;inset:auto;overflow:visible;background:#fff}
+  .fxr-bar{display:none!important}
+  .fxr-paper{width:186mm;margin:0;padding:0;box-shadow:none}
+  .fxr-pb{break-before:page;margin:0;padding:0;border:0}
+}
+`;
+
 /* ============================ COMPOSANTS ============================ */
+// Vrai à l'intérieur du rapport PDF : pas d'animation, pas de contrôles interactifs
+const ReportCtx = createContext(false);
+
 const Card = ({ title, className = "", children }: any) => (
   <section className={`fx-card ${className}`}>
     <h3 className="fx-ct">{title}</h3>
@@ -397,6 +528,7 @@ const MonthTip = ({ active, payload, label, year }: any) => {
 };
 
 const MonthlyChart = ({ data, year, t }: any) => {
+  const rep = useContext(ReportCtx);
   const rows = data.map((r: any) => ({ ...r, m: Math.max(r[`y${year - 1}`], r[`y${year}`]) }));
   const diffLabel = (p: any) => {
     const { x, y, index } = p;
@@ -441,8 +573,8 @@ const MonthlyChart = ({ data, year, t }: any) => {
             <XAxis dataKey="mois" tick={TICK} axisLine={false} tickLine={false} />
             <YAxis domain={[0, (max: number) => Math.ceil(max * 1.1)]} tick={TICK} axisLine={false} tickLine={false} tickFormatter={compact} width={42} />
             <Tooltip content={<MonthTip year={year} />} cursor={{ stroke: "#94a3b8", strokeDasharray: "4 4" }} />
-            <Area type="natural" dataKey={`y${year - 1}`} name={`${year - 1}`} stroke="#2563eb" strokeWidth={2} fill="url(#gPrev)" dot={false} activeDot={{ r: 4 }} />
-            <Area type="natural" dataKey={`y${year}`} name={`${year}`} stroke="#dc2626" strokeWidth={2.5} fill="url(#gCur)" dot={false} activeDot={{ r: 4.5 }} />
+            <Area type="natural" dataKey={`y${year - 1}`} name={`${year - 1}`} stroke="#2563eb" strokeWidth={2} fill="url(#gPrev)" dot={false} activeDot={{ r: 4 }} isAnimationActive={!rep} />
+            <Area type="natural" dataKey={`y${year}`} name={`${year}`} stroke="#dc2626" strokeWidth={2.5} fill="url(#gCur)" dot={false} activeDot={{ r: 4.5 }} isAnimationActive={!rep} />
             <Line type="natural" dataKey="m" stroke="none" dot={false} activeDot={false} legendType="none" tooltipType="none" isAnimationActive={false}>
               <LabelList content={diffLabel} />
             </Line>
@@ -454,6 +586,7 @@ const MonthlyChart = ({ data, year, t }: any) => {
 };
 
 const HistoricalChart = ({ zones, year, t, lang }: any) => {
+  const rep = useContext(ReportCtx);
   const annees = Array.from(new Set(Object.values(ANNEES_PRESSION).flat())).sort((a, b) => a - b);
   return (
     <Card title={t.historicalDifference}>
@@ -483,7 +616,7 @@ const HistoricalChart = ({ zones, year, t, lang }: any) => {
                 <XAxis type="number" hide domain={[0, (m: number) => Math.max(1, m * 1.3)]} />
                 <YAxis type="category" dataKey="nom" width={108} tick={{ fontSize: 11, fill: "var(--text-2)" }} axisLine={false} tickLine={false} />
                 <ReferenceLine x={z.moyenne} stroke="var(--text-3)" strokeDasharray="4 3" />
-                <Bar dataKey="val" barSize={20} radius={[0, 4, 4, 0]} background={{ fill: "var(--track)", radius: 4 }}>
+                <Bar dataKey="val" barSize={20} radius={[0, 4, 4, 0]} background={{ fill: "var(--track)", radius: 4 }} isAnimationActive={!rep}>
                   {["#9ca3af", "#EAB308", "#d32f2f"].map((c, i) => (
                     <Cell key={i} fill={c} />
                   ))}
@@ -527,7 +660,7 @@ const RankTick = ({ x, y, payload, index, onPick }: any) => {
   return (
     <g
       transform={`translate(${x},${y})`}
-      style={{ cursor: "pointer" }}
+      style={{ cursor: onPick ? "pointer" : "default" }}
       onClick={() => onPick?.(String(payload.value))}
     >
       <text x={0} y={0} dy={12} textAnchor="end" transform="rotate(-30)" fill={top5 ? "#ef4444" : "var(--text-2)"} fontSize={11} fontWeight={top5 ? 700 : 400}>
@@ -543,7 +676,7 @@ const CustomTotalBar = ({ x, y, width, height, payload, onPick }: any) => {
   const hInt = (payload.interieur / total) * height, hPer = (payload.peripherie / total) * height;
   const w = width * 0.45, gap = 2, x0 = x + (width - (w * 2 + gap)) / 2;
   return (
-    <g style={{ cursor: "pointer" }} onClick={() => onPick?.(payload.commune)}>
+    <g style={{ cursor: onPick ? "pointer" : "default" }} onClick={() => onPick?.(payload.commune)}>
       <rect x={x} y={y} width={width} height={height} fill={BLEU_TOTAL} rx={4} />
       <rect x={x0} y={y + height - hInt} width={w} height={hInt} fill="#ff0000" />
       <rect x={x0 + w + gap} y={y + height - hPer} width={w} height={hPer} fill="#ffff00" />
@@ -574,6 +707,7 @@ const ImpactTip = ({ active, payload, t }: any) => {
 };
 
 const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
+  const rep = useContext(ReportCtx);
   const data = all.slice(0, n);
   const sum = (a: any[]) => a.reduce((s, d) => s + d.total, 0);
   const share = sum(all) > 0 ? Math.round((sum(data) / sum(all)) * 100) : 0;
@@ -595,13 +729,15 @@ const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
           {chip("#ffff00", t.peripheral5km, "1px solid #999")}
           {chip(BLEU_TOTAL, t.total, "1px solid rgba(59,130,246,.5)")}
         </div>
-        <div className="fx-seg" role="group" aria-label="Top">
-          {[5, 11].map((k) => (
-            <button key={k} className={n === k ? "on" : ""} onClick={() => setN(k)}>
-              {t.topN} {k}
-            </button>
-          ))}
-        </div>
+        {!rep && (
+          <div className="fx-seg" role="group" aria-label="Top">
+            {[5, 11].map((k) => (
+              <button key={k} className={n === k ? "on" : ""} onClick={() => setN(k)}>
+                {t.topN} {k}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       <div className="fx-chart">
         <ResponsiveContainer width="100%" height="100%">
@@ -614,7 +750,7 @@ const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
             <XAxis dataKey="commune" interval={0} tick={<RankTick onPick={onPick} />} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
             <YAxis domain={[0, top]} ticks={ticks} tickFormatter={compact} width={40} tick={TICK} axisLine={{ stroke: "#0066cc", strokeWidth: 1.5 }} tickLine={false} />
             <Tooltip content={<ImpactTip t={t} />} cursor={{ fill: "rgba(59,130,246,.10)" }} />
-            <Bar dataKey="total" name="Total" shape={(p: any) => <CustomTotalBar {...p} onPick={onPick} />} barSize={22}>
+            <Bar dataKey="total" name="Total" shape={(p: any) => <CustomTotalBar {...p} onPick={onPick} />} barSize={22} isAnimationActive={!rep}>
               <LabelList dataKey="total" position="top" fill="#0099ff" fontSize={10} formatter={(v: number) => Math.round(v).toLocaleString("fr-FR")} />
             </Bar>
           </BarChart>
@@ -623,7 +759,7 @@ const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
       <p className="fx-note">
         {t.topN} {n} : <strong>{share} %</strong> {t.ofTotal}
       </p>
-      <p className="fx-note">{txtCommuneHint(t)}</p>
+      {!rep && <p className="fx-note">{txtCommuneHint(t)}</p>}
     </Card>
   );
 };
@@ -793,12 +929,12 @@ const Focus = ({ zones }: any) => {
   useEffect(() => {
     const z = ref.current;
     if (!z.length) {
-      map.fitBounds(MADAGASCAR, { padding: [10, 10] });
+      map.fitBounds(MADAGASCAR, { padding: [10, 10], animate: false });
       return;
     }
     try {
       const b = L.geoJSON({ type: "FeatureCollection", features: z.map((x: any) => x.feature) } as any).getBounds();
-      if (b.isValid()) map.fitBounds(b, { padding: [30, 30], maxZoom: 11 });
+      if (b.isValid()) map.fitBounds(b, { padding: [30, 30], maxZoom: 11, animate: false });
     } catch {
       /* géométrie invalide */
     }
@@ -824,6 +960,47 @@ const classLabel = (scale: [number, string][], idx: number) => {
   if (idx === scale.length - 1) return `< ${nHa(up)} ha`;
   return `${nHa(m)} – ${nHa(up)} ha`;
 };
+
+// Légende de la carte (partagée entre la carte interactive et la carte du rapport)
+const MapLegend = ({ t, showFires, showCommunes, communes, scale, periodParts }: any) => (
+  <div className="fx-legend">
+    {showFires && (
+      <div className="fx-lg">
+        <strong>{t.fireAge}</strong>
+        {[["< 24 h", 12], ["24–48 h", 36], ["48–72 h", 60]].map(([l, h]) => (
+          <div key={l as string}>
+            <i className="dot" style={{ background: ageColor(h as number) }} />
+            {l}
+          </div>
+        ))}
+      </div>
+    )}
+    {showCommunes && communes.length > 0 && (
+      <div className="fx-lg">
+        <strong>{t.legend}</strong>
+        <div className="fx-lg-cols">
+          <div className="fx-lg-scale">
+            {scale.map(([, c]: [number, string], i: number) => (
+              <div key={c + i}>
+                <i style={{ background: c }} />
+                {classLabel(scale, i)}
+              </div>
+            ))}
+            <div className="fx-lg-sev" style={{ width: "100%" }}>
+              <span>▲ {t.severity} {t.sevHigh}</span>
+              <span>▼ {t.sevLow}</span>
+            </div>
+          </div>
+          <div className="fx-lg-per">
+            <span>{periodParts[0]}</span>
+            <b>{periodParts[1]}</b>
+            {periodParts[2] && <span>{periodParts[2]}</span>}
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
+);
 
 const FireMap = ({
   t, ap, year, communes, zones, apZones, periph, regions, regionZone, fires, hours, setHours, onRefresh, err,
@@ -972,43 +1149,7 @@ const FireMap = ({
           {show.fires && <Fires fires={fires} t={t} />}
         </MapContainer>
 
-        <div className="fx-legend">
-          {show.fires && (
-            <div className="fx-lg">
-              <strong>{t.fireAge}</strong>
-              {[["< 24 h", 12], ["24–48 h", 36], ["48–72 h", 60]].map(([l, h]) => (
-                <div key={l as string}>
-                  <i className="dot" style={{ background: ageColor(h as number) }} />
-                  {l}
-                </div>
-              ))}
-            </div>
-          )}
-          {show.communes && communes.length > 0 && (
-            <div className="fx-lg">
-              <strong>{t.legend}</strong>
-              <div className="fx-lg-cols">
-                <div className="fx-lg-scale">
-                  {scale.map(([, c]: [number, string], i: number) => (
-                    <div key={c + i}>
-                      <i style={{ background: c }} />
-                      {classLabel(scale, i)}
-                    </div>
-                  ))}
-                  <div className="fx-lg-sev" style={{ width: "100%" }}>
-                    <span>▲ {t.severity} {t.sevHigh}</span>
-                    <span>▼ {t.sevLow}</span>
-                  </div>
-                </div>
-                <div className="fx-lg-per">
-                  <span>{periodParts[0]}</span>
-                  <b>{periodParts[1]}</b>
-                  {periodParts[2] && <span>{periodParts[2]}</span>}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+        <MapLegend t={t} showFires={show.fires} showCommunes={show.communes} communes={communes} scale={scale} periodParts={periodParts} />
       </div>
 
       {err ? (
@@ -1022,10 +1163,229 @@ const FireMap = ({
   );
 };
 
+/* ============================ RAPPORT PDF ============================ */
+const Tbl = ({ head, rows, foot, left = 1 }: any) => (
+  <table className="fxr-tb">
+    <thead>
+      <tr>
+        {head.map((h: string, i: number) => (
+          <th key={i} className={i < left ? "l" : ""}>{h}</th>
+        ))}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((r: any[], i: number) => (
+        <tr key={i}>
+          {r.map((c, j) => (
+            <td key={j} className={j < left ? "l" : ""}>{c}</td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+    {foot && (
+      <tfoot>
+        <tr>
+          {foot.map((c: any, j: number) => (
+            <td key={j} className={j < left ? "l" : ""}>{c}</td>
+          ))}
+        </tr>
+      </tfoot>
+    )}
+  </table>
+);
+
+// Écart coloré : rouge = hausse de superficie brûlée, vert = baisse
+const Delta = ({ v, digits = 1, suffix = "" }: { v: number; digits?: number; suffix?: string }) => {
+  if (!v) return <>—</>;
+  const s = Math.abs(v).toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  return <span className={v > 0 ? "fxr-up" : "fxr-down"}>{v > 0 ? "▲ +" : "▼ −"}{s}{suffix}</span>;
+};
+
+const RSection = ({ n, title, r, ap, year, pb = true, children }: any) => (
+  <section className={pb ? "fxr-pb" : ""}>
+    {pb && (
+      <div className="fxr-ph">
+        <span>{r.reportTitle}</span>
+        <span>{ap} – {year}</span>
+      </div>
+    )}
+    <h2 className="fxr-h2">{n}. {title}</h2>
+    {children}
+  </section>
+);
+
+const ReportMap = ({ t, communes, zones, apZones, periph, fires, scale, periodParts, onReady }: any) => {
+  const focus = [...apZones, ...periph];
+  return (
+    <div className="fx-map" style={{ height: "135mm", flex: "none", minHeight: 0 }}>
+      <MapContainer
+        bounds={MADAGASCAR}
+        style={{ height: "100%", width: "100%" }}
+        zoomControl={false} dragging={false} scrollWheelZoom={false} doubleClickZoom={false}
+        touchZoom={false} boxZoom={false} keyboard={false} preferCanvas
+      >
+        <TileLayer url={FONDS.topo.url} attribution={FONDS.topo.attr} eventHandlers={{ load: onReady }} />
+        <Resize />
+        <Focus zones={focus} />
+        <Layer
+          pane="fxCommunes" interactive={false} zones={communes} cle={`rc${communes.length}`}
+          style={(z: any) => ({ color: "#475569", weight: 1, opacity: 0.8, fillColor: colorOf(z.burned, scale), fillOpacity: 0.55 })}
+        />
+        <Labels zones={communes} />
+        <Layer pane="fxPeriph" interactive={false} zones={periph} cle="rp"
+          style={() => ({ color: "#b45309", weight: 1, dashArray: "4 4", fillColor: "#d97706", fillOpacity: 0.07 })} />
+        <Layer pane="fxZones" interactive={false} zones={zones} cle="rz"
+          style={() => ({ color: "#b91c1c", weight: 1, fillColor: "#ff0000", fillOpacity: 0.7 })} />
+        <Layer pane="fxAP" interactive={false} zones={apZones} cle="ra"
+          style={() => ({ color: "#052e16", weight: 3, fillColor: "#22c55e", fillOpacity: 0.08 })} />
+        <Fires fires={fires} t={t} />
+      </MapContainer>
+      <MapLegend t={t} showFires showCommunes communes={communes} scale={scale} periodParts={periodParts} />
+    </div>
+  );
+};
+
+const Report = ({ t, r, d, onClose }: any) => {
+  const [ready, setReady] = useState(false);
+  const mapNeeded = d.apZones.length > 0 || d.periph.length > 0;
+
+  useEffect(() => {
+    // Seul le rapport est imprimé ; le nom du fichier PDF vient du titre du document
+    document.body.classList.add("fx-printing");
+    const oldTitle = document.title;
+    document.title = `Rapport_feux_${d.ap}_${d.year}`.replace(/\s+/g, "_");
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    const fallback = setTimeout(() => setReady(true), 8000); // ne bloque jamais le bouton
+    return () => {
+      document.body.classList.remove("fx-printing");
+      document.title = oldTitle;
+      window.removeEventListener("keydown", onKey);
+      clearTimeout(fallback);
+    };
+  }, []);
+
+  const gen = new Date().toLocaleDateString(d.locale, { day: "numeric", month: "long", year: "numeric" });
+  const py = `y${d.year - 1}`, cy = `y${d.year}`;
+  const monthRows = d.chart1.map((m: any) => {
+    const prev = m[py] as number, cur = m[cy] as number, diff = cur - prev;
+    return [m.mois, f1(prev), f1(cur), <Delta v={diff} />, prev ? <Delta v={(diff / prev) * 100} digits={0} suffix=" %" /> : "—"];
+  });
+  const sumPrev = d.chart1.reduce((a: number, m: any) => a + m[py], 0);
+  const sumCur = d.chart1.reduce((a: number, m: any) => a + m[cy], 0);
+
+  const allTotal = d.impactAll.reduce((s: number, c: any) => s + c.total, 0);
+  const sumField = (k: string) => d.impactAll.reduce((s: number, c: any) => s + c[k], 0);
+  const impactRows = d.impactAll.slice(0, 11).map((c: any, i: number) => [
+    i + 1, c.commune, f1(c.interieur), f1(c.peripherie), f1(c.total), allTotal > 0 ? `${((c.total / allTotal) * 100).toFixed(1)} %` : "—",
+  ]);
+
+  return createPortal(
+    <div className="fxr-portal">
+      <style>{REPORT_CSS}</style>
+      <div className="fxr-bar">
+        <div>
+          <b>{r.preview}</b>
+          <div className="fxr-tip">{r.tip}</div>
+        </div>
+        <div className="fxr-actions">
+          <button className="p" onClick={() => window.print()} disabled={mapNeeded && !ready}>
+            <Printer size={15} />
+            {mapNeeded && !ready ? r.mapLoading : r.save}
+          </button>
+          <button onClick={onClose}>
+            <X size={15} />
+            {r.close}
+          </button>
+        </div>
+      </div>
+
+      <ReportCtx.Provider value={true}>
+        <div className="fx fxr-paper">
+          {/* ---------- Page 1 : couverture, synthèse, indicateurs ---------- */}
+          <header className="fxr-cover">
+            <div className="fx-logo" aria-hidden="true">
+              <Trees size={32} color="#fff" />
+              <Flame className="f" size={26} color="#ff6b35" />
+            </div>
+            <div>
+              <div className="fxr-kick">{r.reportTitle}</div>
+              <h1>{d.ap}</h1>
+              <div className="fxr-cs">
+                {t.year} {d.year}
+                {d.region !== "all" ? ` · ${t.region} ${d.region}` : ""}
+              </div>
+            </div>
+            <div className="fxr-meta">
+              {r.generated}
+              <br />
+              {gen}
+            </div>
+          </header>
+
+          <RSection n={1} title={r.secSummary} r={r} ap={d.ap} year={d.year} pb={false}>
+            <p className="fxr-p">{d.summary}</p>
+          </RSection>
+
+          <RSection n={2} title={r.secKpi} r={r} ap={d.ap} year={d.year} pb={false}>
+            <div className="fx-kpis">{d.kpis}</div>
+            <div className="fx-rank">
+              <div className="fx-rank-t">
+                <Trophy size={18} color="#d4af37" />
+                {t.leastBurnedCommunes}
+              </div>
+              <Ranking stats={d.communeStats} />
+            </div>
+          </RSection>
+
+          {/* ---------- Page 2 : évolution mensuelle ---------- */}
+          <RSection n={3} title={r.secMonthly} r={r} ap={d.ap} year={d.year}>
+            <MonthlyChart data={d.chart1} year={d.year} t={t} />
+            <Tbl
+              head={[r.colMonth, `${d.year - 1} (ha)`, `${d.year} (ha)`, r.colDiff, r.colDiffPct]}
+              rows={monthRows}
+              foot={["Total", f1(sumPrev), f1(sumCur), <Delta v={sumCur - sumPrev} />, sumPrev ? <Delta v={((sumCur - sumPrev) / sumPrev) * 100} digits={0} suffix=" %" /> : "—"]}
+            />
+          </RSection>
+
+          {/* ---------- Page 3 : comparaison historique ---------- */}
+          <RSection n={4} title={r.secHisto} r={r} ap={d.ap} year={d.year}>
+            <HistoricalChart zones={d.zonesHisto} year={d.year} t={t} lang={d.lang} />
+            <Gauge variation={d.variation5km} t={t} />
+          </RSection>
+
+          {/* ---------- Page 4 : impact par commune ---------- */}
+          <RSection n={5} title={r.secImpact} r={r} ap={d.ap} year={d.year}>
+            <ImpactChart all={d.impactAll} ap={d.ap} t={t} n={Math.min(11, d.impactAll.length || 11)} setN={() => {}} />
+            <Tbl
+              left={2}
+              head={[r.colRank, r.colCommune, `${t.insideAP} (ha)`, `${t.peripheral5km} (ha)`, `${t.total} (ha)`, r.colShare]}
+              rows={impactRows}
+              foot={["", t.total, f1(sumField("interieur")), f1(sumField("peripherie")), f1(allTotal), "100 %"]}
+            />
+          </RSection>
+
+          {/* ---------- Page 5 : cartographie ---------- */}
+          <RSection n={6} title={r.secMap} r={r} ap={d.ap} year={d.year}>
+            <ReportMap
+              t={t} communes={d.communes} zones={d.zones} apZones={d.apZones} periph={d.periph}
+              fires={d.fires} scale={d.scale} periodParts={d.periodParts} onReady={() => setReady(true)}
+            />
+            <p className="fx-note" style={{ textAlign: "left" }}>{r.mapNote(d.hours, d.fires.length, d.periodLabel)}</p>
+            <div className="fxr-foot">{r.source}</div>
+          </RSection>
+        </div>
+      </ReportCtx.Provider>
+    </div>,
+    document.body
+  );
+};
+
 /* ============================ PAGE ============================ */
 export default function AnalyseFeux() {
   const { lang } = useLanguage();
   const t = txt[lang] ?? txt.fr;
+  const r = RT[lang] ?? RT.fr;
   const location = useLocation();
   const { firesRaw, firesErr, now, loadFires } = useFireAlerts();
 
@@ -1039,6 +1399,8 @@ export default function AnalyseFeux() {
   const [scaleMode, setScaleMode] = useState<"abs" | "rel">("abs");
   // Commune sélectionnée en cliquant sur une barre de l'impact des feux
   const [selCommune, setSelCommune] = useState<string | null>(null);
+  // Aperçu du rapport PDF
+  const [showReport, setShowReport] = useState(false);
 
   useEffect(() => {
     if (location.state?.ap) {
@@ -1083,8 +1445,8 @@ export default function AnalyseFeux() {
     () => Array.from(new Set(Object.values(regionsOfAp).flat())).sort((a, b) => a.localeCompare(b, "fr")),
     [regionsOfAp]
   );
-  const apsIn = (r: string) => {
-    const l = r === "all" ? apNames : apNames.filter((n) => regionsOfAp[n]?.includes(r));
+  const apsIn = (rg: string) => {
+    const l = rg === "all" ? apNames : apNames.filter((n) => regionsOfAp[n]?.includes(rg));
     return l.length ? l : apNames;
   };
   const apOptions = apsIn(region);
@@ -1093,9 +1455,9 @@ export default function AnalyseFeux() {
     if (apNames.length && !apNames.includes(ap)) setAp(apNames.includes("Ankarafantsika") ? "Ankarafantsika" : apNames[0]);
   }, [apNames]);
 
-  const onRegion = (r: string) => {
-    setRegion(r);
-    const l = apsIn(r);
+  const onRegion = (rg: string) => {
+    setRegion(rg);
+    const l = apsIn(rg);
     if (!l.includes(ap)) setAp(l[0]);
   };
 
@@ -1272,8 +1634,9 @@ export default function AnalyseFeux() {
     return moy === 0 ? 0 : Number((((ha(year, "5km") - moy) / moy) * 100).toFixed(1));
   }, [rowsAP, year, ap]);
 
+  const loc = LOCALES[lang] || "fr-FR";
   const monthNames = MOIS_KEYS.map((k, i) =>
-    lang === "mg" ? t.months[k] : new Date(2000, i, 1).toLocaleDateString(({ fr: "fr-FR", en: "en-GB", de: "de-DE" } as any)[lang] || "fr-FR", { month: "long" })
+    lang === "mg" ? t.months[k] : new Date(2000, i, 1).toLocaleDateString(loc, { month: "long" })
   );
   const periodLabel = mapMonth < 0 ? `${t.ofYear} ${year}` : `${t.ofMonth} ${monthNames[mapMonth]} ${year}`;
   const periodParts = mapMonth < 0 ? [t.ofYear, String(year), ""] : [t.ofMonth, monthNames[mapMonth], String(year)];
@@ -1283,6 +1646,44 @@ export default function AnalyseFeux() {
   const scale = scaleMode === "rel" && relScale ? relScale : fixedScale;
 
   const evoColor = (evolution ?? 0) >= 0 ? "#d32f2f" : "#2e7d32";
+
+  // Cartes d'indicateurs : utilisées par le tableau de bord ET par le rapport PDF
+  const kpis = (
+    <>
+      <KPI title={t.totalBurnedCommunes} color="#c00000" tint="#ff6b35" icon={<Flame size={30} color="#ff6b35" />} value={fmtHa(totalCommune)} />
+      <KPI title={t.burnedPeripheral} color="#707070" tint="#2563eb" icon={<MapPinned size={30} color="#2563eb" />} flame value={fmtHa(total5km)} />
+      <KPI title={t.burnedInside} color="#f0a500" tint="#2e7d32" icon={<Trees size={30} color="#2e7d32" />} flame value={fmtHa(totalInterieur)} />
+      <KPI title={t.burnedLastMonth} color="#c00000" tint="#1d4ed8" icon={<Calendar size={30} color="#1d4ed8" />} flame value={fmtHa(totalMoisDernier)} />
+      <KPI
+        title={t.annualEvolution}
+        color={evoColor}
+        tint="#ef4444"
+        icon={<BarChart3 size={30} color="#ef4444" />}
+        value={
+          evolution === null ? (
+            "--"
+          ) : (
+            <>
+              {evolution.toFixed(2)} %
+              {evolution >= 0 ? (
+                <TrendingUp size={22} color="#d32f2f" strokeWidth={2.8} />
+              ) : (
+                <TrendingDown size={22} color="#2e7d32" strokeWidth={2.8} />
+              )}
+            </>
+          )
+        }
+      />
+      <KPI
+        title={t.mostAffected}
+        color="#003399"
+        tint="#1d4ed8"
+        icon={<MapPinned size={30} color="#1d4ed8" />}
+        value={<span style={{ color: tonText("#b40000") }}>{communePlusTouchee?.commune ?? "--"}</span>}
+        sub={communePlusTouchee ? `${t.with} ${fmtHa(communePlusTouchee.total)} ${t.totalBurnedSurface}` : undefined}
+      />
+    </>
+  );
 
   // Fiche de la commune sélectionnée
   const ficheCommune = (() => {
@@ -1309,6 +1710,20 @@ export default function AnalyseFeux() {
     );
   })();
 
+  // Données transmises au rapport PDF (calculées seulement quand il est ouvert)
+  const reportData = showReport
+    ? {
+        ap, year, region, hours, lang, locale: loc,
+        kpis, communeStats, chart1, zonesHisto, variation5km, impactAll,
+        communes: communesMap, zones: zonesBrulees, apZones, periph: periphSel, fires,
+        scale, periodParts, periodLabel,
+        summary: r.summary({
+          ap, year, hours, total: totalCommune, p5: total5km, inside: totalInterieur,
+          evo: evolution, top: communePlusTouchee, vari: variation5km, fires: fires.length,
+        }),
+      }
+    : null;
+
   return (
     <div className="fx">
       <style>{CSS}</style>
@@ -1334,8 +1749,8 @@ export default function AnalyseFeux() {
             </label>
             <select id="fx-region" value={region} onChange={(e) => onRegion(e.target.value)}>
               <option value="all">{t.allRegions}</option>
-              {regionOptions.map((r) => (
-                <option key={r}>{r}</option>
+              {regionOptions.map((rg) => (
+                <option key={rg}>{rg}</option>
               ))}
             </select>
           </div>
@@ -1363,6 +1778,10 @@ export default function AnalyseFeux() {
               ))}
             </select>
           </div>
+          <button className="fx-pdf" onClick={() => setShowReport(true)} disabled={!baseOk || !baseFeux.length} title={r.exportPdf}>
+            <FileDown size={15} />
+            {r.exportPdf}
+          </button>
         </div>
       </header>
 
@@ -1380,40 +1799,7 @@ export default function AnalyseFeux() {
             <Ranking stats={communeStats} />
           </div>
 
-          <div className="fx-kpis">
-            <KPI title={t.totalBurnedCommunes} color="#c00000" tint="#ff6b35" icon={<Flame size={30} color="#ff6b35" />} value={fmtHa(totalCommune)} />
-            <KPI title={t.burnedPeripheral} color="#707070" tint="#2563eb" icon={<MapPinned size={30} color="#2563eb" />} flame value={fmtHa(total5km)} />
-            <KPI title={t.burnedInside} color="#f0a500" tint="#2e7d32" icon={<Trees size={30} color="#2e7d32" />} flame value={fmtHa(totalInterieur)} />
-            <KPI title={t.burnedLastMonth} color="#c00000" tint="#1d4ed8" icon={<Calendar size={30} color="#1d4ed8" />} flame value={fmtHa(totalMoisDernier)} />
-            <KPI
-              title={t.annualEvolution}
-              color={evoColor}
-              tint="#ef4444"
-              icon={<BarChart3 size={30} color="#ef4444" />}
-              value={
-                evolution === null ? (
-                  "--"
-                ) : (
-                  <>
-                    {evolution.toFixed(2)} %
-                    {evolution >= 0 ? (
-                      <TrendingUp size={22} color="#d32f2f" strokeWidth={2.8} />
-                    ) : (
-                      <TrendingDown size={22} color="#2e7d32" strokeWidth={2.8} />
-                    )}
-                  </>
-                )
-              }
-            />
-            <KPI
-              title={t.mostAffected}
-              color="#003399"
-              tint="#1d4ed8"
-              icon={<MapPinned size={30} color="#1d4ed8" />}
-              value={<span style={{ color: tonText("#b40000") }}>{communePlusTouchee?.commune ?? "--"}</span>}
-              sub={communePlusTouchee ? `${t.with} ${fmtHa(communePlusTouchee.total)} ${t.totalBurnedSurface}` : undefined}
-            />
-          </div>
+          <div className="fx-kpis">{kpis}</div>
 
           <div className="fx-body">
             <div className="fx-left">
@@ -1435,6 +1821,8 @@ export default function AnalyseFeux() {
           {ficheCommune}
         </>
       )}
+
+      {showReport && reportData && <Report t={t} r={r} d={reportData} onClose={() => setShowReport(false)} />}
     </div>
   );
 }
