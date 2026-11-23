@@ -256,62 +256,7 @@
         "activites": []
       }
     },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Vakinankaratra",
-        "district": "Antanifotsy",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Amoron'i Mania",
-        "district": "Fandriana",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Amoron'i Mania",
-        "district": "Ambositra",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Anosy",
-        "district": "Taolagnaro",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
+    
     {
       "type": "Feature",
       "geometry": null,
