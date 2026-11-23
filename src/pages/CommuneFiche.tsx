@@ -64,7 +64,7 @@ const PT: Record<string, Record<string, string>> = {
     calErr: "Archive FIRMS indisponible",
     calAuto: "Aucun mois choisi (année entière) : choisissez un mois sur la carte de l'Analyse de feux.",
     pointsMois: "Points du mois",
-    calNote: "Nombre de points de feux par jour dans la commune (archive NASA FIRMS, VIIRS S-NPP, jours en UTC). « – » : jour à venir ou archive indisponible.",
+    calNote: "Nombre de points de feux par jour dans la commune : archive NASA FIRMS (VIIRS S-NPP, NOAA-20, NOAA-21) du début du mois, complétée par les points récents de l'application. « – » : jour à venir ou donnée indisponible.",
   },
   en: {
     titre: "Fire situation of the commune",
@@ -92,7 +92,7 @@ const PT: Record<string, Record<string, string>> = {
     calErr: "FIRMS archive unavailable",
     calAuto: "No month selected (full year): pick a month on the map of the fire analysis page.",
     pointsMois: "Points in the month",
-    calNote: "Fire points per day in the commune (NASA FIRMS archive, VIIRS S-NPP, days in UTC). “–”: future day or archive unavailable.",
+    calNote: "Fire points per day in the commune: NASA FIRMS archive (VIIRS S-NPP, NOAA-20, NOAA-21) from the start of the month, completed by the application's recent points. “–”: future day or data unavailable.",
   },
   de: {
     titre: "Brandsituation der Gemeinde",
@@ -120,7 +120,7 @@ const PT: Record<string, Record<string, string>> = {
     calErr: "FIRMS-Archiv nicht verfügbar",
     calAuto: "Kein Monat gewählt (ganzes Jahr): Monat auf der Karte der Brandanalyse wählen.",
     pointsMois: "Punkte im Monat",
-    calNote: "Brandpunkte pro Tag in der Gemeinde (NASA-FIRMS-Archiv, VIIRS S-NPP, Tage in UTC). „–“: zukünftiger Tag oder Archiv nicht verfügbar.",
+    calNote: "Brandpunkte pro Tag in der Gemeinde: NASA-FIRMS-Archiv (VIIRS S-NPP, NOAA-20, NOAA-21) ab Monatsbeginn, ergänzt durch die aktuellen Punkte der Anwendung. „–“: zukünftiger Tag oder Daten nicht verfügbar.",
   },
 };
 
@@ -267,9 +267,12 @@ const Lecture = ({ title, l }: { title: string; l: LectureT }) => (
 // Appel via le dispatcher d'API (type=firms-archive -> server/firms-archive.ts) : la clé FIRMS_MAP_KEY reste côté serveur
 // ⚠ Remplacer "/api/import" par le vrai chemin du fichier api/*.ts qui contient le dispatcher
 const FIRMS_API = "/api/import?type=firms-archive";
-const FIRMS_SRC = { archive: "VIIRS_SNPP_SP", recent: "VIIRS_SNPP_NRT" }; // SP = archive validée, NRT = jours récents
+// SP = archive validée (retard de quelques mois), NRT = quasi temps réel (jours récents) : on interroge les deux et on fusionne
+const FIRMS_SOURCES = ["VIIRS_SNPP_SP", "VIIRS_NOAA20_SP", "VIIRS_SNPP_NRT", "VIIRS_NOAA20_NRT", "VIIRS_NOAA21_NRT"];
 
 type FirmsPt = { t: number; lat: number; lon: number };
+// Clé de dédoublonnage : même détection vue par SP et NRT, ou par l'archive et par l'application
+const ptKey = (p: FirmsPt) => `${p.lat.toFixed(3)}_${p.lon.toFixed(3)}_${Math.floor(p.t / (3 * 3600e3))}`;
 const firmsCache = new Map<string, Promise<FirmsPt[]>>();
 
 // Une requête = au plus 5 jours (limite sûre de l'API) pour un rectangle donné
@@ -304,19 +307,23 @@ const fetchFirmsMonth = (bbox: string, year: number, month: number): Promise<Fir
     for (let d = start; d <= end; d += 5 * DAY) {
       const n = Math.min(5, Math.floor((end - d) / DAY) + 1);
       const day = new Date(d).toISOString().slice(0, 10);
-      // archive validée d'abord ; si elle est vide (jours trop récents), données quasi temps réel
+      // toutes les sources en parallèle ; une source en échec n'empêche pas les autres (erreur seulement si toutes échouent)
       jobs.push(
-        firmsChunk(FIRMS_SRC.archive, bbox, day, n)
-          .catch(() => [] as FirmsPt[])
-          .then((r) => (r.length ? r : firmsChunk(FIRMS_SRC.recent, bbox, day, n)))
+        Promise.allSettled(FIRMS_SOURCES.map((src) => firmsChunk(src, bbox, day, n))).then((rs) => {
+          const ok = rs.filter((r): r is PromiseFulfilledResult<FirmsPt[]> => r.status === "fulfilled");
+          if (!ok.length) throw (rs[0] as PromiseRejectedResult).reason;
+          return ok.flatMap((r) => r.value);
+        })
       );
     }
-    p = Promise.all(jobs).then((a) =>
-      a.flat().filter((pt) => {
+    p = Promise.all(jobs).then((a) => {
+      const uniq = new Map<string, FirmsPt>();
+      a.flat().forEach((pt) => {
         const x = new Date(pt.t);
-        return x.getUTCFullYear() === year && x.getUTCMonth() === month;
-      })
-    );
+        if (x.getUTCFullYear() === year && x.getUTCMonth() === month && !uniq.has(ptKey(pt))) uniq.set(ptKey(pt), pt);
+      });
+      return Array.from(uniq.values());
+    });
     p.catch(() => firmsCache.delete(k));
     firmsCache.set(k, p);
   }
@@ -391,23 +398,38 @@ export default function CommuneFiche({
     return () => { off = true; };
   }, [bboxKey, year, calMois]);
 
-  const ptsMois = useMemo(() => (zone && firms.pts ? firms.pts.filter((p) => inZone(p.lon, p.lat, zone)) : []), [zone, firms.pts]);
+  // Points du mois dans la commune : archive FIRMS (début du mois -> jusqu'aux dernières heures) + points récents de l'application
+  const ptsMois = useMemo(() => {
+    const m = new Map<string, FirmsPt>();
+    const add = (pt: FirmsPt) => { const k = ptKey(pt); if (!m.has(k)) m.set(k, pt); };
+    if (zone && firms.pts) firms.pts.forEach((pt) => { if (inZone(pt.lon, pt.lat, zone)) add(pt); });
+    pointsZone.forEach((f) => {
+      const t = toMs(f.t), d = new Date(t);
+      if (Number.isFinite(t) && d.getUTCFullYear() === year && d.getUTCMonth() === calMois) add({ t, lat: f.lat, lon: f.lon });
+    });
+    return Array.from(m.values());
+  }, [zone, firms.pts, pointsZone, year, calMois]);
   const cal = useMemo(() => {
     const nJours = new Date(Date.UTC(year, calMois + 1, 0)).getUTCDate();
     const n: number[] = Array(nJours).fill(0);
     ptsMois.forEach((p) => { n[new Date(p.t).getUTCDate() - 1]++; });
     // Jour sans donnée : archive pas encore chargée (ou en erreur), ou jour à venir
-    const sansDonnee = (j: number) => !firms.pts || Date.UTC(year, calMois, j + 1) > now;
+    // Un jour est « sans donnée » s'il est à venir, ou si ni l'archive ni la fenêtre récente de l'application ne le couvrent
+    const debutRecent = now - hours * 3.6e6;
+    const sansDonnee = (j: number) => {
+      const d0 = Date.UTC(year, calMois, j + 1);
+      return d0 > now || (!firms.pts && d0 + DAY <= debutRecent);
+    };
     const premier = (new Date(Date.UTC(year, calMois, 1)).getUTCDay() + 6) % 7; // lundi = 0
     const total = n.reduce((a, b) => a + b, 0);
     const max = Math.max(0, ...n);
     return { n, nJours, premier, sansDonnee, total, max, actifs: n.filter((v) => v > 0).length, pic: max > 0 ? n.indexOf(max) + 1 : 0 };
-  }, [ptsMois, firms.pts, year, calMois, now]);
+  }, [ptsMois, firms.pts, year, calMois, now, hours]);
   const joursSem = Array.from({ length: 7 }, (_, i) =>
     new Date(Date.UTC(2024, 0, 1 + i)).toLocaleDateString(loc, { weekday: "short", timeZone: "UTC" }));
 
   // Dates des points pour l'en-tête du PDF : points du mois (FIRMS) si disponibles, sinon points récents
-  const datesPoints = (firms.pts ? ptsMois.map((p) => p.t) : pointsZone.map((f) => toMs(f.t))).filter((v) => Number.isFinite(v));
+  const datesPoints = ptsMois.map((p) => p.t).filter((v) => Number.isFinite(v));
   const premierPoint = datesPoints.length ? Math.min(...datesPoints) : null;
   const dernierPoint = datesPoints.length ? Math.max(...datesPoints) : null;
 
@@ -449,7 +471,7 @@ export default function CommuneFiche({
             {dernierPoint != null && <>{" · "}<b>{P.dernier} :</b> {dtFmt(dernierPoint)}</>}
             {" · "}<b>{P.fenetre} :</b> {hours} {P.heures}
             {bilan ? <>{" · "}<b>{P.total} :</b> {n0(bilan.total)}</> : null}
-            {firms.pts ? <>{" · "}<b>{P.pointsMois} :</b> {n0(ptsMois.length)}</> : null}
+            {zone ? <>{" · "}<b>{P.pointsMois} :</b> {n0(ptsMois.length)}</> : null}
           </p>
           <p>
             {superficieHa != null && <><b>{P.superficie} :</b> {fmt(superficieHa)} · </>}
@@ -667,7 +689,7 @@ export default function CommuneFiche({
                         </tbody>
                       </table>
                     </div>
-                    {firms.pts && (
+                    {(firms.pts || ptsMois.length > 0) && (
                       <p className="fxm-note">
                         {cal.total > 0
                           ? `${n0(cal.total)} ${P.calTotal} · ${cal.actifs} ${P.calJours} · ${P.calPic} : ${cal.pic}/${calMois + 1} (${cal.max})`
