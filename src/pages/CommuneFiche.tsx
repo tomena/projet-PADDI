@@ -6,9 +6,8 @@ import {
 // Ajuste le chemin selon ton arborescence (communeFeux.ts est dans server/)
 import { analyserCommune, bilanPoints, rapport, txtCommune, CFG } from "../../server/communeFeux";
 import type { Item, Lecture as LectureT, Niveau } from "../../server/communeFeux";
-import { inZone, norm, parseFires } from "../lib/fireGeo";
+import { inZone, norm } from "../lib/fireGeo";
 import type { Zone } from "../lib/fireGeo";
-import { useFireAlerts } from "../context/FireAlertContext";
 
 export type FicheFire = { t: number; lat: number; lon: number; frp: number | null; age: number };
 
@@ -28,9 +27,7 @@ export type CommuneFicheProps = {
   fires: FicheFire[];
   onClose: () => void;
   nowMs?: number;                // optionnel : date de référence (tests) ; par défaut maintenant
-  // --- Optionnels (calendrier des points de feux). Sans eux, la fiche lit elle-même la base des feux ---
-  firesMonth?: FicheFire[];      // tous les points, sans limite d'heures
-  monthSel?: number;             // mois à afficher au départ (0-11) ; -1 ou absent = dernier mois avec des points
+  monthSel?: number;             // mois choisi dans l'Analyse de feux (0-11, -1 = année entière) : mois du calendrier des points de feux
 };
 
 const LOC: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE" };
@@ -63,7 +60,11 @@ const PT: Record<string, Record<string, string>> = {
     calJours: "jours avec feu",
     calPic: "pic",
     calNone: "Aucun point de feu détecté dans la commune ce mois-ci.",
-    calNote: "Nombre de points de feux détectés par jour dans la commune. « – » : jour sans donnée (avant le début de l'historique chargé, ou à venir).",
+    calLoad: "Chargement des points depuis l'archive NASA FIRMS…",
+    calErr: "Archive FIRMS indisponible",
+    calAuto: "Aucun mois choisi (année entière) : choisissez un mois sur la carte de l'Analyse de feux.",
+    pointsMois: "Points du mois",
+    calNote: "Nombre de points de feux par jour dans la commune (archive NASA FIRMS, VIIRS S-NPP, jours en UTC). « – » : jour à venir ou archive indisponible.",
   },
   en: {
     titre: "Fire situation of the commune",
@@ -87,7 +88,11 @@ const PT: Record<string, Record<string, string>> = {
     calJours: "days with fire",
     calPic: "peak",
     calNone: "No fire point detected in the commune this month.",
-    calNote: "Fire points detected per day in the commune. “–”: day without data (before the start of the loaded history, or in the future).",
+    calLoad: "Loading points from the NASA FIRMS archive…",
+    calErr: "FIRMS archive unavailable",
+    calAuto: "No month selected (full year): pick a month on the map of the fire analysis page.",
+    pointsMois: "Points in the month",
+    calNote: "Fire points per day in the commune (NASA FIRMS archive, VIIRS S-NPP, days in UTC). “–”: future day or archive unavailable.",
   },
   de: {
     titre: "Brandsituation der Gemeinde",
@@ -111,7 +116,11 @@ const PT: Record<string, Record<string, string>> = {
     calJours: "Tage mit Brand",
     calPic: "Spitze",
     calNone: "Diesen Monat wurden in der Gemeinde keine Brandpunkte erkannt.",
-    calNote: "Erkannte Brandpunkte pro Tag in der Gemeinde. „–“: Tag ohne Daten (vor Beginn des geladenen Verlaufs oder in der Zukunft).",
+    calLoad: "Punkte werden aus dem NASA-FIRMS-Archiv geladen…",
+    calErr: "FIRMS-Archiv nicht verfügbar",
+    calAuto: "Kein Monat gewählt (ganzes Jahr): Monat auf der Karte der Brandanalyse wählen.",
+    pointsMois: "Punkte im Monat",
+    calNote: "Brandpunkte pro Tag in der Gemeinde (NASA-FIRMS-Archiv, VIIRS S-NPP, Tage in UTC). „–“: zukünftiger Tag oder Archiv nicht verfügbar.",
   },
 };
 
@@ -171,11 +180,15 @@ const CSS = `
 .fxm-heat{border-collapse:separate;border-spacing:2px;width:100%;font-size:10.5px;text-align:center}
 .fxm-heat th{font-weight:600;color:var(--text-3,#64748b);padding:2px 3px;white-space:nowrap}
 .fxm-heat td{min-width:34px;padding:4px 2px;border-radius:4px;font-variant-numeric:tabular-nums}
-.fxm-cal{table-layout:fixed}
-.fxm-cal td{min-width:0;height:40px;padding:2px 4px;vertical-align:top}
+.fxm-cal{table-layout:fixed;height:100%}
+.fxm-cal td{min-width:0;height:34px;padding:2px 4px;vertical-align:top}
+.fxm-grid-eq{align-items:stretch!important}
+.fxm-grid-eq>.fxm-card{display:flex;flex-direction:column}
+.fxm-calcard .fxm-chart-row{flex:1;display:flex;flex-direction:column}
+.fxm-calcard .fxm-chart-main{flex:1;display:flex;flex-direction:column}
+.fxm-calcard .fxm-heatw{flex:1}
 .fxm-cal-d{display:block;font-size:9px;line-height:1.2;text-align:left;opacity:.75}
 .fxm-cal-n{display:block;font-size:13px;font-weight:700;text-align:center}
-.fxm-sel{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#e2e8f0);background:var(--surface-3,#f1f5f9);color:var(--text,#0f172a);font-size:12px;font-weight:600;cursor:pointer}
 .fxm-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .fxm-acts h4{margin:0 0 4px;font-size:12px}
 .fxm-acts ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--text-2,#475569)}
@@ -250,9 +263,69 @@ const Lecture = ({ title, l }: { title: string; l: LectureT }) => (
   </div>
 );
 
+/* ============================ ARCHIVE NASA FIRMS ============================ */
+// Appel via le dispatcher d'API (type=firms-archive -> server/firms-archive.ts) : la clé FIRMS_MAP_KEY reste côté serveur
+// ⚠ Remplacer "/api/import" par le vrai chemin du fichier api/*.ts qui contient le dispatcher
+const FIRMS_API = "/api/import?type=firms-archive";
+const FIRMS_SRC = { archive: "VIIRS_SNPP_SP", recent: "VIIRS_SNPP_NRT" }; // SP = archive validée, NRT = jours récents
+
+type FirmsPt = { t: number; lat: number; lon: number };
+const firmsCache = new Map<string, Promise<FirmsPt[]>>();
+
+// Une requête = au plus 5 jours (limite sûre de l'API) pour un rectangle donné
+const firmsChunk = async (source: string, bbox: string, day: string, n: number): Promise<FirmsPt[]> => {
+  const res = await fetch(`${FIRMS_API}&source=${source}&bbox=${bbox}&day=${day}&n=${n}`);
+  const txt = (await res.text()).trim();
+  if (!res.ok) throw new Error(txt.slice(0, 120) || `FIRMS ${res.status}`);
+  if (!txt.toLowerCase().startsWith("latitude")) throw new Error(txt.slice(0, 120) || "FIRMS");
+  const lines = txt.split(/\r?\n/);
+  const h = lines[0].split(",");
+  const iLat = h.indexOf("latitude"), iLon = h.indexOf("longitude"), iD = h.indexOf("acq_date"), iT = h.indexOf("acq_time");
+  const out: FirmsPt[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].split(",");
+    const [y, m, d] = (c[iD] || "").split("-").map(Number);
+    if (!y) continue;
+    const hhmm = (c[iT] || "0000").padStart(4, "0");
+    out.push({ t: Date.UTC(y, m - 1, d, Number(hhmm.slice(0, 2)), Number(hhmm.slice(2))), lat: Number(c[iLat]), lon: Number(c[iLon]) });
+  }
+  return out;
+};
+
+// Tous les points d'un mois dans un rectangle (mis en cache pour la session)
+const fetchFirmsMonth = (bbox: string, year: number, month: number): Promise<FirmsPt[]> => {
+  const k = `${bbox}|${year}-${month}`;
+  let p = firmsCache.get(k);
+  if (!p) {
+    const today = Math.floor(Date.now() / DAY) * DAY;
+    const start = Date.UTC(year, month, 1);
+    const end = Math.min(Date.UTC(year, month + 1, 0), today);
+    const jobs: Promise<FirmsPt[]>[] = [];
+    for (let d = start; d <= end; d += 5 * DAY) {
+      const n = Math.min(5, Math.floor((end - d) / DAY) + 1);
+      const day = new Date(d).toISOString().slice(0, 10);
+      // archive validée d'abord ; si elle est vide (jours trop récents), données quasi temps réel
+      jobs.push(
+        firmsChunk(FIRMS_SRC.archive, bbox, day, n)
+          .catch(() => [] as FirmsPt[])
+          .then((r) => (r.length ? r : firmsChunk(FIRMS_SRC.recent, bbox, day, n)))
+      );
+    }
+    p = Promise.all(jobs).then((a) =>
+      a.flat().filter((pt) => {
+        const x = new Date(pt.t);
+        return x.getUTCFullYear() === year && x.getUTCMonth() === month;
+      })
+    );
+    p.catch(() => firmsCache.delete(k));
+    firmsCache.set(k, p);
+  }
+  return p;
+};
+
 export default function CommuneFiche({
   commune, ap, year, hours, lang, monthNames, rowsAP, superficieHa, rang, nbCommunes, partAP, zone, fires, onClose, nowMs,
-  firesMonth, monthSel,
+  monthSel,
 }: CommuneFicheProps) {
   const T = txtCommune(lang);
   const P = PT[lang] ?? PT.fr;
@@ -264,7 +337,6 @@ export default function CommuneFiche({
   const dtFmt = (ms: number) =>
     new Date(ms).toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const now = useMemo(() => nowMs ?? Date.now(), [nowMs]);
-  const { firesRaw } = useFireAlerts();
 
   // Échap pour fermer
   useEffect(() => {
@@ -286,11 +358,6 @@ export default function CommuneFiche({
     return bilanPoints(pts, hours, superficieHa);
   }, [zone, pointsZone, hours, superficieHa]);
 
-  // Dates des points (première et dernière détection dans la commune)
-  const datesPoints = useMemo(() => pointsZone.map((f) => toMs(f.t)).filter((v) => Number.isFinite(v)), [pointsZone]);
-  const premierPoint = datesPoints.length ? Math.min(...datesPoints) : null;
-  const dernierPoint = datesPoints.length ? Math.max(...datesPoints) : null;
-
   // Rapport : niveau de priorité, points clés, actions, lecture de chaque graphe
   const rap = useMemo(
     () => rapport(analyse, bilan, { commune, ap, annee: year, rang, de: nbCommunes, partAP, nowMs: now, moisLongs: monthNames, geometrieOk: !!zone, fenetreH: hours }, lang),
@@ -307,54 +374,42 @@ export default function CommuneFiche({
   }));
   const heatMax = Math.max(0, ...analyse.heat.flatMap((r) => r.mois.map((v) => v ?? 0)));
 
-  // ===== Calendrier des points de feux (mois choisi) =====
-  // Tous les points connus : ceux transmis par la page, sinon la base des feux (contexte)
-  const allPts = useMemo<FicheFire[]>(
-    () => firesMonth ?? (parseFires(firesRaw) as any[]).map((f) => ({ t: f.t, lat: f.lat, lon: f.lon, frp: f.frp ?? null, age: 0 })),
-    [firesMonth, firesRaw]
-  );
-  // Début de l'historique disponible : avant cette date, un jour « sans point » veut dire « sans donnée »
-  const debutHisto = useMemo(() => {
-    let m: number | null = null;
-    for (const f of allPts) {
-      const v = toMs(f.t);
-      if (Number.isFinite(v) && (m == null || v < m)) m = v;
-    }
-    return m == null ? null : Math.floor(m / DAY) * DAY;
-  }, [allPts]);
-  const ptsCommune = useMemo(() => (zone ? allPts.filter((f) => inZone(f.lon, f.lat, zone)) : []), [zone, allPts]);
+  // ===== Calendrier des points de feux : mois choisi dans l'Analyse de feux, points issus de l'archive NASA FIRMS =====
+  const nowD = new Date(now);
+  const moisPage = monthSel != null && monthSel >= 0;
+  const calMois = moisPage ? (monthSel as number) : year === nowD.getUTCFullYear() ? nowD.getUTCMonth() : 11;
+  // Rectangle de la commune (légèrement élargi) ; le contour exact est appliqué ensuite avec inZone
+  const bboxKey = zone ? (zone.bbox as number[]).map((v, k) => (k < 2 ? v - 0.01 : v + 0.01).toFixed(4)).join(",") : "";
+  const [firms, setFirms] = useState<{ pts: FirmsPt[] | null; err: string | null; loading: boolean }>({ pts: null, err: null, loading: false });
+  useEffect(() => {
+    if (!bboxKey) { setFirms({ pts: null, err: null, loading: false }); return; }
+    let off = false;
+    setFirms({ pts: null, err: null, loading: true });
+    fetchFirmsMonth(bboxKey, year, calMois)
+      .then((pts) => { if (!off) setFirms({ pts, err: null, loading: false }); })
+      .catch((e) => { if (!off) setFirms({ pts: null, err: String(e?.message ?? e), loading: false }); });
+    return () => { off = true; };
+  }, [bboxKey, year, calMois]);
 
-  // Mois affiché : choix de l'utilisateur > mois transmis par la page > dernier mois avec des points > mois courant
-  const [moisChoisi, setMoisChoisi] = useState<number | null>(null);
-  const moisDefaut = useMemo(() => {
-    if (monthSel != null && monthSel >= 0) return monthSel;
-    let last: number | null = null;
-    for (const f of ptsCommune) {
-      const v = toMs(f.t), d = new Date(v);
-      if (d.getUTCFullYear() === year && (last == null || v > last)) last = v;
-    }
-    return last != null ? new Date(last).getUTCMonth() : new Date(now).getUTCMonth();
-  }, [monthSel, ptsCommune, year, now]);
-  const calMois = moisChoisi ?? moisDefaut;
-
+  const ptsMois = useMemo(() => (zone && firms.pts ? firms.pts.filter((p) => inZone(p.lon, p.lat, zone)) : []), [zone, firms.pts]);
   const cal = useMemo(() => {
     const nJours = new Date(Date.UTC(year, calMois + 1, 0)).getUTCDate();
     const n: number[] = Array(nJours).fill(0);
-    ptsCommune.forEach((f) => {
-      const d = new Date(toMs(f.t));
-      if (d.getUTCFullYear() === year && d.getUTCMonth() === calMois) n[d.getUTCDate() - 1]++;
-    });
-    const sansDonnee = (j: number) => {
-      const d0 = Date.UTC(year, calMois, j + 1);
-      return debutHisto == null || d0 < debutHisto || d0 > now;
-    };
+    ptsMois.forEach((p) => { n[new Date(p.t).getUTCDate() - 1]++; });
+    // Jour sans donnée : archive pas encore chargée (ou en erreur), ou jour à venir
+    const sansDonnee = (j: number) => !firms.pts || Date.UTC(year, calMois, j + 1) > now;
     const premier = (new Date(Date.UTC(year, calMois, 1)).getUTCDay() + 6) % 7; // lundi = 0
     const total = n.reduce((a, b) => a + b, 0);
     const max = Math.max(0, ...n);
     return { n, nJours, premier, sansDonnee, total, max, actifs: n.filter((v) => v > 0).length, pic: max > 0 ? n.indexOf(max) + 1 : 0 };
-  }, [ptsCommune, year, calMois, debutHisto, now]);
+  }, [ptsMois, firms.pts, year, calMois, now]);
   const joursSem = Array.from({ length: 7 }, (_, i) =>
     new Date(Date.UTC(2024, 0, 1 + i)).toLocaleDateString(loc, { weekday: "short", timeZone: "UTC" }));
+
+  // Dates des points pour l'en-tête du PDF : points du mois (FIRMS) si disponibles, sinon points récents
+  const datesPoints = (firms.pts ? ptsMois.map((p) => p.t) : pointsZone.map((f) => toMs(f.t))).filter((v) => Number.isFinite(v));
+  const premierPoint = datesPoints.length ? Math.min(...datesPoints) : null;
+  const dernierPoint = datesPoints.length ? Math.max(...datesPoints) : null;
 
   // Export PDF : passe par la boîte d'impression du navigateur (« Enregistrer au format PDF »)
   const exportPdf = () => {
@@ -394,6 +449,7 @@ export default function CommuneFiche({
             {dernierPoint != null && <>{" · "}<b>{P.dernier} :</b> {dtFmt(dernierPoint)}</>}
             {" · "}<b>{P.fenetre} :</b> {hours} {P.heures}
             {bilan ? <>{" · "}<b>{P.total} :</b> {n0(bilan.total)}</> : null}
+            {firms.pts ? <>{" · "}<b>{P.pointsMois} :</b> {n0(ptsMois.length)}</> : null}
           </p>
           <p>
             {superficieHa != null && <><b>{P.superficie} :</b> {fmt(superficieHa)} · </>}
@@ -539,7 +595,7 @@ export default function CommuneFiche({
               </section>
             </div>
 
-            <div className="fxm-grid">
+            <div className="fxm-grid fxm-grid-eq">
               <section className="fxm-card">
                 <h3>{T.heat}</h3>
                 <div className="fxm-heatw">
@@ -569,22 +625,18 @@ export default function CommuneFiche({
                 <Lecture title={T.lectLbl} l={rap.lectures.heat} />
               </section>
 
-              {/* ===== Points de feux (satellite) : calendrier du mois ===== */}
-              <section className="fxm-card">
+              {/* ===== Points de feux (satellite) : calendrier du mois choisi dans l'Analyse de feux ===== */}
+              <section className="fxm-card fxm-calcard">
                 <h3>{P.calTitre} – {monthNames[calMois]} {year}</h3>
                 <div className="fxm-chart-row"><div className="fxm-chart-main">
                 {!zone ? (
                   <p className="fxm-note">{T.ptsSans}</p>
                 ) : (
                   <>
-                    <div className="fxm-noprint" style={{ textAlign: "center", marginBottom: 6 }}>
-                      <label style={{ fontSize: 12, fontWeight: 600 }}>
-                        {P.calMois} :{" "}
-                        <select className="fxm-sel" value={calMois} onChange={(e) => setMoisChoisi(Number(e.target.value))}>
-                          {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
-                        </select>
-                      </label>
-                    </div>
+                    {firms.loading && <p className="fxm-note" style={{ marginTop: 0 }}>{P.calLoad}</p>}
+                    {firms.err && (
+                      <p className="fxm-note" style={{ marginTop: 0, color: "#b91c1c" }}>{`${P.calErr} (${firms.err})`}</p>
+                    )}
                     <div className="fxm-heatw">
                       <table className="fxm-heat fxm-cal">
                         <thead>
@@ -615,12 +667,15 @@ export default function CommuneFiche({
                         </tbody>
                       </table>
                     </div>
-                    <p className="fxm-note">
-                      {cal.total > 0
-                        ? `${n0(cal.total)} ${P.calTotal} · ${cal.actifs} ${P.calJours} · ${P.calPic} : ${cal.pic}/${calMois + 1} (${cal.max})`
-                        : P.calNone}
-                    </p>
+                    {firms.pts && (
+                      <p className="fxm-note">
+                        {cal.total > 0
+                          ? `${n0(cal.total)} ${P.calTotal} · ${cal.actifs} ${P.calJours} · ${P.calPic} : ${cal.pic}/${calMois + 1} (${cal.max})`
+                          : P.calNone}
+                      </p>
+                    )}
                     <p className="fxm-note">{P.calNote}</p>
+                    {!moisPage && <p className="fxm-note">{P.calAuto}</p>}
                   </>
                 )}
 </div>{rap.lectures.satellite && <div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.satellite} /></div>}</div>
