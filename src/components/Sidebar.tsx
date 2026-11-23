@@ -20,9 +20,9 @@ import type { LucideIcon } from "lucide-react";
 const sidebarTxt = {
   fr: {
     home: "Accueil",
-    subtitle: "Programme d'Appui au Développement Durable et Intégré",
+    subtitle: "Système d'Information de Développement Durable Intégré",
     generalView: "Vue générale",
-    paddiIndicator: "Indicateur du PADDI+",
+    paddiIndicator: "Indicateur du SI.DDI",
 
     managementSystem: "Système de gestion",
     burnedAreas: "Superficies brûlées",
@@ -79,9 +79,9 @@ const sidebarTxt = {
 
   mg: {
     home: "Tongasoa",
-    subtitle: "Fandaharanasa fanohanana ny fampandrosoana maharitra sy mitambatra",
+    subtitle: "Rafitra fampahalalana momba ny fampandrosoana maharitra sy mitambatra",
     generalView: "Fijery ankapobeny",
-    paddiIndicator: "Tondro PADDI+",
+    paddiIndicator: "Tondro SI.DDI",
 
     managementSystem: "Rafitra fitantanana",
     burnedAreas: "Velaran-tany may",
@@ -137,9 +137,9 @@ const sidebarTxt = {
 
   en: {
     home: "Home",
-    subtitle: "Support Programme for Sustainable and Integrated Development",
+    subtitle: "Information System for Sustainable and Integrated Development",
     generalView: "Overview",
-    paddiIndicator: "PADDI+ Indicators",
+    paddiIndicator: "SI.DDI Indicators",
 
     managementSystem: "Management System",
     burnedAreas: "Burned Areas",
@@ -195,9 +195,9 @@ const sidebarTxt = {
 
   de: {
     home: "Startseite",
-    subtitle: "Programm zur Unterstützung einer nachhaltigen und integrierten Entwicklung",
+    subtitle: "Informationssystem für nachhaltige und integrierte Entwicklung",
     generalView: "Übersicht",
-    paddiIndicator: "PADDI+ Indikatoren",
+    paddiIndicator: "SI.DDI Indikatoren",
 
     managementSystem: "Verwaltungssystem",
     burnedAreas: "Verbrannte Flächen",
@@ -665,7 +665,7 @@ export default function Sidebar() {
                   ? "/logo-paddi-sombre.svg"
                   : "/logo-paddi.svg"
               }
-              alt="PADDI+"
+              alt="SI.DDI"
               style={{ width: reduit ? 36 : "100%", maxWidth: 200, display: "block" }}
             />
           </div>
