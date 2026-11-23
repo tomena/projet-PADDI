@@ -130,6 +130,46 @@ const PT: Record<string, Record<string, string>> = {
   },
 };
 
+// Lecture de la carte « Points de feux (satellite) » : porte sur le calendrier du mois
+type CalLec = {
+  cle: (o: { tot: number; mois: string; an: number; actifs: number }) => string;
+  rien: (o: { mois: string; an: number }) => string;
+  pic: (o: { j: number; mois: string; v: number }) => string;
+  suite: (o: { k: number }) => string;
+  indispo: (o: { k: number }) => string;
+  source: (o: { base: boolean }) => string;
+  h72: (o: { a: number; b: number }) => string;
+};
+const CAL_LEC: Record<string, CalLec> = {
+  fr: {
+    cle: ({ tot, mois, an, actifs }) => `${tot} détection(s) en ${mois} ${an}, réparties sur ${actifs} jour(s) avec feu.`,
+    rien: ({ mois, an }) => `Aucune détection dans la commune en ${mois} ${an}.`,
+    pic: ({ j, mois, v }) => `Pic le ${j} ${mois} avec ${v} détection(s) ce jour-là.`,
+    suite: ({ k }) => `Plus longue série de jours consécutifs avec feu : ${k} jour(s).`,
+    indispo: ({ k }) => `${k} jour(s) passé(s) sans donnée (ni base, ni FIRMS, ni points récents).`,
+    source: ({ base }) => (base ? "Lecture dans la base de sauvegarde, sans nouvel appel à FIRMS." : "Données récupérées sur FIRMS puis enregistrées dans la base."),
+    h72: ({ a, b }) => `Sur les dernières 72 h : ${a} détection(s), dont ${b} sur 24 h.`,
+  },
+  en: {
+    cle: ({ tot, mois, an, actifs }) => `${tot} detection(s) in ${mois} ${an}, spread over ${actifs} day(s) with fire.`,
+    rien: ({ mois, an }) => `No detection in the commune in ${mois} ${an}.`,
+    pic: ({ j, mois, v }) => `Peak on ${mois} ${j} with ${v} detection(s) that day.`,
+    suite: ({ k }) => `Longest run of consecutive days with fire: ${k} day(s).`,
+    indispo: ({ k }) => `${k} past day(s) without data (no database, FIRMS or recent points).`,
+    source: ({ base }) => (base ? "Read from the saved database, no new FIRMS call." : "Data retrieved from FIRMS and saved to the database."),
+    h72: ({ a, b }) => `Over the last 72 h: ${a} detection(s), ${b} of them in 24 h.`,
+  },
+  de: {
+    cle: ({ tot, mois, an, actifs }) => `${tot} Erkennung(en) im ${mois} ${an}, verteilt auf ${actifs} Tag(e) mit Brand.`,
+    rien: ({ mois, an }) => `Keine Erkennung in der Gemeinde im ${mois} ${an}.`,
+    pic: ({ j, mois, v }) => `Spitze am ${j}. ${mois} mit ${v} Erkennung(en) an diesem Tag.`,
+    suite: ({ k }) => `Längste Serie aufeinanderfolgender Brandtage: ${k} Tag(e).`,
+    indispo: ({ k }) => `${k} vergangene(r) Tag(e) ohne Daten (weder Datenbank, FIRMS noch aktuelle Punkte).`,
+    source: ({ base }) => (base ? "Aus der Sicherungsdatenbank gelesen, kein neuer FIRMS-Aufruf." : "Daten von FIRMS abgerufen und in der Datenbank gespeichert."),
+    h72: ({ a, b }) => `In den letzten 72 Std.: ${a} Erkennung(en), davon ${b} in 24 Std.`,
+  },
+};
+
 const CSS = `
 .fxm-bg{position:fixed;inset:0;z-index:2000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:12px}
 .fxm{background:var(--surface,#fff);color:var(--text,#0f172a);border:1px solid var(--border,#e2e8f0);border-radius:14px;width:min(1080px,100%);max-height:92vh;overflow:auto;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,.35);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -482,6 +522,40 @@ export default function CommuneFiche({
     const max = Math.max(0, ...n);
     return { n, nJours, premier, sansDonnee, total, max, actifs: n.filter((v) => v > 0).length, pic: max > 0 ? n.indexOf(max) + 1 : 0 };
   }, [appJours, firms.jours, year, calMois, now, hours]);
+
+  // Lecture de la carte « Points de feux (satellite) » : porte sur le calendrier du mois affiché
+  const calLecture = useMemo<LectureT | null>(() => {
+    if (!zone) return null;
+    const L = CAL_LEC[lang] ?? CAL_LEC.fr;
+    const mois = monthNames[calMois] ?? String(calMois + 1);
+    // Plus longue série de jours consécutifs avec feu (les jours sans donnée coupent la série)
+    let suite = 0, courant = 0;
+    cal.n.forEach((v, j) => {
+      courant = !cal.sansDonnee(j) && v > 0 ? courant + 1 : 0;
+      suite = Math.max(suite, courant);
+    });
+    // Jours passés sans donnée : seulement une fois la base/FIRMS chargée, sinon le chiffre serait faux pendant le chargement
+    const indispo = firms.jours
+      ? Array.from({ length: cal.nJours }, (_, j) => j).filter((j) => cal.sansDonnee(j) && Date.UTC(year, calMois, j + 1) <= now).length
+      : 0;
+
+    const lignes: string[] = [];
+    if (cal.total > 0) {
+      if (cal.max > 0) lignes.push(L.pic({ j: cal.pic, mois, v: cal.max }));
+      if (suite > 1) lignes.push(L.suite({ k: suite }));
+    }
+    if (indispo > 0) lignes.push(L.indispo({ k: indispo }));
+    if (firms.origine) lignes.push(L.source({ base: firms.origine === "base" }));
+    if (bilan && bilan.n72 > 0) lignes.push(L.h72({ a: bilan.n72, b: bilan.n24 }));
+
+    return {
+      cle: cal.total > 0
+        ? L.cle({ tot: cal.total, mois, an: year, actifs: cal.actifs })
+        : L.rien({ mois, an: year }),
+      lignes,
+    };
+  }, [zone, lang, monthNames, calMois, cal, firms.jours, firms.origine, year, now, bilan]);
+
   const joursSem = Array.from({ length: 7 }, (_, i) =>
     new Date(Date.UTC(2024, 0, 1 + i)).toLocaleDateString(loc, { weekday: "short", timeZone: "UTC" }));
 
@@ -757,7 +831,7 @@ export default function CommuneFiche({
                     {!moisPage && <p className="fxm-note">{P.calAuto}</p>}
                   </>
                 )}
-</div>{rap.lectures.satellite && <div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.satellite} /></div>}</div>
+</div>{calLecture && <div className="fxm-side-lect"><Lecture title={T.lectLbl} l={calLecture} /></div>}</div>
               </section>
               </div>
             </div>
