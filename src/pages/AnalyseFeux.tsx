@@ -1702,6 +1702,7 @@ export default function AnalyseFeux() {
         partAP={i >= 0 && totalAP > 0 ? (impactAll[i].total / totalAP) * 100 : null}
         zone={communesMap.find((z: any) => norm(z.nom) === norm(selCommune)) ?? null}
         fires={fires}
+        monthSel={mapMonth}
         onClose={() => setSelCommune(null)}
       />
     );
