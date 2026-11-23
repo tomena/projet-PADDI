@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X, Download } from "lucide-react";
 import {
   ResponsiveContainer, ComposedChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Cell, ReferenceLine,
@@ -6,8 +6,9 @@ import {
 // Ajuste le chemin selon ton arborescence (communeFeux.ts est dans server/)
 import { analyserCommune, bilanPoints, rapport, txtCommune, CFG } from "../../server/communeFeux";
 import type { Item, Lecture as LectureT, Niveau } from "../../server/communeFeux";
-import { inZone, norm } from "../lib/fireGeo";
+import { inZone, norm, parseFires } from "../lib/fireGeo";
 import type { Zone } from "../lib/fireGeo";
+import { useFireAlerts } from "../context/FireAlertContext";
 
 export type FicheFire = { t: number; lat: number; lon: number; frp: number | null; age: number };
 
@@ -27,12 +28,16 @@ export type CommuneFicheProps = {
   fires: FicheFire[];
   onClose: () => void;
   nowMs?: number;                // optionnel : date de référence (tests) ; par défaut maintenant
+  // --- Optionnels (calendrier des points de feux). Sans eux, la fiche lit elle-même la base des feux ---
+  firesMonth?: FicheFire[];      // tous les points, sans limite d'heures
+  monthSel?: number;             // mois à afficher au départ (0-11) ; -1 ou absent = dernier mois avec des points
 };
 
 const LOC: Record<string, string> = { fr: "fr-FR", en: "en-GB", de: "de-DE" };
 const LVL_COLOR: Record<"haute" | "moyenne" | "info", string> = { haute: "#dc2626", moyenne: "#d97706", info: "#2563eb" };
 const NIV_COLOR: Record<Niveau, string> = { critique: "#b91c1c", eleve: "#ea580c", modere: "#d97706", faible: "#16a34a" };
 const REF_LABEL = `${CFG.REF_DEBUT}–${CFG.REF_FIN}`;
+const DAY = 86400000;
 
 // Libellés propres à l'export PDF
 const PT: Record<string, Record<string, string>> = {
@@ -52,6 +57,13 @@ const PT: Record<string, Record<string, string>> = {
     periodeRef: "Période de référence",
     dernier: "Dernier point",
     source: "Document généré depuis l'outil d'analyse des feux",
+    calTitre: "Points de feux (satellite)",
+    calMois: "Mois",
+    calTotal: "points",
+    calJours: "jours avec feu",
+    calPic: "pic",
+    calNone: "Aucun point de feu détecté dans la commune ce mois-ci.",
+    calNote: "Nombre de points de feux détectés par jour dans la commune. « – » : jour sans donnée (avant le début de l'historique chargé, ou à venir).",
   },
   en: {
     titre: "Fire situation of the commune",
@@ -69,6 +81,13 @@ const PT: Record<string, Record<string, string>> = {
     periodeRef: "Reference period",
     dernier: "Latest point",
     source: "Document generated from the fire analysis tool",
+    calTitre: "Fire points (satellite)",
+    calMois: "Month",
+    calTotal: "points",
+    calJours: "days with fire",
+    calPic: "peak",
+    calNone: "No fire point detected in the commune this month.",
+    calNote: "Fire points detected per day in the commune. “–”: day without data (before the start of the loaded history, or in the future).",
   },
   de: {
     titre: "Brandsituation der Gemeinde",
@@ -86,6 +105,13 @@ const PT: Record<string, Record<string, string>> = {
     periodeRef: "Referenzzeitraum",
     dernier: "Letzter Punkt",
     source: "Dokument aus dem Brand-Analysetool erstellt",
+    calTitre: "Brandpunkte (Satellit)",
+    calMois: "Monat",
+    calTotal: "Punkte",
+    calJours: "Tage mit Brand",
+    calPic: "Spitze",
+    calNone: "Diesen Monat wurden in der Gemeinde keine Brandpunkte erkannt.",
+    calNote: "Erkannte Brandpunkte pro Tag in der Gemeinde. „–“: Tag ohne Daten (vor Beginn des geladenen Verlaufs oder in der Zukunft).",
   },
 };
 
@@ -145,6 +171,11 @@ const CSS = `
 .fxm-heat{border-collapse:separate;border-spacing:2px;width:100%;font-size:10.5px;text-align:center}
 .fxm-heat th{font-weight:600;color:var(--text-3,#64748b);padding:2px 3px;white-space:nowrap}
 .fxm-heat td{min-width:34px;padding:4px 2px;border-radius:4px;font-variant-numeric:tabular-nums}
+.fxm-cal{table-layout:fixed}
+.fxm-cal td{min-width:0;height:40px;padding:2px 4px;vertical-align:top}
+.fxm-cal-d{display:block;font-size:9px;line-height:1.2;text-align:left;opacity:.75}
+.fxm-cal-n{display:block;font-size:13px;font-weight:700;text-align:center}
+.fxm-sel{padding:4px 8px;border-radius:8px;border:1px solid var(--border,#e2e8f0);background:var(--surface-3,#f1f5f9);color:var(--text,#0f172a);font-size:12px;font-weight:600;cursor:pointer}
 .fxm-acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
 .fxm-acts h4{margin:0 0 4px;font-size:12px}
 .fxm-acts ul{margin:0;padding-left:16px;font-size:12.5px;color:var(--text-2,#475569)}
@@ -221,6 +252,7 @@ const Lecture = ({ title, l }: { title: string; l: LectureT }) => (
 
 export default function CommuneFiche({
   commune, ap, year, hours, lang, monthNames, rowsAP, superficieHa, rang, nbCommunes, partAP, zone, fires, onClose, nowMs,
+  firesMonth, monthSel,
 }: CommuneFicheProps) {
   const T = txtCommune(lang);
   const P = PT[lang] ?? PT.fr;
@@ -232,6 +264,7 @@ export default function CommuneFiche({
   const dtFmt = (ms: number) =>
     new Date(ms).toLocaleString(loc, { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   const now = useMemo(() => nowMs ?? Date.now(), [nowMs]);
+  const { firesRaw } = useFireAlerts();
 
   // Échap pour fermer
   useEffect(() => {
@@ -245,7 +278,7 @@ export default function CommuneFiche({
   const rows = useMemo(() => rowsAP.filter((p) => norm(p.Commune) === key), [rowsAP, key]);
   const analyse = useMemo(() => analyserCommune(rows, year, superficieHa, now), [rows, year, superficieHa, now]);
 
-  // Points de feux satellite situés dans la commune
+  // Points de feux satellite situés dans la commune (fenêtre en heures : synthèse, KPI, en-tête du PDF)
   const pointsZone = useMemo(() => (zone ? fires.filter((f) => inZone(f.lon, f.lat, zone)) : []), [zone, fires]);
   const bilan = useMemo(() => {
     if (!zone) return null;
@@ -272,8 +305,56 @@ export default function CommuneFiche({
     an: String(a.annee), ha: a.ha, reste: analyse.projection && a.annee === year ? analyse.projection.reste : 0,
     sel: a.annee === year, complet: a.complet,
   }));
-  const satSerie = bilan ? [...bilan.bins].reverse().map((b) => ({ tr: `${b.a}h`, n: b.n })) : [];
   const heatMax = Math.max(0, ...analyse.heat.flatMap((r) => r.mois.map((v) => v ?? 0)));
+
+  // ===== Calendrier des points de feux (mois choisi) =====
+  // Tous les points connus : ceux transmis par la page, sinon la base des feux (contexte)
+  const allPts = useMemo<FicheFire[]>(
+    () => firesMonth ?? (parseFires(firesRaw) as any[]).map((f) => ({ t: f.t, lat: f.lat, lon: f.lon, frp: f.frp ?? null, age: 0 })),
+    [firesMonth, firesRaw]
+  );
+  // Début de l'historique disponible : avant cette date, un jour « sans point » veut dire « sans donnée »
+  const debutHisto = useMemo(() => {
+    let m: number | null = null;
+    for (const f of allPts) {
+      const v = toMs(f.t);
+      if (Number.isFinite(v) && (m == null || v < m)) m = v;
+    }
+    return m == null ? null : Math.floor(m / DAY) * DAY;
+  }, [allPts]);
+  const ptsCommune = useMemo(() => (zone ? allPts.filter((f) => inZone(f.lon, f.lat, zone)) : []), [zone, allPts]);
+
+  // Mois affiché : choix de l'utilisateur > mois transmis par la page > dernier mois avec des points > mois courant
+  const [moisChoisi, setMoisChoisi] = useState<number | null>(null);
+  const moisDefaut = useMemo(() => {
+    if (monthSel != null && monthSel >= 0) return monthSel;
+    let last: number | null = null;
+    for (const f of ptsCommune) {
+      const v = toMs(f.t), d = new Date(v);
+      if (d.getUTCFullYear() === year && (last == null || v > last)) last = v;
+    }
+    return last != null ? new Date(last).getUTCMonth() : new Date(now).getUTCMonth();
+  }, [monthSel, ptsCommune, year, now]);
+  const calMois = moisChoisi ?? moisDefaut;
+
+  const cal = useMemo(() => {
+    const nJours = new Date(Date.UTC(year, calMois + 1, 0)).getUTCDate();
+    const n: number[] = Array(nJours).fill(0);
+    ptsCommune.forEach((f) => {
+      const d = new Date(toMs(f.t));
+      if (d.getUTCFullYear() === year && d.getUTCMonth() === calMois) n[d.getUTCDate() - 1]++;
+    });
+    const sansDonnee = (j: number) => {
+      const d0 = Date.UTC(year, calMois, j + 1);
+      return debutHisto == null || d0 < debutHisto || d0 > now;
+    };
+    const premier = (new Date(Date.UTC(year, calMois, 1)).getUTCDay() + 6) % 7; // lundi = 0
+    const total = n.reduce((a, b) => a + b, 0);
+    const max = Math.max(0, ...n);
+    return { n, nJours, premier, sansDonnee, total, max, actifs: n.filter((v) => v > 0).length, pic: max > 0 ? n.indexOf(max) + 1 : 0 };
+  }, [ptsCommune, year, calMois, debutHisto, now]);
+  const joursSem = Array.from({ length: 7 }, (_, i) =>
+    new Date(Date.UTC(2024, 0, 1 + i)).toLocaleDateString(loc, { weekday: "short", timeZone: "UTC" }));
 
   // Export PDF : passe par la boîte d'impression du navigateur (« Enregistrer au format PDF »)
   const exportPdf = () => {
@@ -488,27 +569,59 @@ export default function CommuneFiche({
                 <Lecture title={T.lectLbl} l={rap.lectures.heat} />
               </section>
 
+              {/* ===== Points de feux (satellite) : calendrier du mois ===== */}
               <section className="fxm-card">
-                <h3>{T.pts}</h3>
-                <div className="fxm-chart-row"><div className="fxm-chart-main">{!zone ? (
+                <h3>{P.calTitre} – {monthNames[calMois]} {year}</h3>
+                <div className="fxm-chart-row"><div className="fxm-chart-main">
+                {!zone ? (
                   <p className="fxm-note">{T.ptsSans}</p>
-                ) : bilan && bilan.total > 0 ? (
-                  <>
-                    <div className="fxm-chart">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={satSerie} margin={{ top: 6, right: 8, left: -10, bottom: 0 }}>
-                          <CartesianGrid stroke="var(--border,#e2e8f0)" strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="tr" tick={TICK} axisLine={false} tickLine={false} interval="preserveStartEnd" />
-                          <YAxis tick={TICK} axisLine={false} tickLine={false} width={34} allowDecimals={false} />
-                          <Tooltip contentStyle={TIP_STYLE} labelStyle={{ color: "var(--text,#0f172a)" }} />
-                          <Bar dataKey="n" fill="#ea580c" radius={[3, 3, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <p className="fxm-note">{T.ptsChart.replace("{w}", String(bilan.largeurH))}</p>
-                  </>
                 ) : (
-                  <p className="fxm-note">{T.ptsNo}</p>
+                  <>
+                    <div className="fxm-noprint" style={{ textAlign: "center", marginBottom: 6 }}>
+                      <label style={{ fontSize: 12, fontWeight: 600 }}>
+                        {P.calMois} :{" "}
+                        <select className="fxm-sel" value={calMois} onChange={(e) => setMoisChoisi(Number(e.target.value))}>
+                          {monthNames.map((m, i) => <option key={i} value={i}>{m}</option>)}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="fxm-heatw">
+                      <table className="fxm-heat fxm-cal">
+                        <thead>
+                          <tr>{joursSem.map((j) => <th key={j} scope="col">{j}</th>)}</tr>
+                        </thead>
+                        <tbody>
+                          {Array.from({ length: Math.ceil((cal.premier + cal.nJours) / 7) }, (_, w) => (
+                            <tr key={w}>
+                              {Array.from({ length: 7 }, (_, c) => {
+                                const j = w * 7 + c - cal.premier;
+                                if (j < 0 || j >= cal.nJours) return <td key={c} />;
+                                const v = cal.n[j], nd = cal.sansDonnee(j);
+                                const a = !nd && v > 0 && cal.max > 0 ? 0.15 + 0.85 * Math.sqrt(v / cal.max) : 0;
+                                return (
+                                  <td key={c} title={nd ? "—" : `${j + 1}/${calMois + 1} : ${v}`}
+                                    style={{
+                                      background: nd ? "transparent" : v > 0 ? `rgba(234,88,12,${a})` : "var(--surface-2,#f8fafc)",
+                                      color: a > 0.55 ? "#fff" : "var(--text,#0f172a)",
+                                      outline: nd ? "1px dashed var(--border,#e2e8f0)" : undefined,
+                                    }}>
+                                    <span className="fxm-cal-d">{j + 1}</span>
+                                    <span className="fxm-cal-n">{nd ? "–" : v > 0 ? v : ""}</span>
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="fxm-note">
+                      {cal.total > 0
+                        ? `${n0(cal.total)} ${P.calTotal} · ${cal.actifs} ${P.calJours} · ${P.calPic} : ${cal.pic}/${calMois + 1} (${cal.max})`
+                        : P.calNone}
+                    </p>
+                    <p className="fxm-note">{P.calNote}</p>
+                  </>
                 )}
 </div>{rap.lectures.satellite && <div className="fxm-side-lect"><Lecture title={T.lectLbl} l={rap.lectures.satellite} /></div>}</div>
               </section>
