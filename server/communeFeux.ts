@@ -670,7 +670,7 @@ const UI_FR = {
   confLbl: "Fiabilité de l'analyse", conf: { haute: "élevée", moyenne: "moyenne", faible: "faible" } as Record<"haute" | "moyenne" | "faible", string>,
   cles: "À retenir", declench: "Pourquoi ce niveau", aucunDeclench: "Aucun critère d'alerte réuni pour le moment.",
   actions: "Actions recommandées", hz: { now: "Immédiat", pre: "Avant la saison", post: "Bilan et planification", data: "Fiabiliser les données" } as Record<Hz, string>,
-  qualite: "Qualité des données et limites", partTitre: "Poids dans le brûlé de la commune", partInt: "Intérieur de l'aire protégée", partTam: "Zone tampon 5 km", partMoy: "Moyenne (années complètes)", partNoteInt: "Part réelle : l'intérieur est un sous-ensemble de la commune (≤ 100 %).", partNoteTam: "Rapport : la zone tampon déborde de la commune, il peut dépasser 100 %.", projKpi: "Fin {an} (estimée)", vsMoy: "vs moyenne",
+  qualite: "Qualité des données et limites", partTitre: "Part de la superficie brûlée de la commune", partInt: "Intérieur de l'aire protégée", partTam: "Zone tampon 5 km", partMoy: "Moyenne (années complètes)", partNoteInt: "Part réelle : l'intérieur est un sous-ensemble de la commune (≤ 100 %).", partNoteTam: "Rapport : la zone tampon déborde de la commune, il peut dépasser 100 %.", projKpi: "Fin {an} (estimée)", vsMoy: "vs moyenne",
 };
 const UI_EN: typeof UI_FR = {
   fermer: "Close", apLbl: "Protected area", rang: "Rank in the PA", partAP: "Share of the PA", totalAn: "Burned in {an}", vsRef: "vs {ref} average",
@@ -691,7 +691,7 @@ const UI_EN: typeof UI_FR = {
   confLbl: "Analysis reliability", conf: { haute: "high", moyenne: "medium", faible: "low" },
   cles: "Key points", declench: "Why this level", aucunDeclench: "No alert criterion met at the moment.",
   actions: "Recommended actions", hz: { now: "Right now", pre: "Before the season", post: "Review and planning", data: "Improve the data" },
-  qualite: "Data quality and limits", partTitre: "Weight in the commune's burned area", partInt: "Inside the protected area", partTam: "5 km buffer", partMoy: "Average (complete years)", partNoteInt: "True share: the interior is a subset of the commune (≤ 100 %).", partNoteTam: "Ratio: the buffer extends beyond the commune, so it can exceed 100 %.", projKpi: "End of {an} (estimated)", vsMoy: "vs average",
+  qualite: "Data quality and limits", partTitre: "Share of the commune's burned area", partInt: "Inside the protected area", partTam: "5 km buffer", partMoy: "Average (complete years)", partNoteInt: "True share: the interior is a subset of the commune (≤ 100 %).", partNoteTam: "Ratio: the buffer extends beyond the commune, so it can exceed 100 %.", projKpi: "End of {an} (estimated)", vsMoy: "vs average",
 };
 export const txtCommune = (lang: string) => (lang === "en" ? UI_EN : UI_FR);
 
