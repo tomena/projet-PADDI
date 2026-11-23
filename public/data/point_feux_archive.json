@@ -2,7 +2,8 @@
 "version": 1,
 "entrees": {
 "2025-10": {
-"ankarafantsika__marosakoa": {"ap":"Ankarafantsika","commune":"Marosakoa","jours":[33,162,114,24,27,114,122,82,19,3,2,3,44,105,96,60,7,133,71,69,221,12,16,89,163,75,57,49,6,0,5],"maj":"2026-11-23T12:44:49.721Z","definitif":true}
+"ankarafantsika__marosakoa": {"ap":"Ankarafantsika","commune":"Marosakoa","jours":[33,162,114,24,27,114,122,82,19,3,2,3,44,105,96,60,7,133,71,69,221,12,16,89,163,75,57,49,6,0,5],"maj":"2026-11-23T12:44:49.721Z","definitif":true},
+"befotaka-midongy__iakora": {"ap":"Befotaka-Midongy","commune":"Iakora","jours":[0,4,9,0,1,22,79,66,54,65,42,28,24,55,48,35,11,0,13,16,9,2,1,0,15,19,25,16,36,27,0],"maj":"2026-11-23T12:50:22.469Z","definitif":true}
 },
 "2025-12": {
 "ankarafantsika__marosakoa": {"ap":"Ankarafantsika","commune":"Marosakoa","jours":[0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1],"maj":"2026-11-23T12:33:02.913Z","definitif":true}
