@@ -51,6 +51,7 @@ const txt: any = {
     scaleAbs: "Échelle fixe (comparable)", scaleRel: "Échelle adaptée à l'AP", severity: "Gravité", sevLow: "faible", sevHigh: "forte",
     noCommunes: "Limites des communes introuvables : vérifiez DATA.communesGeo.", missingCommunes: "Communes de la base sans limite sur la carte (nom différent) :", noneForAp: "Aucune commune trouvée pour cette AP dans le fichier des limites (champ nom_ap).", loadedLbl: "chargées", opacity: "Opacité des communes",
     refresh: "Actualiser", noFire: "Aucun feu actif détecté dans cette zone.", noBase: "Base de feux introuvable : vérifiez les chemins dans DATA.",
+    autreCommune: "Autre commune",
     months: { Jan: "Jan", Feb: "Fév", Mar: "Mar", Apr: "Avr", May: "Mai", Jun: "Juin", Jul: "Juil", Aug: "Août", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Déc" },
   },
   mg: {
@@ -81,6 +82,7 @@ const txt: any = {
     scaleAbs: "Refy raikitra (azo ampitahaina)", scaleRel: "Refy mifanaraka amin'ny AP", severity: "Hamafin'ny doro", sevLow: "kely", sevHigh: "avo",
     noCommunes: "Tsy hita ny sisin'ny kaominina: jereo ny DATA.communesGeo.", missingCommunes: "Kaominina ao amin'ny angona tsy hita eo amin'ny sarintany (anarana samy hafa) :", noneForAp: "Tsy misy kaominina hita ho an'ity AP ity ao amin'ny rakitra (nom_ap).", loadedLbl: "voakarakara", opacity: "Hamafisan'ny loko ny kaominina",
     refresh: "Havaozina", noFire: "Tsy misy doro mavitrika hita amin'ity faritra ity.", noBase: "Tsy hita ny angona doro: jereo ny lalana ao amin'ny DATA.",
+    autreCommune: "Kaominina hafa",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "Mey", Jun: "Jon", Jul: "Jol", Aug: "Aog", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Des" },
   },
   en: {
@@ -112,6 +114,7 @@ const txt: any = {
     scaleAbs: "Fixed scale (comparable)", scaleRel: "Scale adapted to the PA", severity: "Severity", sevLow: "low", sevHigh: "high",
     noCommunes: "Commune boundaries not found: check DATA.communesGeo.", missingCommunes: "Communes in the database with no boundary on the map (different name):", noneForAp: "No commune found for this PA in the boundary file (field nom_ap).", loadedLbl: "loaded", opacity: "Commune opacity",
     refresh: "Refresh", noFire: "No active fire detected in this area.", noBase: "Fire database not found: check the paths in DATA.",
+    autreCommune: "Other commune",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mar", Apr: "Apr", May: "May", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Oct", Nov: "Nov", Dec: "Dec" },
   },
   de: {
@@ -143,6 +146,7 @@ const txt: any = {
     scaleAbs: "Feste Skala (vergleichbar)", scaleRel: "An das Schutzgebiet angepasste Skala", severity: "Schweregrad", sevLow: "gering", sevHigh: "hoch",
     noCommunes: "Gemeindegrenzen nicht gefunden: DATA.communesGeo prüfen.", missingCommunes: "Gemeinden der Datenbank ohne Grenze auf der Karte (anderer Name):", noneForAp: "Keine Gemeinde für dieses Schutzgebiet in der Grenzdatei gefunden (Feld nom_ap).", loadedLbl: "geladen", opacity: "Deckkraft der Gemeinden",
     refresh: "Aktualisieren", noFire: "Kein aktiver Brand in diesem Gebiet erkannt.", noBase: "Brand-Datenbank nicht gefunden: Pfade in DATA prüfen.",
+    autreCommune: "Andere Gemeinde",
     months: { Jan: "Jan", Feb: "Feb", Mar: "Mär", Apr: "Apr", May: "Mai", Jun: "Jun", Jul: "Jul", Aug: "Aug", Sep: "Sep", Oct: "Okt", Nov: "Nov", Dec: "Dez" },
   },
 };
@@ -361,6 +365,8 @@ const CSS = `
 .fx-ct{margin:0 0 8px;text-align:center;font-size:12px;font-weight:700;font-style:italic;color:color-mix(in srgb,#d32f2f 80%,var(--text));line-height:1.3}
 .fx-chart{height:270px;cursor:pointer}
 .fx-note{margin:6px 0 0;font-size:11px;color:var(--text-3);text-align:center}
+.fx-autre{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px 10px;margin-top:6px;font-size:11px;color:var(--text-2)}
+.fx-autre .fx-sel{width:auto;max-width:100%;padding:5px 8px;font-size:11px}
 .fx-tip{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 .fx-tip b{display:block;margin-bottom:4px;color:var(--text)}
 .fx-tip div{display:flex;justify-content:space-between;gap:14px}
@@ -707,6 +713,8 @@ const ImpactTip = ({ active, payload, t }: any) => {
 const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
   const rep = useContext(ReportCtx);
   const data = all.slice(0, n);
+  // Communes hors du Top affiché, pour ouvrir leur fiche depuis la liste déroulante
+  const autres = all.slice(n);
   const sum = (a: any[]) => a.reduce((s, d) => s + d.total, 0);
   const share = sum(all) > 0 ? Math.round((sum(data) / sum(all)) * 100) : 0;
   const maxY = Math.max(...data.map((d: any) => d.total), 0);
@@ -757,6 +765,26 @@ const ImpactChart = ({ all, ap, t, n, setN, onPick }: any) => {
       <p className="fx-note">
         {t.topN} {n} : <strong>{share} %</strong> {t.ofTotal}
       </p>
+      {!rep && autres.length > 0 && onPick && (
+        <div className="fx-autre">
+          <label htmlFor="fx-autre-commune">{t.autreCommune} :</label>
+          <select
+            id="fx-autre-commune"
+            className="fx-sel"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onPick(e.target.value);
+            }}
+          >
+            <option value="">{t.autreCommune}…</option>
+            {autres.map((c: any) => (
+              <option key={c.commune} value={c.commune}>
+                {c.commune} — {fmtHa(c.total)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
       {!rep && <p className="fx-note">{txtCommuneHint(t)}</p>}
     </Card>
   );
