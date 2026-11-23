@@ -1,7 +1,7 @@
 {
   "type": "FeatureCollection",
   "name": "zones_intervention",
-  "mise_a_jour": "2026-11-20",
+  "mise_a_jour": "2026-11-23",
   "projets": [
     {
       "id": "paddi",
@@ -253,48 +253,6 @@
         "district": "Ambilobe",
         "commune": "Tanambao Marivorahona",
         "mbv_ha": 2064.649,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Vakinankaratra",
-        "district": "Antanifotsy",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Amoron'i Mania",
-        "district": "Fandriana",
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "paddi",
-        "projet": "PADDI+",
-        "type": "environnement",
-        "region": "Amoron'i Mania",
-        "district": "Ambositra",
-        "commune": null,
-        "mbv_ha": null,
         "activites": []
       }
     },
