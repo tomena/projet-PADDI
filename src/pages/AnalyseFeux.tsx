@@ -437,7 +437,9 @@ const REPORT_CSS = `
 .fxr-paper .fx-chart{cursor:default;height:240px}
 .fxr-paper .fx-rank{margin:10px 0 0;break-inside:avoid}
 .fxr-paper svg g{transition:none!important}
-.fxr-tb{width:100%;border-collapse:collapse;font-size:11px;break-inside:avoid}
+.fxr-tb{width:100%;border-collapse:collapse;font-size:11px}
+.fxr-tb tr{break-inside:avoid}
+.fxr-tb tfoot{display:table-row-group}
 .fxr-tb th{padding:6px 8px;text-align:right;background:#0b4ea2;color:#fff;font-weight:700}
 .fxr-tb td{padding:5px 8px;text-align:right;border-bottom:1px solid #e2e8f0}
 .fxr-tb th.l,.fxr-tb td.l{text-align:left}
@@ -1276,7 +1278,7 @@ const Report = ({ t, r, d, onClose }: any) => {
 
   const allTotal = d.impactAll.reduce((s: number, c: any) => s + c.total, 0);
   const sumField = (k: string) => d.impactAll.reduce((s: number, c: any) => s + c[k], 0);
-  const impactRows = d.impactAll.slice(0, 11).map((c: any, i: number) => [
+  const impactRows = d.impactAll.map((c: any, i: number) => [
     i + 1, c.commune, f1(c.interieur), f1(c.peripherie), f1(c.total), allTotal > 0 ? `${((c.total / allTotal) * 100).toFixed(1)} %` : "—",
   ]);
 
@@ -1351,7 +1353,6 @@ const Report = ({ t, r, d, onClose }: any) => {
           {/* ---------- Page 3 : comparaison historique ---------- */}
           <RSection n={4} title={r.secHisto} r={r} ap={d.ap} year={d.year}>
             <HistoricalChart zones={d.zonesHisto} year={d.year} t={t} lang={d.lang} />
-            <Gauge variation={d.variation5km} t={t} />
           </RSection>
 
           {/* ---------- Page 4 : impact par commune ---------- */}
