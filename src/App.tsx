@@ -22,7 +22,6 @@ import MicroEntreprise from "./pages/MicroEntreprise";
 import Beneficiaires from "./pages/Beneficiaires";
 import DecisionCOSAP from "./pages/DecisionCOSAP";
 import MesureRegionale from "./pages/MesureRegionale";
-import ZonesBrulees from "./pages/ZonesBrulees";
 import Bibliotheque from "./pages/Bibliotheque";
 import AnalyseTerritoriale from "./pages/AnalyseTerritoriale";
 import { FireAlertProvider } from "./context/FireAlertContext";
