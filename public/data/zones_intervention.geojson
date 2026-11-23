@@ -263,6 +263,48 @@
         "projet_id": "paddi",
         "projet": "PADDI+",
         "type": "environnement",
+        "region": "Vakinankaratra",
+        "district": "Antanifotsy",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Ambositra",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
         "region": "Anosy",
         "district": "Taolagnaro",
         "commune": null,
@@ -490,6 +532,118 @@
         "region": "Atsimo-Atsinanana",
         "district": "Befotaka",
         "commune": "Antaninarenina",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Vakinankaratra",
+        "district": "Antanifotsy",
+        "commune": "Ambohitompoina",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Vakinankaratra",
+        "district": "Antanifotsy",
+        "commune": "Antsampandrano",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Vakinankaratra",
+        "district": "Antanifotsy",
+        "commune": "Belanitra",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": "Betsimisotra",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": "Ankarinoro",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": "Fiadanana",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": "Sandrandahy",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": "Miarinavaratra",
         "mbv_ha": null,
         "activites": []
       }
