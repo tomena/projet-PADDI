@@ -260,6 +260,62 @@
       "type": "Feature",
       "geometry": null,
       "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Vakinankaratra",
+        "district": "Antanifotsy",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Fandriana",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Amoron'i Mania",
+        "district": "Ambositra",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": null,
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
         "projet_id": "plae",
         "projet": "PLAE",
         "type": "environnement",
@@ -588,6 +644,118 @@
         "region": "Amoron'i Mania",
         "district": "Fandriana",
         "commune": "Miarinavaratra",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Ankariera",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Ankaramena",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Enakara-Haut",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Fenoevo-Efita",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Enaniliha",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Manambaro",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Mandiso",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "paddi",
+        "projet": "PADDI+",
+        "type": "environnement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Ranopiso",
         "mbv_ha": null,
         "activites": []
       }
