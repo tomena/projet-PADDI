@@ -6,6 +6,7 @@
 },
 "2025-10": {
 "andohahela__manambaro": {"ap":"Andohahela","commune":"Manambaro","jours":[0,0,0,0,0,0,0,2,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,4,0],"maj":"2026-11-23T14:43:25.288Z","definitif":true},
+"andohahela__mandiso": {"ap":"Andohahela","commune":"Mandiso","jours":[0,0,0,0,0,0,2,0,0,0,5,4,0,6,2,1,0,0,0,0,0,0,0,0,0,2,3,12,1,4,3],"maj":"2026-11-23T14:44:22.167Z","definitif":true},
 "ankarafantsika__ambolomoty": {"ap":"Ankarafantsika","commune":"Ambolomoty","jours":[0,0,0,0,0,0,0,0,0,0,0,0,0,6,0,0,0,0,0,1,0,0,0,10,0,0,0,1,0,0,0],"maj":"2026-11-23T14:41:43.706Z","definitif":true},
 "ankarafantsika__andranofasika": {"ap":"Ankarafantsika","commune":"Andranofasika","jours":[0,0,0,0,0,0,3,0,4,0,0,0,0,0,4,4,3,0,0,0,0,0,0,2,2,2,0,0,0,0,0],"maj":"2026-11-23T14:42:29.087Z","definitif":true},
 "ankarafantsika__marosakoa": {"ap":"Ankarafantsika","commune":"Marosakoa","jours":[33,162,114,24,27,114,122,82,19,3,2,3,44,105,96,60,7,133,71,69,221,12,16,89,163,75,57,49,6,0,5],"maj":"2026-11-23T12:44:49.721Z","definitif":true},
