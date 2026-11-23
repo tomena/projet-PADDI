@@ -754,8 +754,6 @@ export default function CommuneFiche({
                           : P.calNone}
                       </p>
                     )}
-                    <p className="fxm-note">{P.calNote}</p>
-                    {firms.origine && <p className="fxm-note">{firms.origine === "base" ? P.calSrcBase : P.calSrcFirms}</p>}
                     {!moisPage && <p className="fxm-note">{P.calAuto}</p>}
                   </>
                 )}
@@ -788,6 +786,12 @@ export default function CommuneFiche({
             )}
 
             <p className="fxm-note">{T.src}</p>
+            {zone && (
+              <p className="fxm-note">
+                {P.calNote}
+                {firms.origine ? ` ${firms.origine === "base" ? P.calSrcBase : P.calSrcFirms}` : ""}
+              </p>
+            )}
             <p className="fxm-print-only fxm-note">{P.source}</p>
           </>
         )}
