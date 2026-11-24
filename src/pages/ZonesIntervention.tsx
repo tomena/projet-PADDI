@@ -8,7 +8,9 @@
  *  - MBV du projet PADDI, lues depuis public/data/paddi_mbv.geojson
  *    (affichées selon l'AP, la région, le district, la commune ou le projet choisi) ;
  *  - niveau de recherche « Aire protégée » ;
- *  - aires protégées et zone tampon 5 km (mêmes fichiers que la page feux : DATA.aires, DATA.peripheries).
+ *  - aires protégées et zone tampon 5 km (mêmes fichiers que la page feux : DATA.aires, DATA.peripheries) ;
+ *  - une aire protégée affiche aussi les communes PADDI dont le territoire chevauche son polygone,
+ *    même lorsqu'aucune MBV n'est enregistrée pour cette commune.
  *
  * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
  * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
@@ -1060,16 +1062,25 @@ export default function ZonesIntervention() {
       });
     }
     if (sel.niveau === "ap" || sel.niveau === "paysage") {
-      /* communes PADDI traversées par les MBV de cette AP ou de ce paysage */
+      /* communes PADDI traversées par les MBV de cette AP ou de ce paysage.
+         Pour une AP, une commune est aussi retenue si son territoire chevauche le polygone de l'AP,
+         même sans MBV enregistrée (ex. Andohahela, Marolambo, Befotaka-Midongy). */
       const mb =
         sel.niveau === "ap"
           ? mbvDeAp(sel.label)
           : mbvF.filter((f) => cle(String(f.properties.Paysage ?? "")) === sel.cle);
-      if (!mb.length) return [];
+      /* Polygone de l'aire protégée (pour les communes sans MBV) */
+      const apFeat =
+        sel.niveau === "ap"
+          ? (apZ.find((z) => memeNom(z.nom, sel.label))?.feature as unknown as Feat | undefined)
+          : undefined;
+      if (!mb.length && !apFeat) return [];
       return LIGNES.filter((l) => {
         if (!l.commune || !estPaddi(l.projetId, l.projet)) return false;
         const cF = featCom.get(cleLigne(l));
-        return !!cF && mb.some((m) => chevauche(m, cF));
+        if (!cF) return false;
+        if (mb.some((m) => chevauche(m, cF))) return true;
+        return !!apFeat && chevauche(cF, apFeat, 0.1);
       });
     }
     return LIGNES.filter((l) => correspond(l, sel));
