@@ -740,6 +740,9 @@ const COULEUR_TYPE: Record<TypeProjet | "mixte", string> = {
 };
 const COULEUR_HORS = "#64748b";
 
+/* Micro-bassins et zones tampon 5 km : affichés seulement à partir de ce zoom (en dessous : vue nationale) */
+const ZOOM_DETAIL = 9;
+
 /* Limite seule, sans fond (sauf les communes, remplies légèrement) */
 function contour(
   g: L.LayerGroup,
@@ -797,6 +800,8 @@ export default function ZonesIntervention() {
   const [liste, setListe] = useState<null | "projets" | "regions" | "districts" | "communes">(null);
   /* Projet choisi comme filtre dans la sélection (région, district, commune, aire protégée…) */
   const [projetFiltre, setProjetFiltre] = useState<string | null>(null);
+  /* Niveau de zoom de la carte (pour masquer les MBV et zones tampon en vue nationale) */
+  const [zoom, setZoom] = useState(5);
 
   /* ----- mise à jour (connexion requise, comme le Dashboard) ----- */
   const [showLogin, setShowLogin] = useState(false);
@@ -1321,6 +1326,8 @@ export default function ZonesIntervention() {
     m.createPane("zi-mbv").style.zIndex = "460";
     couche.current = L.layerGroup().addTo(m);
     map.current = m;
+    setZoom(m.getZoom());
+    m.on("zoomend", () => setZoom(m.getZoom()));
     const ro = new ResizeObserver(() => m.invalidateSize());
     ro.observe(elMap.current!);
     return () => {
@@ -1371,7 +1378,7 @@ export default function ZonesIntervention() {
     });
 
     /* Zone tampon 5 km */
-    periphSel.forEach((z) =>
+    if (zoom >= ZOOM_DETAIL) periphSel.forEach((z) =>
       L.geoJSON(z.feature as any, {
         pane: "zi-per",
         interactive: false,
@@ -1380,7 +1387,7 @@ export default function ZonesIntervention() {
     );
 
     /* MBV du projet PADDI (cliquer sur une MBV sélectionne son aire protégée) */
-    if (!vide) {
+    if (!vide && zoom >= ZOOM_DETAIL) {
       mbvSel.forEach((f) => {
         const p = f.properties;
         const l = L.geoJSON(f as any, {
@@ -1532,7 +1539,7 @@ export default function ZonesIntervention() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, sel, vide, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, mbvCommune, mbvChoisie, mbvCom, apZonesSel, periphSel, SUGG]);
+  }, [apZ, regions, districts, sel, vide, zoom, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, mbvCommune, mbvChoisie, mbvCom, apZonesSel, periphSel, SUGG]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -1636,8 +1643,8 @@ export default function ZonesIntervention() {
       if (communesVues) it.push({ k: "com", label: t.legCommune, cls: "zi-lg-com" });
     }
     if (apZ.length) it.push({ k: "ap", label: t.legAP, cls: "zi-lg-ap" });
-    if (periphSel.length) it.push({ k: "per", label: t.legPeriph, cls: "zi-lg-per" });
-    if (mbvSel.length) it.push({ k: "mbv", label: t.legMbv, cls: "zi-lg-mbv" });
+    if (periphSel.length && zoom >= ZOOM_DETAIL) it.push({ k: "per", label: t.legPeriph, cls: "zi-lg-per" });
+    if (mbvSel.length && zoom >= ZOOM_DETAIL) it.push({ k: "mbv", label: t.legMbv, cls: "zi-lg-mbv" });
     if (adminVisible && (n === "district" || n === "commune")) it.push({ k: "sel", label: t.legSelection, cls: "zi-lg-sel" });
     return it;
   })();
