@@ -272,6 +272,12 @@ const groupe = (cle: string, icone: LucideIcon, label: Cle, enfants: Entree[], c
   type: "groupe", cle, icone, label, enfants, chemin,
 });
 
+/* Pages partagées : définies une seule fois, réutilisables dans un module.
+   Modifier le libellé, l'icône ou le chemin ici se répercute partout. */
+const PAGE_ZONE_INTERVENTION = lien("zones-brulees", MapPinned, "burnedZonesMap", "zones-brulees");
+
+/* Module associé à chaque clé de l'accueil (Home).
+   Clé = nom passé dans open(...) depuis la page d'accueil. */
 const MENUS: Record<string, Entree[]> = {
   paddi: [
     lien("vue", LayoutDashboard, "generalView", ""),
@@ -296,12 +302,15 @@ const MENUS: Record<string, Entree[]> = {
     lien("biblio", Library, "library", "bibliotheque"),
   ],
 
+  projets: [
+    PAGE_ZONE_INTERVENTION,
+  ],
+
   environnement: [
     lien("feux", Flame, "fireAnalysis", "analyse-feux"),
-    lien("zones-brulees", MapPinned, "burnedZonesMap", "zones-brulees"),
     lien("deforestation", Trees, "deforestation", "deforestation"),
     lien("pression", ShieldAlert, "pressureZones", "pression"),
-    
+
     groupe("territoire", Mountain, "territorialAnalysis", [
       lien("terr-env", Trees, "tabEnv", "analyse-territoriale/environnement"),
       lien("terr-eco", TrendingUp, "tabEco", "analyse-territoriale/economie"),
