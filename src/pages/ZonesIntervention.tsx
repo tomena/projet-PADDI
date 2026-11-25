@@ -829,7 +829,8 @@ const CSS_RAPPORT = `
 .zi-rapport h2{font-size:12.5pt;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #14532d;color:#14532d;font-weight:600;break-after:avoid}
 .zi-rapport h2 small{font-size:9.5pt;font-weight:400;color:#4a5850}
 .zi-rapport section{break-inside:auto}
-.zi-rp-carte-sec{break-inside:avoid}
+.zi-rapport section.zi-rp-carte-sec{break-inside:avoid-page;page-break-inside:avoid}
+.zi-rp-carte{break-inside:avoid;page-break-inside:avoid}
 .zi-rp-tbl thead{display:table-header-group}
 .zi-rp-tbl tfoot{display:table-footer-group}
 .zi-rp-page1 .zi-rp-tbl td,.zi-rp-page1 .zi-rp-tbl th{padding:2px 5px;font-size:8.5pt}
