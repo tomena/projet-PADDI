@@ -1316,6 +1316,14 @@ export default function ZonesIntervention() {
     return out;
   }, [periphZ, apZonesSel]);
 
+  /* Districts affichés : après un district choisi, ou dans une région, une AP ou un paysage
+     où un projet a été choisi comme filtre (sans filtre, la région seule reste sans districts) */
+  const districtsVisibles =
+    !vide &&
+    !!sel &&
+    (sel.niveau === "district" ||
+      (!!projetFiltre && (sel.niveau === "region" || sel.niveau === "ap" || sel.niveau === "paysage")));
+
   /* ----- carte : création ----- */
   useEffect(() => {
     const m = L.map(elMap.current!, { zoomControl: false }).fitBounds(MADA);
@@ -1442,7 +1450,7 @@ export default function ZonesIntervention() {
     const etiqRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
     /* Fond : uniquement sur le niveau choisi (région, district ou commune) */
     const remplirRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
-    const etiqDistrict = n === "district";
+    const etiqDistrict = districtsVisibles;
     const etiqCommune = n === "district" || n === "commune" || n === "ap" || n === "paysage";
 
     /* Régions : toutes sans recherche, puis seulement celles de la sélection */
@@ -1484,7 +1492,7 @@ export default function ZonesIntervention() {
       });
 
     /* Districts de la sélection (limites sans fond) */
-    if (n === "district") {
+    if (districtsVisibles) {
       districts
         .filter((d) => actDisSet.has(d))
         .forEach((d) => {
@@ -1539,7 +1547,7 @@ export default function ZonesIntervention() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apZ, regions, districts, sel, vide, zoom, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, mbvCommune, mbvChoisie, mbvCom, apZonesSel, periphSel, SUGG]);
+  }, [apZ, regions, districts, sel, vide, zoom, projetFiltre, districtsVisibles, actives, regionFeat, districtFeat, communeFeat, actRegKeys, actDisSet, actComSet, ligneDis, ligneCom, typesRegion, mbvSel, mbvCommune, mbvChoisie, mbvCom, apZonesSel, periphSel, SUGG]);
 
   /* ----- cadrage ----- */
   useEffect(() => {
@@ -1635,7 +1643,7 @@ export default function ZonesIntervention() {
         if (types.has("developpement")) it.push({ k: "dev", label: t.catDev, color: COULEUR_TYPE.developpement });
         if (types.has("mixte")) it.push({ k: "mix", label: t.legMixte, color: COULEUR_TYPE.mixte });
       }
-      if (n === "district") it.push({ k: "dis", label: t.legDistrict, cls: "zi-lg-dis" });
+      if (districtsVisibles) it.push({ k: "dis", label: t.legDistrict, cls: "zi-lg-dis" });
       const communesVues =
         n === "mbv"
           ? !!mbvChoisie && (mbvCom.feats.get(mbvChoisie)?.length ?? 0) > 0
