@@ -828,8 +828,10 @@ const CSS_RAPPORT = `
 .zi-rapport h1{font-size:19pt;margin:2px 0 4px;color:#14532d;font-weight:600}
 .zi-rapport h2{font-size:12.5pt;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #14532d;color:#14532d;font-weight:600;break-after:avoid}
 .zi-rapport h2 small{font-size:9.5pt;font-weight:400;color:#4a5850}
-.zi-rapport section{break-inside:avoid-page}
-.zi-rp-page1{break-after:page}
+.zi-rapport section{break-inside:auto}
+.zi-rp-carte-sec{break-inside:avoid}
+.zi-rp-tbl thead{display:table-header-group}
+.zi-rp-tbl tfoot{display:table-footer-group}
 .zi-rp-page1 .zi-rp-tbl td,.zi-rp-page1 .zi-rp-tbl th{padding:2px 5px;font-size:8.5pt}
 .zi-rp-page1 .zi-rp-stats{margin-bottom:0}
 .zi-rp-entete{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #14532d;padding-bottom:8px}
@@ -2049,7 +2051,7 @@ export default function ZonesIntervention() {
       )}
 
       {!vide && (
-        <section>
+        <section className="zi-rp-carte-sec">
           <h2>{t.pdfCarteLbl}</h2>
           <div className="zi-rp-carte" data-carte="1" />
           <p className="zi-rp-note">{t.pdfCarteNote}</p>
@@ -2110,10 +2112,15 @@ export default function ZonesIntervention() {
     if (carte) {
       const cw = carte.clientWidth || 1;
       const ch = carte.clientHeight || 1;
-      const echelle = Math.min(1, 700 / cw);
+      const W = 700;
+      const H = 560;
+      /* La carte remplit tout le cadre (zone rognée si nécessaire) */
+      const echelle = Math.max(W / cw, H / ch);
+      const dx = (W - cw * echelle) / 2;
+      const dy = (H - ch * echelle) / 2;
       carteHtml =
-        `<div style="position:relative;overflow:hidden;width:${cw * echelle}px;height:${ch * echelle}px">` +
-        `<div class="leaflet-container" style="position:absolute;left:0;top:0;width:${cw}px;height:${ch}px;transform:scale(${echelle});transform-origin:0 0">` +
+        `<div style="position:relative;overflow:hidden;width:${W}px;height:${H}px">` +
+        `<div class="leaflet-container" style="position:absolute;left:0;top:0;width:${cw}px;height:${ch}px;transform:translate(${dx}px,${dy}px) scale(${echelle});transform-origin:0 0">` +
         carte.innerHTML +
         `</div></div>`;
     }
