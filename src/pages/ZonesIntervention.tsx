@@ -852,7 +852,7 @@ const CSS_RAPPORT = `
 .zi-rp-tbl tr.zi-rp-region td{font-weight:700;background:#e9efe7;color:#14532d}
 .zi-rp-tbl tr.zi-rp-district td{font-weight:600}
 .zi-rp-tbl tr.zi-rp-mbv td{color:#4a5850;font-size:8.5pt}
-.zi-rp-carte{position:relative;width:100%;border:1px solid #d8d4c8;margin-top:4px;overflow:hidden;background:#e5e7eb}
+.zi-rp-carte{position:relative;width:100%;border:1px solid #d8d4c8;margin-top:4px;overflow:hidden;background:#fff;height:560px}
 .zi-rp-note{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850;margin:4px 0 0}
 .zi-rp-pied{margin-top:16px;padding-top:6px;border-top:1px solid #d8d4c8;font-family:Arial,sans-serif;font-size:7.5pt;color:#4a5850}
 .zi-rp-pied p{margin:2px 0}
@@ -2057,42 +2057,6 @@ export default function ZonesIntervention() {
           <p className="zi-rp-note">{t.pdfCarteNote}</p>
           <p className="zi-rp-note">{t.note}</p>
           <p className="zi-rp-note">{t.pdfSource}</p>
-        </section>
-      )}
-
-      {afficherActivites && (
-        <section>
-          <h2>{t.activites}</h2>
-          {activites.length ? (
-            <table className="zi-rp-tbl">
-              <thead>
-                <tr>
-                  <th className="zi-l">{t.pdfColType}</th>
-                  <th className="zi-l">{t.colCommune}</th>
-                  <th className="zi-l">{t.pdfColActivite}</th>
-                  <th>{t.colSuperficie}</th>
-                  <th>{t.pdfColAnnee}</th>
-                  <th className="zi-l">{t.niveaux.district}</th>
-                  <th className="zi-l">{t.niveaux.region}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activites.map((a, i) => (
-                  <tr key={i}>
-                    <td className="zi-l">{t.types[a.type]}</td>
-                    <td className="zi-l">{a.commune}</td>
-                    <td className="zi-l">{a.titre}</td>
-                    <td>{a.surface_ha ?? "—"}</td>
-                    <td>{a.annee ?? "—"}</td>
-                    <td className="zi-l">{a.district}</td>
-                    <td className="zi-l">{a.region}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="zi-rp-note">{t.aucuneActivite}</p>
-          )}
         </section>
       )}
 
