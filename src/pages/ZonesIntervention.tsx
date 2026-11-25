@@ -1873,6 +1873,9 @@ export default function ZonesIntervention() {
       (a.commune ?? "").localeCompare(b.commune ?? "", "fr")
   );
 
+  /* La colonne Projet n'est utile que si l'objet de la recherche n'est pas un projet */
+  const afficherProjetTableau = !(sel && sel.niveau === "projet");
+
   /* Tableau hiérarchique : région > district > commune > micro-bassin versant */
   type LigneRapport = {
     niveau: "region" | "district" | "commune";
@@ -1984,9 +1987,8 @@ export default function ZonesIntervention() {
             <thead>
               <tr>
                 <th className="zi-l">{t.pdfColZone}</th>
-                <th className="zi-l">{t.niveaux.projet}</th>
+                {afficherProjetTableau && <th className="zi-l">{t.niveaux.projet}</th>}
                 <th>{t.colSuperficie}</th>
-                {avecMbv && <th>{t.colMBV}</th>}
                 {avecMbv && <th>{t.colPourcentage}</th>}
               </tr>
             </thead>
@@ -1996,9 +1998,8 @@ export default function ZonesIntervention() {
                   <td className="zi-l" style={{ paddingLeft: INDENT[r.niveau] }}>
                     {r.nom}
                   </td>
-                  <td className="zi-l">{r.projets ?? ""}</td>
+                  {afficherProjetTableau && <td className="zi-l">{r.projets ?? ""}</td>}
                   <td>{r.surface != null ? fmt(r.surface) : ""}</td>
-                  {avecMbv && <td>{r.mbv != null ? fmt(r.mbv) : ""}</td>}
                   {avecMbv && <td>{r.pct ?? ""}</td>}
                 </tr>
               ))}
@@ -2007,9 +2008,8 @@ export default function ZonesIntervention() {
               <tfoot>
                 <tr>
                   <td className="zi-l">{t.total}</td>
-                  <td />
+                  {afficherProjetTableau && <td />}
                   <td>{fmt(totaux.surface)}</td>
-                  {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
                   {avecMbv && <td>{fmtPct(pctTotal)}</td>}
                 </tr>
               </tfoot>
@@ -2141,6 +2141,12 @@ export default function ZonesIntervention() {
         `<style>${cssLeaflet}\n${CSS_RAPPORT}</style></head><body>${corps}</body></html>`
     );
     fenetre.document.close();
+
+    /* Après impression (ou annulation), la fenêtre d'export se ferme et l'application reprend le focus */
+    fenetre.addEventListener("afterprint", () => {
+      fenetre.close();
+      window.focus();
+    });
 
     /* Impression une fois les tuiles de la carte chargées */
     let fait = false;
