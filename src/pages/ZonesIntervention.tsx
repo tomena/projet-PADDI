@@ -21,9 +21,10 @@
  *               ../components/ZonesLoginModal, ../components/ZonesUpdateModal
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw } from "lucide-react";
+import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw, FileDown } from "lucide-react";
 import { useLanguage } from "../context/LanguageContext";
 import { DATA, PROP, useGeo, toZones, sameArea } from "../lib/fireGeo";
 import ZonesLoginModal from "../components/ZonesLoginModal";
@@ -198,6 +199,18 @@ const FR = {
   note: "Limites : geoBoundaries (ADM1 à ADM3). Superficies calculées à partir des contours, donc approximatives.",
   erreur: "Impossible de charger les limites administratives.",
   erreurDonnees: "Impossible de charger les données des zones d'intervention.",
+  pdfBouton: "Exporter en PDF",
+  pdfRapport: "Rapport d'intervention",
+  pdfGenere: "Généré le",
+  pdfSynthese: "Synthèse",
+  pdfFiltreLbl: "Filtre par projet",
+  pdfCarteLbl: "Carte",
+  pdfCarteNote: "Carte telle qu'affichée à l'écran au moment de l'export.",
+  pdfSource: "Source : SI.DDI ; limites administratives geoBoundaries.",
+  pdfSurfaceTot: "Superficie totale (ha)",
+  pdfColType: "Type",
+  pdfColActivite: "Activité",
+  pdfColAnnee: "Année",
 };
 
 type Dict = typeof FR;
@@ -262,6 +275,18 @@ const MG: Dict = {
   note: "Sisin-tany: geoBoundaries (ADM1 ka hatramin'ny ADM3). Ny habetsahana dia tombanana avy amin'ny sisin-tany, ka mety tsy marina tanteraka.",
   erreur: "Tsy afaka naka ny sisin-tany administratifa.",
   erreurDonnees: "Tsy afaka naka ny angon-drakitra momba ny faritra fanatanterahana.",
+  pdfBouton: "Hanondroana ho PDF",
+  pdfRapport: "Tatitra momba ny fanatanterahana",
+  pdfGenere: "Voaforona tamin'ny",
+  pdfSynthese: "Famintinana",
+  pdfFiltreLbl: "Sivana amin'ny tetikasa",
+  pdfCarteLbl: "Sarintany",
+  pdfCarteNote: "Sarintany toy ny hita eo amin'ny efijery rehefa nanoratana.",
+  pdfSource: "Loharano : SI.DDI ; sisin-tany administratifa geoBoundaries.",
+  pdfSurfaceTot: "Velaran-tany rehetra (ha)",
+  pdfColType: "Karazana",
+  pdfColActivite: "Asa",
+  pdfColAnnee: "Taona",
 };
 
 const EN: Dict = {
@@ -324,6 +349,18 @@ const EN: Dict = {
   note: "Boundaries: geoBoundaries (ADM1 to ADM3). Areas are computed from the outlines, so they are approximate.",
   erreur: "Unable to load the administrative boundaries.",
   erreurDonnees: "Unable to load the intervention zone data.",
+  pdfBouton: "Export as PDF",
+  pdfRapport: "Intervention report",
+  pdfGenere: "Generated on",
+  pdfSynthese: "Summary",
+  pdfFiltreLbl: "Project filter",
+  pdfCarteLbl: "Map",
+  pdfCarteNote: "Map as displayed on screen at the time of export.",
+  pdfSource: "Source: SI.DDI; administrative boundaries geoBoundaries.",
+  pdfSurfaceTot: "Total area (ha)",
+  pdfColType: "Type",
+  pdfColActivite: "Activity",
+  pdfColAnnee: "Year",
 };
 
 const DE: Dict = {
@@ -386,6 +423,18 @@ const DE: Dict = {
   note: "Grenzen: geoBoundaries (ADM1 bis ADM3). Flächen werden aus den Umrissen berechnet und sind daher ungefähr.",
   erreur: "Die Verwaltungsgrenzen konnten nicht geladen werden.",
   erreurDonnees: "Die Daten der Interventionsgebiete konnten nicht geladen werden.",
+  pdfBouton: "Als PDF exportieren",
+  pdfRapport: "Interventionsbericht",
+  pdfGenere: "Erstellt am",
+  pdfSynthese: "Zusammenfassung",
+  pdfFiltreLbl: "Projektfilter",
+  pdfCarteLbl: "Karte",
+  pdfCarteNote: "Karte wie zum Exportzeitpunkt auf dem Bildschirm angezeigt.",
+  pdfSource: "Quelle: SI.DDI; Verwaltungsgrenzen geoBoundaries.",
+  pdfSurfaceTot: "Gesamtfläche (ha)",
+  pdfColType: "Typ",
+  pdfColActivite: "Aktivität",
+  pdfColAnnee: "Jahr",
 };
 
 type Lang = "fr" | "mg" | "en" | "de";
@@ -1761,10 +1810,263 @@ export default function ZonesIntervention() {
     </div>
   );
 
+  /* ----- rapport PDF : contenu selon la recherche en cours (visible seulement à l'impression) ----- */
+  const rapportCarteRef = useRef<HTMLDivElement>(null);
+  const rapportTitre = vide || !sel ? t.titre : libelleDe(sel, t);
+  const rapportSousTitre = vide ? t.aucunResultat : sel ? contexteDe(sel, t) : t.sousTitre;
+  const nomFiltre = sel && projetFiltre ? PROJETS.find((p) => p.id === projetFiltre)?.nom : undefined;
+  const dateRapport = new Date().toLocaleDateString(LOCALE[lang], { day: "numeric", month: "long", year: "numeric" });
+  const mbvTrie = [...mbvSel].sort(
+    (a, b) =>
+      String(a.properties.Aire_Prot).localeCompare(String(b.properties.Aire_Prot)) ||
+      String(a.properties.Nom).localeCompare(String(b.properties.Nom))
+  );
+  const supMbv = mbvSel.reduce((s, f) => s + (Number(f.properties.Superficie) || 0), 0);
+  const lignesRapport = [...actives].sort(
+    (a, b) =>
+      a.region.localeCompare(b.region, "fr") ||
+      (a.district ?? "").localeCompare(b.district ?? "", "fr") ||
+      (a.commune ?? "").localeCompare(b.commune ?? "", "fr")
+  );
+
+  /* Ouvre la boîte d'impression : l'utilisateur choisit « Enregistrer au format PDF ».
+     La carte affichée est copiée dans le rapport à la bonne échelle. */
+  const exporterPdf = () => {
+    const carte = elMap.current;
+    const cible = rapportCarteRef.current;
+    const titreInitial = document.title;
+    const apres = () => {
+      document.body.classList.remove("zi-imprimer");
+      document.title = titreInitial;
+      cible?.replaceChildren();
+      if (cible) cible.style.cssText = "";
+      window.removeEventListener("afterprint", apres);
+    };
+    if (carte && cible) {
+      const w = carte.clientWidth || 1;
+      const h = carte.clientHeight || 1;
+      const echelle = Math.min(1, 700 / w);
+      const copie = carte.cloneNode(true) as HTMLElement;
+      copie.style.cssText = `position:absolute;left:0;top:0;width:${w}px;height:${h}px;transform:scale(${echelle});transform-origin:0 0;`;
+      cible.style.cssText = `position:relative;overflow:hidden;width:${w * echelle}px;height:${h * echelle}px;`;
+      cible.replaceChildren(copie);
+    }
+    document.title = `${t.pdfRapport} - ${rapportTitre}`;
+    document.body.classList.add("zi-imprimer");
+    window.addEventListener("afterprint", apres);
+    window.print();
+  };
+
+  const rapport = (
+    <div className="zi-rapport">
+      <header className="zi-rp-entete">
+        <div>
+          <div className="zi-rp-kicker">SI.DDI · {t.pdfRapport}</div>
+          <h1>{rapportTitre}</h1>
+          <p>{rapportSousTitre}</p>
+          {nomFiltre && (
+            <p className="zi-rp-filtre">
+              {t.pdfFiltreLbl} : <b>{nomFiltre}</b>
+            </p>
+          )}
+        </div>
+        <div className="zi-rp-date">
+          {t.pdfGenere} {dateRapport}
+        </div>
+      </header>
+
+      <section>
+        <h2>{t.pdfSynthese}</h2>
+        <div className="zi-rp-stats">
+          <div><b>{projetsVue.length}</b><span>{t.projets}</span></div>
+          <div><b>{nbRegions}</b><span>{t.regions}</span></div>
+          <div><b>{nbDistricts}</b><span>{t.districts}</span></div>
+          <div><b>{lignesCommunes.length}</b><span>{t.communes}</span></div>
+          <div><b>{fmt(totaux.surface)}</b><span>{t.pdfSurfaceTot}</span></div>
+          <div><b>{totaux.mbv ? fmt(totaux.mbv) : "—"}</b><span>{t.colMBV}</span></div>
+          <div><b>{fmtPct(pctTotal)}</b><span>{t.colPourcentage}</span></div>
+        </div>
+      </section>
+
+      {projetsVue.length > 0 && (
+        <section>
+          <h2>{t.projetsConcernes}</h2>
+          <table className="zi-rp-tbl">
+            <thead>
+              <tr>
+                <th className="zi-l">{t.projets}</th>
+                <th className="zi-l">{t.niveaux.categorie}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projetsVue.map((p) => (
+                <tr key={p.id}>
+                  <td className="zi-l">{p.nom}</td>
+                  <td className="zi-l">{p.type === "environnement" ? t.catEnv : t.catDev}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {!vide && (
+        <section>
+          <h2>{t.pdfCarteLbl}</h2>
+          <div className="zi-rp-carte" ref={rapportCarteRef} />
+          <p className="zi-rp-note">{t.pdfCarteNote}</p>
+        </section>
+      )}
+
+      {mbvTrie.length > 0 && (
+        <section>
+          <h2>
+            {t.mbvTitre} <small>({mbvTrie.length} MBV · {fmt(supMbv)} ha)</small>
+          </h2>
+          <table className="zi-rp-tbl">
+            <thead>
+              <tr>
+                <th className="zi-l">{t.colMbv}</th>
+                <th className="zi-l">{t.colPaysage}</th>
+                <th className="zi-l">{t.colCommune}</th>
+                <th className="zi-l">{t.colAP}</th>
+                <th>{t.colSuperficie}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mbvTrie.map((f, i) => (
+                <tr key={i}>
+                  <td className="zi-l">{f.properties.Nom}</td>
+                  <td className="zi-l">{f.properties.Paysage ?? "—"}</td>
+                  <td className="zi-l">{mbvCommune.get(f) || "—"}</td>
+                  <td className="zi-l">{f.properties.Aire_Prot}</td>
+                  <td>{fmt(Number(f.properties.Superficie) || 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {afficherActivites && (
+        <section>
+          <h2>{t.activites}</h2>
+          {activites.length ? (
+            <table className="zi-rp-tbl">
+              <thead>
+                <tr>
+                  <th className="zi-l">{t.pdfColType}</th>
+                  <th className="zi-l">{t.colCommune}</th>
+                  <th className="zi-l">{t.pdfColActivite}</th>
+                  <th>{t.colSuperficie}</th>
+                  <th>{t.pdfColAnnee}</th>
+                  <th className="zi-l">{t.niveaux.district}</th>
+                  <th className="zi-l">{t.niveaux.region}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {activites.map((a, i) => (
+                  <tr key={i}>
+                    <td className="zi-l">{t.types[a.type]}</td>
+                    <td className="zi-l">{a.commune}</td>
+                    <td className="zi-l">{a.titre}</td>
+                    <td>{a.surface_ha ?? "—"}</td>
+                    <td>{a.annee ?? "—"}</td>
+                    <td className="zi-l">{a.district}</td>
+                    <td className="zi-l">{a.region}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="zi-rp-note">{t.aucuneActivite}</p>
+          )}
+        </section>
+      )}
+
+      {lignesRapport.length > 0 && (
+        <section>
+          <h2>{t.zonesInterv}</h2>
+          <table className="zi-rp-tbl">
+            <thead>
+              <tr>
+                <th className="zi-l">{t.niveaux.region}</th>
+                <th className="zi-l">{t.niveaux.district}</th>
+                <th className="zi-l">{t.colCommune}</th>
+                <th className="zi-l">{t.niveaux.projet}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lignesRapport.map((l, i) => (
+                <tr key={i}>
+                  <td className="zi-l">{l.region}</td>
+                  <td className="zi-l">{l.district ?? "—"}</td>
+                  <td className="zi-l">{l.commune ?? "—"}</td>
+                  <td className="zi-l">{l.projet}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+
+      {lignesCommunes.length > 0 && (
+        <section>
+          <h2>{t.parCommune}</h2>
+          <table className="zi-rp-tbl">
+            <thead>
+              <tr>
+                <th className="zi-l">{t.colCommune}</th>
+                <th className="zi-l">{t.niveaux.district}</th>
+                <th className="zi-l">{t.niveaux.region}</th>
+                <th>{t.colSuperficie}</th>
+                {avecMbv && <th>{t.colMBV}</th>}
+                {avecMbv && <th>{t.colPourcentage}</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {lignesCommunes.map((l, i) => {
+                const s = surfaceDe(l);
+                const mbv = mbvDe(l);
+                return (
+                  <tr key={i}>
+                    <td className="zi-l">{l.commune}</td>
+                    <td className="zi-l">{l.district}</td>
+                    <td className="zi-l">{l.region}</td>
+                    <td>{s != null ? fmt(s) : "—"}</td>
+                    {avecMbv && <td>{mbv != null ? fmt(mbv) : "—"}</td>}
+                    {avecMbv && <td>{fmtPct(pourcentage(s, mbv))}</td>}
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td className="zi-l">{t.total}</td>
+                <td />
+                <td />
+                <td>{fmt(totaux.surface)}</td>
+                {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
+                {avecMbv && <td>{fmtPct(pctTotal)}</td>}
+              </tr>
+            </tfoot>
+          </table>
+        </section>
+      )}
+
+      <footer className="zi-rp-pied">
+        <p>{t.note}</p>
+        <p>{t.pdfSource}</p>
+      </footer>
+    </div>
+  );
+
   /* ----- rendu ----- */
   return (
     <div className="zi">
       <style>{CSS}</style>
+
+      {createPortal(<div className="zi-rapport-portal">{rapport}</div>, document.body)}
 
       <header className="zi-head">
         <div>
@@ -1826,6 +2128,11 @@ export default function ZonesIntervention() {
             </ul>
           )}
         </div>
+
+        <button type="button" className="zi-pdf" onClick={exporterPdf} title={t.pdfBouton}>
+          <FileDown size={16} aria-hidden />
+          <span>{t.pdfBouton}</span>
+        </button>
 
         <button type="button" className="zi-update" onClick={() => setShowLogin(true)}>
           <RefreshCw size={16} aria-hidden />
@@ -2327,6 +2634,45 @@ const CSS = `
 .zi .leaflet-bar a{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-scale-line{background:var(--card);color:var(--ink);border-color:var(--line)}
 .zi .leaflet-control-attribution{background:rgba(255,255,255,.8)!important;color:var(--ink3)!important}
+
+/* Bouton d'export PDF (en-tête) */
+.zi-pdf{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--acc);border-radius:10px;background:var(--card);color:var(--acc);font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+.zi-pdf:hover{background:var(--acc-soft)}
+
+/* Rapport : masqué à l'écran, mis en page pour l'impression (Enregistrer au format PDF) */
+.zi-rapport-portal{display:none}
+.zi-rapport{font-family:Georgia,"Times New Roman",serif;color:#1c2822;font-size:10.5pt;line-height:1.35;background:#fff}
+.zi-rapport h1{font-size:19pt;margin:2px 0 4px;color:#14532d;font-weight:600}
+.zi-rapport h2{font-size:12.5pt;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #14532d;color:#14532d;font-weight:600;break-after:avoid}
+.zi-rapport h2 small{font-size:9.5pt;font-weight:400;color:#4a5850}
+.zi-rapport section{break-inside:avoid-page}
+.zi-rp-entete{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #14532d;padding-bottom:8px}
+.zi-rp-entete p{margin:2px 0;color:#4a5850}
+.zi-rp-kicker{font-family:Arial,sans-serif;font-size:8.5pt;letter-spacing:.08em;text-transform:uppercase;color:#4a5850}
+.zi-rp-filtre b{color:#14532d}
+.zi-rp-date{font-family:Arial,sans-serif;font-size:8.5pt;color:#4a5850;white-space:nowrap}
+.zi-rp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.zi-rp-stats div{border:1px solid #d8d4c8;border-radius:6px;padding:5px 7px;background:#f7f6f1}
+.zi-rp-stats b{display:block;font-size:14pt;color:#14532d}
+.zi-rp-stats span{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850}
+.zi-rp-tbl{width:100%;border-collapse:collapse;font-size:9pt;margin-top:4px}
+.zi-rp-tbl th{background:#e9efe7;color:#14532d;font-family:Arial,sans-serif;font-size:8pt;text-align:right;padding:4px 6px;border-bottom:1px solid #14532d}
+.zi-rp-tbl td{padding:3px 6px;border-bottom:1px solid #e3e0d6;text-align:right;font-variant-numeric:tabular-nums}
+.zi-rp-tbl .zi-l,.zi-rapport th.zi-l{text-align:left}
+.zi-rp-tbl tfoot td{font-weight:700;border-top:2px solid #14532d;border-bottom:none}
+.zi-rp-tbl tr{break-inside:avoid}
+.zi-rp-carte{position:relative;width:100%;border:1px solid #d8d4c8;margin-top:4px;overflow:hidden;background:#e5e7eb}
+.zi-rp-note{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850;margin:4px 0 0}
+.zi-rp-pied{margin-top:16px;padding-top:6px;border-top:1px solid #d8d4c8;font-family:Arial,sans-serif;font-size:7.5pt;color:#4a5850}
+.zi-rp-pied p{margin:2px 0}
+.zi-rapport-carte .leaflet-control-container{display:none}
+
+@media print{
+  @page{size:A4;margin:14mm 12mm}
+  body.zi-imprimer > *:not(.zi-rapport-portal){display:none !important}
+  body.zi-imprimer .zi-rapport-portal{display:block !important}
+  .zi-rapport-portal,.zi-rapport *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
 
 /* Petit écran : la page s'adapte et défile */
 @media (max-width:900px){
