@@ -5,12 +5,15 @@
  * (connexion requise), via ZonesUpdateModal.
  *
  * Nouveautés :
- *  - MBV du projet PADDI, lues depuis public/data/paddi_mbv.geojson
- *    (affichées selon l'AP, la région, le district, la commune ou le projet choisi) ;
+ *  - MBV du projet PADDI, lues depuis public/data/paddi_mbv.geojson. Elles ne s'affichent que si
+ *    le projet PADDI est l'objet de la recherche, ou si son aire protégée est choisie, ou si le PADDI
+ *    est choisi comme filtre dans une région, un district ou une commune ;
  *  - niveau de recherche « Aire protégée » ;
  *  - aires protégées et zone tampon 5 km (mêmes fichiers que la page feux : DATA.aires, DATA.peripheries) ;
  *  - une aire protégée affiche aussi les communes PADDI dont le territoire chevauche son polygone,
- *    même lorsqu'aucune MBV n'est enregistrée pour cette commune.
+ *    même lorsqu'aucune MBV n'est enregistrée pour cette commune ;
+ *  - dans une région, un district, une commune ou une aire protégée, cliquer sur un projet n'affiche
+ *    que la zone d'intervention de ce projet dans la sélection (un nouveau clic annule le filtre).
  *
  * Suit le thème clair/sombre de l'application (variables CSS, comme AnalyseTerritoriale).
  * 4 langues (fr, mg, en, de). Fonds de carte : Topographie, Satellite, OpenStreetMap.
@@ -186,6 +189,8 @@ const FR = {
   carteAria: "Carte des zones d'intervention",
   carteTitre: "Madagascar : zones d'intervention",
   projetsConcernes: "Projets concernés",
+  projetsAucun: "Aucun projet pour cette sélection",
+  filtreActif: "Cliquer à nouveau pour voir tous les projets",
   fondAria: "Fond de carte",
   fondTopo: "Topographie",
   fondSat: "Satellite",
@@ -248,6 +253,8 @@ const MG: Dict = {
   carteAria: "Sarintanin'ny faritra fanatanterahana",
   carteTitre: "Madagasikara: faritra fanatanterahana",
   projetsConcernes: "Tetikasa voakasika",
+  projetsAucun: "Tsy misy tetikasa ho an'ity fifantenana ity",
+  filtreActif: "Tsindrio indray mba hahitana ny tetikasa rehetra",
   fondAria: "Fototra sarintany",
   fondTopo: "Topografia",
   fondSat: "Zanabolana",
@@ -308,6 +315,8 @@ const EN: Dict = {
   carteAria: "Intervention zones map",
   carteTitre: "Madagascar: intervention zones",
   projetsConcernes: "Projects involved",
+  projetsAucun: "No project for this selection",
+  filtreActif: "Click again to show all projects",
   fondAria: "Basemap",
   fondTopo: "Topographic",
   fondSat: "Satellite",
@@ -368,6 +377,8 @@ const DE: Dict = {
   carteAria: "Karte der Interventionsgebiete",
   carteTitre: "Madagaskar: Interventionsgebiete",
   projetsConcernes: "Beteiligte Projekte",
+  projetsAucun: "Kein Projekt für diese Auswahl",
+  filtreActif: "Erneut klicken, um alle Projekte anzuzeigen",
   fondAria: "Kartengrundlage",
   fondTopo: "Topografie",
   fondSat: "Satellit",
@@ -784,6 +795,8 @@ export default function ZonesIntervention() {
   const [masques, setMasques] = useState<Set<string>>(new Set());
   /* Liste ouverte en cliquant sur l'un des compteurs (projets, régions, districts, communes) */
   const [liste, setListe] = useState<null | "projets" | "regions" | "districts" | "communes">(null);
+  /* Projet choisi comme filtre dans la sélection (région, district, commune, aire protégée…) */
+  const [projetFiltre, setProjetFiltre] = useState<string | null>(null);
 
   /* ----- mise à jour (connexion requise, comme le Dashboard) ----- */
   const [showLogin, setShowLogin] = useState(false);
@@ -807,6 +820,12 @@ export default function ZonesIntervention() {
 
   const PROJETS = donnees?.projets ?? [];
   const LIGNES = donnees?.lignes ?? LIGNES_VIDES;
+
+  /* Le projet d'identifiant donné est-il PADDI ? */
+  const projetPaddi = (id?: string | null) => {
+    const p = PROJETS.find((x) => x.id === id);
+    return !!p && estPaddi(p.id, p.nom);
+  };
 
   /* ----- MBV du projet PADDI (fichier public/data/paddi_mbv.geojson) ----- */
   const [mbvF, setMbvF] = useState<Feat[]>([]);
@@ -929,12 +948,15 @@ export default function ZonesIntervention() {
     );
 
   /* ----- actions ----- */
-  const choisir = (s: Sel) => {
+  /* garderFiltre : vrai quand on descend d'un niveau à l'autre (région → district → commune) ;
+     faux pour une nouvelle recherche, qui efface le filtre par projet */
+  const choisir = (s: Sel, garderFiltre = false) => {
     setListe(null);
     setSel(s);
     setVide(false);
     setRequete(libelleDe(s, t));
     setOuvert(false);
+    if (!garderFiltre || s.niveau === "projet" || s.niveau === "mbv") setProjetFiltre(null);
   };
   const effacer = () => {
     setListe(null);
@@ -943,10 +965,11 @@ export default function ZonesIntervention() {
     setRequete("");
     setOuvert(false);
     setMasques(new Set());
+    setProjetFiltre(null);
   };
   const choisirZone = (niveau: Niveau, k: string, rk?: string, dk?: string) => {
     const s = trouver(niveau, k, rk, dk);
-    if (s) choisir(s);
+    if (s) choisir(s, true);
   };
   /* Sélectionne une aire protégée à partir de son nom (tolère les petites différences d'écriture) */
   const choisirAP = (nom: unknown) => {
@@ -965,11 +988,24 @@ export default function ZonesIntervention() {
     else choisir(s);
   };
 
+  /* Clic sur un projet (chips) :
+     - dans une région, un district, une commune, une aire protégée, etc. : affiche seulement
+       la zone d'intervention de ce projet dans la sélection (un nouveau clic annule le filtre) ;
+     - sinon : choisit le projet comme nouvelle recherche */
+  const cliquerProjet = (p: ProjetMeta) => {
+    if (sel && sel.niveau !== "projet") {
+      setProjetFiltre((prev) => (prev === p.id ? null : p.id));
+      return;
+    }
+    choisirZone("projet", cle(p.id));
+  };
+
   /* ----- saisie : le panneau suit la recherche ; sans résultat, tout reste vide ----- */
   const saisir = (v: string) => {
     setRequete(v);
     setOuvert(true);
     setListe(null);
+    setProjetFiltre(null);
     if (!v) {
       setSel(null);
       setVide(false);
@@ -1048,7 +1084,8 @@ export default function ZonesIntervention() {
     [sel, mbvF]
   );
 
-  const lignes = useMemo(() => {
+  /* Lignes de la sélection, sans filtre par projet */
+  const lignesSel = useMemo(() => {
     if (!sel) return [];
     if (sel.niveau === "mbv") {
       /* communes PADDI où se trouve la MBV */
@@ -1062,34 +1099,54 @@ export default function ZonesIntervention() {
       });
     }
     if (sel.niveau === "ap" || sel.niveau === "paysage") {
-      /* communes PADDI traversées par les MBV de cette AP ou de ce paysage.
+      /* Communes traversées par les MBV de cette AP ou de ce paysage (projets PADDI).
          Pour une AP, une commune est aussi retenue si son territoire chevauche le polygone de l'AP,
-         même sans MBV enregistrée (ex. Andohahela, Marolambo, Befotaka-Midongy). */
+         même sans MBV enregistrée (ex. Andohahela, Marolambo, Befotaka-Midongy), et les autres
+         projets sont retenus s'ils interviennent dans le polygone de l'AP. */
       const mb =
         sel.niveau === "ap"
           ? mbvDeAp(sel.label)
           : mbvF.filter((f) => cle(String(f.properties.Paysage ?? "")) === sel.cle);
-      /* Polygone de l'aire protégée (pour les communes sans MBV) */
+      /* Polygone de l'aire protégée */
       const apFeat =
         sel.niveau === "ap"
           ? (apZ.find((z) => memeNom(z.nom, sel.label))?.feature as unknown as Feat | undefined)
           : undefined;
       if (!mb.length && !apFeat) return [];
       return LIGNES.filter((l) => {
-        if (!l.commune || !estPaddi(l.projetId, l.projet)) return false;
+        if (!l.commune) return false;
         const cF = featCom.get(cleLigne(l));
         if (!cF) return false;
-        if (mb.some((m) => chevauche(m, cF))) return true;
-        return !!apFeat && chevauche(cF, apFeat, 0.1);
+        if (estPaddi(l.projetId, l.projet)) {
+          if (mb.some((m) => chevauche(m, cF))) return true;
+          return !!apFeat && chevauche(cF, apFeat, 0.1);
+        }
+        return sel.niveau === "ap" && !!apFeat && chevauche(cF, apFeat, 0.1);
       });
     }
     return LIGNES.filter((l) => correspond(l, sel));
   }, [sel, LIGNES, mbvF, featCom, mbvChoisie, mbvCom, apZ]);
 
+  /* Lignes après filtre par projet (uniquement dans une région, un district, une commune ou une AP) */
+  const lignes = useMemo(
+    () =>
+      projetFiltre && sel && sel.niveau !== "projet"
+        ? lignesSel.filter((l) => l.projetId === projetFiltre)
+        : lignesSel,
+    [lignesSel, projetFiltre, sel]
+  );
+
   const actives = useMemo<Ligne[]>(
     () => (vide ? [] : sel ? lignes : LIGNES),
     [vide, sel, lignes, LIGNES]
   );
+
+  /* Projets concernés par la sélection (avant filtre), pour pouvoir changer de projet */
+  const projetsVue = useMemo(() => {
+    if (vide) return [];
+    const base = sel ? lignesSel : LIGNES;
+    return PROJETS.filter((p) => base.some((l) => l.projetId === p.id));
+  }, [vide, sel, lignesSel, LIGNES, PROJETS]);
 
   /* Zones à dessiner : uniquement celles des lignes de la sélection en cours */
   const actRegKeys = useMemo(() => new Set(actives.map((l) => cle(l.region))), [actives]);
@@ -1149,9 +1206,27 @@ export default function ZonesIntervention() {
     return regions.filter((f) => ids.has(cle(nomFeat(f))));
   }, [lignes, regions]);
 
+  /* ----- MBV : affichées seulement si le projet PADDI est l'objet de la recherche,
+         ou si son aire protégée est choisie, ou s'il est choisi comme filtre dans la sélection ----- */
+  const mbvVisible = useMemo(() => {
+    if (vide || !sel) return false;
+    if (projetFiltre) return projetPaddi(projetFiltre);
+    switch (sel.niveau) {
+      case "projet":
+        return projetPaddi(sel.projetId);
+      case "ap":
+      case "mbv":
+      case "paysage":
+        return true;
+      default:
+        return false;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vide, sel, projetFiltre, PROJETS]);
+
   /* ----- MBV à afficher selon la sélection ----- */
   const mbvSel = useMemo<Feat[]>(() => {
-    if (vide || !sel || !mbvF.length) return [];
+    if (!mbvVisible || !mbvF.length || !sel) return [];
     switch (sel.niveau) {
       case "ap":
         return mbvDeAp(sel.label);
@@ -1182,12 +1257,11 @@ export default function ZonesIntervention() {
       case "paysage":
         return mbvF.filter((f) => cle(String(f.properties.Paysage ?? "")) === sel.cle);
       case "projet":
-      case "categorie":
-        return actives.some((l) => estPaddi(l.projetId, l.projet)) ? mbvF : [];
+        return mbvF;
       default:
         return [];
     }
-  }, [vide, sel, mbvF, regionFeat, districtFeat, communeFeat, actives, lignes, mbvCom, mbvChoisie, apZ]);
+  }, [mbvVisible, sel, mbvF, regionFeat, districtFeat, communeFeat, lignes, mbvCom, mbvChoisie]);
 
   /* AP concernées : celle choisie + celles des MBV affichées */
   const apsConcernes = useMemo(() => {
@@ -1498,13 +1572,9 @@ export default function ZonesIntervention() {
       ),
     [lignesCommunes]
   );
-  const projetsVue = useMemo(
-    () => PROJETS.filter((p) => actives.some((l) => l.projetId === p.id)),
-    [actives, PROJETS]
-  );
 
-  /* La carte « Activités environnementales » n'apparaît que pour un projet environnemental choisi */
-  const afficherActivites = !vide && !!sel && projetsVue.some((p) => p.type === "environnement");
+  /* La carte « Activités environnementales » n'apparaît que si la sélection contient un projet environnemental */
+  const afficherActivites = !vide && !!sel && lignesCommunes.some((l) => l.type === "environnement");
 
   /* Le MBV (colonne du tableau) ne concerne que les projets environnementaux (ils ciblent un endroit précis).
      Les projets de développement travaillent sur la commune entière : pas de MBV pour eux. */
@@ -1753,16 +1823,47 @@ export default function ZonesIntervention() {
 
       <div className="zi-body">
         <aside className="zi-panel">
-          {/* 1. Carte d'accueil / sélection, avec le nombre et la liste des projets concernés */}
+          {/* 1. Carte d'accueil / sélection : la sélection à gauche, les projets concernés à droite */}
           <section className="zi-card zi-hero">
             {vide ? (
               <p className="zi-fil">{t.aucunResultat}</p>
             ) : sel ? (
-              <>
-                <span className="zi-niveau">{t.niveaux[sel.niveau]}</span>
-                <h2>{libelleDe(sel, t)}</h2>
-                {sel.niveau !== "projet" && <p className="zi-fil">{contexteDe(sel, t)}</p>}
-              </>
+              <div className="zi-hero-top">
+                <div className="zi-hero-id">
+                  <span className="zi-niveau">{t.niveaux[sel.niveau]}</span>
+                  <h2>{libelleDe(sel, t)}</h2>
+                  {sel.niveau !== "projet" && <p className="zi-fil">{contexteDe(sel, t)}</p>}
+                </div>
+
+                <span className="zi-hero-sep" aria-hidden />
+
+                <div className="zi-hero-proj">
+                  <h4>
+                    {t.projetsConcernes} <span className="zi-compte">{projetsVue.length}</span>
+                  </h4>
+                  {projetsVue.length > 0 ? (
+                    <div className="zi-chips">
+                      {projetsVue.map((p) => (
+                        <span
+                          key={p.id}
+                          className={`zi-chip zi-chip-${p.type}${projetFiltre === p.id ? " zi-chip-on" : ""}`}
+                          role="button"
+                          tabIndex={0}
+                          title={projetFiltre === p.id ? t.filtreActif : p.nom}
+                          onClick={() => cliquerProjet(p)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") cliquerProjet(p);
+                          }}
+                        >
+                          {p.nom}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="zi-vide">{t.projetsAucun}</p>
+                  )}
+                </div>
+              </div>
             ) : (
               <p className="zi-fil">{donnees ? t.vueTexte : t.chargement}</p>
             )}
@@ -1780,34 +1881,6 @@ export default function ZonesIntervention() {
                     {p.nom}
                   </span>
                 ))}
-              </div>
-            )}
-
-            {sel && !vide && (
-              <div className="zi-projets">
-                <h4>
-                  {t.projetsConcernes} <span className="zi-compte">{projetsVue.length}</span>
-                </h4>
-                {projetsVue.length > 0 ? (
-                  <div className="zi-chips">
-                    {projetsVue.map((p) => (
-                      <span
-                        key={p.id}
-                        className={`zi-chip zi-chip-${p.type}`}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => choisirZone("projet", cle(p.id))}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") choisirZone("projet", cle(p.id));
-                        }}
-                      >
-                        {p.nom}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="zi-vide">{t.aucunResultat}</p>
-                )}
               </div>
             )}
 
@@ -1855,7 +1928,7 @@ export default function ZonesIntervention() {
             )}
           </section>
 
-          {/* 1 bis. MBV du projet PADDI correspondant à la sélection */}
+          {/* 1 bis. MBV du projet PADDI : seulement si PADDI est l'objet de la recherche ou son aire protégée */}
           {mbvSel.length > 0 && (
             <section className="zi-card">
               <div className="zi-cardh">
@@ -2142,15 +2215,20 @@ const CSS = `
 .zi-panel{min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--line)}
 .zi-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;min-width:0}
 .zi-hero{display:flex;flex-direction:column;gap:8px;background:linear-gradient(135deg,var(--card),var(--acc-soft));flex:none}
+/* Sélection à gauche, séparateur vertical, projets concernés à droite (dans la même carte) */
+.zi-hero-top{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap}
+.zi-hero-id{flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.zi-hero-sep{width:1px;flex:none;background:var(--line);align-self:stretch}
+.zi-hero-proj{flex:1.3 1 240px;min-width:0;display:flex;flex-direction:column;gap:6px}
 .zi-niveau{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--acc)}
 .zi-fil{margin:0;font-size:13px;color:var(--ink2);line-height:1.5}
-.zi-projets{display:flex;flex-direction:column;gap:2px;padding-top:6px;border-top:1px solid var(--line)}
 .zi-compte{display:inline-block;margin-left:4px;padding:0 8px;border-radius:999px;background:var(--acc);color:#fff;font-size:12px;font-weight:700}
 .zi-chips{display:flex;flex-wrap:wrap;gap:6px}
 .zi-chip{font-size:12.5px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--chip);cursor:pointer;color:var(--ink2)}
 .zi-chip:hover{background:var(--hover)}
 .zi-chip-environnement{border-color:#65a30d}
 .zi-chip-developpement{border-color:#2563eb}
+.zi-chip-on,.zi-chip-on:hover{background:var(--acc);color:#fff;border-color:var(--acc)}
 .zi-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .zi-stats div,.zi-stats button{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column}
 .zi-stats button{cursor:pointer;font:inherit;text-align:left;color:inherit}
@@ -2246,5 +2324,6 @@ const CSS = `
   .zi-acts{max-height:none;grid-template-columns:1fr}
   .zi-duo{grid-template-columns:1fr}
   .zi-stats{grid-template-columns:repeat(2,1fr)}
+  .zi-hero-sep{display:none}
 }
 `;
