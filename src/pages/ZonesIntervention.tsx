@@ -1993,11 +1993,54 @@ export default function ZonesIntervention() {
         </section>
       )}
 
+      {lignesHierarchie.length > 0 && (
+        <section>
+          <h2>{t.zonesInterv}</h2>
+          <table className="zi-rp-tbl">
+            <thead>
+              <tr>
+                <th className="zi-l">{t.pdfColZone}</th>
+                <th className="zi-l">{t.niveaux.projet}</th>
+                <th>{t.colSuperficie}</th>
+                {avecMbv && <th>{t.colMBV}</th>}
+                {avecMbv && <th>{t.colPourcentage}</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {lignesHierarchie.map((r, i) => (
+                <tr key={i} className={`zi-rp-${r.niveau}`}>
+                  <td className="zi-l" style={{ paddingLeft: INDENT[r.niveau] }}>
+                    {r.nom}
+                  </td>
+                  <td className="zi-l">{r.projets ?? ""}</td>
+                  <td>{r.surface != null ? fmt(r.surface) : ""}</td>
+                  {avecMbv && <td>{r.mbv != null ? fmt(r.mbv) : ""}</td>}
+                  {avecMbv && <td>{r.pct ?? ""}</td>}
+                </tr>
+              ))}
+            </tbody>
+            {lignesCommunes.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td className="zi-l">{t.total}</td>
+                  <td />
+                  <td>{fmt(totaux.surface)}</td>
+                  {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
+                  {avecMbv && <td>{fmtPct(pctTotal)}</td>}
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </section>
+      )}
+
       {!vide && (
         <section>
           <h2>{t.pdfCarteLbl}</h2>
           <div className="zi-rp-carte" data-carte="1" />
           <p className="zi-rp-note">{t.pdfCarteNote}</p>
+          <p className="zi-rp-note">{t.note}</p>
+          <p className="zi-rp-note">{t.pdfSource}</p>
         </section>
       )}
 
@@ -2067,51 +2110,6 @@ export default function ZonesIntervention() {
         </section>
       )}
 
-      {lignesHierarchie.length > 0 && (
-        <section>
-          <h2>{t.zonesInterv}</h2>
-          <table className="zi-rp-tbl">
-            <thead>
-              <tr>
-                <th className="zi-l">{t.pdfColZone}</th>
-                <th className="zi-l">{t.niveaux.projet}</th>
-                <th>{t.colSuperficie}</th>
-                {avecMbv && <th>{t.colMBV}</th>}
-                {avecMbv && <th>{t.colPourcentage}</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {lignesHierarchie.map((r, i) => (
-                <tr key={i} className={`zi-rp-${r.niveau}`}>
-                  <td className="zi-l" style={{ paddingLeft: INDENT[r.niveau] }}>
-                    {r.nom}
-                  </td>
-                  <td className="zi-l">{r.projets ?? ""}</td>
-                  <td>{r.surface != null ? fmt(r.surface) : ""}</td>
-                  {avecMbv && <td>{r.mbv != null ? fmt(r.mbv) : ""}</td>}
-                  {avecMbv && <td>{r.pct ?? ""}</td>}
-                </tr>
-              ))}
-            </tbody>
-            {lignesCommunes.length > 0 && (
-              <tfoot>
-                <tr>
-                  <td className="zi-l">{t.total}</td>
-                  <td />
-                  <td>{fmt(totaux.surface)}</td>
-                  {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
-                  {avecMbv && <td>{fmtPct(pctTotal)}</td>}
-                </tr>
-              </tfoot>
-            )}
-          </table>
-        </section>
-      )}
-
-      <footer className="zi-rp-pied">
-        <p>{t.note}</p>
-        <p>{t.pdfSource}</p>
-      </footer>
     </div>
   );
 
