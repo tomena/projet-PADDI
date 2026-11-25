@@ -211,6 +211,7 @@ const FR = {
   pdfColType: "Type",
   pdfColActivite: "Activité",
   pdfColAnnee: "Année",
+  pdfColZone: "Zone",
 };
 
 type Dict = typeof FR;
@@ -287,6 +288,7 @@ const MG: Dict = {
   pdfColType: "Karazana",
   pdfColActivite: "Asa",
   pdfColAnnee: "Taona",
+  pdfColZone: "Faritra",
 };
 
 const EN: Dict = {
@@ -361,6 +363,7 @@ const EN: Dict = {
   pdfColType: "Type",
   pdfColActivite: "Activity",
   pdfColAnnee: "Year",
+  pdfColZone: "Area",
 };
 
 const DE: Dict = {
@@ -435,6 +438,7 @@ const DE: Dict = {
   pdfColType: "Typ",
   pdfColActivite: "Aktivität",
   pdfColAnnee: "Jahr",
+  pdfColZone: "Gebiet",
 };
 
 type Lang = "fr" | "mg" | "en" | "de";
@@ -1857,6 +1861,76 @@ export default function ZonesIntervention() {
     window.print();
   };
 
+  /* Micro-bassins versant d'une commune (projet PADDI, seulement si leur affichage est autorisé) */
+  const mbvDeCommune = (ls: Ligne[]): Feat[] => {
+    const le = ls.find((x) => x.type === "environnement" && estPaddi(x.projetId, x.projet));
+    if (!le || !le.commune || !mbvVisible) return [];
+    const cF = featCom.get(cleLigne(le));
+    return mbvF.filter((f) => {
+      const base = f.properties.Commune ?? f.properties.commune;
+      if (base) return cle(String(base)) === cle(le.commune!);
+      return !!cF && (mbvCom.feats.get(f) ?? []).includes(cF);
+    });
+  };
+
+  /* Tableau hiérarchique : région > district > commune > micro-bassin versant */
+  type LigneRapport = {
+    niveau: "region" | "district" | "commune" | "mbv";
+    nom: string;
+    projets?: string;
+    surface?: number | null;
+    mbv?: number;
+    pct?: string;
+  };
+  const lignesHierarchie: LigneRapport[] = (() => {
+    const regs = new Map<string, Map<string, Map<string, Ligne[]>>>();
+    lignesRapport.forEach((l) => {
+      if (!regs.has(l.region)) regs.set(l.region, new Map());
+      const dis = regs.get(l.region)!;
+      const dk = l.district ?? "";
+      if (!dis.has(dk)) dis.set(dk, new Map());
+      const com = dis.get(dk)!;
+      const ck = l.commune ?? "";
+      if (!com.has(ck)) com.set(ck, []);
+      com.get(ck)!.push(l);
+    });
+    const projetsDe = (ls: Ligne[]) => [...new Set(ls.map((l) => l.projet))].join(", ");
+    const out: LigneRapport[] = [];
+    regs.forEach((dis, rNom) => {
+      const toutes: Ligne[] = [];
+      dis.forEach((com) => com.forEach((ls) => toutes.push(...ls)));
+      out.push({ niveau: "region", nom: rNom, projets: projetsDe(toutes) });
+      dis.forEach((com, dNom) => {
+        const tousD: Ligne[] = [];
+        com.forEach((ls) => tousD.push(...ls));
+        if (dNom) out.push({ niveau: "district", nom: dNom, projets: projetsDe(tousD) });
+        com.forEach((ls, cNom) => {
+          if (!cNom) return;
+          const le = ls.find((x) => x.type === "environnement") ?? ls[0];
+          const sup = surfaceDe(ls[0]);
+          const mbvL = mbvDe(le);
+          out.push({
+            niveau: "commune",
+            nom: cNom,
+            projets: projetsDe(ls),
+            surface: sup,
+            mbv: mbvL,
+            pct: fmtPct(pourcentage(sup, mbvL)),
+          });
+          mbvDeCommune(ls).forEach((f) =>
+            out.push({
+              niveau: "mbv",
+              nom: `${String(f.properties.Nom ?? "")}${f.properties.Paysage ? ` (${f.properties.Paysage})` : ""}`,
+              surface: Number(f.properties.Superficie) || 0,
+            })
+          );
+        });
+      });
+    });
+    return out;
+  })();
+  const INDENT: Record<LigneRapport["niveau"], number> = { region: 6, district: 18, commune: 30, mbv: 44 };
+
   const rapport = (
     <div className="zi-rapport">
       <header className="zi-rp-entete">
@@ -1984,72 +2058,43 @@ export default function ZonesIntervention() {
         </section>
       )}
 
-      {lignesRapport.length > 0 && (
+      {lignesHierarchie.length > 0 && (
         <section>
           <h2>{t.zonesInterv}</h2>
           <table className="zi-rp-tbl">
             <thead>
               <tr>
-                <th className="zi-l">{t.niveaux.region}</th>
-                <th className="zi-l">{t.niveaux.district}</th>
-                <th className="zi-l">{t.colCommune}</th>
+                <th className="zi-l">{t.pdfColZone}</th>
                 <th className="zi-l">{t.niveaux.projet}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {lignesRapport.map((l, i) => (
-                <tr key={i}>
-                  <td className="zi-l">{l.region}</td>
-                  <td className="zi-l">{l.district ?? "—"}</td>
-                  <td className="zi-l">{l.commune ?? "—"}</td>
-                  <td className="zi-l">{l.projet}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      )}
-
-      {lignesCommunes.length > 0 && (
-        <section>
-          <h2>{t.parCommune}</h2>
-          <table className="zi-rp-tbl">
-            <thead>
-              <tr>
-                <th className="zi-l">{t.colCommune}</th>
-                <th className="zi-l">{t.niveaux.district}</th>
-                <th className="zi-l">{t.niveaux.region}</th>
                 <th>{t.colSuperficie}</th>
                 {avecMbv && <th>{t.colMBV}</th>}
                 {avecMbv && <th>{t.colPourcentage}</th>}
               </tr>
             </thead>
             <tbody>
-              {lignesCommunes.map((l, i) => {
-                const s = surfaceDe(l);
-                const mbv = mbvDe(l);
-                return (
-                  <tr key={i}>
-                    <td className="zi-l">{l.commune}</td>
-                    <td className="zi-l">{l.district}</td>
-                    <td className="zi-l">{l.region}</td>
-                    <td>{s != null ? fmt(s) : "—"}</td>
-                    {avecMbv && <td>{mbv != null ? fmt(mbv) : "—"}</td>}
-                    {avecMbv && <td>{fmtPct(pourcentage(s, mbv))}</td>}
-                  </tr>
-                );
-              })}
+              {lignesHierarchie.map((r, i) => (
+                <tr key={i} className={`zi-rp-${r.niveau}`}>
+                  <td className="zi-l" style={{ paddingLeft: INDENT[r.niveau] }}>
+                    {r.nom}
+                  </td>
+                  <td className="zi-l">{r.projets ?? ""}</td>
+                  <td>{r.surface != null ? fmt(r.surface) : ""}</td>
+                  {avecMbv && <td>{r.mbv != null ? fmt(r.mbv) : ""}</td>}
+                  {avecMbv && <td>{r.pct ?? ""}</td>}
+                </tr>
+              ))}
             </tbody>
-            <tfoot>
-              <tr>
-                <td className="zi-l">{t.total}</td>
-                <td />
-                <td />
-                <td>{fmt(totaux.surface)}</td>
-                {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
-                {avecMbv && <td>{fmtPct(pctTotal)}</td>}
-              </tr>
-            </tfoot>
+            {lignesCommunes.length > 0 && (
+              <tfoot>
+                <tr>
+                  <td className="zi-l">{t.total}</td>
+                  <td />
+                  <td>{fmt(totaux.surface)}</td>
+                  {avecMbv && <td>{totaux.mbv ? fmt(totaux.mbv) : "—"}</td>}
+                  {avecMbv && <td>{fmtPct(pctTotal)}</td>}
+                </tr>
+              </tfoot>
+            )}
           </table>
         </section>
       )}
@@ -2661,6 +2706,9 @@ const CSS = `
 .zi-rp-tbl .zi-l,.zi-rapport th.zi-l{text-align:left}
 .zi-rp-tbl tfoot td{font-weight:700;border-top:2px solid #14532d;border-bottom:none}
 .zi-rp-tbl tr{break-inside:avoid}
+.zi-rp-tbl tr.zi-rp-region td{font-weight:700;background:#e9efe7;color:#14532d}
+.zi-rp-tbl tr.zi-rp-district td{font-weight:600}
+.zi-rp-tbl tr.zi-rp-mbv td{color:#4a5850;font-size:8.5pt}
 .zi-rp-carte{position:relative;width:100%;border:1px solid #d8d4c8;margin-top:4px;overflow:hidden;background:#e5e7eb}
 .zi-rp-note{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850;margin:4px 0 0}
 .zi-rp-pied{margin-top:16px;padding-top:6px;border-top:1px solid #d8d4c8;font-family:Arial,sans-serif;font-size:7.5pt;color:#4a5850}
