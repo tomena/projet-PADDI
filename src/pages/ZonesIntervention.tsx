@@ -21,7 +21,7 @@
  *               ../components/ZonesLoginModal, ../components/ZonesUpdateModal
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { renderToStaticMarkup } from "react-dom/server";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Search, X, Trees, Sprout, Leaf, MapPin, RotateCcw, Globe2, RefreshCw, FileDown } from "lucide-react";
@@ -819,6 +819,44 @@ function contour(
 type ActiviteLocalisee = Activite & { region: string; district: string; commune: string };
 
 const DONNEES_VIDES: Donnees = { projets: [], lignes: LIGNES_VIDES };
+
+/* ===================== STYLES DU RAPPORT PDF ===================== */
+/* Utilisés dans la fenêtre d'export, indépendamment des styles de l'application. */
+const CSS_RAPPORT = `
+/* Rapport : masqué à l'écran, mis en page pour l'impression (Enregistrer au format PDF) */
+.zi-rapport{font-family:Georgia,"Times New Roman",serif;color:#1c2822;font-size:10.5pt;line-height:1.35;background:#fff}
+.zi-rapport h1{font-size:19pt;margin:2px 0 4px;color:#14532d;font-weight:600}
+.zi-rapport h2{font-size:12.5pt;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #14532d;color:#14532d;font-weight:600;break-after:avoid}
+.zi-rapport h2 small{font-size:9.5pt;font-weight:400;color:#4a5850}
+.zi-rapport section{break-inside:avoid-page}
+.zi-rp-entete{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #14532d;padding-bottom:8px}
+.zi-rp-entete p{margin:2px 0;color:#4a5850}
+.zi-rp-kicker{font-family:Arial,sans-serif;font-size:8.5pt;letter-spacing:.08em;text-transform:uppercase;color:#4a5850}
+.zi-rp-filtre b{color:#14532d}
+.zi-rp-date{font-family:Arial,sans-serif;font-size:8.5pt;color:#4a5850;white-space:nowrap}
+.zi-rp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.zi-rp-stats div{border:1px solid #d8d4c8;border-radius:6px;padding:5px 7px;background:#f7f6f1}
+.zi-rp-stats b{display:block;font-size:14pt;color:#14532d}
+.zi-rp-stats span{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850}
+.zi-rp-tbl{width:100%;border-collapse:collapse;font-size:9pt;margin-top:4px}
+.zi-rp-tbl th{background:#e9efe7;color:#14532d;font-family:Arial,sans-serif;font-size:8pt;text-align:right;padding:4px 6px;border-bottom:1px solid #14532d}
+.zi-rp-tbl td{padding:3px 6px;border-bottom:1px solid #e3e0d6;text-align:right;font-variant-numeric:tabular-nums}
+.zi-rp-tbl .zi-l,.zi-rapport th.zi-l{text-align:left}
+.zi-rp-tbl tfoot td{font-weight:700;border-top:2px solid #14532d;border-bottom:none}
+.zi-rp-tbl tr{break-inside:avoid}
+.zi-rp-tbl tr.zi-rp-region td{font-weight:700;background:#e9efe7;color:#14532d}
+.zi-rp-tbl tr.zi-rp-district td{font-weight:600}
+.zi-rp-tbl tr.zi-rp-mbv td{color:#4a5850;font-size:8.5pt}
+.zi-rp-carte{position:relative;width:100%;border:1px solid #d8d4c8;margin-top:4px;overflow:hidden;background:#e5e7eb}
+.zi-rp-note{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850;margin:4px 0 0}
+.zi-rp-pied{margin-top:16px;padding-top:6px;border-top:1px solid #d8d4c8;font-family:Arial,sans-serif;font-size:7.5pt;color:#4a5850}
+.zi-rp-pied p{margin:2px 0}
+.leaflet-control-container{display:none}
+
+
+@page{size:A4;margin:14mm 12mm}
+.zi-rapport,.zi-rapport *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+`;
 
 /* ===================== COMPOSANT ===================== */
 
@@ -1815,7 +1853,6 @@ export default function ZonesIntervention() {
   );
 
   /* ----- rapport PDF : contenu selon la recherche en cours (visible seulement à l'impression) ----- */
-  const rapportCarteRef = useRef<HTMLDivElement>(null);
   const rapportTitre = vide || !sel ? t.titre : libelleDe(sel, t);
   const rapportSousTitre = vide ? t.aucunResultat : sel ? contexteDe(sel, t) : t.sousTitre;
   const nomFiltre = sel && projetFiltre ? PROJETS.find((p) => p.id === projetFiltre)?.nom : undefined;
@@ -1832,34 +1869,6 @@ export default function ZonesIntervention() {
       (a.district ?? "").localeCompare(b.district ?? "", "fr") ||
       (a.commune ?? "").localeCompare(b.commune ?? "", "fr")
   );
-
-  /* Ouvre la boîte d'impression : l'utilisateur choisit « Enregistrer au format PDF ».
-     La carte affichée est copiée dans le rapport à la bonne échelle. */
-  const exporterPdf = () => {
-    const carte = elMap.current;
-    const cible = rapportCarteRef.current;
-    const titreInitial = document.title;
-    const apres = () => {
-      document.body.classList.remove("zi-imprimer");
-      document.title = titreInitial;
-      cible?.replaceChildren();
-      if (cible) cible.style.cssText = "";
-      window.removeEventListener("afterprint", apres);
-    };
-    if (carte && cible) {
-      const w = carte.clientWidth || 1;
-      const h = carte.clientHeight || 1;
-      const echelle = Math.min(1, 700 / w);
-      const copie = carte.cloneNode(true) as HTMLElement;
-      copie.style.cssText = `position:absolute;left:0;top:0;width:${w}px;height:${h}px;transform:scale(${echelle});transform-origin:0 0;`;
-      cible.style.cssText = `position:relative;overflow:hidden;width:${w * echelle}px;height:${h * echelle}px;`;
-      cible.replaceChildren(copie);
-    }
-    document.title = `${t.pdfRapport} - ${rapportTitre}`;
-    document.body.classList.add("zi-imprimer");
-    window.addEventListener("afterprint", apres);
-    window.print();
-  };
 
   /* Micro-bassins versant d'une commune (projet PADDI, seulement si leur affichage est autorisé) */
   const mbvDeCommune = (ls: Ligne[]): Feat[] => {
@@ -1987,7 +1996,7 @@ export default function ZonesIntervention() {
       {!vide && (
         <section>
           <h2>{t.pdfCarteLbl}</h2>
-          <div className="zi-rp-carte" ref={rapportCarteRef} />
+          <div className="zi-rp-carte" data-carte="1" />
           <p className="zi-rp-note">{t.pdfCarteNote}</p>
         </section>
       )}
@@ -2106,12 +2115,80 @@ export default function ZonesIntervention() {
     </div>
   );
 
+  /* Export PDF : le rapport est généré dans une fenêtre séparée, avec ses propres styles
+     (indépendants de l'application), puis la boîte d'impression s'ouvre :
+     l'utilisateur choisit « Enregistrer au format PDF ». */
+  const exporterPdf = () => {
+    const fenetre = window.open("", "_blank");
+    if (!fenetre) return;
+
+    /* Carte : copie de l'affichage actuel, à l'échelle de la page */
+    const carte = elMap.current;
+    let carteHtml = "";
+    if (carte) {
+      const cw = carte.clientWidth || 1;
+      const ch = carte.clientHeight || 1;
+      const echelle = Math.min(1, 700 / cw);
+      carteHtml =
+        `<div style="position:relative;overflow:hidden;width:${cw * echelle}px;height:${ch * echelle}px">` +
+        `<div class="leaflet-container" style="position:absolute;left:0;top:0;width:${cw}px;height:${ch}px;transform:scale(${echelle});transform-origin:0 0">` +
+        carte.innerHTML +
+        `</div></div>`;
+    }
+    const corps = renderToStaticMarkup(rapport).replace(
+      '<div class="zi-rp-carte" data-carte="1"></div>',
+      `<div class="zi-rp-carte">${carteHtml}</div>`
+    );
+
+    /* Styles de Leaflet (pour que la carte copiée s'affiche correctement) */
+    const cssLeaflet = [...document.styleSheets]
+      .flatMap((f) => {
+        try {
+          return [...f.cssRules].map((r) => r.cssText);
+        } catch {
+          return [];
+        }
+      })
+      .filter((c) => c.includes(".leaflet-"))
+      .join("\n");
+
+    const titre = `${t.pdfRapport} - ${rapportTitre}`;
+    fenetre.document.open();
+    fenetre.document.write(
+      `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${esc(titre)}</title>` +
+        `<style>${cssLeaflet}\n${CSS_RAPPORT}</style></head><body>${corps}</body></html>`
+    );
+    fenetre.document.close();
+
+    /* Impression une fois les tuiles de la carte chargées */
+    let fait = false;
+    const imprimer = () => {
+      if (fait) return;
+      fait = true;
+      fenetre.focus();
+      fenetre.print();
+    };
+    const images = [...fenetre.document.images].filter((i) => !i.complete);
+    if (!images.length) {
+      setTimeout(imprimer, 300);
+    } else {
+      let restantes = images.length;
+      const fini = () => {
+        restantes -= 1;
+        if (restantes === 0) setTimeout(imprimer, 300);
+      };
+      images.forEach((i) => {
+        i.onload = fini;
+        i.onerror = fini;
+      });
+      setTimeout(imprimer, 6000);
+    }
+  };
+
   /* ----- rendu ----- */
   return (
     <div className="zi">
       <style>{CSS}</style>
-
-      {createPortal(<div className="zi-rapport-portal">{rapport}</div>, document.body)}
 
       <header className="zi-head">
         <div>
@@ -2683,44 +2760,6 @@ const CSS = `
 /* Bouton d'export PDF (en-tête) */
 .zi-pdf{display:inline-flex;align-items:center;gap:8px;padding:9px 14px;border:1px solid var(--acc);border-radius:10px;background:var(--card);color:var(--acc);font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .zi-pdf:hover{background:var(--acc-soft)}
-
-/* Rapport : masqué à l'écran, mis en page pour l'impression (Enregistrer au format PDF) */
-.zi-rapport-portal{display:none}
-.zi-rapport{font-family:Georgia,"Times New Roman",serif;color:#1c2822;font-size:10.5pt;line-height:1.35;background:#fff}
-.zi-rapport h1{font-size:19pt;margin:2px 0 4px;color:#14532d;font-weight:600}
-.zi-rapport h2{font-size:12.5pt;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #14532d;color:#14532d;font-weight:600;break-after:avoid}
-.zi-rapport h2 small{font-size:9.5pt;font-weight:400;color:#4a5850}
-.zi-rapport section{break-inside:avoid-page}
-.zi-rp-entete{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #14532d;padding-bottom:8px}
-.zi-rp-entete p{margin:2px 0;color:#4a5850}
-.zi-rp-kicker{font-family:Arial,sans-serif;font-size:8.5pt;letter-spacing:.08em;text-transform:uppercase;color:#4a5850}
-.zi-rp-filtre b{color:#14532d}
-.zi-rp-date{font-family:Arial,sans-serif;font-size:8.5pt;color:#4a5850;white-space:nowrap}
-.zi-rp-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.zi-rp-stats div{border:1px solid #d8d4c8;border-radius:6px;padding:5px 7px;background:#f7f6f1}
-.zi-rp-stats b{display:block;font-size:14pt;color:#14532d}
-.zi-rp-stats span{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850}
-.zi-rp-tbl{width:100%;border-collapse:collapse;font-size:9pt;margin-top:4px}
-.zi-rp-tbl th{background:#e9efe7;color:#14532d;font-family:Arial,sans-serif;font-size:8pt;text-align:right;padding:4px 6px;border-bottom:1px solid #14532d}
-.zi-rp-tbl td{padding:3px 6px;border-bottom:1px solid #e3e0d6;text-align:right;font-variant-numeric:tabular-nums}
-.zi-rp-tbl .zi-l,.zi-rapport th.zi-l{text-align:left}
-.zi-rp-tbl tfoot td{font-weight:700;border-top:2px solid #14532d;border-bottom:none}
-.zi-rp-tbl tr{break-inside:avoid}
-.zi-rp-tbl tr.zi-rp-region td{font-weight:700;background:#e9efe7;color:#14532d}
-.zi-rp-tbl tr.zi-rp-district td{font-weight:600}
-.zi-rp-tbl tr.zi-rp-mbv td{color:#4a5850;font-size:8.5pt}
-.zi-rp-carte{position:relative;width:100%;border:1px solid #d8d4c8;margin-top:4px;overflow:hidden;background:#e5e7eb}
-.zi-rp-note{font-family:Arial,sans-serif;font-size:8pt;color:#4a5850;margin:4px 0 0}
-.zi-rp-pied{margin-top:16px;padding-top:6px;border-top:1px solid #d8d4c8;font-family:Arial,sans-serif;font-size:7.5pt;color:#4a5850}
-.zi-rp-pied p{margin:2px 0}
-.zi-rapport-carte .leaflet-control-container{display:none}
-
-@media print{
-  @page{size:A4;margin:14mm 12mm}
-  body.zi-imprimer > *:not(.zi-rapport-portal){display:none !important}
-  body.zi-imprimer .zi-rapport-portal{display:block !important}
-  .zi-rapport-portal,.zi-rapport *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-}
 
 /* Petit écran : la page s'adapte et défile */
 @media (max-width:900px){
