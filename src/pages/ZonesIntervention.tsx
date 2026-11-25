@@ -2064,14 +2064,11 @@ export default function ZonesIntervention() {
     </div>
   );
 
-  /* Export PDF : le rapport est généré dans une fenêtre séparée, avec ses propres styles
-     (indépendants de l'application), puis la boîte d'impression s'ouvre :
+  /* Export PDF : le rapport est préparé dans un cadre invisible de la même page (pas d'onglet),
+     avec ses propres styles, puis la boîte d'impression s'ouvre :
      l'utilisateur choisit « Enregistrer au format PDF ». */
   const exporterPdf = () => {
-    const fenetre = window.open("", "_blank");
-    if (!fenetre) return;
-
-    /* Carte : copie de l'affichage actuel, à l'échelle de la page */
+    /* Carte : copie de l'affichage actuel, à l'échelle du cadre du rapport */
     const carte = elMap.current;
     let carteHtml = "";
     if (carte) {
@@ -2107,17 +2104,28 @@ export default function ZonesIntervention() {
       .join("\n");
 
     const titre = `${t.pdfRapport} - ${rapportTitre}`;
-    fenetre.document.open();
-    fenetre.document.write(
+    const html =
       `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${esc(titre)}</title>` +
-        `<style>${cssLeaflet}\n${CSS_RAPPORT}</style></head><body>${corps}</body></html>`
-    );
-    fenetre.document.close();
+      `<style>${cssLeaflet}\n${CSS_RAPPORT}</style></head><body>${corps}</body></html>`;
 
-    /* Après impression (ou annulation), la fenêtre d'export se ferme et l'application reprend le focus */
-    fenetre.addEventListener("afterprint", () => {
-      fenetre.close();
-      window.focus();
+    /* Cadre invisible dans la même page : aucun nouvel onglet */
+    const cadre = document.createElement("iframe");
+    cadre.setAttribute("aria-hidden", "true");
+    cadre.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+    document.body.appendChild(cadre);
+    const doc = cadre.contentDocument;
+    const win = cadre.contentWindow;
+    if (!doc || !win) {
+      cadre.remove();
+      return;
+    }
+    doc.open();
+    doc.write(html);
+    doc.close();
+
+    /* Nettoyage une fois l'impression terminée ou annulée */
+    win.addEventListener("afterprint", () => {
+      setTimeout(() => cadre.remove(), 300);
     });
 
     /* Impression une fois les tuiles de la carte chargées */
@@ -2125,10 +2133,10 @@ export default function ZonesIntervention() {
     const imprimer = () => {
       if (fait) return;
       fait = true;
-      fenetre.focus();
-      fenetre.print();
+      win.focus();
+      win.print();
     };
-    const images = [...fenetre.document.images].filter((i) => !i.complete);
+    const images = [...doc.images].filter((i) => !i.complete);
     if (!images.length) {
       setTimeout(imprimer, 300);
     } else {
