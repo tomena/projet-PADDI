@@ -1436,7 +1436,7 @@ export default function ZonesIntervention() {
     /* Fond : uniquement sur le niveau choisi (région, district ou commune) */
     const remplirRegion = n === "vue" || n === "region" || n === "projet" || n === "categorie";
     const etiqDistrict = n === "district";
-    const etiqCommune = n === "commune" || n === "ap" || n === "paysage";
+    const etiqCommune = n === "district" || n === "commune" || n === "ap" || n === "paysage";
 
     /* Régions : toutes sans recherche, puis seulement celles de la sélection */
     /* Chaque niveau cache la limite de son parent :
