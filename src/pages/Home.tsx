@@ -9,13 +9,15 @@ import "./Home.css";
 
 const LANGS = ["mg", "fr", "en", "de"] as const;
 
+// Chaque module ouvre une page existante du menu latéral.
+// « projets » ouvre directement la Zone d'intervention (première page du module).
 const ROUTES: Record<string, string> = {
   paddi: "/dashboard",
   environnement: "/dashboard/analyse-feux",
   cadre: "/dashboard/analyse",
   societe: "/dashboard/analyse-social",
   economie: "/dashboard/analyse-economie",
-  projets: "/dashboard/projets",
+  projets: "/dashboard/zones-brulees",
 };
 
 export default function Home() {
