@@ -829,6 +829,9 @@ const CSS_RAPPORT = `
 .zi-rapport h2{font-size:12.5pt;margin:14px 0 6px;padding-bottom:3px;border-bottom:2px solid #14532d;color:#14532d;font-weight:600;break-after:avoid}
 .zi-rapport h2 small{font-size:9.5pt;font-weight:400;color:#4a5850}
 .zi-rapport section{break-inside:avoid-page}
+.zi-rp-page1{break-after:page}
+.zi-rp-page1 .zi-rp-tbl td,.zi-rp-page1 .zi-rp-tbl th{padding:2px 5px;font-size:8.5pt}
+.zi-rp-page1 .zi-rp-stats{margin-bottom:0}
 .zi-rp-entete{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;border-bottom:3px solid #14532d;padding-bottom:8px}
 .zi-rp-entete p{margin:2px 0;color:#4a5850}
 .zi-rp-kicker{font-family:Arial,sans-serif;font-size:8.5pt;letter-spacing:.08em;text-transform:uppercase;color:#4a5850}
@@ -1870,21 +1873,9 @@ export default function ZonesIntervention() {
       (a.commune ?? "").localeCompare(b.commune ?? "", "fr")
   );
 
-  /* Micro-bassins versant d'une commune (projet PADDI, seulement si leur affichage est autorisé) */
-  const mbvDeCommune = (ls: Ligne[]): Feat[] => {
-    const le = ls.find((x) => x.type === "environnement" && estPaddi(x.projetId, x.projet));
-    if (!le || !le.commune || !mbvVisible) return [];
-    const cF = featCom.get(cleLigne(le));
-    return mbvF.filter((f) => {
-      const base = f.properties.Commune ?? f.properties.commune;
-      if (base) return cle(String(base)) === cle(le.commune!);
-      return !!cF && (mbvCom.feats.get(f) ?? []).includes(cF);
-    });
-  };
-
   /* Tableau hiérarchique : région > district > commune > micro-bassin versant */
   type LigneRapport = {
-    niveau: "region" | "district" | "commune" | "mbv";
+    niveau: "region" | "district" | "commune";
     nom: string;
     projets?: string;
     surface?: number | null;
@@ -1926,19 +1917,12 @@ export default function ZonesIntervention() {
             mbv: mbvL,
             pct: fmtPct(pourcentage(sup, mbvL)),
           });
-          mbvDeCommune(ls).forEach((f) =>
-            out.push({
-              niveau: "mbv",
-              nom: `${String(f.properties.Nom ?? "")}${f.properties.Paysage ? ` (${f.properties.Paysage})` : ""}`,
-              surface: Number(f.properties.Superficie) || 0,
-            })
-          );
         });
       });
     });
     return out;
   })();
-  const INDENT: Record<LigneRapport["niveau"], number> = { region: 6, district: 18, commune: 30, mbv: 44 };
+  const INDENT: Record<LigneRapport["niveau"], number> = { region: 6, district: 18, commune: 30 };
 
   const rapport = (
     <div className="zi-rapport">
@@ -1994,7 +1978,7 @@ export default function ZonesIntervention() {
       )}
 
       {lignesHierarchie.length > 0 && (
-        <section>
+        <section className="zi-rp-page1">
           <h2>{t.zonesInterv}</h2>
           <table className="zi-rp-tbl">
             <thead>
@@ -2034,16 +2018,6 @@ export default function ZonesIntervention() {
         </section>
       )}
 
-      {!vide && (
-        <section>
-          <h2>{t.pdfCarteLbl}</h2>
-          <div className="zi-rp-carte" data-carte="1" />
-          <p className="zi-rp-note">{t.pdfCarteNote}</p>
-          <p className="zi-rp-note">{t.note}</p>
-          <p className="zi-rp-note">{t.pdfSource}</p>
-        </section>
-      )}
-
       {mbvTrie.length > 0 && (
         <section>
           <h2>
@@ -2071,6 +2045,16 @@ export default function ZonesIntervention() {
               ))}
             </tbody>
           </table>
+        </section>
+      )}
+
+      {!vide && (
+        <section>
+          <h2>{t.pdfCarteLbl}</h2>
+          <div className="zi-rp-carte" data-carte="1" />
+          <p className="zi-rp-note">{t.pdfCarteNote}</p>
+          <p className="zi-rp-note">{t.note}</p>
+          <p className="zi-rp-note">{t.pdfSource}</p>
         </section>
       )}
 
