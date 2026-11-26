@@ -1,28 +1,26 @@
 /**
- * AnalyseTerritoriale.tsx — version 2.2 (aide à la décision, multilingue, 3 onglets)
+ * AnalyseTerritoriale.tsx — version 2.3 (aide à la décision, multilingue, 3 onglets)
  *
  * Langue : lue dans LanguageContext (mg, fr, en, de), comme Home.tsx.
  * Textes : analyseTexts.ts (même dossier).
  *
- * Onglets (lus dans l'URL, la carte et les filtres ne changent jamais) :
+ * Onglets (lus dans l'URL, la sélection géographique reste identique) :
  *   /dashboard/analyse-territoriale               -> Environnement (par défaut)
  *   /dashboard/analyse-territoriale/environnement -> Environnement
  *   /dashboard/analyse-territoriale/economie      -> Économie
  *   /dashboard/analyse-territoriale/social        -> Social
- * Route à déclarer avec « /* » : <Route path="analyse-territoriale/*" element={<AnalyseTerritoriale />} />
- * Seul le panneau de gauche change (cartes environnementales ou indicateurs économie / social).
+ *
+ * Fonds de carte :
+ *   - Environnement : Satellite, Topographie ou OpenStreetMap au choix, occupation du sol optionnelle.
+ *   - Économie et Social : fond OpenStreetMap, sans occupation du sol.
  *
  * Principes :
- *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées
- *    et l'analyse est signalée comme partielle.
+ *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées.
  *  - Aucune recommandation n'est donnée sur une donnée qui n'a pas pu être obtenue.
  *  - Sources, dates et limites accessibles et exportables.
  *
- * Fonds de carte : Satellite, Topographie (ArcGIS) et OpenStreetMap (sans clé API).
- *
  * Dépendances : leaflet, @types/leaflet, lucide-react, react-router-dom.
- * Routes serveur attendues : POST /api/worldcover, POST /api/gfw-perte, GET /api/firms,
- *                            POST /api/indicateurs (onglets Économie et Social).
+ * Routes serveur attendues : POST /api/worldcover, POST /api/gfw-perte, GET /api/firms.
  */
 import { Component, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
@@ -39,7 +37,7 @@ type LevelKey = "ADM1" | "ADM2" | "ADM3";
 type Onglet = "environnement" | "economie" | "social";
 type Fond = "sat" | "topo" | "osm";
 
-const VERSION = "2.2";
+const VERSION = "2.3";
 const DELAI_MS = 20000;
 const DELAI_FEUX_MAJ_MS = 3 * 3600e3;
 const REV = "9469f09";
@@ -703,6 +701,12 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   // Les calculs environnementaux ne tournent que sur l'onglet Environnement.
   // La sélection géographique, elle, reste identique sur les trois onglets.
   const env = onglet === "environnement";
+
+  // Environnement : fond et occupation au choix.
+  // Économie et Social : fond OpenStreetMap, sans occupation du sol.
+  const fondAff: Fond = env ? fond : "osm";
+  const occAff = env && showLC;
+
   const rRes = useAnalysis(env ? rF : null, lcYear);
   const dRes = useAnalysis(env ? dF : null, lcYear);
   const cRes = useAnalysis(env ? cF : null, lcYear);
@@ -868,12 +872,13 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
     return () => { ro.disconnect(); m.remove(); map.current = null; };
   }, []);
 
+  /* fond de carte : choisi en Environnement, OpenStreetMap en Économie et Social */
   useEffect(() => {
     if (!map.current) return;
     base.current?.remove();
-    base.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: ATTRIB[fond] }).addTo(map.current);
+    base.current = L.tileLayer(FONDS[fondAff], { maxZoom: 18, attribution: ATTRIB[fondAff] }).addTo(map.current);
     base.current.bringToBack();
-  }, [fond]);
+  }, [fondAff]);
 
   /* entités cliquables du niveau suivant */
   useEffect(() => {
@@ -907,17 +912,17 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
     map.current.flyToBounds(L.geoJSON(selected as any).getBounds(), { padding: [40, 40], maxZoom: parcel ? 17 : undefined, duration: 1.2 });
   }, [selected]);
 
-  /* occupation du sol (image) */
+  /* occupation du sol (image) : uniquement en Environnement */
   useEffect(() => {
     ov.current?.remove();
-    if (!showLC || !map.current) return;
+    if (!occAff || !map.current) return;
     const b = selected ? bbox(selected) : { minLon: 43.2, minLat: -25.7, maxLon: 50.6, maxLat: -11.9 };
     const midLat = (b.minLat + b.maxLat) / 2;
     const wKm = (b.maxLon - b.minLon) * 111.32 * Math.cos((midLat * Math.PI) / 180), hKm = (b.maxLat - b.minLat) * 110.54;
     const Lpx = Math.max(64, Math.min(1400, Math.ceil(Math.max(wKm, hKm) * 100)));
     const W = wKm >= hKm ? Lpx : Math.max(32, Math.round((Lpx * wKm) / hKm)), H = wKm >= hKm ? Math.max(32, Math.round((Lpx * hKm) / wKm)) : Lpx;
     ov.current = L.imageOverlay(esriUrl(b, W, H, lcYear), [[b.minLat, b.minLon], [b.maxLat, b.maxLon]], { opacity: 0.6, interactive: false }).addTo(map.current);
-  }, [showLC, selected, lcYear]);
+  }, [occAff, selected, lcYear]);
 
   /* perte de couvert (tuiles GFW) */
   useEffect(() => {
@@ -1294,11 +1299,11 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
           <div className="at-mhead">
             <div className="at-mtools">
               <div className="at-seg" role="group" aria-label={t.carte.fondAria}>
-                <button type="button" aria-pressed={fond === "sat"} onClick={() => setFond("sat")}>{t.carte.satellite}</button>
-                <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>{t.carte.topo}</button>
-                <button type="button" aria-pressed={fond === "osm"} onClick={() => setFond("osm")}>OpenStreetMap</button>
+                <button type="button" aria-pressed={fondAff === "sat"} disabled={!env} onClick={() => setFond("sat")}>{t.carte.satellite}</button>
+                <button type="button" aria-pressed={fondAff === "topo"} disabled={!env} onClick={() => setFond("topo")}>{t.carte.topo}</button>
+                <button type="button" aria-pressed={fondAff === "osm"} disabled={!env} onClick={() => setFond("osm")}>OpenStreetMap</button>
               </div>
-              <label className="at-chk"><input type="checkbox" checked={showLC} onChange={(e) => setShowLC(e.target.checked)} />{t.carte.occ}</label>
+              <label className="at-chk"><input type="checkbox" checked={occAff} disabled={!env} onChange={(e) => setShowLC(e.target.checked)} />{t.carte.occ}</label>
               <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />{t.carte.perte}</label>
               <label className="at-chk"><input type="checkbox" checked={showFires} onChange={(e) => setShowFires(e.target.checked)} />{t.carte.feux}</label>
               <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />{t.carte.estomper}</label>
@@ -1318,9 +1323,9 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
           <div className="at-mbox">
             <div ref={elMap} className="at-map" />
             <div className="at-ctl at-hint">{hint}</div>
-            {(showLC || showLoss || showFires) && (
+            {(occAff || showLoss || showFires) && (
               <div className="at-ctl at-legend">
-                {showLC && <><strong>{fill(t.legende.lc, { y: lcYear })}</strong>{legendLC.map((k) => <span key={k.k}><i style={{ background: k.col }} />{classeNom(k.k)}</span>)}</>}
+                {occAff && <><strong>{fill(t.legende.lc, { y: lcYear })}</strong>{legendLC.map((k) => <span key={k.k}><i style={{ background: k.col }} />{classeNom(k.k)}</span>)}</>}
                 {showLoss && <><strong>{t.legende.perte}</strong><span><i style={{ background: COULEUR_PERTE }} />{periodeTxt}</span></>}
                 {showFires && <><strong>{t.legende.feux}</strong>
                   <span><i className="r" style={{ background: "rgb(200,15,15)" }} />{t.legende.m24}</span>
@@ -1572,7 +1577,10 @@ const CSS = `
 .at-seg{display:flex;gap:2px;border:1px solid var(--c-line);border-radius:9px;padding:2px;flex-wrap:wrap}
 .at-seg button{padding:4px 9px;border:0;border-radius:7px;background:transparent;color:var(--c-ink2);font:inherit;font-size:12.5px;cursor:pointer}
 .at-seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}
+.at-seg button:disabled{opacity:.45;cursor:default}
 .at-chk{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--c-ink2)}
+.at-chk input:disabled{cursor:default}
+.at-chk:has(input:disabled){opacity:.45;cursor:default}
 .at-tool{display:inline-flex;gap:6px;align-items:center;padding:6px 11px;border-radius:9px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .at-tool.on{background:var(--c-acc);border-color:var(--c-acc);color:#fff}
 .at-tool:disabled{opacity:.45;cursor:default}
