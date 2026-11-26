@@ -1503,7 +1503,7 @@ export default function ZonesIntervention() {
         contour(
           g,
           c,
-          { color: "#0f766e", weight: 2.5, fillOpacity: 0 },
+          { color: "#be185d", weight: 2.5, fillOpacity: 0 },
           nomFeat(c),
           "zi-label-commune",
           () => {
@@ -1595,9 +1595,9 @@ export default function ZonesIntervention() {
           g,
           c,
           {
-            color: choisie ? "#dc2626" : "#0f766e",
+            color: choisie ? "#dc2626" : "#be185d",
             weight: choisie ? 2.5 : 1,
-            fillColor: "#14b8a6",
+            fillColor: "#ec4899",
             fillOpacity: n === "commune" ? 0 : 0.2,
           },
           nomFeat(c),
@@ -2548,11 +2548,13 @@ export default function ZonesIntervention() {
         <ZonesUpdateModal
           projets={PROJETS}
           lignes={LIGNES}
-          secteurs={SECTEURS}
           token={token}
           userName={userName}
           saveUrl={SAUVEGARDE_URL}
-          onClose={() => { setShowUpdate(false); setToken(""); }}
+          onClose={() => {
+            setShowUpdate(false);
+            setToken("");
+          }}
           onSaved={() => setVersion((v) => v + 1)}
         />
       )}
@@ -2679,7 +2681,7 @@ const CSS = `
 .zi-legende i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-2px}
 .zi-lg-reg{background:#ff6a00;opacity:.6;border:1.5px solid #ff6a00}
 .zi-lg-dis{background:#a78bfa;border:1.5px solid #7c3aed}
-.zi-lg-com{background:#14b8a6;border:1px solid #0f766e}
+.zi-lg-com{background:#ec4899;border:1px solid #be185d}
 .zi-lg-ap{background:#22c55e;opacity:.5;border:1.5px solid #16a34a}
 .zi-lg-mbv{background:#38bdf8;border:1.5px solid #0369a1}
 .zi-lg-per{background:#fb923c;opacity:.6;border:1.5px dashed #ea580c}
@@ -2690,7 +2692,7 @@ const CSS = `
 .leaflet-tooltip.zi-label::before{display:none!important}
 .zi-label-region{color:#c2410c!important}
 .zi-label-district{color:#6d28d9!important}
-.zi-label-commune{color:#0f766e!important}
+.zi-label-commune{color:#be185d!important}
 .zi-label-mbv{color:#0369a1!important;font-size:12.5px!important}
 .leaflet-tooltip.zi-hover{background:var(--card);color:var(--ink);border:1px solid var(--line);font-size:12px}
 .leaflet-tooltip.zi-hover::before{display:none}
