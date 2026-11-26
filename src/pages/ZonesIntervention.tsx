@@ -2548,13 +2548,11 @@ export default function ZonesIntervention() {
         <ZonesUpdateModal
           projets={PROJETS}
           lignes={LIGNES}
+          secteurs={SECTEURS}
           token={token}
           userName={userName}
           saveUrl={SAUVEGARDE_URL}
-          onClose={() => {
-            setShowUpdate(false);
-            setToken("");
-          }}
+          onClose={() => { setShowUpdate(false); setToken(""); }}
           onSaved={() => setVersion((v) => v + 1)}
         />
       )}
