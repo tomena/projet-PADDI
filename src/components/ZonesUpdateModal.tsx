@@ -1,18 +1,28 @@
 /**
  * ZonesUpdateModal.tsx — fenêtre de mise à jour des zones d'intervention.
  * Ouverte uniquement après connexion (LoginModal), comme UpdateIndicateursModal dans le Dashboard.
- * Permet : ajouter un projet, ajouter / supprimer une zone, modifier la superficie MBV, enregistrer.
+ * Permet :
+ *  - ajouter un projet, choisir ses secteurs (liste de la base, avec ajout de nouveaux secteurs) ;
+ *  - ajouter, modifier (région, district, commune, MBV) ou supprimer une zone, y compris une zone
+ *    déjà enregistrée ;
+ *  - enregistrer le tout (PUT saveUrl, avec l'en-tête Authorization: Bearer <jeton>).
  * Les listes Région > District > Commune sont en cascade, basées sur les limites de Madagascar
  * (geoBoundaries ADM1 à ADM3, via ../lib/limitesAdmin).
- * Enregistrement : PUT saveUrl, avec l'en-tête Authorization: Bearer <jeton>.
  * À placer dans : src/components/ZonesUpdateModal.tsx
  */
 import { useEffect, useMemo, useState } from "react";
-import { X, Plus, Trash2, Save } from "lucide-react";
+import { X, Plus, Trash2, Save, Pencil } from "lucide-react";
 import { charger, cle, estDans, nomFeat, type Feat } from "../lib/limitesAdmin";
 
 type TypeProjet = "environnement" | "developpement";
-export type ProjetMeta = { id: string; nom: string; alias: string[]; type: TypeProjet };
+export type Secteur = { id: string; nom: string };
+export type ProjetMeta = {
+  id: string;
+  nom: string;
+  alias: string[];
+  type: TypeProjet;
+  secteurs: string[];
+};
 export type LigneZone = {
   projetId: string;
   projet: string;
@@ -27,6 +37,7 @@ export type LigneZone = {
 type Props = {
   projets: ProjetMeta[];
   lignes: LigneZone[];
+  secteurs: Secteur[];
   token: string;
   userName: string;
   saveUrl: string;
@@ -126,9 +137,12 @@ function Choix({
 const uniques = (feats: Feat[]) =>
   [...new Set(feats.map(nomFeat))].sort((a, b) => a.localeCompare(b));
 
+const NZ_VIDE = { region: "", district: "", commune: "", mbv: "" };
+
 export default function ZonesUpdateModal({
   projets: projetsInit,
   lignes: lignesInit,
+  secteurs: secteursInit,
   token,
   userName,
   saveUrl,
@@ -137,9 +151,13 @@ export default function ZonesUpdateModal({
 }: Props) {
   const [projets, setProjets] = useState<ProjetMeta[]>(projetsInit);
   const [lignes, setLignes] = useState<LigneZone[]>(lignesInit);
+  const [secteurs, setSecteurs] = useState<Secteur[]>(secteursInit);
   const [projetId, setProjetId] = useState<string>(projetsInit[0]?.id ?? "");
   const [np, setNp] = useState({ nom: "", alias: "", type: "environnement" as TypeProjet });
-  const [nz, setNz] = useState({ region: "", district: "", commune: "", mbv: "" });
+  const [nsec, setNsec] = useState("");
+  const [nz, setNz] = useState(NZ_VIDE);
+  /* Zone enregistrée en cours de modification (null = ajout d'une nouvelle zone) */
+  const [enEdition, setEnEdition] = useState<LigneZone | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; texte: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -168,10 +186,8 @@ export default function ZonesUpdateModal({
     };
   }, []);
 
-  /* Toutes les régions de Madagascar */
   const nomsRegions = useMemo(() => uniques(regionsF), [regionsF]);
 
-  /* Région choisie, puis uniquement ses districts, puis uniquement les communes du district */
   const regionFeat = useMemo(
     () => regionsF.find((f) => cle(nomFeat(f)) === cle(nz.region)),
     [regionsF, nz.region]
@@ -197,6 +213,13 @@ export default function ZonesUpdateModal({
   const erreur = (texte: string) => setMsg({ ok: false, texte });
   const info = (texte: string) => setMsg({ ok: true, texte });
 
+  /* ----- choix du projet (annule une modification de zone en cours) ----- */
+  const selectionnerProjet = (id: string) => {
+    setProjetId(id);
+    setEnEdition(null);
+    setNz(NZ_VIDE);
+  };
+
   /* ----- projets ----- */
   const ajouterProjet = () => {
     const nom = np.nom.trim();
@@ -208,22 +231,76 @@ export default function ZonesUpdateModal({
       .split(",")
       .map((a) => a.trim())
       .filter(Boolean);
-    setProjets((prev) => [...prev, { id, nom, alias, type: np.type }]);
-    setProjetId(id);
+    const secteurDefaut = np.type === "environnement" ? "environnement" : "developpement";
+    const secteursDefaut = secteurs.some((s) => s.id === secteurDefaut) ? [secteurDefaut] : [];
+    setProjets((prev) => [...prev, { id, nom, alias, type: np.type, secteurs: secteursDefaut }]);
+    selectionnerProjet(id);
     setNp({ nom: "", alias: "", type: "environnement" });
-    info(`Projet « ${nom} » ajouté. Ajoutez ses zones, puis enregistrez.`);
+    info(`Projet « ${nom} » ajouté. Choisissez ses secteurs et ajoutez ses zones, puis enregistrez.`);
   };
 
   const supprimerProjet = (p: ProjetMeta) => {
     if (lignes.some((l) => l.projetId === p.id))
       return erreur(`Supprimez d'abord les zones de « ${p.nom} ».`);
     setProjets((prev) => prev.filter((x) => x.id !== p.id));
-    if (projetId === p.id) setProjetId(projets.find((x) => x.id !== p.id)?.id ?? "");
+    if (projetId === p.id) selectionnerProjet(projets.find((x) => x.id !== p.id)?.id ?? "");
     info(`Projet « ${p.nom} » retiré. Enregistrez pour confirmer.`);
   };
 
-  /* ----- zones ----- */
-  const ajouterZone = () => {
+  /* ----- secteurs ----- */
+  const basculerSecteur = (secteurId: string) => {
+    if (!projet) return;
+    setProjets((prev) =>
+      prev.map((p) =>
+        p.id === projet.id
+          ? {
+              ...p,
+              secteurs: p.secteurs.includes(secteurId)
+                ? p.secteurs.filter((x) => x !== secteurId)
+                : [...p.secteurs, secteurId],
+            }
+          : p
+      )
+    );
+  };
+
+  const ajouterSecteur = () => {
+    const nom = nsec.trim();
+    if (!nom) return erreur("Indiquez le nom du secteur.");
+    const id = cle(nom);
+    if (!id) return erreur("Nom de secteur invalide.");
+    if (!secteurs.some((s) => s.id === id)) setSecteurs((prev) => [...prev, { id, nom }]);
+    if (projet && !projet.secteurs.includes(id)) basculerSecteur(id);
+    setNsec("");
+    info(`Secteur « ${nom} » ajouté. Enregistrez pour confirmer.`);
+  };
+
+  const supprimerSecteur = (s: Secteur) => {
+    if (projets.some((p) => p.secteurs.includes(s.id)))
+      return erreur(`Le secteur « ${s.nom} » est utilisé par un projet : retirez-le des projets d'abord.`);
+    setSecteurs((prev) => prev.filter((x) => x.id !== s.id));
+    info(`Secteur « ${s.nom} » retiré. Enregistrez pour confirmer.`);
+  };
+
+  /* ----- zones : chargement d'une zone enregistrée dans le formulaire ----- */
+  const modifierZone = (l: LigneZone) => {
+    setEnEdition(l);
+    setNz({
+      region: l.region,
+      district: l.district ?? "",
+      commune: l.commune ?? "",
+      mbv: l.mbv_ha != null ? String(l.mbv_ha) : "",
+    });
+    setMsg(null);
+  };
+
+  const annulerModification = () => {
+    setEnEdition(null);
+    setNz(NZ_VIDE);
+  };
+
+  /* ----- zones : ajout ou modification (validation commune) ----- */
+  const validerZone = () => {
     if (!projet) return erreur("Choisissez d'abord un projet.");
     const region = nz.region.trim();
     const district = nz.district.trim();
@@ -243,28 +320,32 @@ export default function ZonesUpdateModal({
       region,
       district: district || undefined,
       commune: commune || undefined,
-      activites: [],
+      activites: enEdition?.activites ?? [],
       mbv_ha: mbv,
     };
-    if (lignes.some((l) => cleZone(l) === cleZone(nouvelle) && l.projetId === projet.id))
-      return erreur("Cette zone existe déjà pour ce projet.");
 
-    setLignes((prev) => [...prev, nouvelle]);
-    setNz({ region: "", district: "", commune: "", mbv: "" });
-    info("Zone ajoutée. Enregistrez pour confirmer.");
+    /* Doublon : on ignore la zone en cours de modification */
+    const doublon = lignes.some(
+      (l) => l !== enEdition && l.projetId === projet.id && cleZone(l) === cleZone(nouvelle)
+    );
+    if (doublon) return erreur("Cette zone existe déjà pour ce projet.");
+
+    if (enEdition) {
+      const cible = enEdition;
+      setLignes((prev) => prev.map((x) => (x === cible ? nouvelle : x)));
+      annulerModification();
+      info("Zone modifiée. Enregistrez pour confirmer.");
+    } else {
+      setLignes((prev) => [...prev, nouvelle]);
+      setNz(NZ_VIDE);
+      info("Zone ajoutée. Enregistrez pour confirmer.");
+    }
   };
 
   const supprimerZone = (l: LigneZone) => {
+    if (enEdition === l) annulerModification();
     setLignes((prev) => prev.filter((x) => x !== l));
     info("Zone retirée. Enregistrez pour confirmer.");
-  };
-
-  /* La superficie MBV est validée à la sortie du champ (évite de perdre une virgule en cours de saisie) */
-  const changerMbv = (l: LigneZone, v: string) => {
-    const txt = v.trim().replace(",", ".");
-    const mbv = txt === "" ? undefined : Number(txt);
-    if (mbv !== undefined && (!Number.isFinite(mbv) || mbv < 0)) return erreur("Superficie MBV invalide.");
-    setLignes((prev) => prev.map((x) => (x === l ? { ...x, mbv_ha: mbv } : x)));
   };
 
   /* ----- enregistrement ----- */
@@ -276,6 +357,7 @@ export default function ZonesUpdateModal({
         type: "FeatureCollection",
         name: "zones_intervention",
         mise_a_jour: new Date().toISOString().slice(0, 10),
+        secteurs,
         projets,
         features: lignes.map((l) => ({
           type: "Feature",
@@ -353,9 +435,9 @@ export default function ZonesUpdateModal({
 
         {/* Corps défilant */}
         <div style={{ overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
-          {/* 1. Projets */}
+          {/* 1. Projets et secteurs */}
           <div style={SECTION}>
-            <div style={{ fontWeight: 700 }}>1. Projets</div>
+            <div style={{ fontWeight: 700 }}>1. Projets et secteurs</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {projets.map((p) => (
                 <span
@@ -371,9 +453,9 @@ export default function ZonesUpdateModal({
                     fontSize: 12.5,
                     cursor: "pointer",
                   }}
-                  onClick={() => setProjetId(p.id)}
+                  onClick={() => selectionnerProjet(p.id)}
                 >
-                  {p.nom} <small style={{ color: "var(--text-3)" }}>({p.type === "environnement" ? "env." : "dév."})</small>
+                  {p.nom}
                   <button
                     type="button"
                     aria-label={`Supprimer ${p.nom}`}
@@ -388,7 +470,62 @@ export default function ZonesUpdateModal({
                 </span>
               ))}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) 150px auto", gap: 6, alignItems: "end" }}>
+
+            {projet && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, paddingTop: 6, borderTop: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 12, color: "var(--text-3)" }}>Secteurs de « {projet.nom} »</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {secteurs.map((s) => {
+                    const on = projet.secteurs.includes(s.id);
+                    return (
+                      <label
+                        key={s.id}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "3px 6px 3px 8px",
+                          borderRadius: 999,
+                          border: `1px solid ${on ? "var(--accent)" : "var(--border)"}`,
+                          background: on ? "var(--acc-soft, var(--surface-3))" : "var(--surface)",
+                          fontSize: 12.5,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input type="checkbox" checked={on} onChange={() => basculerSecteur(s.id)} />
+                        {s.nom}
+                        <button
+                          type="button"
+                          aria-label={`Retirer le secteur ${s.nom}`}
+                          title="Retirer le secteur de la liste"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            supprimerSecteur(s);
+                          }}
+                          style={{ border: "none", background: "none", cursor: "pointer", color: "var(--text-3)", display: "grid", placeItems: "center" }}
+                        >
+                          <X size={12} />
+                        </button>
+                      </label>
+                    );
+                  })}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    style={CHAMP}
+                    value={nsec}
+                    onChange={(e) => setNsec(e.target.value)}
+                    placeholder="Nouveau secteur (ex. Agriculture)"
+                  />
+                  <button type="button" style={BOUTON_SECOND} onClick={ajouterSecteur}>
+                    <Plus size={14} /> Ajouter
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr) 150px auto", gap: 6, alignItems: "end", paddingTop: 6, borderTop: "1px solid var(--border)" }}>
               <div>
                 <label style={{ fontSize: 11, color: "var(--text-3)" }}>Nom du projet</label>
                 <input style={CHAMP} value={np.nom} onChange={(e) => setNp({ ...np, nom: e.target.value })} placeholder="ex. PRODECID" />
@@ -419,6 +556,11 @@ export default function ZonesUpdateModal({
               <div style={{ fontSize: 13, color: "var(--text-3)" }}>Ajoutez d'abord un projet.</div>
             ) : (
               <>
+                <div style={{ fontSize: 12.5, fontWeight: 600, color: enEdition ? "var(--accent)" : "var(--text-3)" }}>
+                  {enEdition
+                    ? `Modification de : ${enEdition.region}${enEdition.district ? ` · ${enEdition.district}` : ""}${enEdition.commune ? ` · ${enEdition.commune}` : ""}`
+                    : "Nouvelle zone"}
+                </div>
                 <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.2fr) minmax(0,1fr) minmax(0,1fr) 110px auto", gap: 6, alignItems: "end" }}>
                   <div>
                     <label style={{ fontSize: 11, color: "var(--text-3)" }}>Région *</label>
@@ -457,9 +599,16 @@ export default function ZonesUpdateModal({
                     <label style={{ fontSize: 11, color: "var(--text-3)" }}>MBV (ha)</label>
                     <input style={CHAMP} inputMode="decimal" value={nz.mbv} onChange={(e) => setNz({ ...nz, mbv: e.target.value })} placeholder="facultatif" />
                   </div>
-                  <button type="button" style={BOUTON} onClick={ajouterZone}>
-                    <Plus size={14} /> Ajouter
-                  </button>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button type="button" style={BOUTON} onClick={validerZone}>
+                      {enEdition ? <Save size={14} /> : <Plus size={14} />} {enEdition ? "Valider" : "Ajouter"}
+                    </button>
+                    {enEdition && (
+                      <button type="button" style={BOUTON_SECOND} onClick={annulerModification}>
+                        Annuler
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--text-3)" }}>
                   Laissez District et Commune vides pour une zone au niveau de la région seulement.
@@ -471,44 +620,51 @@ export default function ZonesUpdateModal({
                   <div style={{ fontSize: 13, color: "var(--text-3)" }}>Aucune zone pour ce projet.</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 240, overflowY: "auto" }}>
-                    {lignesProjet.map((l) => (
-                      <div
-                        key={cleZone(l) + l.projetId}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns: "minmax(0,1fr) 120px auto",
-                          gap: 8,
-                          alignItems: "center",
-                          padding: "6px 8px",
-                          borderRadius: 8,
-                          background: "var(--surface)",
-                          border: "1px solid var(--border-soft, var(--border))",
-                        }}
-                      >
-                        <div style={{ fontSize: 12.5, minWidth: 0, overflowWrap: "anywhere" }}>
-                          <strong>{l.region}</strong>
-                          {l.district && <> · {l.district}</>}
-                          {l.commune && <> · {l.commune}</>}
-                        </div>
-                        <input
-                          style={{ ...CHAMP, padding: "4px 7px" }}
-                          inputMode="decimal"
-                          defaultValue={l.mbv_ha ?? ""}
-                          placeholder="MBV (ha)"
-                          key={`${cleZone(l)}-${l.mbv_ha ?? ""}`}
-                          onBlur={(e) => changerMbv(l, e.target.value)}
-                          aria-label="Superficie MBV (ha)"
-                        />
-                        <button
-                          type="button"
-                          aria-label="Supprimer la zone"
-                          onClick={() => supprimerZone(l)}
-                          style={{ ...BOUTON_SECOND, padding: 6, color: "#b91c1c" }}
+                    {lignesProjet.map((l, i) => {
+                      const actuelle = enEdition === l;
+                      return (
+                        <div
+                          key={`${cleZone(l)}-${i}`}
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "minmax(0,1fr) 110px auto auto",
+                            gap: 8,
+                            alignItems: "center",
+                            padding: "6px 8px",
+                            borderRadius: 8,
+                            background: actuelle ? "var(--acc-soft, var(--surface-3))" : "var(--surface)",
+                            border: `1px solid ${actuelle ? "var(--accent)" : "var(--border)"}`,
+                          }}
                         >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    ))}
+                          <div style={{ fontSize: 12.5, minWidth: 0, overflowWrap: "anywhere" }}>
+                            <strong>{l.region}</strong>
+                            {l.district && <> · {l.district}</>}
+                            {l.commune && <> · {l.commune}</>}
+                          </div>
+                          <div style={{ fontSize: 12.5, textAlign: "right", color: "var(--text-2)" }}>
+                            {l.mbv_ha != null ? `${l.mbv_ha} ha MBV` : "—"}
+                          </div>
+                          <button
+                            type="button"
+                            aria-label="Modifier la zone"
+                            title="Modifier la zone"
+                            onClick={() => modifierZone(l)}
+                            style={{ ...BOUTON_SECOND, padding: 6 }}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            aria-label="Supprimer la zone"
+                            title="Supprimer la zone"
+                            onClick={() => supprimerZone(l)}
+                            style={{ ...BOUTON_SECOND, padding: 6, color: "#b91c1c" }}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </>
