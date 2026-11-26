@@ -769,6 +769,34 @@
         "mbv_ha": null,
         "activites": []
       }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "prada",
+        "projet": "PrADA",
+        "type": "developpement",
+        "region": "Anosy",
+        "district": "Taolagnaro",
+        "commune": "Ranomafana",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "prada",
+        "projet": "PrADA",
+        "type": "developpement",
+        "region": "Anosy",
+        "district": "Amboasary-Atsimo",
+        "commune": "Amboasary Atsimo",
+        "mbv_ha": null,
+        "activites": []
+      }
     }
   ]
 }
