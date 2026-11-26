@@ -142,14 +142,16 @@ const NZ_VIDE = { region: "", district: "", commune: "", mbv: "" };
 export default function ZonesUpdateModal({
   projets: projetsInit,
   lignes: lignesInit,
-  secteurs: secteursInit,
+  secteurs: secteursInit = [],
   token,
   userName,
   saveUrl,
   onClose,
   onSaved,
 }: Props) {
-  const [projets, setProjets] = useState<ProjetMeta[]>(projetsInit);
+  const [projets, setProjets] = useState<ProjetMeta[]>(
+    projetsInit.map((p) => ({ ...p, secteurs: p.secteurs ?? [] }))
+  );
   const [lignes, setLignes] = useState<LigneZone[]>(lignesInit);
   const [secteurs, setSecteurs] = useState<Secteur[]>(secteursInit);
   const [projetId, setProjetId] = useState<string>(projetsInit[0]?.id ?? "");
