@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/gfw.ts": { "maxDuration": 60 },
-    "api/gfw-perte.ts": { "maxDuration": 60 }
+    "api/gfw-perte.ts": { "maxDuration": 60 },
+    "api/import.ts": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/api/update-feux", "destination": "/api/import?type=feux" },
@@ -9,7 +10,6 @@
     { "source": "/api/import-couts", "destination": "/api/import?type=couts" },
     { "source": "/api/import-decaissement", "destination": "/api/import?type=decaissement" },
     { "source": "/api/import-indicateurs", "destination": "/api/import?type=indicateurs" },
-    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
