@@ -21,6 +21,9 @@
 "2025-12": {
 "ankarafantsika__marosakoa": {"ap":"Ankarafantsika","commune":"Marosakoa","jours":[0,0,0,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1],"maj":"2026-11-23T12:33:02.913Z","definitif":true}
 },
+"2026-07": {
+"ankarafantsika__ankazomborona": {"ap":"Ankarafantsika","commune":"Ankazomborona","jours":[3,18,7,0,1,6,3,2,2,2,0,0,1,2,2,3,8,1,0,0,21,12,4,20,5,5,9,0,4,2,6],"maj":"2026-11-26T09:06:37.373Z","definitif":false}
+},
 "2026-08": {
 "ankarafantsika__ankazomborona": {"ap":"Ankarafantsika","commune":"Ankazomborona","jours":[5,19,3,11,5,4,18,0,1,7,1,3,8,4,1,5,15,4,10,4,27,10,13,26,15,36,19,21,18,17,15],"maj":"2026-11-26T09:06:14.639Z","definitif":false}
 },
