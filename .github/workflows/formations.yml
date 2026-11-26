@@ -1,0 +1,37 @@
+# .github/workflows/formations.yml
+name: Mise à jour des formations sanitaires
+
+on:
+  workflow_dispatch:        # bouton « Run workflow » dans l'onglet Actions
+  schedule:
+    - cron: "0 3 1 * *"     # le 1er de chaque mois à 03:00 UTC
+
+permissions:
+  contents: write           # autorise le commit du JSON dans le dépôt
+
+jobs:
+  formations:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Générer le JSON
+        run: node scripts/build-formations.mjs
+
+      - name: Enregistrer le JSON si modifié
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/data/formations-sante.json
+          if git diff --cached --quiet; then
+            echo "Aucun changement."
+          else
+            git commit -m "Mise à jour des formations sanitaires (OSM wiki)"
+            git push
+          fi
