@@ -1,13 +1,14 @@
 /**
- * PanneauIndicateurs.tsx
- * Affiche dans le panneau de gauche les cartes OpenStreetMap
- * (Économie : marchés et routes ; Social : santé et éducation).
+ * PanneauIndicateurs.tsx — version corrigée
+ *
+ * - Économie : marchés et routes, issus d'OpenStreetMap (OsmIndicateurs).
+ * - Social   : santé issue du wiki OSM « Formations Sanitaires / Suivi » (SanteFormations).
+ *              OsmIndicateurs n'est plus appelé pour le social, donc plus de requête Overpass ici.
  *
  * La carte de Madagascar et les filtres région / district / commune ne changent pas.
- * Les indicateurs de la base (/api/import?type=indicateurs) ne sont plus appelés ici,
- * car cette route sert à écrire des données, pas à les lire.
  */
 import OsmIndicateurs from "./OsmIndicateurs";
+import SanteFormations from "./SanteFormations";
 import { TERR_TEXTS, type Lang } from "./territoireTexts";
 
 export type ZoneSel = {
@@ -33,6 +34,16 @@ export default function PanneauIndicateurs({
   if (!zone.niveau) return <p className="at-note">{tx.choisir}</p>;
   if (zone.niveau === "parcelle") {
     return <p className="at-alert" role="alert">{tx.parcelleNonSupportee}</p>;
+  }
+
+  if (theme === "social") {
+    return (
+      <SanteFormations
+        region={zone.region}
+        district={zone.district}
+        commune={zone.commune}
+      />
+    );
   }
 
   return <OsmIndicateurs theme={theme} lang={lang} geometry={zone.geometry} />;
