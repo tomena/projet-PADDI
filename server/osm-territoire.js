@@ -17,7 +17,7 @@ const ENDPOINTS = [
   "https://overpass.kumi.systems/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ];
-const DELAI_MS = 4000;         // délai maximum par requête Overpass
+const DELAI_MS =  25000;         // délai maximum par requête Overpass
 const TTL_MS = 24 * 3600 * 1000; // durée du cache serveur : 24 h
 const CACHE_MAX = 100;           // nombre maximum de zones en cache
 const RINGS_MAX = 20;            // nombre maximum de polygones d'une même zone
