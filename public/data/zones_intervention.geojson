@@ -2,24 +2,7 @@
   "type": "FeatureCollection",
   "name": "zones_intervention",
   "mise_a_jour": "2026-11-26",
-  "secteurs": [
-    {
-      "id": "environnement",
-      "nom": "Environnement"
-    },
-    {
-      "id": "social",
-      "nom": "Social"
-    },
-    {
-      "id": "economie",
-      "nom": "Économie"
-    },
-    {
-      "id": "developpement",
-      "nom": "Développement"
-    }
-  ],
+  "secteurs": [],
   "projets": [
     {
       "id": "paddi",
@@ -358,20 +341,6 @@
         "projet": "PLAE",
         "type": "environnement",
         "region": "Ihorombe",
-        "district": null,
-        "commune": null,
-        "mbv_ha": null,
-        "activites": []
-      }
-    },
-    {
-      "type": "Feature",
-      "geometry": null,
-      "properties": {
-        "projet_id": "plae",
-        "projet": "PLAE",
-        "type": "environnement",
-        "region": "Haute Matsiatra",
         "district": null,
         "commune": null,
         "mbv_ha": null,
@@ -794,6 +763,20 @@
         "region": "Anosy",
         "district": "Amboasary-Atsimo",
         "commune": "Amboasary Atsimo",
+        "mbv_ha": null,
+        "activites": []
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": null,
+      "properties": {
+        "projet_id": "plae",
+        "projet": "PLAE",
+        "type": "environnement",
+        "region": "Matsiatra Ambony",
+        "district": "Ambalavao",
+        "commune": "Ambalavao",
         "mbv_ha": null,
         "activites": []
       }
