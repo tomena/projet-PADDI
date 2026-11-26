@@ -18,6 +18,8 @@
  *  - Aucune recommandation n'est donnée sur une donnée qui n'a pas pu être obtenue.
  *  - Sources, dates et limites accessibles et exportables.
  *
+ * Fonds de carte : Satellite, Topographie (ArcGIS) et OpenStreetMap (sans clé API).
+ *
  * Dépendances : leaflet, @types/leaflet, lucide-react, react-router-dom.
  * Routes serveur attendues : POST /api/worldcover, POST /api/gfw-perte, GET /api/firms,
  *                            POST /api/indicateurs (onglets Économie et Social).
@@ -35,6 +37,7 @@ import PanneauIndicateurs from "./PanneauIndicateurs"; // adaptez le chemin si b
 
 type LevelKey = "ADM1" | "ADM2" | "ADM3";
 type Onglet = "environnement" | "economie" | "social";
+type Fond = "sat" | "topo" | "osm";
 
 const VERSION = "2.2";
 const DELAI_MS = 20000;
@@ -52,9 +55,17 @@ const LOSS_YEARS = Array.from({ length: LOSS_LAST - LOSS_FIRST + 1 }, (_, i) => 
 const RAIN_YEARS = 5;
 const RAIN_LAST = 2025;
 const RAIN_FIRST = RAIN_LAST - RAIN_YEARS + 1;
-const FONDS = {
+
+/** Fonds de carte : satellite, topographie (ArcGIS) et OpenStreetMap, sans clé API. */
+const FONDS: Record<Fond, string> = {
   sat: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
   topo: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
+  osm: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+};
+const ATTRIB: Record<Fond, string> = {
+  sat: "Esri, Maxar, Earthstar Geographics",
+  topo: "Esri, Maxar, Earthstar Geographics",
+  osm: "© OpenStreetMap contributors",
 };
 const MADA: L.LatLngBoundsExpression = [[-25.9, 43.0], [-11.8, 50.7]];
 const LAURITE = "#ff7a3d", CYAN = "#22d3ee", COULEUR_PERTE = "#dc6c9a";
@@ -665,7 +676,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   const [ri, setRi] = useState(""), [di, setDi] = useState(""), [ci, setCi] = useState("");
   const [parcel, setParcel] = useState<Feat | null>(null);
   const [drawing, setDrawing] = useState(false), [nPts, setNPts] = useState(0);
-  const [fond, setFond] = useState<"sat" | "topo">("sat");
+  const [fond, setFond] = useState<Fond>("sat");
   const [showLC, setShowLC] = useState(true), [lcYear, setLcYear] = useState(2023);
   const [showLoss, setShowLoss] = useState(true), [dfFrom, setDfFrom] = useState(2015), [dfTo, setDfTo] = useState(LOSS_LAST);
   const [showFires, setShowFires] = useState(true), [fPeriod, setFPeriod] = useState<24 | 48 | 72>(72), [conf, setConf] = useState<"l" | "n" | "h">("l");
@@ -689,7 +700,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   const selected = parcel || admin;
   const hi = parcel ? CYAN : LAURITE;
 
-    // Les calculs environnementaux ne tournent que sur l'onglet Environnement.
+  // Les calculs environnementaux ne tournent que sur l'onglet Environnement.
   // La sélection géographique, elle, reste identique sur les trois onglets.
   const env = onglet === "environnement";
   const rRes = useAnalysis(env ? rF : null, lcYear);
@@ -860,7 +871,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   useEffect(() => {
     if (!map.current) return;
     base.current?.remove();
-    base.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: "Esri, Maxar, Earthstar Geographics" }).addTo(map.current);
+    base.current = L.tileLayer(FONDS[fond], { maxZoom: 18, attribution: ATTRIB[fond] }).addTo(map.current);
     base.current.bringToBack();
   }, [fond]);
 
@@ -1285,6 +1296,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
               <div className="at-seg" role="group" aria-label={t.carte.fondAria}>
                 <button type="button" aria-pressed={fond === "sat"} onClick={() => setFond("sat")}>{t.carte.satellite}</button>
                 <button type="button" aria-pressed={fond === "topo"} onClick={() => setFond("topo")}>{t.carte.topo}</button>
+                <button type="button" aria-pressed={fond === "osm"} onClick={() => setFond("osm")}>OpenStreetMap</button>
               </div>
               <label className="at-chk"><input type="checkbox" checked={showLC} onChange={(e) => setShowLC(e.target.checked)} />{t.carte.occ}</label>
               <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />{t.carte.perte}</label>
@@ -1557,7 +1569,7 @@ const CSS = `
 .at-mtools{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px}
 .at-mbox{position:relative;flex:1;min-height:260px;background:#1b2a24}
 .at-map{position:absolute;inset:0}
-.at-seg{display:flex;gap:2px;border:1px solid var(--c-line);border-radius:9px;padding:2px}
+.at-seg{display:flex;gap:2px;border:1px solid var(--c-line);border-radius:9px;padding:2px;flex-wrap:wrap}
 .at-seg button{padding:4px 9px;border:0;border-radius:7px;background:transparent;color:var(--c-ink2);font:inherit;font-size:12.5px;cursor:pointer}
 .at-seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}
 .at-chk{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--c-ink2)}
