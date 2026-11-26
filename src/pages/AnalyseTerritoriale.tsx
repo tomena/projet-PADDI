@@ -1,8 +1,5 @@
 /**
- * AnalyseTerritoriale.tsx — version 2.3 (aide à la décision, multilingue, 3 onglets)
- *
- * Langue : lue dans LanguageContext (mg, fr, en, de), comme Home.tsx.
- * Textes : analyseTexts.ts (même dossier).
+ * AnalyseTerritoriale.tsx — version 2.4 (aide à la décision, multilingue, 3 onglets)
  *
  * Onglets (lus dans l'URL, la sélection géographique reste identique) :
  *   /dashboard/analyse-territoriale               -> Environnement (par défaut)
@@ -10,9 +7,10 @@
  *   /dashboard/analyse-territoriale/economie      -> Économie
  *   /dashboard/analyse-territoriale/social        -> Social
  *
- * Fonds de carte :
- *   - Environnement : Satellite, Topographie ou OpenStreetMap au choix, occupation du sol optionnelle.
- *   - Économie et Social : fond OpenStreetMap, sans occupation du sol.
+ * Fonds et couches :
+ *   - Environnement : fond au choix (Satellite, Topographie, OpenStreetMap), occupation du sol,
+ *     perte de couvert et feux.
+ *   - Économie et Social : fond OpenStreetMap uniquement. Occupation, perte et feux masqués.
  *
  * Principes :
  *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées.
@@ -37,7 +35,7 @@ type LevelKey = "ADM1" | "ADM2" | "ADM3";
 type Onglet = "environnement" | "economie" | "social";
 type Fond = "sat" | "topo" | "osm";
 
-const VERSION = "2.3";
+const VERSION = "2.4";
 const DELAI_MS = 20000;
 const DELAI_FEUX_MAJ_MS = 3 * 3600e3;
 const REV = "9469f09";
@@ -702,10 +700,11 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   // La sélection géographique, elle, reste identique sur les trois onglets.
   const env = onglet === "environnement";
 
-  // Environnement : fond et occupation au choix.
-  // Économie et Social : fond OpenStreetMap, sans occupation du sol.
+  // Économie et Social : fond OpenStreetMap seul, sans occupation, perte ni feux.
   const fondAff: Fond = env ? fond : "osm";
   const occAff = env && showLC;
+  const lossAff = env && showLoss;
+  const firesAff = env && showFires;
 
   const rRes = useAnalysis(env ? rF : null, lcYear);
   const dRes = useAnalysis(env ? dF : null, lcYear);
@@ -924,19 +923,19 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
     ov.current = L.imageOverlay(esriUrl(b, W, H, lcYear), [[b.minLat, b.minLon], [b.maxLat, b.maxLon]], { opacity: 0.6, interactive: false }).addTo(map.current);
   }, [occAff, selected, lcYear]);
 
-  /* perte de couvert (tuiles GFW) */
+  /* perte de couvert (tuiles GFW) : uniquement en Environnement */
   useEffect(() => {
     if (!map.current) return;
     loss.current?.remove();
-    if (!showLoss) return;
+    if (!lossAff) return;
     loss.current = L.tileLayer(lossUrl(dfFrom, dfTo), { pane: "perte", maxNativeZoom: 12, opacity: 0.95, attribution: "Perte de couvert © UMD/Hansen, GFW" }).addTo(map.current);
-  }, [showLoss, dfFrom, dfTo]);
+  }, [lossAff, dfFrom, dfTo]);
 
-  /* points de feux */
+  /* points de feux : uniquement en Environnement */
   useEffect(() => {
     if (!map.current) return;
     fireL.current?.remove();
-    if (!showFires || !feuxAff.length) return;
+    if (!firesAff || !feuxAff.length) return;
     const m = map.current, g = L.featureGroup(), renderer = L.canvas({ pane: "feux", padding: 0.5 });
     const rayon = (z: number) => Math.max(2.5, Math.min(9, 2 + (z - 5) * 0.75));
     feuxAff.forEach((f) => {
@@ -950,7 +949,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
     m.on("zoomend", maj);
     fireL.current = g;
     return () => { m.off("zoomend", maj); g.remove(); };
-  }, [showFires, feuxAff, lang, t]);
+  }, [firesAff, feuxAff, lang, t]);
 
   /* tracé de parcelle : clics */
   useEffect(() => {
@@ -1303,9 +1302,13 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
                 <button type="button" aria-pressed={fondAff === "topo"} disabled={!env} onClick={() => setFond("topo")}>{t.carte.topo}</button>
                 <button type="button" aria-pressed={fondAff === "osm"} disabled={!env} onClick={() => setFond("osm")}>OpenStreetMap</button>
               </div>
-              <label className="at-chk"><input type="checkbox" checked={occAff} disabled={!env} onChange={(e) => setShowLC(e.target.checked)} />{t.carte.occ}</label>
-              <label className="at-chk"><input type="checkbox" checked={showLoss} onChange={(e) => setShowLoss(e.target.checked)} />{t.carte.perte}</label>
-              <label className="at-chk"><input type="checkbox" checked={showFires} onChange={(e) => setShowFires(e.target.checked)} />{t.carte.feux}</label>
+              {env && (
+                <>
+                  <label className="at-chk"><input type="checkbox" checked={occAff} onChange={(e) => setShowLC(e.target.checked)} />{t.carte.occ}</label>
+                  <label className="at-chk"><input type="checkbox" checked={lossAff} onChange={(e) => setShowLoss(e.target.checked)} />{t.carte.perte}</label>
+                  <label className="at-chk"><input type="checkbox" checked={firesAff} onChange={(e) => setShowFires(e.target.checked)} />{t.carte.feux}</label>
+                </>
+              )}
               <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />{t.carte.estomper}</label>
             </div>
             <div className="at-mtools">
@@ -1323,11 +1326,11 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
           <div className="at-mbox">
             <div ref={elMap} className="at-map" />
             <div className="at-ctl at-hint">{hint}</div>
-            {(occAff || showLoss || showFires) && (
+            {(occAff || lossAff || firesAff) && (
               <div className="at-ctl at-legend">
                 {occAff && <><strong>{fill(t.legende.lc, { y: lcYear })}</strong>{legendLC.map((k) => <span key={k.k}><i style={{ background: k.col }} />{classeNom(k.k)}</span>)}</>}
-                {showLoss && <><strong>{t.legende.perte}</strong><span><i style={{ background: COULEUR_PERTE }} />{periodeTxt}</span></>}
-                {showFires && <><strong>{t.legende.feux}</strong>
+                {lossAff && <><strong>{t.legende.perte}</strong><span><i style={{ background: COULEUR_PERTE }} />{periodeTxt}</span></>}
+                {firesAff && <><strong>{t.legende.feux}</strong>
                   <span><i className="r" style={{ background: "rgb(200,15,15)" }} />{t.legende.m24}</span>
                   <span><i className="r" style={{ background: "#f97316" }} />{t.legende.m2448}</span>
                   <span><i className="r" style={{ background: "#facc15" }} />{t.legende.m4872}</span></>}
@@ -1579,8 +1582,6 @@ const CSS = `
 .at-seg button[aria-pressed=true]{background:var(--c-acc);color:#fff}
 .at-seg button:disabled{opacity:.45;cursor:default}
 .at-chk{display:flex;gap:6px;align-items:center;cursor:pointer;color:var(--c-ink2)}
-.at-chk input:disabled{cursor:default}
-.at-chk:has(input:disabled){opacity:.45;cursor:default}
 .at-tool{display:inline-flex;gap:6px;align-items:center;padding:6px 11px;border-radius:9px;border:1px solid var(--c-line);background:var(--c-card);color:var(--c-ink);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
 .at-tool.on{background:var(--c-acc);border-color:var(--c-acc);color:#fff}
 .at-tool:disabled{opacity:.45;cursor:default}
