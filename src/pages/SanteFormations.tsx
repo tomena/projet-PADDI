@@ -72,7 +72,7 @@ const LIBELLE_NIVEAU: Record<string, string> = {
 const TYPES_HOPITAL = ["CHU", "CHRR", "CHRD"];
 
 // Ordre d'affichage des groupes d'établissements scolaires
-const ORDRE_ECOLES = ["CEG", "Collège privé", "École primaire", "École primaire privée", "Autre établissement scolaire"];
+const ORDRE_ECOLES = ["CEG", "Collège", "Collège privé", "École primaire", "École primaire privée", "Autre établissement scolaire"];
 const ORDRE_LYCEES = ["Lycée", "Lycée privé", "Université", "Université privée"];
 
 const STYLE = `
