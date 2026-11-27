@@ -30,8 +30,12 @@ export default async function handler(req: any, res: any) {
   const api = `https://api.github.com/repos/${REPO}/contents/${chemin}`;
 
   // 1. Lire le fichier actuel (métadonnées : sha, adresse du contenu brut)
-  const lecture = await fetch(`${api}?ref=${BRANCH}`, { headers: entetes() });
-  if (!lecture.ok) return res.status(502).json({ erreur: "lecture" });
+  const lecture = await fetch(`${api}?ref=${encodeURIComponent(BRANCH)}`, { headers: entetes() });
+    if (!lecture.ok) {
+      const detail = await lecture.text();
+      console.error("Lecture GitHub", lecture.status, { REPO, BRANCH, chemin }, detail);
+      return res.status(502).json({ erreur: "lecture", statut: lecture.status, detail: detail.slice(0, 300) });
+    }
   const meta = await lecture.json();
 
   // 2. Lire le contenu brut (fonctionne aussi pour les gros fichiers)
