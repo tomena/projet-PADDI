@@ -29,6 +29,7 @@ import { ChevronRight, RotateCcw, PenTool, Check, X, Trash2, Download } from "lu
 import { useLanguage } from "../context/LanguageContext";
 import { TEXTS, ORI, LANGS, LOCALE, fill, type Lang, type Dict, type Lvl, type Theme, type OriKey } from "./analyseTexts";
 import PanneauIndicateurs from "./PanneauIndicateurs"; // adaptez le chemin si besoin
+import { useSanteMap } from "../lib/localisation";
 
 /* ===================== CONFIGURATION ===================== */
 
@@ -882,6 +883,16 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
     base.current = L.tileLayer(FONDS[fondAff], { maxZoom: 18, attribution: ATTRIB[fondAff] }).addTo(map.current);
     base.current.bringToBack();
   }, [fondAff]);
+
+  useSanteMap(
+    map,
+      {
+        region: rF ? nameOf(rF) : null,
+        district: dF ? nameOf(dF) : null,
+        commune: cF ? nameOf(cF) : null,
+      },
+      onglet === "social",
+  );
 
   /* entités cliquables du niveau suivant */
   useEffect(() => {
