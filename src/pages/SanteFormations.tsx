@@ -1,7 +1,7 @@
-// src/pages/SanteFormations.tsx — version 3
-// Onglet Social : santé (hôpitaux publics, CSB1, CSB2) à gauche, éducation à droite.
-// Données santé : /data/formations-sante.json. L'éducation n'a pas encore de source :
-// la carte reste visible avec des tirets, sans zéro trompeur.
+// src/pages/SanteFormations.tsx — version 4
+// Onglet Social : à gauche la santé (hôpitaux publics, CSB1, CSB2, total),
+// à droite l'éducation (université, lycée, collège, école primaire).
+// Santé : /data/formations-sante.json. Éducation : pas encore de source, les cartes affichent « — ».
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, Building2, MapPin, GraduationCap } from "lucide-react";
 
@@ -40,6 +40,14 @@ const COULEUR: Record<string, string> = {
   CSB: "#94a3b8",
 };
 
+// Couleurs des cartes éducation
+const COULEUR_EDU = {
+  universite: "#6366f1",
+  lycee: "#f97316",
+  college: "#eab308",
+  primaire: "#ec4899",
+};
+
 const LIBELLE_NIVEAU: Record<string, string> = {
   national: "Madagascar",
   region: "Région",
@@ -53,11 +61,17 @@ const STYLE = `
 .sf-hero small{opacity:.85;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
 .sf-hero h3{margin:4px 0 2px;font-size:20px;line-height:1.2}
 .sf-hero p{margin:0;font-size:13px;opacity:.92}
-.sf-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.sf-kpi{background:var(--surface,#fff);border:1px solid var(--border,#d8d4c8);border-top:4px solid var(--c,#0ea5e9);border-radius:12px;padding:9px 10px;min-width:0}
-.sf-kpi b{display:block;font-size:22px;line-height:1.1;font-variant-numeric:tabular-nums}
-.sf-kpi span{font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.3;display:block;margin-top:2px}
+.sf-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+.sf-block{border:1px solid var(--border,#d8d4c8);border-radius:14px;padding:12px;background:var(--surface,#fff);min-width:0}
+.sf-block-titre{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:14px;font-weight:700}
+.sf-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.sf-kpi{background:var(--surface-2,#f7f6f2);border:1px solid var(--border,#d8d4c8);border-left:4px solid var(--c,#0ea5e9);border-radius:10px;padding:9px 10px;min-width:0}
+.sf-kpi b{display:block;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
+.sf-kpi b.sf-vide{color:var(--text-3,#9aa39e);font-weight:500}
+.sf-kpi span{display:block;font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.3;margin-top:3px}
+.sf-kpi small{display:block;font-size:10.5px;color:var(--text-3,#9aa39e);margin-top:4px}
 .sf-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text-2,#4a5850)}
+.sf-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:3px}
 .sf-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
 .sf-col{display:flex;flex-direction:column;gap:12px;min-width:0}
 .sf-sec{border:1px solid var(--border,#d8d4c8);border-radius:12px;padding:12px;background:var(--surface,#fff);min-width:0}
@@ -71,16 +85,11 @@ const STYLE = `
 .sf-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(0,2fr) auto;gap:8px;align-items:center;margin:6px 0;font-size:13px}
 .sf-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2,#eef0ec)}
 .sf-bar i{display:block;height:100%}
-.sf-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:3px}
 .sf-muted{font-size:12px;color:var(--text-3,#6b7770);line-height:1.5}
 .sf-empty{padding:14px;border-radius:12px;background:var(--surface-2,#f1efe8);font-size:13px;line-height:1.5}
-.sf-edu-empty{padding:10px 12px;border-radius:10px;background:var(--surface-2,#f1efe8);font-size:12.5px;line-height:1.5;margin-bottom:10px}
-.sf-edu-line{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--border,#d8d4c8);font-size:13px}
-.sf-edu-line:first-of-type{border-top:0}
-.sf-edu-line span:last-child{color:var(--text-3,#6b7770);font-variant-numeric:tabular-nums}
 .sf-note{font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.5;border-top:1px dashed var(--border,#d8d4c8);padding-top:10px;margin:0}
-@media (max-width:760px){.sf-duo{grid-template-columns:1fr}}
-@media (max-width:560px){.sf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.sf-row{grid-template-columns:1fr auto}.sf-row .sf-bar{grid-column:1 / -1}}
+@media (max-width:760px){.sf-pair,.sf-duo{grid-template-columns:1fr}}
+@media (max-width:420px){.sf-grid{grid-template-columns:1fr}}
 `;
 
 function Pastille({ type }: { type: string }) {
@@ -91,31 +100,19 @@ function Pastille({ type }: { type: string }) {
   );
 }
 
-function CarteEducation({ zone }: { zone: string }) {
-  const lignes = [
-    "Écoles primaires et maternelles",
-    "Collèges",
-    "Lycées",
-    "Universités et formations supérieures",
-  ];
+type Carte = { valeur: number | null; libelle: string; couleur: string; note?: string };
+
+function Cartes({ items }: { items: Carte[] }) {
   return (
-    <section className="sf-sec" aria-label="Éducation">
-      <h4><GraduationCap size={15} aria-hidden /> Éducation</h4>
-      <p className="sf-muted" style={{ margin: "0 0 8px" }}>Zone : {zone}</p>
-      <div className="sf-edu-empty">
-        Données éducation non disponibles pour le moment. Cette rubrique accueillera écoles, collèges,
-        lycées et établissements supérieurs dès qu'une source fiable sera identifiée.
-      </div>
-      {lignes.map((l) => (
-        <div className="sf-edu-line" key={l}>
-          <span>{l}</span>
-          <span aria-label="non disponible">—</span>
+    <div className="sf-grid">
+      {items.map((c) => (
+        <div className="sf-kpi" key={c.libelle} style={{ ["--c" as any]: c.couleur }}>
+          {c.valeur === null ? <b className="sf-vide">—</b> : <b>{nb(c.valeur)}</b>}
+          <span>{c.libelle}</span>
+          {c.note && <small>{c.note}</small>}
         </div>
       ))}
-      <p className="sf-note" style={{ marginTop: 10 }}>
-        Aucune valeur n'est affichée tant que la source n'est pas vérifiée, pour éviter un zéro trompeur.
-      </p>
-    </section>
+    </div>
   );
 }
 
@@ -183,6 +180,25 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const titreZone = commune ?? district ?? region ?? "Madagascar";
   const fil = [region, district, commune].filter(Boolean).join(" › ");
 
+  const cartesSante: Carte[] = [
+    {
+      valeur: hop.length,
+      libelle: "Hôpitaux publics",
+      couleur: COULEUR.CHU,
+      note: "CHU, CHRR, CHRD",
+    },
+    { valeur: csb1, libelle: "Centres de santé CSB1", couleur: COULEUR.CSB1, note: "premier niveau" },
+    { valeur: csb2, libelle: "Centres de santé CSB2", couleur: COULEUR.CSB2, note: "second niveau" },
+    { valeur: total, libelle: "Total santé publique", couleur: "#f59e0b" },
+  ];
+
+  const cartesEducation: Carte[] = [
+    { valeur: null, libelle: "Universités", couleur: COULEUR_EDU.universite, note: "source à compléter" },
+    { valeur: null, libelle: "Lycées", couleur: COULEUR_EDU.lycee, note: "source à compléter" },
+    { valeur: null, libelle: "Collèges", couleur: COULEUR_EDU.college, note: "source à compléter" },
+    { valeur: null, libelle: "Écoles primaires", couleur: COULEUR_EDU.primaire, note: "source à compléter" },
+  ];
+
   return (
     <section className="sf" aria-label="Santé et éducation">
       <style>{STYLE}</style>
@@ -194,23 +210,15 @@ export default function SanteFormations({ region, district, commune }: Props) {
         <p>{fil || "Ensemble du pays"}</p>
       </div>
 
-      {/* Indicateurs sur une seule ligne */}
-      <div className="sf-kpis">
-        <div className="sf-kpi" style={{ ["--c" as any]: COULEUR.CHU }}>
-          <b>{nb(hop.length)}</b>
-          <span>Hôpitaux publics</span>
+      {/* Santé à gauche, Éducation à droite : chacune en 2 lignes de 2 cartes */}
+      <div className="sf-pair">
+        <div className="sf-block">
+          <h4 className="sf-block-titre"><Stethoscope size={16} aria-hidden /> Santé publique</h4>
+          <Cartes items={cartesSante} />
         </div>
-        <div className="sf-kpi" style={{ ["--c" as any]: COULEUR.CSB1 }}>
-          <b>{nb(csb1)}</b>
-          <span>CSB1</span>
-        </div>
-        <div className="sf-kpi" style={{ ["--c" as any]: COULEUR.CSB2 }}>
-          <b>{nb(csb2)}</b>
-          <span>CSB2</span>
-        </div>
-        <div className="sf-kpi" style={{ ["--c" as any]: "#f59e0b" }}>
-          <b>{nb(total)}</b>
-          <span>Total public</span>
+        <div className="sf-block">
+          <h4 className="sf-block-titre"><GraduationCap size={16} aria-hidden /> Éducation</h4>
+          <Cartes items={cartesEducation} />
         </div>
       </div>
 
@@ -227,7 +235,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
         </div>
       )}
 
-      {/* Santé à gauche, Éducation à droite */}
+      {/* Détails santé */}
       <div className="sf-duo">
         <div className="sf-col">
           {niveau === "region" && parDistrict.length > 0 && (
@@ -285,7 +293,9 @@ export default function SanteFormations({ region, district, commune }: Props) {
               </div>
             </div>
           )}
+        </div>
 
+        <div className="sf-col">
           {hop.length > 0 && (
             <div className="sf-sec">
               <h4>
@@ -309,19 +319,15 @@ export default function SanteFormations({ region, district, commune }: Props) {
             </div>
           )}
         </div>
-
-        <div className="sf-col">
-          <CarteEducation zone={titreZone} />
-        </div>
       </div>
 
       <p className="sf-note">
-        <strong>Méthode.</strong> Comptage des établissements publics listés dans la page communautaire
-        OpenStreetMap « Formations Sanitaires / Suivi ». Les CSB1 et CSB2 sont des centres de santé publics de
-        premier niveau. Les chiffres ne tiennent compte ni de la population ni de l'état de fonctionnement :
-        ils montrent la présence d'établissements, pas leur capacité. Source : OpenStreetMap Wiki (CC BY-SA),
-        données OSM (ODbL).
-        {data?.genere_le && ` Extraction du ${data.genere_le}.`}
+        <strong>Méthode.</strong> Santé : comptage des établissements publics listés dans la page communautaire
+        OpenStreetMap « Formations Sanitaires / Suivi ». CSB1 et CSB2 sont des centres de santé publics de premier
+        niveau. Les chiffres ne tiennent compte ni de la population ni de l'état de fonctionnement. Éducation : aucune
+        source n'est encore branchée, les tirets ne signifient donc pas qu'il n'existe aucun établissement.
+        Source : OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
+        {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
       </p>
     </section>
   );
