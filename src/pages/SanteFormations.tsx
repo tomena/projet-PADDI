@@ -1,8 +1,8 @@
-// src/pages/SanteFormations.tsx — version 9
+// src/pages/SanteFormations.tsx — version 10
 // Onglet Social.
 // Santé : hôpitaux, CSB1 et CSB2 comptés dans formations-sante.json ; pharmacies dans la base de localisation.
-// Éducation : universités, lycées, collèges et écoles primaires comptés dans la base de localisation éducation.
-// Les noms de zones proches (Boeni ↔ Boeny) sont considérés comme identiques.
+// Éducation : universités, lycées, collèges et écoles primaires comptés dans la base éducation.
+// Les écoles et lycées s'affichent en petites cartes : type, nom, commune en bas.
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
 import { chargerLocalisation, pointsDansZone, correspond, type Point } from "../lib/localisation";
@@ -95,19 +95,20 @@ const STYLE = `
 .sf-col{display:flex;flex-direction:column;gap:12px;min-width:0}
 .sf-sec{border:1px solid var(--border,#d8d4c8);border-radius:12px;padding:12px;background:var(--surface,#fff);min-width:0}
 .sf-sec h4{margin:0 0 8px;font-size:14px;display:flex;align-items:center;gap:6px}
-.sf-scroll{max-height:240px;overflow-y:auto;padding-right:4px;overscroll-behavior:contain}
+.sf-scroll{max-height:260px;overflow-y:auto;padding-right:4px;overscroll-behavior:contain}
 .sf-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
 .sf-item{border:1px solid var(--border,#d8d4c8);border-radius:9px;padding:6px 8px;font-size:12.5px;line-height:1.3;background:var(--surface-2,#f7f6f2);min-width:0}
 .sf-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sf-item small{color:var(--text-3,#6b7770);font-size:11px}
 .sf-chip{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;margin-bottom:3px}
+.sf-ecole{border:1px solid var(--border,#d8d4c8);border-left:4px solid var(--c,#94a3b8);border-radius:9px;padding:7px 9px;background:var(--surface-2,#f7f6f2);min-width:0;display:flex;flex-direction:column;gap:3px}
+.sf-ecole-type{align-self:flex-start;font-size:10.5px;font-weight:700;color:#fff;background:var(--c,#94a3b8);border-radius:999px;padding:1px 8px;line-height:1.5}
+.sf-ecole-nom{font-size:12.5px;font-weight:600;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.sf-ecole-com{margin-top:auto;padding-top:4px;border-top:1px dashed var(--border,#d8d4c8);font-size:11px;color:var(--text-3,#6b7770);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sf-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(0,2fr) auto;gap:8px;align-items:center;margin:6px 0;font-size:13px}
 .sf-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2,#eef0ec)}
 .sf-bar i{display:block;height:100%}
 .sf-muted{font-size:12px;color:var(--text-3,#6b7770);line-height:1.5}
-.sf-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border,#d8d4c8);font-size:13px}
-.sf-ligne:first-of-type{border-top:0}
-.sf-ligne span:last-child{color:var(--text-3,#6b7770);font-size:11.5px;text-align:right}
 .sf-empty{padding:14px;border-radius:12px;background:var(--surface-2,#f1efe8);font-size:13px;line-height:1.5}
 .sf-note{font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.5;border-top:1px dashed var(--border,#d8d4c8);padding-top:10px;margin:0}
 @media (max-width:760px){.sf-pair,.sf-duo{grid-template-columns:1fr}.sf-hero-totaux{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.5);padding-top:12px;width:100%}}
@@ -119,6 +120,17 @@ function Pastille({ type }: { type: string }) {
     <span className="sf-chip" style={{ background: COULEUR[type] ?? COULEUR.autre }}>
       {type}
     </span>
+  );
+}
+
+/** Petite carte d'établissement scolaire : type, nom, commune en bas. */
+function CarteEcole({ e }: { e: Ecole }) {
+  return (
+    <div className="sf-ecole" style={{ ["--c" as any]: COULEUR_EDU[e.categorie] ?? "#94a3b8" }}>
+      <span className="sf-ecole-type">{e.type}</span>
+      <span className="sf-ecole-nom" title={e.nom}>{e.nom}</span>
+      <span className="sf-ecole-com" title={e.commune}>{e.commune || e.district}</span>
+    </div>
   );
 }
 
@@ -164,7 +176,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
 
   const niveau = commune ? "commune" : district ? "district" : region ? "region" : "national";
 
-  // Hôpitaux, CSB : formations-sante.json, filtrés par région, district, commune (pour les CSB)
+  // Hôpitaux et CSB : formations-sante.json, filtrés par région, district, commune (pour les CSB)
   const calc = useMemo(() => {
     if (!data) return null;
     const hop = choisir(choisir(data.hopitaux, "region", region), "district", district);
@@ -405,14 +417,13 @@ export default function SanteFormations({ region, district, commune }: Props) {
               <School size={15} aria-hidden />
               {niveau === "commune" ? " Écoles de la commune" : " Écoles de la zone"}
             </h4>
-            {primaires.length + colleges.length > 0 ? (
+            {colleges.length + primaires.length > 0 ? (
               <div className="sf-scroll">
-                {[...colleges, ...primaires].map((e, i) => (
-                  <div className="sf-ligne" key={`ec${i}`}>
-                    <span>{e.nom}</span>
-                    <span>{e.type}</span>
-                  </div>
-                ))}
+                <div className="sf-cols">
+                  {[...colleges, ...primaires].map((e, i) => (
+                    <CarteEcole key={`ec${i}`} e={e} />
+                  ))}
+                </div>
               </div>
             ) : (
               <p className="sf-muted" style={{ margin: 0 }}>Aucune école primaire ni collège enregistré dans cette zone.</p>
@@ -426,12 +437,11 @@ export default function SanteFormations({ region, district, commune }: Props) {
             </h4>
             {lycees.length + universites.length > 0 ? (
               <div className="sf-scroll">
-                {[...lycees, ...universites].map((e, i) => (
-                  <div className="sf-ligne" key={`ly${i}`}>
-                    <span>{e.nom}</span>
-                    <span>{e.type}</span>
-                  </div>
-                ))}
+                <div className="sf-cols">
+                  {[...lycees, ...universites].map((e, i) => (
+                    <CarteEcole key={`ly${i}`} e={e} />
+                  ))}
+                </div>
               </div>
             ) : (
               <p className="sf-muted" style={{ margin: 0 }}>Aucun lycée enregistré dans cette zone.</p>
@@ -444,9 +454,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
         <strong>Méthode.</strong> Santé : hôpitaux, CSB1 et CSB2 comptés dans la page communautaire OpenStreetMap
         « Formations Sanitaires / Suivi ». Les hôpitaux sont comptés au niveau du district, car la liste ne donne
         pas leur commune. Pharmacies et établissements scolaires : comptés dans les bases de localisation
-        (localisation_hopital_mada et localisation_education_mada). Les noms de zones proches sont considérés comme
-        identiques. Les chiffres ne tiennent compte ni de la population ni de l'état de fonctionnement. Sources :
-        OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
+        (localisation_hopital_mada et localisation_education_mada). Le caractère privé d'un établissement est
+        déduit de son nom. Les noms de zones proches sont considérés comme identiques. Les chiffres ne tiennent
+        compte ni de la population ni de l'état de fonctionnement. Sources : OpenStreetMap Wiki (CC BY-SA),
+        données OSM (ODbL).
         {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
       </p>
     </section>
