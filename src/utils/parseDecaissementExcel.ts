@@ -1,12 +1,14 @@
 import * as XLSX from "xlsx";
 
-/* src/utils/parseDecaissementExcel.ts
+/* src/utils/parseDecaissementExcel.ts (v2)
  * Lit le fichier « Pour_la_visualisation_Coûts.xlsx » :
  *   - niveau « instrument » -> onglet « CL-Dépenses » : montants MENSUELS
  *       (colonnes des 8 instruments + TOTAL) et budgets alloués (ligne « BUDGET »).
  *   - niveau « composante » -> onglet « CL-Outputs » : CUMULS PAR SEMESTRE
  *       (colonnes « COÛTS mm/aaaa ») pour Output 0 à 4, et budgets par Output (colonne BUDGET).
  *       Les périodes à 0 ou vides (non encore clôturées) sont ignorées pour ne pas écraser la base.
+ * Dans les deux onglets, la ligne 2 contient « Dernière mise à jour le jj/mm/aaaa » : elle est renvoyée
+ * dans dateSource et affichée dans l'en-tête de la carte correspondante.
  * Les colonnes sont repérées par leur TITRE, jamais par leur lettre. Les montants négatifs sont conservés. */
 
 export type Niveau = "instrument" | "composante";
@@ -31,12 +33,14 @@ export type ResultatDecaissement =
       lignes: LigneInstrument[];
       budgets?: Record<string, number>;
       avertissements: string[]; // contrôles non bloquants
+      dateSource: string | null; // « jj/mm/aaaa » lu en ligne 2 de CL-Dépenses
     }
   | {
       niveau: "composante";
       lignes: LigneComposante[];
       budgets?: Record<string, number>; // « Output 0 » à « Output 4 »
       avertissements: string[];
+      dateSource: string | null; // « jj/mm/aaaa » lu en ligne 2 de CL-Outputs
     };
 
 const MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
@@ -75,7 +79,18 @@ function versNombre(v: unknown, ligne: number, colonne: string): number | null {
   return x;
 }
 
-/* ============ Niveau « instrument » : onglet CL-Dépenses (mensuel) ============ */
+/* Date « Dernière mise à jour le jj/mm/aaaa » : cherchée dans les premières lignes de l'onglet (ligne 2 en pratique). */
+function extraireDateMiseAJour(tableau: unknown[][]): string | null {
+  for (const ligne of tableau.slice(0, 5)) {
+    for (const cellule of ligne) {
+      const texte = sansAccents(cellule);
+      if (!/mise a jour/i.test(texte)) continue;
+      const m = texte.match(/(\d{2}\/\d{2}\/\d{4})/);
+      if (m) return m[1];
+    }
+  }
+  return null;
+}
 
 /* Lit les lignes de données mensuelles (Année entière + mois valide). Les autres lignes (budget, total, vides) sont ignorées. */
 function lireLignesMensuelles(
@@ -108,6 +123,8 @@ function lireLignesMensuelles(
   }
   return resultat;
 }
+
+/* ============ Niveau « instrument » : onglet CL-Dépenses (mensuel) ============ */
 
 export function lignesInstruments(tableau: unknown[][]): ResultatDecaissement {
   const idxEntete = tableau.findIndex((l) => {
@@ -156,11 +173,15 @@ export function lignesInstruments(tableau: unknown[][]): ResultatDecaissement {
   }
   if (Object.keys(budgets).length === 0) avertissements.push("Ligne « BUDGET » introuvable : les budgets alloués ne seront pas mis à jour.");
 
+  const dateSource = extraireDateMiseAJour(tableau);
+  if (!dateSource) avertissements.push("Date « Dernière mise à jour » introuvable en ligne 2 de « CL-Dépenses ».");
+
   return {
     niveau: "instrument",
     lignes,
     budgets: Object.keys(budgets).length ? budgets : undefined,
     avertissements,
+    dateSource,
   };
 }
 
@@ -253,11 +274,15 @@ export function lignesOutputs(tableau: unknown[][]): ResultatDecaissement {
 
   if (lignes.length === 0) throw new Error("Aucune valeur de composante trouvée dans « CL-Outputs ».");
 
+  const dateSource = extraireDateMiseAJour(tableau);
+  if (!dateSource) avertissements.push("Date « Dernière mise à jour » introuvable en ligne 2 de « CL-Outputs ».");
+
   return {
     niveau: "composante",
     lignes,
     budgets: Object.keys(budgets).length ? budgets : undefined,
     avertissements,
+    dateSource,
   };
 }
 
