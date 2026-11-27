@@ -2,35 +2,53 @@ import * as XLSX from "xlsx";
 
 /* src/utils/parseDecaissementExcel.ts
  * Lit le fichier « Pour_la_visualisation_Coûts.xlsx » :
- *   - niveau « instrument »  -> onglet « CL-Dépenses » (colonnes G, H, I, J, K, N, O, P + TOTAL + budgets de la ligne 5)
- *   - niveau « composante »  -> onglet « Pour Céline » (colonnes C à G = Output 0 à 4)
- * Les colonnes sont repérées par leur TITRE, jamais par leur lettre : un ajout de colonne ne casse pas l'import.
- * Les montants mensuels sont repris tels quels (négatifs possibles : corrections comptables). */
+ *   - niveau « instrument » -> onglet « CL-Dépenses » : montants MENSUELS
+ *       (colonnes des 8 instruments + TOTAL) et budgets alloués (ligne « BUDGET »).
+ *   - niveau « composante » -> onglet « CL-Outputs » : CUMULS PAR SEMESTRE
+ *       (colonnes « COÛTS mm/aaaa ») pour Output 0 à 4, et budgets par Output (colonne BUDGET).
+ *       Les périodes à 0 ou vides (non encore clôturées) sont ignorées pour ne pas écraser la base.
+ * Les colonnes sont repérées par leur TITRE, jamais par leur lettre. Les montants négatifs sont conservés. */
 
 export type Niveau = "instrument" | "composante";
 
-export interface LigneDecaissement {
+/* Dates de situation proposées dans le pop-up pour le niveau « composante » (colonnes COÛTS de CL-Outputs). */
+export const PERIODES_COMPOSANTES = ["06/2025", "06/2026", "12/2026", "06/2027"] as const;
+
+export interface LigneInstrument {
   annee: number;
   mois: string;
   valeurs: Record<string, number>; // uniquement les cellules renseignées
 }
 
-export interface ResultatDecaissement {
-  niveau: Niveau;
-  lignes: LigneDecaissement[];
-  budgets?: Record<string, number>; // niveau « instrument » seulement
-  avertissements: string[];         // contrôles non bloquants
+export interface LigneComposante {
+  periode: string; // « 06/2026 », etc.
+  valeurs: Record<string, number>; // cumuls « Output 0 » à « Output 4 » (pas de Total : calculé par le serveur)
 }
+
+export type ResultatDecaissement =
+  | {
+      niveau: "instrument";
+      lignes: LigneInstrument[];
+      budgets?: Record<string, number>;
+      avertissements: string[]; // contrôles non bloquants
+    }
+  | {
+      niveau: "composante";
+      lignes: LigneComposante[];
+      budgets?: Record<string, number>; // « Output 0 » à « Output 4 »
+      avertissements: string[];
+    };
 
 const MOIS = ["Janvier", "Février", "Mars", "Avril", "Mai", "Juin", "Juillet", "Août", "Septembre", "Octobre", "Novembre", "Décembre"];
 
-/* Comparaison tolérante : sans accents ni majuscules, ni espaces, ni _ - . */
-const compact = (s: unknown) =>
+/* Sans accents, en majuscules conservées : pour les libellés affichés (ex. « COÛTS 06/2025 ») */
+const sansAccents = (s: unknown) =>
   String(s ?? "")
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9()+]/g, "");
+    .replace(/[\u0300-\u036f]/g, "");
+
+/* Comparaison tolérante : sans accents ni majuscules, ni espaces, ni _ - . */
+const compact = (s: unknown) => sansAccents(s).toLowerCase().replace(/[^a-z0-9()+]/g, "");
 
 const MOIS_COMPACT = new Map(MOIS.map((m) => [compact(m), m]));
 
@@ -57,15 +75,17 @@ function versNombre(v: unknown, ligne: number, colonne: string): number | null {
   return x;
 }
 
-/* Lit les lignes de données (Année entière + mois valide). Les autres lignes (budget, total, vides) sont ignorées. */
-function lireLignes(
+/* ============ Niveau « instrument » : onglet CL-Dépenses (mensuel) ============ */
+
+/* Lit les lignes de données mensuelles (Année entière + mois valide). Les autres lignes (budget, total, vides) sont ignorées. */
+function lireLignesMensuelles(
   tableau: unknown[][],
   idxEntete: number,
   colAnnee: number,
   colMois: number,
   colonnes: { index: number; nom: string }[]
-): LigneDecaissement[] {
-  const resultat: LigneDecaissement[] = [];
+): LigneInstrument[] {
+  const resultat: LigneInstrument[] = [];
   const vues = new Set<string>();
 
   for (let i = idxEntete + 1; i < tableau.length; i++) {
@@ -89,7 +109,6 @@ function lireLignes(
   return resultat;
 }
 
-/* ============ Niveau « instrument » : onglet CL-Dépenses ============ */
 export function lignesInstruments(tableau: unknown[][]): ResultatDecaissement {
   const idxEntete = tableau.findIndex((l) => {
     const c = l.map(compact);
@@ -122,7 +141,7 @@ export function lignesInstruments(tableau: unknown[][]): ResultatDecaissement {
     }
   }
 
-  const lignes = lireLignes(tableau, idxEntete, colAnnee, colMois, colonnes);
+  const lignes = lireLignesMensuelles(tableau, idxEntete, colAnnee, colMois, colonnes);
   if (lignes.length === 0) throw new Error("Aucune ligne de dépenses trouvée dans « CL-Dépenses ».");
 
   // Contrôle non bloquant : somme des 8 instruments = TOTAL
@@ -137,33 +156,109 @@ export function lignesInstruments(tableau: unknown[][]): ResultatDecaissement {
   }
   if (Object.keys(budgets).length === 0) avertissements.push("Ligne « BUDGET » introuvable : les budgets alloués ne seront pas mis à jour.");
 
-  return { niveau: "instrument", lignes, budgets: Object.keys(budgets).length ? budgets : undefined, avertissements };
+  return {
+    niveau: "instrument",
+    lignes,
+    budgets: Object.keys(budgets).length ? budgets : undefined,
+    avertissements,
+  };
 }
 
-/* ============ Niveau « composante » : onglet Pour Céline ============ */
+/* ============ Niveau « composante » : onglet CL-Outputs (cumuls par semestre) ============ */
+
 export function lignesOutputs(tableau: unknown[][]): ResultatDecaissement {
-  const idxEntete = tableau.findIndex((l) => {
-    const c = l.map(compact);
-    return c.includes("annee") && c.includes("mois") && c.includes("budgetdecaissesuroutput0");
-  });
+  const avertissements: string[] = [];
+
+  // En-tête : la ligne qui contient « INSTRUMENTS » en première colonne
+  const idxEntete = tableau.findIndex((l) => compact(l[0]) === "instruments");
   if (idxEntete < 0) {
-    throw new Error("Onglet « Pour Céline » non reconnu : la ligne de titres (Année, Mois, Budget décaissé sur Output 0, ...) est introuvable.");
+    throw new Error("Onglet « CL-Outputs » non reconnu : la ligne d'en-tête « INSTRUMENTS » est introuvable.");
   }
-  const entetes = tableau[idxEntete].map(compact);
-  const colAnnee = entetes.indexOf("annee");
-  const colMois = entetes.indexOf("mois");
+  const entetes = tableau[idxEntete];
 
-  // Premier jeu de colonnes « Output N » (C à G) : le second jeu (X à AB) est un tableau à part.
-  const colonnes: { index: number; nom: string }[] = [];
-  for (let i = 0; i < 5; i++) {
-    const index = entetes.indexOf(`budgetdecaissesuroutput${i}`);
-    if (index < 0) throw new Error(`Colonne « Budget décaissé sur Output ${i} » introuvable dans « Pour Céline ».`);
-    colonnes.push({ index, nom: `Output ${i}` });
+  // Colonnes « COÛTS mm/aaaa » -> période. « COÛTS XX » ne correspond à aucune période et est ignorée.
+  const colPeriode = new Map<number, string>();
+  entetes.forEach((h, index) => {
+    const m = sansAccents(h).trim().match(/^COUTS\s+(\d{2}\/\d{4})$/i);
+    if (m) colPeriode.set(index, m[1]);
+  });
+  for (const p of PERIODES_COMPOSANTES) {
+    if (![...colPeriode.values()].includes(p)) {
+      throw new Error(`Colonne « COÛTS ${p} » introuvable dans « CL-Outputs ».`);
+    }
   }
 
-  const lignes = lireLignes(tableau, idxEntete, colAnnee, colMois, colonnes);
-  if (lignes.length === 0) throw new Error("Aucune ligne de données trouvée dans « Pour Céline ».");
-  return { niveau: "composante", lignes, avertissements: [] };
+  // Colonne BUDGET
+  const colBudget = entetes.findIndex((h) => compact(h) === "budget");
+  if (colBudget < 0) avertissements.push("Colonne « BUDGET » introuvable : les budgets par Output ne seront pas mis à jour.");
+
+  // Lignes « OUTPUT n » (la ligne « OUTPUT 0-4 » sert seulement de contrôle)
+  const lignesOutput = new Map<number, number>(); // n -> index de ligne
+  let ligneTotal: number | null = null;
+  for (let i = idxEntete + 1; i < tableau.length; i++) {
+    const label = sansAccents(tableau[i][0]).trim().toUpperCase().replace(/\s+/g, " ");
+    const mo = label.match(/^OUTPUT (\d)$/);
+    if (mo) {
+      const n = Number(mo[1]);
+      if (lignesOutput.has(n)) throw new Error(`« OUTPUT ${n} » apparaît plusieurs fois dans « CL-Outputs ».`);
+      lignesOutput.set(n, i);
+    } else if (label === "OUTPUT 0-4") {
+      ligneTotal = i;
+    }
+  }
+  for (let n = 0; n < 5; n++) {
+    if (!lignesOutput.has(n)) throw new Error(`« CL-Outputs » : la ligne « OUTPUT ${n} » est introuvable.`);
+  }
+
+  // Cumuls par période
+  const lignes: LigneComposante[] = [];
+  for (const periode of PERIODES_COMPOSANTES) {
+    const col = [...colPeriode.entries()].find(([, p]) => p === periode)![0];
+
+    const valeurs: Record<string, number> = {};
+    for (let n = 0; n < 5; n++) {
+      const r = lignesOutput.get(n)!;
+      const v = versNombre(tableau[r][col], r + 1, `OUTPUT ${n} — ${periode}`);
+      if (v !== null) valeurs[`Output ${n}`] = v;
+    }
+
+    // Période non clôturée (cellules vides ou toutes à 0) : on ne touche pas à la base
+    const montants = Object.values(valeurs);
+    if (montants.length === 0 || montants.every((v) => v === 0)) {
+      avertissements.push(`${periode} ignorée : aucune valeur (cellules vides ou à 0, période non clôturée).`);
+      continue;
+    }
+
+    // Contrôle non bloquant : somme des 5 Outputs = ligne « OUTPUT 0-4 »
+    if (ligneTotal !== null && Object.keys(valeurs).length === 5) {
+      const total = versNombre(tableau[ligneTotal][col], ligneTotal + 1, `OUTPUT 0-4 — ${periode}`);
+      const somme = montants.reduce((s, v) => s + v, 0);
+      if (total !== null && Math.abs(somme - total) > 1) {
+        avertissements.push(`${periode} : la somme des Outputs (${Math.round(somme)}) diffère de « OUTPUT 0-4 » (${Math.round(total)}).`);
+      }
+    }
+
+    lignes.push({ periode, valeurs });
+  }
+
+  // Budgets par Output (colonne BUDGET)
+  const budgets: Record<string, number> = {};
+  if (colBudget >= 0) {
+    for (let n = 0; n < 5; n++) {
+      const r = lignesOutput.get(n)!;
+      const v = versNombre(tableau[r][colBudget], r + 1, `Budget OUTPUT ${n}`);
+      if (v !== null) budgets[`Output ${n}`] = v;
+    }
+  }
+
+  if (lignes.length === 0) throw new Error("Aucune valeur de composante trouvée dans « CL-Outputs ».");
+
+  return {
+    niveau: "composante",
+    lignes,
+    budgets: Object.keys(budgets).length ? budgets : undefined,
+    avertissements,
+  };
 }
 
 /* ============ Lecture du fichier ============ */
@@ -172,13 +267,13 @@ export async function analyserFichierDecaissement(fichier: File, niveau: Niveau)
   const classeur = XLSX.read(buffer, { type: "array", cellDates: false });
 
   const nomFeuille = classeur.SheetNames.find((s: string) =>
-    niveau === "instrument" ? compact(s).startsWith("cldepense") : compact(s) === "pourceline"
+    niveau === "instrument" ? compact(s).startsWith("cldepense") : compact(s) === "cloutputs"
   );
   if (!nomFeuille) {
     throw new Error(
       niveau === "instrument"
         ? "L'onglet « CL-Dépenses » est introuvable dans ce fichier."
-        : "L'onglet « Pour Céline » est introuvable dans ce fichier."
+        : "L'onglet « CL-Outputs » est introuvable dans ce fichier."
     );
   }
   const feuille = classeur.Sheets[nomFeuille];
