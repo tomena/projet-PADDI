@@ -1,15 +1,16 @@
-// src/pages/SanteFormations.tsx — version 8
-// Onglet Social. Cartes Hôpitaux, CSB1 et CSB2 : comptées dans formations-sante.json
-// pour la région, le district ou la commune choisie (noms proches acceptés : Boeni ↔ Boeny).
-// Carte Pharmacies : comptée dans la base de localisation pour la même zone.
+// src/pages/SanteFormations.tsx — version 9
+// Onglet Social.
+// Santé : hôpitaux, CSB1 et CSB2 comptés dans formations-sante.json ; pharmacies dans la base de localisation.
+// Éducation : universités, lycées, collèges et écoles primaires comptés dans la base de localisation éducation.
+// Les noms de zones proches (Boeni ↔ Boeny) sont considérés comme identiques.
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
 import { chargerLocalisation, pointsDansZone, correspond, type Point } from "../lib/localisation";
+import { chargerEducation, ecolesDansZone, type Ecole } from "../lib/education";
 
 type Hop = { region: string; district: string; type: string; nom: string; bloc_operatoire: boolean };
 type Csb = { region: string; district: string; commune: string; type: string; nom: string };
-type Educ = { region: string; district: string; commune?: string; type: string; nom: string };
-type Donnees = { hopitaux: Hop[]; csb: Csb[]; educ?: Educ[]; genere_le?: string };
+type Donnees = { hopitaux: Hop[]; csb: Csb[]; genere_le?: string };
 
 type Props = {
   region?: string | null;
@@ -51,7 +52,7 @@ const COULEUR: Record<string, string> = {
 };
 
 const COULEUR_EDU = {
-  universite: "#6366f1",
+  universite: "#4f46e5",
   lycee: "#f97316",
   college: "#eab308",
   primaire: "#ec4899",
@@ -104,9 +105,9 @@ const STYLE = `
 .sf-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2,#eef0ec)}
 .sf-bar i{display:block;height:100%}
 .sf-muted{font-size:12px;color:var(--text-3,#6b7770);line-height:1.5}
-.sf-ligne{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--border,#d8d4c8);font-size:13px}
+.sf-ligne{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-top:1px solid var(--border,#d8d4c8);font-size:13px}
 .sf-ligne:first-of-type{border-top:0}
-.sf-ligne span:last-child{color:var(--text-3,#9aa39e);font-variant-numeric:tabular-nums;text-align:right}
+.sf-ligne span:last-child{color:var(--text-3,#6b7770);font-size:11.5px;text-align:right}
 .sf-empty{padding:14px;border-radius:12px;background:var(--surface-2,#f1efe8);font-size:13px;line-height:1.5}
 .sf-note{font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.5;border-top:1px dashed var(--border,#d8d4c8);padding-top:10px;margin:0}
 @media (max-width:760px){.sf-pair,.sf-duo{grid-template-columns:1fr}.sf-hero-totaux{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.5);padding-top:12px;width:100%}}
@@ -137,26 +138,11 @@ function Cartes({ items }: { items: Carte[] }) {
   );
 }
 
-/** Section sans donnée : même format que les sections santé, valeurs en tirets. */
-function SectionVide({ titre, icone, lignes, note }: { titre: string; icone: React.ReactNode; lignes: string[]; note: string }) {
-  return (
-    <div className="sf-sec">
-      <h4>{icone} {titre}</h4>
-      {lignes.map((l) => (
-        <div className="sf-ligne" key={l}>
-          <span>{l}</span>
-          <span aria-label="non disponible">—</span>
-        </div>
-      ))}
-      <p className="sf-muted" style={{ margin: "8px 0 0" }}>{note}</p>
-    </div>
-  );
-}
-
 export default function SanteFormations({ region, district, commune }: Props) {
   const [data, setData] = useState<Donnees | null>(null);
   const [erreur, setErreur] = useState(false);
   const [loc, setLoc] = useState<Point[] | null>(null);
+  const [edu, setEdu] = useState<Ecole[] | null>(null);
 
   useEffect(() => {
     fetch("/data/formations-sante.json")
@@ -172,9 +158,13 @@ export default function SanteFormations({ region, district, commune }: Props) {
     chargerLocalisation().then(setLoc).catch(() => setLoc([]));
   }, []);
 
+  useEffect(() => {
+    chargerEducation().then(setEdu).catch(() => setEdu([]));
+  }, []);
+
   const niveau = commune ? "commune" : district ? "district" : region ? "region" : "national";
 
-  // Hôpitaux, CSB et éducation : filtrés par région, puis district, puis commune
+  // Hôpitaux, CSB : formations-sante.json, filtrés par région, district, commune (pour les CSB)
   const calc = useMemo(() => {
     if (!data) return null;
     const hop = choisir(choisir(data.hopitaux, "region", region), "district", district);
@@ -183,11 +173,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
       "commune",
       commune,
     );
-    const educZone = choisir(choisir(data.educ ?? [], "region", region), "district", district);
-    const educ = commune
-      ? educZone.filter((e) => !e.commune || correspond(e.commune, commune))
-      : educZone;
-    return { hop, csb, educ };
+    return { hop, csb };
   }, [data, region, district, commune]);
 
   // Communes où se trouvent les CHU, CHRR, CHRD du district (base de localisation)
@@ -203,12 +189,21 @@ export default function SanteFormations({ region, district, commune }: Props) {
     return [...vus.values()];
   }, [loc, region, district]);
 
-  // Nombre de pharmacies de la zone choisie (base de localisation)
+  // Pharmacies de la zone choisie (base de localisation)
   const pharmacies = useMemo(() => {
     if (!loc) return null;
     return pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: commune ?? null })
       .filter((p) => p.categorie === "pharmacie").length;
   }, [loc, region, district, commune]);
+
+  // Établissements scolaires de la zone choisie (base de localisation éducation)
+  const ecolesZone = useMemo(() => {
+    if (!edu) return null;
+    return ecolesDansZone(edu, { region: region ?? null, district: district ?? null, commune: commune ?? null });
+  }, [edu, region, district, commune]);
+
+  const nbEcole = (cat: Ecole["categorie"]) =>
+    ecolesZone ? ecolesZone.filter((e) => e.categorie === cat).length : null;
 
   if (erreur) {
     return (
@@ -227,7 +222,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
     );
   }
 
-  const { hop, csb, educ } = calc;
+  const { hop, csb } = calc;
   const csb1 = csb.filter((c) => c.type === "CSB1").length;
   const csb2 = csb.filter((c) => c.type === "CSB2").length;
   const totalSante = hop.length + csb.length;
@@ -236,8 +231,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const libelleHop = typesPresents.length ? `Hôpitaux ${typesPresents.join(", ")}` : "Hôpitaux";
   const hopCompte = hop.filter((h) => TYPES_HOPITAL.includes(h.type)).length;
 
-  const lycees = educ.filter((e) => e.type === "lycee");
-  const universites = educ.filter((e) => e.type === "universite");
+  const universites = (ecolesZone ?? []).filter((e) => e.categorie === "universite");
+  const lycees = (ecolesZone ?? []).filter((e) => e.categorie === "lycee");
+  const colleges = (ecolesZone ?? []).filter((e) => e.categorie === "college");
+  const primaires = (ecolesZone ?? []).filter((e) => e.categorie === "primaire");
 
   const parDistrict = trier(hop.map((h) => h.district).concat(csb.map((c) => c.district))).map((d) => ({
     nom: d,
@@ -267,10 +264,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
   ];
 
   const cartesEducation: Carte[] = [
-    { valeur: null, libelle: "Universités", couleur: COULEUR_EDU.universite, note: "source à compléter" },
-    { valeur: null, libelle: "Lycées", couleur: COULEUR_EDU.lycee, note: "source à compléter" },
-    { valeur: null, libelle: "Collèges", couleur: COULEUR_EDU.college, note: "source à compléter" },
-    { valeur: null, libelle: "Écoles primaires", couleur: COULEUR_EDU.primaire, note: "source à compléter" },
+    { valeur: nbEcole("universite"), libelle: "Universités", couleur: COULEUR_EDU.universite },
+    { valeur: nbEcole("lycee"), libelle: "Lycées", couleur: COULEUR_EDU.lycee },
+    { valeur: nbEcole("college"), libelle: "Collèges", couleur: COULEUR_EDU.college },
+    { valeur: nbEcole("primaire"), libelle: "Écoles primaires", couleur: COULEUR_EDU.primaire },
   ];
 
   return (
@@ -290,7 +287,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
           </div>
           <div className="sf-total">
             <span>Éducation</span>
-            <b className="sf-vide">—</b>
+            {ecolesZone ? <b>{nb(ecolesZone.length)}</b> : <b className="sf-vide">—</b>}
           </div>
         </div>
       </div>
@@ -314,8 +311,8 @@ export default function SanteFormations({ region, district, commune }: Props) {
 
       {totalSante === 0 && (
         <div className="sf-empty">
-          Aucun établissement public n'est enregistré pour cette zone. Si elle devrait en avoir, le nom de la commune
-          ou du district peut ne pas correspondre à l'écriture du wiki.
+          Aucun établissement public de santé n'est enregistré pour cette zone. Si elle devrait en avoir, le nom de la
+          commune ou du district peut ne pas correspondre à l'écriture du wiki.
         </div>
       )}
 
@@ -403,54 +400,53 @@ export default function SanteFormations({ region, district, commune }: Props) {
         </div>
 
         <div className="sf-col">
-          <SectionVide
-            titre={niveau === "commune" ? "Écoles de la commune" : "Écoles de la zone"}
-            icone={<School size={15} aria-hidden />}
-            lignes={["Écoles primaires", "Collèges"]}
-            note="Données non disponibles : aucune source n'est encore branchée."
-          />
+          <div className="sf-sec">
+            <h4>
+              <School size={15} aria-hidden />
+              {niveau === "commune" ? " Écoles de la commune" : " Écoles de la zone"}
+            </h4>
+            {primaires.length + colleges.length > 0 ? (
+              <div className="sf-scroll">
+                {[...colleges, ...primaires].map((e, i) => (
+                  <div className="sf-ligne" key={`ec${i}`}>
+                    <span>{e.nom}</span>
+                    <span>{e.type}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="sf-muted" style={{ margin: 0 }}>Aucune école primaire ni collège enregistré dans cette zone.</p>
+            )}
+          </div>
 
           <div className="sf-sec">
             <h4>
               <GraduationCap size={15} aria-hidden />
-              {universites.length > 0 ? " Lycées et université" : " Lycées"}
+              {universites.length > 0 ? " Lycées et universités" : " Lycées"}
             </h4>
-            {lycees.length > 0 ? (
-              lycees.map((l, i) => (
-                <div className="sf-ligne" key={`l${i}`}>
-                  <span>{l.nom}</span>
-                  <span>{l.district}</span>
-                </div>
-              ))
+            {lycees.length + universites.length > 0 ? (
+              <div className="sf-scroll">
+                {[...lycees, ...universites].map((e, i) => (
+                  <div className="sf-ligne" key={`ly${i}`}>
+                    <span>{e.nom}</span>
+                    <span>{e.type}</span>
+                  </div>
+                ))}
+              </div>
             ) : (
-              <div className="sf-ligne">
-                <span>Lycées</span>
-                <span aria-label="non disponible">—</span>
-              </div>
+              <p className="sf-muted" style={{ margin: 0 }}>Aucun lycée enregistré dans cette zone.</p>
             )}
-            {universites.map((u, i) => (
-              <div className="sf-ligne" key={`u${i}`}>
-                <span>{u.nom}</span>
-                <span>Université</span>
-              </div>
-            ))}
-            <p className="sf-muted" style={{ margin: "8px 0 0" }}>
-              {lycees.length > 0 || universites.length > 0
-                ? "Liste issue de la source éducation de la zone."
-                : "Données non disponibles : aucune source n'est encore branchée."}
-            </p>
           </div>
         </div>
       </div>
 
       <p className="sf-note">
-        <strong>Méthode.</strong> Santé : comptage des établissements publics listés dans la page communautaire
-        OpenStreetMap « Formations Sanitaires / Suivi ». CSB1 et CSB2 sont des centres de santé publics de premier
-        niveau, comptés dans le total santé. Les hôpitaux sont comptés au niveau du district, car la liste ne
-        donne pas leur commune. Les pharmacies viennent de la base de localisation. Les noms de zones proches
-        (par exemple Boeni et Boeny) sont considérés comme identiques. Éducation : aucune source n'est encore
-        branchée, les tirets ne signifient donc pas qu'il n'existe aucun établissement. Source : OpenStreetMap
-        Wiki (CC BY-SA), données OSM (ODbL).
+        <strong>Méthode.</strong> Santé : hôpitaux, CSB1 et CSB2 comptés dans la page communautaire OpenStreetMap
+        « Formations Sanitaires / Suivi ». Les hôpitaux sont comptés au niveau du district, car la liste ne donne
+        pas leur commune. Pharmacies et établissements scolaires : comptés dans les bases de localisation
+        (localisation_hopital_mada et localisation_education_mada). Les noms de zones proches sont considérés comme
+        identiques. Les chiffres ne tiennent compte ni de la population ni de l'état de fonctionnement. Sources :
+        OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
         {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
       </p>
     </section>
