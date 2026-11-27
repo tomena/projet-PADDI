@@ -1,7 +1,7 @@
-// src/lib/education.ts
+// src/lib/education.ts — version 2
 // Lit public/data/localisation_education_mada.geojson (adm1_name = région, adm2_name = district,
 // adm3_name = commune, adm4_name = fokontany, name = nom, amenity = type).
-// Sert au comptage des cartes Éducation et à l'affichage des établissements sur la carte.
+// Sert au comptage des cartes Éducation, aux cartes de la liste et à l'affichage sur la carte.
 import { useEffect } from "react";
 import L from "leaflet";
 import { correspond, type Zone } from "./localisation";
@@ -10,9 +10,10 @@ export type CategorieEdu = "universite" | "lycee" | "college" | "primaire" | "au
 
 export type Ecole = {
   nomComplet: string;   // nom complet (ou type si le nom est vide)
-  nom: string;          // nom affiché au niveau commune
-  type: string;         // Université, Lycée, Collège, École primaire, Maternelle, École…
+  nom: string;          // nom de l'établissement
+  type: string;         // libellé court : CEG, Collège, Collège privé, Lycée, Lycée privé, École primaire…
   categorie: CategorieEdu;
+  prive: boolean;       // établissement privé
   region: string;
   district: string;
   commune: string;
@@ -31,23 +32,32 @@ const STYLE: Record<CategorieEdu, { couleur: string; carre: boolean; libelle: st
   autre: { couleur: "#94a3b8", carre: false, libelle: "Autre établissement scolaire" },
 };
 
+const PRIVE = /priv[ée]|\bprive\b/i;
+
 const propre = (s: unknown) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-/** Type et catégorie d'après le nom, ou le type OSM (amenity) si le nom ne dit rien. */
-function classer(nom: string, amenite: string): { type: string; categorie: CategorieEdu } {
+/** Libellé court et catégorie, d'après le nom ou le type OSM (amenity). */
+function classer(nom: string, amenite: string): { type: string; categorie: CategorieEdu; prive: boolean } {
   const n = nom.toLowerCase();
+  const prive = PRIVE.test(nom);
+  const sfx = prive ? " privé" : "";
+
   if (amenite === "university" || /universit|\bist\b|\bista\b|institut/.test(n)) {
-    return { type: "Université", categorie: "universite" };
+    return { type: "Université" + sfx, categorie: "universite", prive };
   }
-  if (/lyc[ée]e/.test(n)) return { type: "Lycée", categorie: "lycee" };
-  if (amenite === "college" || /\bceg\b|coll[èe]ge|\bcem\b/.test(n)) return { type: "Collège", categorie: "college" };
-  if (amenite === "kindergarten" || /maternelle/.test(n)) return { type: "Maternelle", categorie: "primaire" };
-  if (/\bepp\b|\bep\b|primaire/.test(n)) return { type: "École primaire", categorie: "primaire" };
-  if (amenite === "school" || /[ée]cole/.test(n)) return { type: "École primaire", categorie: "primaire" };
-  return { type: "Établissement scolaire", categorie: "autre" };
+  if (/lyc[ée]e/.test(n)) return { type: "Lycée" + sfx, categorie: "lycee", prive };
+  if (amenite === "college" || /\bceg\b|coll[èe]ge|\bcem\b/.test(n)) {
+    return { type: (/\bceg\b/.test(n) ? "CEG" : "Collège") + sfx, categorie: "college", prive };
+  }
+  if (amenite === "kindergarten" || /maternelle/.test(n)) {
+    return { type: "Maternelle" + sfx, categorie: "primaire", prive };
+  }
+  if (/\bepp\b|\bep\b|primaire/.test(n)) return { type: "École primaire" + sfx, categorie: "primaire", prive };
+  if (amenite === "school" || /[ée]cole/.test(n)) return { type: "École" + sfx, categorie: "primaire", prive };
+  return { type: "Établissement scolaire" + sfx, categorie: "autre", prive };
 }
 
 function lire(f: any): Ecole | null {
@@ -60,12 +70,13 @@ function lire(f: any): Ecole | null {
   if (!nomBrut && !amenite) return null;
 
   const nomComplet = nomBrut || "Établissement scolaire";
-  const { type, categorie } = classer(nomComplet, amenite);
+  const { type, categorie, prive } = classer(nomComplet, amenite);
   return {
     nomComplet,
     nom: nomBrut || type,
     type,
     categorie,
+    prive,
     region: propre(p.adm1_name),
     district: propre(p.adm2_name),
     commune: propre(p.adm3_name),
@@ -169,7 +180,7 @@ function legende(categories: CategorieEdu[]): L.Control {
 
 /**
  * Affiche les établissements scolaires de la zone sur la carte, avec leur légende.
- * Actif seulement dans l'onglet Social. Au niveau commune, chaque point porte son nom.
+ * Actif seulement quand l'option choisie le permet. Au niveau commune, chaque point porte son nom.
  */
 export function useEducationMap(mapRef: { current: L.Map | null }, zone: Zone, actif: boolean) {
   const { region, district, commune } = zone;
