@@ -325,7 +325,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
       const reponse = await fetch("/api/import-decaissement", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, niveau: niveauApi, budgets: lu.budgets, lignes: lu.lignes }),
+        body: JSON.stringify({token, niveau: niveauApi, budgets: lu.budgets,lignes: lu.lignes, dateSource: lu.dateSource,}),
       });
       const resultat = await reponse.json().catch(() => ({}));
       if (!reponse.ok || !resultat.success) throw new Error(resultat.error || "Échec de la mise à jour du décaissement.");
