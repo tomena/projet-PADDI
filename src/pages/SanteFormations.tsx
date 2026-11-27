@@ -1,13 +1,15 @@
-// src/pages/SanteFormations.tsx — version 5
-// Onglet Social : en-tête avec totaux (santé et éducation), cartes santé à gauche,
-// cartes éducation à droite, puis détails en miroir (centres et écoles, hôpitaux et universités).
-// Santé : /data/formations-sante.json. Éducation : pas encore de source, les valeurs sont « — ».
+// src/pages/SanteFormations.tsx — version 6
+// Onglet Social : en-tête (santé et éducation), cartes santé à gauche et éducation à droite,
+// détails en miroir. Le libellé des hôpitaux ne montre que les types présents dans la zone.
+// Santé : /data/formations-sante.json. Éducation : pas encore de source, les valeurs sont « — »
+// jusqu'à ce qu'un tableau « educ » soit ajouté au JSON.
 import { useEffect, useMemo, useState } from "react";
-import { Stethoscope, Building2, MapPin, GraduationCap, School } from "lucide-react";
+import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
 
 type Hop = { region: string; district: string; type: string; nom: string; bloc_operatoire: boolean };
 type Csb = { region: string; district: string; commune: string; type: string; nom: string };
-type Donnees = { hopitaux: Hop[]; csb: Csb[]; genere_le?: string };
+type Educ = { region: string; district: string; commune?: string; type: string; nom: string };
+type Donnees = { hopitaux: Hop[]; csb: Csb[]; educ?: Educ[]; genere_le?: string };
 
 type Props = {
   region?: string | null;
@@ -55,6 +57,9 @@ const LIBELLE_NIVEAU: Record<string, string> = {
   commune: "Commune",
 };
 
+// Ordre d'affichage des types d'hôpitaux
+const TYPES_HOPITAL = ["CHU", "CHRR", "CHRD"];
+
 const STYLE = `
 .sf{display:flex;flex-direction:column;gap:12px;color:var(--text,#1c2822)}
 .sf-hero{border-radius:14px;padding:16px 18px;color:#fff;background:linear-gradient(135deg,#0f766e 0%,#0284c7 100%);box-shadow:0 6px 18px rgba(2,132,199,.25);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:14px}
@@ -93,7 +98,7 @@ const STYLE = `
 .sf-muted{font-size:12px;color:var(--text-3,#6b7770);line-height:1.5}
 .sf-ligne{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--border,#d8d4c8);font-size:13px}
 .sf-ligne:first-of-type{border-top:0}
-.sf-ligne span:last-child{color:var(--text-3,#9aa39e);font-variant-numeric:tabular-nums}
+.sf-ligne span:last-child{color:var(--text-3,#9aa39e);font-variant-numeric:tabular-nums;text-align:right}
 .sf-empty{padding:14px;border-radius:12px;background:var(--surface-2,#f1efe8);font-size:13px;line-height:1.5}
 .sf-note{font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.5;border-top:1px dashed var(--border,#d8d4c8);padding-top:10px;margin:0}
 @media (max-width:760px){.sf-pair,.sf-duo{grid-template-columns:1fr}.sf-hero-totaux{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.5);padding-top:12px;width:100%}}
@@ -124,8 +129,8 @@ function Cartes({ items }: { items: Carte[] }) {
   );
 }
 
-/** Section d'éducation sans donnée : même format que les sections santé, valeurs en tirets. */
-function SectionEducation({ titre, icone, lignes, note }: { titre: string; icone: React.ReactNode; lignes: string[]; note: string }) {
+/** Section sans donnée : même format que les sections santé, valeurs en tirets. */
+function SectionVide({ titre, icone, lignes, note }: { titre: string; icone: React.ReactNode; lignes: string[]; note: string }) {
   return (
     <div className="sf-sec">
       <h4>{icone} {titre}</h4>
@@ -164,7 +169,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
     const csb = data.csb.filter(
       (c) => dansRegionDistrict(c) && (!commune || same(c.commune, commune)),
     );
-    return { hop, csb };
+    const educ = (data.educ ?? []).filter(
+      (e) => dansRegionDistrict(e) && (!commune || !e.commune || same(e.commune, commune)),
+    );
+    return { hop, csb, educ };
   }, [data, region, district, commune]);
 
   if (erreur) {
@@ -184,17 +192,26 @@ export default function SanteFormations({ region, district, commune }: Props) {
     );
   }
 
-  const { hop, csb } = calc;
+  const { hop, csb, educ } = calc;
   const csb1 = csb.filter((c) => c.type === "CSB1").length;
   const csb2 = csb.filter((c) => c.type === "CSB2").length;
   const blocs = hop.filter((h) => h.bloc_operatoire).length;
   const totalSante = hop.length + csb.length;
 
+  // Types d'hôpitaux réellement présents dans la zone (CHU, CHRR, CHRD)
+  const typesPresents = TYPES_HOPITAL.filter((t) => hop.some((h) => h.type === t));
+  const libelleHop = typesPresents.length ? `Hôpitaux ${typesPresents.join(", ")}` : "Hôpitaux";
+  const hopCompte = hop.filter((h) => TYPES_HOPITAL.includes(h.type)).length;
+
+  // Éducation : lycées, et universités seulement si la zone en a
+  const lycees = educ.filter((e) => e.type === "lycee");
+  const universites = educ.filter((e) => e.type === "universite");
+
   const parDistrict = trier(hop.map((h) => h.district).concat(csb.map((c) => c.district))).map((d) => ({
     nom: d,
-    hop: hop.filter((h) => same(h.district, d)).length,
     csb1: csb.filter((c) => same(c.district, d) && c.type === "CSB1").length,
     csb2: csb.filter((c) => same(c.district, d) && c.type === "CSB2").length,
+    hop: hop.filter((h) => same(h.district, d)).length,
   }));
   const parCommune = trier(csb.map((c) => c.commune)).map((co) => ({
     nom: co,
@@ -206,7 +223,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const fil = [region, district, commune].filter(Boolean).join(" › ");
 
   const cartesSante: Carte[] = [
-    { valeur: hop.length, libelle: "Hôpitaux CHU, CHRR, CHRD", couleur: COULEUR.CHU },
+    { valeur: hopCompte, libelle: libelleHop, couleur: COULEUR.CHU },
     { valeur: csb1, libelle: "Centres de santé CSB1", couleur: COULEUR.CSB1 },
     { valeur: csb2, libelle: "Centres de santé CSB2", couleur: COULEUR.CSB2 },
     { valeur: blocs, libelle: "Avec bloc opératoire", couleur: COULEUR_EDU.bloc },
@@ -223,7 +240,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
     <section className="sf" aria-label="Santé et éducation">
       <style>{STYLE}</style>
 
-      {/* En-tête : zone à gauche, totaux à droite, séparés par une barre */}
+      {/* En-tête : zone à gauche, santé et éducation à droite, séparées par une barre */}
       <div className="sf-hero">
         <div className="sf-hero-titre">
           <small>{LIBELLE_NIVEAU[niveau]}</small>
@@ -232,11 +249,11 @@ export default function SanteFormations({ region, district, commune }: Props) {
         </div>
         <div className="sf-hero-totaux">
           <div className="sf-total">
-            <span>Total santé</span>
+            <span>Santé</span>
             <b>{nb(totalSante)}</b>
           </div>
           <div className="sf-total">
-            <span>Total éducation</span>
+            <span>Éducation</span>
             <b className="sf-vide">—</b>
           </div>
         </div>
@@ -272,7 +289,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
         <div className="sf-col">
           {niveau === "region" && parDistrict.length > 0 && (
             <div className="sf-sec">
-              <h4><Building2 size={15} aria-hidden /> Établissements par district</h4>
+              <h4><MapPin size={15} aria-hidden /> Établissements par district</h4>
               <div className="sf-scroll">
                 {parDistrict.map((d) => (
                   <div className="sf-row" key={d.nom}>
@@ -334,7 +351,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
             <div className="sf-sec">
               <h4>
                 <Stethoscope size={15} aria-hidden />
-                {niveau === "commune" ? " Hôpitaux de référence du district" : " Hôpitaux CHU, CHRR, CHRD"}
+                {niveau === "commune" ? ` ${libelleHop} du district` : ` ${libelleHop}`}
               </h4>
               <p className="sf-muted" style={{ margin: "0 0 8px" }}>
                 {nb(blocs)} sur {nb(hop.length)} disposent d'un bloc opératoire.
@@ -355,18 +372,44 @@ export default function SanteFormations({ region, district, commune }: Props) {
         </div>
 
         <div className="sf-col">
-          <SectionEducation
+          <SectionVide
             titre={niveau === "commune" ? "Écoles de la commune" : "Écoles de la zone"}
             icone={<School size={15} aria-hidden />}
-            lignes={["Écoles primaires", "Collèges", "Lycées"]}
+            lignes={["Écoles primaires", "Collèges"]}
             note="Données non disponibles : aucune source n'est encore branchée."
           />
-          <SectionEducation
-            titre={niveau === "region" ? "Universités de la région" : "Universités de référence du district"}
-            icone={<GraduationCap size={15} aria-hidden />}
-            lignes={["Université"]}
-            note="Données non disponibles : aucune source n'est encore branchée."
-          />
+
+          {/* Lycées, avec l'université seulement si la zone en a une */}
+          <div className="sf-sec">
+            <h4>
+              <GraduationCap size={15} aria-hidden />
+              {universites.length > 0 ? " Lycées et université" : " Lycées"}
+            </h4>
+            {lycees.length > 0 ? (
+              lycees.map((l, i) => (
+                <div className="sf-ligne" key={`l${i}`}>
+                  <span>{l.nom}</span>
+                  <span>{l.district}</span>
+                </div>
+              ))
+            ) : (
+              <div className="sf-ligne">
+                <span>Lycées</span>
+                <span aria-label="non disponible">—</span>
+              </div>
+            )}
+            {universites.map((u, i) => (
+              <div className="sf-ligne" key={`u${i}`}>
+                <span>{u.nom}</span>
+                <span>Université</span>
+              </div>
+            ))}
+            <p className="sf-muted" style={{ margin: "8px 0 0" }}>
+              {lycees.length > 0 || universites.length > 0
+                ? "Liste issue de la source éducation de la zone."
+                : "Données non disponibles : aucune source n'est encore branchée."}
+            </p>
+          </div>
         </div>
       </div>
 
