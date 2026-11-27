@@ -1,6 +1,7 @@
-// src/pages/SanteFormations.tsx — version 7
-// Onglet Social : en-tête, cartes santé et éducation, détails en miroir.
-// La carte Hôpitaux affiche la commune de chaque CHU, CHRR, CHRD (depuis la base de localisation).
+// src/pages/SanteFormations.tsx — version 8
+// Onglet Social. Cartes Hôpitaux, CSB1 et CSB2 : comptées dans formations-sante.json
+// pour la région, le district ou la commune choisie (noms proches acceptés : Boeni ↔ Boeny).
+// Carte Pharmacies : comptée dans la base de localisation pour la même zone.
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
 import { chargerLocalisation, pointsDansZone, correspond, type Point } from "../lib/localisation";
@@ -26,6 +27,14 @@ const norm = (s?: string | null) =>
     .trim();
 const same = (a?: string | null, b?: string | null) => !!b && norm(a) === norm(b);
 
+// Garde les lignes dont le champ correspond : écriture exacte d'abord, sinon noms proches (Boeni ↔ Boeny).
+function choisir<T extends Record<string, any>>(liste: T[], champ: keyof T, valeur?: string | null): T[] {
+  if (!valeur) return liste;
+  const exact = liste.filter((x) => same(x[champ], valeur));
+  if (exact.length) return exact;
+  return liste.filter((x) => correspond(x[champ], valeur));
+}
+
 const trier = (xs: string[]) => [...new Set(xs)].sort((a, b) => a.localeCompare(b, "fr"));
 const nb = (n: number) => n.toLocaleString("fr-FR");
 
@@ -46,8 +55,9 @@ const COULEUR_EDU = {
   lycee: "#f97316",
   college: "#eab308",
   primaire: "#ec4899",
-  bloc: "#14b8a6",
 };
+
+const COULEUR_PHARMA = "#16a34a";
 
 const LIBELLE_NIVEAU: Record<string, string> = {
   national: "Madagascar",
@@ -164,21 +174,23 @@ export default function SanteFormations({ region, district, commune }: Props) {
 
   const niveau = commune ? "commune" : district ? "district" : region ? "region" : "national";
 
+  // Hôpitaux, CSB et éducation : filtrés par région, puis district, puis commune
   const calc = useMemo(() => {
     if (!data) return null;
-
-    // Hôpitaux, CSB et éducation : filtrés par région, puis district, puis commune
     const hop = choisir(choisir(data.hopitaux, "region", region), "district", district);
-    const csb = choisir(choisir(choisir(data.csb, "region", region), "district", district), "commune", commune);
+    const csb = choisir(
+      choisir(choisir(data.csb, "region", region), "district", district),
+      "commune",
+      commune,
+    );
     const educZone = choisir(choisir(data.educ ?? [], "region", region), "district", district);
     const educ = commune
       ? educZone.filter((e) => !e.commune || correspond(e.commune, commune))
       : educZone;
-
     return { hop, csb, educ };
   }, [data, region, district, commune]);
 
-  // Communes des CHU, CHRR, CHRD du district (base de localisation)
+  // Communes où se trouvent les CHU, CHRR, CHRD du district (base de localisation)
   const communesHop = useMemo(() => {
     if (!loc) return [];
     const liste = pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: null })
@@ -191,7 +203,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
     return [...vus.values()];
   }, [loc, region, district]);
 
-  // Nombre de pharmacies dans la zone choisie (base de localisation)
+  // Nombre de pharmacies de la zone choisie (base de localisation)
   const pharmacies = useMemo(() => {
     if (!loc) return null;
     return pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: commune ?? null })
@@ -218,7 +230,6 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const { hop, csb, educ } = calc;
   const csb1 = csb.filter((c) => c.type === "CSB1").length;
   const csb2 = csb.filter((c) => c.type === "CSB2").length;
-  const blocs = hop.filter((h) => h.bloc_operatoire).length;
   const totalSante = hop.length + csb.length;
 
   const typesPresents = TYPES_HOPITAL.filter((t) => hop.some((h) => h.type === t));
@@ -252,7 +263,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
     },
     { valeur: csb1, libelle: "Centres de santé CSB1", couleur: COULEUR.CSB1 },
     { valeur: csb2, libelle: "Centres de santé CSB2", couleur: COULEUR.CSB2 },
-    { valeur: pharmacies, libelle: "Pharmacies", couleur: "#16a34a" },
+    { valeur: pharmacies, libelle: "Pharmacies", couleur: COULEUR_PHARMA },
   ];
 
   const cartesEducation: Carte[] = [
@@ -376,9 +387,6 @@ export default function SanteFormations({ region, district, commune }: Props) {
                 <Stethoscope size={15} aria-hidden />
                 {niveau === "commune" ? ` ${libelleHop} du district` : ` ${libelleHop}`}
               </h4>
-              <p className="sf-muted" style={{ margin: "0 0 8px" }}>
-                {nb(blocs)} sur {nb(hop.length)} disposent d'un bloc opératoire.
-              </p>
               <div className="sf-scroll">
                 <div className="sf-cols">
                   {hop.map((h, i) => (
@@ -438,10 +446,11 @@ export default function SanteFormations({ region, district, commune }: Props) {
       <p className="sf-note">
         <strong>Méthode.</strong> Santé : comptage des établissements publics listés dans la page communautaire
         OpenStreetMap « Formations Sanitaires / Suivi ». CSB1 et CSB2 sont des centres de santé publics de premier
-        niveau, comptés dans le total santé. Les chiffres ne tiennent compte ni de la population ni de l'état de
-        fonctionnement. Les communes des hôpitaux viennent de la base de localisation. Éducation : aucune source
-        n'est encore branchée, les tirets ne signifient donc pas qu'il n'existe aucun établissement. Source :
-        OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
+        niveau, comptés dans le total santé. Les hôpitaux sont comptés au niveau du district, car la liste ne
+        donne pas leur commune. Les pharmacies viennent de la base de localisation. Les noms de zones proches
+        (par exemple Boeni et Boeny) sont considérés comme identiques. Éducation : aucune source n'est encore
+        branchée, les tirets ne signifient donc pas qu'il n'existe aucun établissement. Source : OpenStreetMap
+        Wiki (CC BY-SA), données OSM (ODbL).
         {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
       </p>
     </section>
