@@ -155,7 +155,17 @@ export default function MiseAJour({ mapRef, zone }: Props) {
         return;
       }
       if (!r.ok) {
-        setMsg("Enregistrement impossible. Réessayez dans un moment.");
+        const corps = await r.json().catch(() => ({} as any));
+        const causes: Record<string, string> = {
+          config: "Variables Vercel manquantes : GITHUB_TOKEN, GITHUB_REPO ou CODE_AJOUT.",
+          lecture: "GitHub ne trouve pas le fichier : vérifiez GITHUB_REPO et le chemin du fichier.",
+          "lecture-contenu": "Impossible de lire le contenu du fichier GeoJSON.",
+          ecriture: "GitHub refuse l'écriture : le jeton doit avoir la permission Contents en lecture et écriture.",
+          conflit: "Un autre enregistrement a eu lieu en même temps. Réessayez.",
+          champs: "Un champ obligatoire manque (nom ou type).",
+          position: "La position sur la carte n'est pas valide.",
+        };
+        setMsg(causes[corps.erreur] ?? `Erreur ${r.status} : la route /api/points ne répond pas. Vérifiez que api/points.ts est à la racine du projet.`);
         return;
       }
       sessionStorage.setItem("code-ajout", code);
