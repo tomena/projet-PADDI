@@ -1,6 +1,154 @@
 {
   "entries": [
     {
+      "id": "1795809798964-9cq1ey",
+      "date": "2026-11-27T20:03:18.964Z",
+      "utilisateur": "Toky",
+      "identifiant": "Toky",
+      "annee": 2026,
+      "mois": "Décaissement par composante (Output)",
+      "uc": "Programme",
+      "nombreColonnesModifiees": 17,
+      "changements": [
+        {
+          "colonne": "06/2025 2025 — Output 0",
+          "ancienneValeur": null,
+          "nouvelleValeur": 201661.95,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2025,
+          "mois": "06/2025"
+        },
+        {
+          "colonne": "06/2025 2025 — Output 1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 380213.89,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2025,
+          "mois": "06/2025"
+        },
+        {
+          "colonne": "06/2025 2025 — Output 2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 331784.35,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2025,
+          "mois": "06/2025"
+        },
+        {
+          "colonne": "06/2025 2025 — Output 3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 313340.13,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2025,
+          "mois": "06/2025"
+        },
+        {
+          "colonne": "06/2025 2025 — Output 4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2025,
+          "mois": "06/2025"
+        },
+        {
+          "colonne": "06/2025 2025 — Total",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1227000.32,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2025,
+          "mois": "06/2025"
+        },
+        {
+          "colonne": "06/2026 2026 — Output 0",
+          "ancienneValeur": null,
+          "nouvelleValeur": 388454.67,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2026,
+          "mois": "06/2026"
+        },
+        {
+          "colonne": "06/2026 2026 — Output 1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 784232.99,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2026,
+          "mois": "06/2026"
+        },
+        {
+          "colonne": "06/2026 2026 — Output 2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 700577.96,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2026,
+          "mois": "06/2026"
+        },
+        {
+          "colonne": "06/2026 2026 — Output 3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 858323.23,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2026,
+          "mois": "06/2026"
+        },
+        {
+          "colonne": "06/2026 2026 — Output 4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 111015.43,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2026,
+          "mois": "06/2026"
+        },
+        {
+          "colonne": "06/2026 2026 — Total",
+          "ancienneValeur": null,
+          "nouvelleValeur": 2842604.28,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 2026,
+          "mois": "06/2026"
+        },
+        {
+          "colonne": "Budget alloué — Output 0",
+          "ancienneValeur": null,
+          "nouvelleValeur": 749251.2,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 0,
+          "mois": ""
+        },
+        {
+          "colonne": "Budget alloué — Output 1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 5223988.76,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 0,
+          "mois": ""
+        },
+        {
+          "colonne": "Budget alloué — Output 2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 5186380.04,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 0,
+          "mois": ""
+        },
+        {
+          "colonne": "Budget alloué — Output 3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 10034921.07,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 0,
+          "mois": ""
+        },
+        {
+          "colonne": "Budget alloué — Output 4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 8908938.07,
+          "uc": "Décaissement par composante (Output)",
+          "annee": 0,
+          "mois": ""
+        }
+      ]
+    },
+    {
       "id": "1795792646102-f0rsm7",
       "date": "2026-11-27T15:17:26.102Z",
       "utilisateur": "Zo",
