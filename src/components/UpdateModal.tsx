@@ -320,6 +320,8 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
       // Le fichier contient déjà toutes les périodes : aucune année ni mois à transmettre.
       const lu = await analyserFichierDecaissement(fichier as File, niveauApi);
 
+      console.log("dateSource lue dans l'Excel :", lu.dateSource);
+
       const reponse = await fetch("/api/import-decaissement", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
