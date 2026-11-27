@@ -20,7 +20,7 @@ export type Point = {
   lon: number;
 };
 
-const CHEMIN = "/data/localisation-hopital-mada.geojson";
+const CHEMIN = "/data/localisation_hopital_mada.geojson";
 const TYPES_REGION = ["CHU", "CHRR", "CHRD"];
 
 const COULEUR: Record<string, string> = {
