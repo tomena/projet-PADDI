@@ -1,5 +1,5 @@
 /**
- * AnalyseTerritoriale.tsx — version 2.4 (aide à la décision, multilingue, 3 onglets)
+ * AnalyseTerritoriale.tsx — version 2.5 (aide à la décision, multilingue, 3 onglets)
  *
  * Onglets (lus dans l'URL, la sélection géographique reste identique) :
  *   /dashboard/analyse-territoriale               -> Environnement (par défaut)
@@ -7,10 +7,11 @@
  *   /dashboard/analyse-territoriale/economie      -> Économie
  *   /dashboard/analyse-territoriale/social        -> Social
  *
- * Fonds et couches :
- *   - Environnement : fond au choix (Satellite, Topographie, OpenStreetMap), occupation du sol,
- *     perte de couvert et feux.
- *   - Économie et Social : fond OpenStreetMap uniquement. Occupation, perte et feux masqués.
+ * Environnement : fond au choix, occupation du sol, perte de couvert, feux, relief,
+ *                 tracé de parcelle, orientations.
+ * Économie et Social : fond OpenStreetMap uniquement, pas de tracé de parcelle,
+ *                 pas d'occupation, de perte ni de feux. Le bandeau de la zone est
+ *                 fourni par le panneau de l'onglet.
  *
  * Principes :
  *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées.
@@ -35,7 +36,7 @@ type LevelKey = "ADM1" | "ADM2" | "ADM3";
 type Onglet = "environnement" | "economie" | "social";
 type Fond = "sat" | "topo" | "osm";
 
-const VERSION = "2.4";
+const VERSION = "2.5";
 const DELAI_MS = 20000;
 const DELAI_FEUX_MAJ_MS = 3 * 3600e3;
 const REV = "9469f09";
@@ -778,7 +779,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   const maxChrono = Math.max(1, ...chrono);
   const heureMaj = fMaj ? new Date(fMaj).toLocaleTimeString(LOCALE[lang], { hour: "2-digit", minute: "2-digit" }) : "—";
 
-  /* ----- tracé de parcelle ----- */
+  /* ----- tracé de parcelle (Environnement uniquement) ----- */
   const redraw = () => {
     const g = draft.current; if (!g) return;
     g.clearLayers();
@@ -803,6 +804,9 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   const onCommune = (v: string) => { setCi(v); setParcel(null); };
   pickRef.current = (l, i) => (l === "ADM1" ? onRegion : l === "ADM2" ? onDistrict : onCommune)(String(i));
   const reset = () => { onRegion(""); cancelDraw(); };
+
+  // Hors Environnement, un tracé en cours est annulé.
+  useEffect(() => { if (!env && drawing) cancelDraw(); if (!env) setParcel(null); }, [env]);
 
   /* ----- chargement des limites ----- */
   useEffect(() => {
@@ -951,10 +955,10 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
     return () => { m.off("zoomend", maj); g.remove(); };
   }, [firesAff, feuxAff, lang, t]);
 
-  /* tracé de parcelle : clics */
+  /* tracé de parcelle : clics (Environnement uniquement) */
   useEffect(() => {
     const m = map.current;
-    if (!m || !drawing) return;
+    if (!m || !drawing || !env) return;
     m.getContainer().style.cursor = "crosshair";
     m.doubleClickZoom.disable();
     const click = (e: L.LeafletMouseEvent) => {
@@ -971,7 +975,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
       window.removeEventListener("keydown", key);
       m.getContainer().style.cursor = ""; m.doubleClickZoom.enable();
     };
-  }, [drawing]);
+  }, [drawing, env]);
 
   /* ----- affichage ----- */
   const levels = [{ f: rF, s: rRes }, { f: dF, s: dRes }, { f: cF, s: cRes }, { f: parcel, s: pRes }];
@@ -1048,7 +1052,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
       <header className="at-head">
         <div>
           <h1>{t.titre}</h1>
-          <p>{t.sousTitre} · {t.version} {VERSION}</p>
+          <p>{t.sousTitre}</p>
         </div>
         <div className="at-chain">
           <select value={ri} onChange={(e) => onRegion(e.target.value)} aria-label={t.niveaux.region}>
@@ -1083,32 +1087,31 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
             </div>
           ) : (
             <>
-              <div className="at-card at-hero">
-                <h2>{nameOf(selected)}</h2>
-                <div className="at-lvl">{lvlText}</div>
+              {/* Bandeau de la zone : uniquement en Environnement. En Économie et Social, c'est le bandeau du panneau qui s'affiche. */}
+              {env && (
+                <div className="at-card at-hero">
+                  <h2>{nameOf(selected)}</h2>
+                  <div className="at-lvl">{lvlText}</div>
 
-                {onglet === "environnement" && (
-                  <>
-                    <dl className="at-facts">
-                      <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
-                      <div><dd>{res?.elevMean != null ? N(res.elevMean) : res ? t.modal.na : "…"}</dd><dt>{t.altitude}</dt></div>
-                      <div><dd>{res?.rain != null ? N(res.rain) : res ? t.modal.na : "…"}</dd><dt>{fill(t.pluieAn, { a: RAIN_FIRST, b: RAIN_LAST })}</dt></div>
-                    </dl>
-                    {res && <p className="at-note">{t.bassin} : {res.bassin || t.bassinNon}</p>}
-                    {res && (
-                      <p className={`at-badge ${res.fiable}`}>
-                        {t.fiable[res.fiable]}
-                        {statutsManquants.length > 0 && <> · {t.manquantes} : {statutsManquants.join(", ")}</>}
-                      </p>
-                    )}
-                    {current.err && (
-                      <p className="at-alert" role="alert">
-                        {t.analyseKo} : {errMsg(current.err, t)}. <button type="button" className="at-link" onClick={() => setRi((v) => v)}>{t.reessayer}</button>
-                      </p>
-                    )}
-                  </>
-                )}
-              </div>
+                  <dl className="at-facts">
+                    <div><dd>{area[0]}</dd><dt>{area[1]}</dt></div>
+                    <div><dd>{res?.elevMean != null ? N(res.elevMean) : res ? t.modal.na : "…"}</dd><dt>{t.altitude}</dt></div>
+                    <div><dd>{res?.rain != null ? N(res.rain) : res ? t.modal.na : "…"}</dd><dt>{fill(t.pluieAn, { a: RAIN_FIRST, b: RAIN_LAST })}</dt></div>
+                  </dl>
+                  {res && <p className="at-note">{t.bassin} : {res.bassin || t.bassinNon}</p>}
+                  {res && (
+                    <p className={`at-badge ${res.fiable}`}>
+                      {t.fiable[res.fiable]}
+                      {statutsManquants.length > 0 && <> · {t.manquantes} : {statutsManquants.join(", ")}</>}
+                    </p>
+                  )}
+                  {current.err && (
+                    <p className="at-alert" role="alert">
+                      {t.analyseKo} : {errMsg(current.err, t)}. <button type="button" className="at-link" onClick={() => setRi((v) => v)}>{t.reessayer}</button>
+                    </p>
+                  )}
+                </div>
+              )}
 
               {onglet === "environnement" ? (
                 <>
@@ -1281,7 +1284,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
                   theme={onglet}
                   lang={lang}
                   zone={{
-                    niveau: parcel ? "parcelle" : cF ? "ADM3" : dF ? "ADM2" : rF ? "ADM1" : null,
+                    niveau: cF ? "ADM3" : dF ? "ADM2" : rF ? "ADM1" : null,
                     nom: nameOf(selected),
                     region: rF ? nameOf(rF) : null,
                     district: dF ? nameOf(dF) : null,
@@ -1311,17 +1314,19 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
               )}
               <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />{t.carte.estomper}</label>
             </div>
-            <div className="at-mtools">
-              {!drawing ? (
-                <button type="button" className="at-tool" onClick={startDraw}><PenTool size={15} />{t.carte.tracer}</button>
-              ) : (
-                <>
-                  <button type="button" className="at-tool on" onClick={finishDraw} disabled={nPts < 3}><Check size={15} />{t.carte.terminer}</button>
-                  <button type="button" className="at-tool" onClick={cancelDraw}><X size={15} />{t.carte.annuler}</button>
-                </>
-              )}
-              {parcel && <button type="button" className="at-tool" onClick={() => setParcel(null)}><Trash2 size={15} />{t.carte.effacer}</button>}
-            </div>
+            {env && (
+              <div className="at-mtools">
+                {!drawing ? (
+                  <button type="button" className="at-tool" onClick={startDraw}><PenTool size={15} />{t.carte.tracer}</button>
+                ) : (
+                  <>
+                    <button type="button" className="at-tool on" onClick={finishDraw} disabled={nPts < 3}><Check size={15} />{t.carte.terminer}</button>
+                    <button type="button" className="at-tool" onClick={cancelDraw}><X size={15} />{t.carte.annuler}</button>
+                  </>
+                )}
+                {parcel && <button type="button" className="at-tool" onClick={() => setParcel(null)}><Trash2 size={15} />{t.carte.effacer}</button>}
+              </div>
+            )}
           </div>
           <div className="at-mbox">
             <div ref={elMap} className="at-map" />
