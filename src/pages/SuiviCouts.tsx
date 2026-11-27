@@ -22,6 +22,9 @@ interface CoutActivite {
   [key: string]: any;
 }
 
+/* Dates « Dernière mise à jour » des onglets, écrites par l'import (dates_source). */
+type DatesSource = { instrument?: string; composante?: string };
+
 /* ================= TRADUCTIONS =================
    `fr` sert de modèle : TypeScript impose les mêmes clés dans mg / en / de. */
 
@@ -44,6 +47,7 @@ const fr = {
 
   byComponent: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR COMPOSANTE",
   byInstrument: "ÉVOLUTION ANNUELLE DU DÉCAISSEMENT PAR INSTRUMENT",
+  lastUpdateOn: "Dernière mise à jour le",
 
   allocatedShare: "% AU BUDGET",
   instExperts: "EXPERTS",
@@ -113,6 +117,7 @@ const mg: Txt = {
 
   byComponent: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY SINGA",
   byInstrument: "FAMOAHAM-BOLA ISAN-TAONA ISAKY NY FITAOVANA",
+  lastUpdateOn: "Nohavaozina farany tamin'ny",
 
   allocatedShare: "%-N'NY TETIBOLA VOATOMBOKA",
   instExperts: "MANAM-PAHAIZANA",
@@ -180,6 +185,7 @@ const en: Txt = {
 
   byComponent: "ANNUAL DISBURSEMENT BY COMPONENT",
   byInstrument: "ANNUAL DISBURSEMENT BY INSTRUMENT",
+  lastUpdateOn: "Last updated on",
 
   allocatedShare: "% OF BUDGET",
   instExperts: "EXPERTS",
@@ -247,6 +253,7 @@ const de: Txt = {
 
   byComponent: "JÄHRLICHE AUSZAHLUNG NACH KOMPONENTE",
   byInstrument: "JÄHRLICHE AUSZAHLUNG NACH INSTRUMENT",
+  lastUpdateOn: "Zuletzt aktualisiert am",
 
   allocatedShare: "% DES BUDGETS",
   instExperts: "EXPERTEN",
@@ -535,7 +542,6 @@ export default function SuiviCouts() {
   const [annee, setAnnee] = useState<number>(2026);
   const [mois, setMois] = useState<string>("Tous");
   const [uc, setUc] = useState<string>("Tous");
-  const [bailleur, setBailleur] = useState<string>("BMZ");
   const [dateMaj, setDateMaj] = useState<string | null>(null);
   const [showLogin, setShowLogin] = useState(false);
   const [showUpdate, setShowUpdate] = useState(false);
@@ -543,12 +549,18 @@ export default function SuiviCouts() {
   const [token, setToken] = useState("");
 
   const coutJson = useGeoJSON("/data/Base_Cout_Activite.geojson");
-  const baseDec = useGeoJSON("/data/Base_Decaissement.geojson") as BaseDecaissement | null;
+  const baseDec = useGeoJSON("/data/Base_Decaissement.geojson") as
+    | (BaseDecaissement & { dates_source?: DatesSource })
+    | null;
 
   const data: CoutActivite[] = useMemo(
     () => coutJson?.features?.map((f: any) => f.properties) ?? [],
     [coutJson]
   );
+
+  // Dates « Dernière mise à jour » des onglets CL-Dépenses (instrument) et CL-Outputs (composante)
+  const dateInstruments = baseDec?.dates_source?.instrument ?? "—";
+  const dateComposantes = baseDec?.dates_source?.composante ?? "—";
 
   useEffect(() => {
     fetch("/api/derniere-maj")
@@ -820,21 +832,7 @@ export default function SuiviCouts() {
           <div className="sc-card">
             <div style={styles.cardHeader}>
               <span>{t.byInstrument}</span>
-              {/* NB : ce sélecteur ne filtre encore aucune donnée (voir note) */}
-              <select
-                aria-label="Bailleur"
-                value={bailleur}
-                onChange={(e) => setBailleur(e.target.value)}
-                style={{
-                  fontSize: 12, fontWeight: 700, width: 70, height: 25, padding: "0 8px", borderRadius: 8,
-                  border: "1px solid var(--border)", cursor: "pointer", outline: "none", flexShrink: 0,
-                  backgroundColor: bailleur === "BMZ" ? "#eff6ff" : "#fefce8",
-                  color: bailleur === "BMZ" ? "#1d4ed8" : "#854d0e",
-                }}
-              >
-                <option value="BMZ">BMZ</option>
-                <option value="UE">UE</option>
-              </select>
+              <span style={styles.sourceDate}>{t.lastUpdateOn} {dateInstruments}</span>
             </div>
 
             <div className="sc-cols" style={styles.tableHeader}>
@@ -858,7 +856,7 @@ export default function SuiviCouts() {
           <div className="sc-card">
             <div style={styles.cardHeader}>
               <span>{t.byComponent}</span>
-              <Info size={18} aria-hidden="true" style={{ flexShrink: 0 }} />
+              <span style={styles.sourceDate}>{t.lastUpdateOn} {dateComposantes}</span>
             </div>
 
             <div className="sc-cols" style={styles.tableHeader}>
@@ -1012,6 +1010,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 10, lineHeight: 1.25, letterSpacing: 0.2, display: "flex", alignItems: "center",
     justifyContent: "space-between", gap: 8, minHeight: 34,
   },
+  /* date « Dernière mise à jour » affichée à droite de l'en-tête de carte */
+  sourceDate: { fontSize: 9, fontWeight: 600, whiteSpace: "nowrap", opacity: 0.92, flexShrink: 0 },
   subHead: { padding: "8px 10px", fontWeight: 900, fontSize: 10, lineHeight: 1.25, letterSpacing: 0.3, textAlign: "center" },
 
   kpiTile: { display: "flex", alignItems: "center", gap: 10, flex: "1 1 220px", minWidth: 0, padding: "6px 0 6px 6px" },
