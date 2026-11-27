@@ -1795,5 +1795,40 @@
       },
       "geometry": null
     }
-  ]
+  ],
+  "composantes_semestre": [
+    {
+      "periode": "06/2025",
+      "annee": 2025,
+      "semestre": "S1",
+      "cumul": {
+        "Output 0": 201661.95,
+        "Output 1": 380213.89,
+        "Output 2": 331784.35,
+        "Output 3": 313340.13,
+        "Output 4": 0,
+        "Total": 1227000.32
+      }
+    },
+    {
+      "periode": "06/2026",
+      "annee": 2026,
+      "semestre": "S1",
+      "cumul": {
+        "Output 0": 388454.67,
+        "Output 1": 784232.99,
+        "Output 2": 700577.96,
+        "Output 3": 858323.23,
+        "Output 4": 111015.43,
+        "Total": 2842604.28
+      }
+    }
+  ],
+  "budgets_composantes": {
+    "Output 0": 749251.2,
+    "Output 1": 5223988.76,
+    "Output 2": 5186380.04,
+    "Output 3": 10034921.07,
+    "Output 4": 8908938.07
+  }
 }
