@@ -1,8 +1,8 @@
-// src/pages/SanteFormations.tsx — version 10
+// src/pages/SanteFormations.tsx — version 11
 // Onglet Social.
 // Santé : hôpitaux, CSB1 et CSB2 comptés dans formations-sante.json ; pharmacies dans la base de localisation.
 // Éducation : universités, lycées, collèges et écoles primaires comptés dans la base éducation.
-// Les écoles et lycées s'affichent en petites cartes : type, nom, commune en bas.
+// Chaque type d'établissement scolaire est regroupé dans une petite carte, avec la liste dessous.
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
 import { chargerLocalisation, pointsDansZone, correspond, type Point } from "../lib/localisation";
@@ -56,6 +56,7 @@ const COULEUR_EDU = {
   lycee: "#f97316",
   college: "#eab308",
   primaire: "#ec4899",
+  autre: "#94a3b8",
 };
 
 const COULEUR_PHARMA = "#16a34a";
@@ -68,6 +69,10 @@ const LIBELLE_NIVEAU: Record<string, string> = {
 };
 
 const TYPES_HOPITAL = ["CHU", "CHRR", "CHRD"];
+
+// Ordre d'affichage des groupes d'établissements scolaires
+const ORDRE_ECOLES = ["CEG", "Collège privé", "École primaire", "École primaire privée", "Autre établissement scolaire"];
+const ORDRE_LYCEES = ["Lycée", "Lycée privé", "Université", "Université privée"];
 
 const STYLE = `
 .sf{display:flex;flex-direction:column;gap:12px;color:var(--text,#1c2822)}
@@ -101,10 +106,15 @@ const STYLE = `
 .sf-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sf-item small{color:var(--text-3,#6b7770);font-size:11px}
 .sf-chip{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;margin-bottom:3px}
-.sf-ecole{border:1px solid var(--border,#d8d4c8);border-left:4px solid var(--c,#94a3b8);border-radius:9px;padding:7px 9px;background:var(--surface-2,#f7f6f2);min-width:0;display:flex;flex-direction:column;gap:3px}
-.sf-ecole-type{align-self:flex-start;font-size:10.5px;font-weight:700;color:#fff;background:var(--c,#94a3b8);border-radius:999px;padding:1px 8px;line-height:1.5}
-.sf-ecole-nom{font-size:12.5px;font-weight:600;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
-.sf-ecole-com{margin-top:auto;padding-top:4px;border-top:1px dashed var(--border,#d8d4c8);font-size:11px;color:var(--text-3,#6b7770);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sf-groupes{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.sf-groupe{border:1px solid var(--border,#d8d4c8);border-left:4px solid var(--c,#94a3b8);border-radius:10px;padding:8px 10px;background:var(--surface-2,#f7f6f2);min-width:0}
+.sf-groupe-tete{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-bottom:4px}
+.sf-groupe-tete b{background:var(--c,#94a3b8);color:#fff;border-radius:999px;padding:0 8px;font-size:11.5px;font-weight:700;line-height:1.6}
+.sf-groupe-liste{max-height:210px;overflow-y:auto;overscroll-behavior:contain}
+.sf-groupe-ligne{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--border,#d8d4c8);font-size:12.5px}
+.sf-groupe-ligne:first-child{border-top:0}
+.sf-groupe-ligne span{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.sf-groupe-ligne small{color:var(--text-3,#6b7770);font-size:11px;white-space:nowrap;flex-shrink:0;max-width:45%;overflow:hidden;text-overflow:ellipsis}
 .sf-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(0,2fr) auto;gap:8px;align-items:center;margin:6px 0;font-size:13px}
 .sf-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2,#eef0ec)}
 .sf-bar i{display:block;height:100%}
@@ -123,13 +133,22 @@ function Pastille({ type }: { type: string }) {
   );
 }
 
-/** Petite carte d'établissement scolaire : type, nom, commune en bas. */
-function CarteEcole({ e }: { e: Ecole }) {
+/** Une petite carte par type d'établissement scolaire, avec la liste de tous ceux de la zone. */
+function CarteGroupe({ titre, items, couleur }: { titre: string; items: Ecole[]; couleur: string }) {
   return (
-    <div className="sf-ecole" style={{ ["--c" as any]: COULEUR_EDU[e.categorie] ?? "#94a3b8" }}>
-      <span className="sf-ecole-type">{e.type}</span>
-      <span className="sf-ecole-nom" title={e.nom}>{e.nom}</span>
-      <span className="sf-ecole-com" title={e.commune}>{e.commune || e.district}</span>
+    <div className="sf-groupe" style={{ ["--c" as any]: couleur }}>
+      <div className="sf-groupe-tete">
+        <span>{titre}</span>
+        <b>{nb(items.length)}</b>
+      </div>
+      <div className="sf-groupe-liste">
+        {items.map((e, i) => (
+          <div className="sf-groupe-ligne" key={`${e.nomComplet}-${i}`}>
+            <span title={e.nomComplet}>{e.nomCourt}</span>
+            <small title={e.fokontany || e.commune}>{e.fokontany || e.commune}</small>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -214,6 +233,26 @@ export default function SanteFormations({ region, district, commune }: Props) {
     return ecolesDansZone(edu, { region: region ?? null, district: district ?? null, commune: commune ?? null });
   }, [edu, region, district, commune]);
 
+  // Regroupement par type : une petite carte par groupe
+  const groupes = useMemo(() => {
+    const m = new Map<string, Ecole[]>();
+    (ecolesZone ?? []).forEach((e) => {
+      const l = m.get(e.groupe) ?? [];
+      l.push(e);
+      m.set(e.groupe, l);
+    });
+    const tous = [...m.keys()];
+    const ordre = [...ORDRE_ECOLES, ...ORDRE_LYCEES];
+    const cles = [...ordre.filter((g) => m.has(g)), ...tous.filter((g) => !ordre.includes(g))];
+    return cles.map((g) => ({
+      nom: g,
+      items: (m.get(g) ?? []).sort((a, b) => a.nomCourt.localeCompare(b.nomCourt, "fr")),
+    }));
+  }, [ecolesZone]);
+
+  const groupesEcoles = groupes.filter((g) => !ORDRE_LYCEES.includes(g.nom));
+  const groupesLycees = groupes.filter((g) => ORDRE_LYCEES.includes(g.nom));
+
   const nbEcole = (cat: Ecole["categorie"]) =>
     ecolesZone ? ecolesZone.filter((e) => e.categorie === cat).length : null;
 
@@ -242,11 +281,6 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const typesPresents = TYPES_HOPITAL.filter((t) => hop.some((h) => h.type === t));
   const libelleHop = typesPresents.length ? `Hôpitaux ${typesPresents.join(", ")}` : "Hôpitaux";
   const hopCompte = hop.filter((h) => TYPES_HOPITAL.includes(h.type)).length;
-
-  const universites = (ecolesZone ?? []).filter((e) => e.categorie === "universite");
-  const lycees = (ecolesZone ?? []).filter((e) => e.categorie === "lycee");
-  const colleges = (ecolesZone ?? []).filter((e) => e.categorie === "college");
-  const primaires = (ecolesZone ?? []).filter((e) => e.categorie === "primaire");
 
   const parDistrict = trier(hop.map((h) => h.district).concat(csb.map((c) => c.district))).map((d) => ({
     nom: d,
@@ -281,6 +315,8 @@ export default function SanteFormations({ region, district, commune }: Props) {
     { valeur: nbEcole("college"), libelle: "Collèges", couleur: COULEUR_EDU.college },
     { valeur: nbEcole("primaire"), libelle: "Écoles primaires", couleur: COULEUR_EDU.primaire },
   ];
+
+  const couleurGroupe = (items: Ecole[]) => COULEUR_EDU[items[0]?.categorie] ?? COULEUR_EDU.autre;
 
   return (
     <section className="sf" aria-label="Santé et éducation">
@@ -417,13 +453,11 @@ export default function SanteFormations({ region, district, commune }: Props) {
               <School size={15} aria-hidden />
               {niveau === "commune" ? " Écoles de la commune" : " Écoles de la zone"}
             </h4>
-            {colleges.length + primaires.length > 0 ? (
-              <div className="sf-scroll">
-                <div className="sf-cols">
-                  {[...colleges, ...primaires].map((e, i) => (
-                    <CarteEcole key={`ec${i}`} e={e} />
-                  ))}
-                </div>
+            {groupesEcoles.length > 0 ? (
+              <div className="sf-groupes">
+                {groupesEcoles.map((g) => (
+                  <CarteGroupe key={g.nom} titre={g.nom} items={g.items} couleur={couleurGroupe(g.items)} />
+                ))}
               </div>
             ) : (
               <p className="sf-muted" style={{ margin: 0 }}>Aucune école primaire ni collège enregistré dans cette zone.</p>
@@ -433,15 +467,13 @@ export default function SanteFormations({ region, district, commune }: Props) {
           <div className="sf-sec">
             <h4>
               <GraduationCap size={15} aria-hidden />
-              {universites.length > 0 ? " Lycées et universités" : " Lycées"}
+              {groupesLycees.some((g) => g.nom.startsWith("Université")) ? " Lycées et universités" : " Lycées"}
             </h4>
-            {lycees.length + universites.length > 0 ? (
-              <div className="sf-scroll">
-                <div className="sf-cols">
-                  {[...lycees, ...universites].map((e, i) => (
-                    <CarteEcole key={`ly${i}`} e={e} />
-                  ))}
-                </div>
+            {groupesLycees.length > 0 ? (
+              <div className="sf-groupes">
+                {groupesLycees.map((g) => (
+                  <CarteGroupe key={g.nom} titre={g.nom} items={g.items} couleur={couleurGroupe(g.items)} />
+                ))}
               </div>
             ) : (
               <p className="sf-muted" style={{ margin: 0 }}>Aucun lycée enregistré dans cette zone.</p>
@@ -454,10 +486,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
         <strong>Méthode.</strong> Santé : hôpitaux, CSB1 et CSB2 comptés dans la page communautaire OpenStreetMap
         « Formations Sanitaires / Suivi ». Les hôpitaux sont comptés au niveau du district, car la liste ne donne
         pas leur commune. Pharmacies et établissements scolaires : comptés dans les bases de localisation
-        (localisation_hopital_mada et localisation_education_mada). Le caractère privé d'un établissement est
-        déduit de son nom. Les noms de zones proches sont considérés comme identiques. Les chiffres ne tiennent
-        compte ni de la population ni de l'état de fonctionnement. Sources : OpenStreetMap Wiki (CC BY-SA),
-        données OSM (ODbL).
+        (localisation_hopital_mada et localisation_education_mada). Le type est retiré du nom (CEG, EPP, Lycée…),
+        et le caractère privé est déduit du nom. Les noms de zones proches sont considérés comme identiques. Les
+        chiffres ne tiennent compte ni de la population ni de l'état de fonctionnement. Sources : OpenStreetMap Wiki
+        (CC BY-SA), données OSM (ODbL).
         {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
       </p>
     </section>
