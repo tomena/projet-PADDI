@@ -6,7 +6,7 @@ import {
   ONGLET_PAR_UTILISATEUR,
   UTILISATEURS_ADMIN,
 } from "../utils/parseCoutsExcel";
-import { analyserFichierDecaissement } from "../utils/parseDecaissementExcel";
+import { analyserFichierDecaissement, PERIODES_COMPOSANTES } from "../utils/parseDecaissementExcel";
 import { ModalPortal, useModalLock } from "./ModalKit";
 
 interface UpdateModalProps {
@@ -101,9 +101,6 @@ const RESPONSIVE_CSS = `
   .um-stack { flex-direction: column !important; align-items: stretch !important; }
   .um-stack > * { width: 100% !important; }
 
-  /* Année / Mois : une colonne */
-  .um-grid-2 { grid-template-columns: 1fr !important; }
-
   /* Listes déroulantes : pleine largeur, 16px (pas de zoom auto sur iOS) */
   .um-modal select {
     width: 100% !important;
@@ -159,15 +156,9 @@ const RESPONSIVE_CSS = `
 `;
 
 export default function UpdateModal({ onClose, userName, token }: UpdateModalProps) {
+  // Année : utilisée seulement par l'import « Taux d'avancement » (analyserFichierCouts).
   const [anneeImport, setAnneeImport] = useState<string>("2026");
   const anneesDisponibles = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
-
-  const [moisImport, setMoisImport] = useState<string>("");
-  const moisDisponibles = [
-    "Janvier", "Février", "Mars", "Avril",
-    "Mai", "Juin", "Juillet", "Août",
-    "Septembre", "Octobre", "Novembre", "Décembre",
-  ];
 
   const [typeMiseAJour, setTypeMiseAJour] = useState<"decaissement" | "avancement" | null>(null);
 
@@ -315,6 +306,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
     setImportEnCours(true);
     try {
       const niveauApi = niveau === "Par instrument" ? "instrument" : "composante";
+      // Le fichier contient déjà toutes les périodes : aucune année ni mois à transmettre.
       const lu = await analyserFichierDecaissement(fichier as File, niveauApi);
 
       const reponse = await fetch("/api/import-decaissement", {
@@ -325,7 +317,8 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
       const resultat = await reponse.json().catch(() => ({}));
       if (!reponse.ok || !resultat.success) throw new Error(resultat.error || "Échec de la mise à jour du décaissement.");
 
-      setMessage(resultat.message + (lu.avertissements.length ? ` Attention : ${lu.avertissements[0]}` : ""));
+      const avertissement = resultat.avertissements?.[0] ?? lu.avertissements[0];
+      setMessage(resultat.message + (avertissement ? ` Attention : ${avertissement}` : ""));
     } catch (error) {
       setErreur(error instanceof Error ? error.message : "Une erreur inattendue est survenue.");
     } finally {
@@ -436,6 +429,12 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
 
   // Échap ferme la fenêtre + la page de derrière est bloquée
   useModalLock(handleClose);
+
+  // Texte d'aide selon le niveau choisi pour le décaissement
+  const aideDecaissement =
+    niveau === "Par instrument"
+      ? "Onglet lu : CL-Dépenses (tous les mois présents dans le fichier)."
+      : `Onglet lu : CL-Outputs (situations ${PERIODES_COMPOSANTES.join(", ")}).`;
 
   return (
     <ModalPortal>
@@ -617,18 +616,9 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
             <div style={styles.importSection}>
               <div style={styles.sectionTitle}>IMPORTER LE FICHIER EXCEL</div>
 
-              {/* ANNÉE ET MOIS */}
-              <div
-                className="um-grid-2"
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "12px",
-                  alignItems: "end",
-                  width: "100%",
-                }}
-              >
-                {/* ANNÉE */}
+              {/* ANNÉE : uniquement pour le taux d'avancement.
+                  Pour le décaissement, le fichier contient déjà toutes les périodes. */}
+              {typeMiseAJour === "avancement" && (
                 <div style={styles.selectGroup}>
                   <div style={styles.levelLabel}>Année</div>
 
@@ -645,25 +635,13 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
                     ))}
                   </select>
                 </div>
+              )}
 
-                {/* MOIS */}
-                <div style={styles.selectGroup}>
-                  <div style={styles.levelLabel}>Mois</div>
-
-                  <select
-                    value={moisImport}
-                    onChange={(e) => setMoisImport(e.target.value)}
-                    style={styles.select}
-                  >
-                    <option value="">Choisir le mois</option>
-                    {moisDisponibles.map((mois) => (
-                      <option key={mois} value={mois}>
-                        {mois}
-                      </option>
-                    ))}
-                  </select>
+              {typeMiseAJour === "decaissement" && (
+                <div className="um-text-small" style={styles.hint}>
+                  {aideDecaissement}
                 </div>
-              </div>
+              )}
 
               {/* FICHIER EXCEL SUR TOUTE LA LARGEUR */}
               <div
@@ -962,6 +940,15 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   importSection: {
     marginTop: 24,
+  },
+
+  hint: {
+    padding: "8px 10px",
+    borderRadius: 8,
+    background: "var(--um-blue-soft)",
+    color: "var(--um-accent-txt)",
+    fontSize: 10,
+    fontWeight: 600,
   },
 
   uploadBox: {
