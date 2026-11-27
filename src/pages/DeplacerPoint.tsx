@@ -1,7 +1,9 @@
-// src/pages/DeplacerPoint.tsx — version 1
-// Ajoute un bouton « Déplacer ce point » dans la fenêtre de chaque point (santé et éducation).
-// Ensuite : cliquer sur le nouvel emplacement sur la carte, vérifier, puis enregistrer.
-// Ne modifie pas localisation.ts ni education.ts : le point est retrouvé dans leurs données déjà chargées.
+// src/pages/DeplacerPoint.tsx — version 2
+// 1. Bouton visible « Déplacer un point » dans la barre de la carte.
+// 2. Mode « choisir » : un clic sur un point (santé ou éducation) lance le déplacement.
+// 3. Le bouton « Déplacer ce point » reste disponible dans la fenêtre de chaque point.
+// 4. Cliquer sur le nouvel emplacement, vérifier, puis enregistrer.
+// Ne modifie pas localisation.ts ni education.ts.
 import { useEffect, useState } from "react";
 import L from "leaflet";
 import { chargerLocalisation } from "../lib/localisation";
@@ -26,6 +28,8 @@ const MESSAGES: Record<string, string> = {
 };
 
 const STYLE = `
+.dp-btn{padding:6px 11px;border-radius:9px;border:1px solid #0f766e;background:var(--surface,#fff);color:#0f766e;font:600 13px system-ui,sans-serif;cursor:pointer}
+.dp-btn.actif{background:#0f766e;color:#fff}
 .dp-bandeau{position:fixed;z-index:1100;left:50%;top:12px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:7px 12px;border-radius:9px;font:12.5px system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.3);pointer-events:none}
 .dp-statut{font:600 12px system-ui,sans-serif;color:#0f766e}
 .dp-panel{position:fixed;z-index:5000;left:50%;bottom:20px;transform:translateX(-50%);width:min(420px,calc(100% - 32px));background:var(--surface,#fff);color:var(--text,#1c2822);border-radius:14px;box-shadow:0 14px 40px rgba(0,0,0,.35);padding:14px 16px;font:13px system-ui,sans-serif;display:flex;flex-direction:column;gap:8px}
@@ -39,6 +43,7 @@ const STYLE = `
 .dp-sec{padding:9px 13px;border-radius:9px;border:1px solid var(--border,#d8d4c8);background:transparent;color:inherit;font:600 13px system-ui,sans-serif;cursor:pointer}
 .dp-primary{padding:9px 13px;border-radius:9px;border:0;background:#0f766e;color:#fff;font:600 13px system-ui,sans-serif;cursor:pointer}
 .dp-primary:disabled{opacity:.5;cursor:default}
+.dp-tip{background:#0f766e!important;color:#fff!important;border:0!important;font-weight:600}
 `;
 
 const normNom = (s: string) => s.replace(/\s+/g, " ").trim();
@@ -57,6 +62,7 @@ async function trouverDomaine(nom: string, lat: number, lon: number): Promise<Do
 }
 
 export default function DeplacerPoint({ mapRef }: Props) {
+  const [choix, setChoix] = useState(false);
   const [cible, setCible] = useState<Cible | null>(null);
   const [nouvelle, setNouvelle] = useState<{ lat: number; lon: number } | null>(null);
   const [code, setCode] = useState(() =>
@@ -66,43 +72,59 @@ export default function DeplacerPoint({ mapRef }: Props) {
   const [enCours, setEnCours] = useState(false);
   const [statut, setStatut] = useState("");
 
+  const notifier = (texte: string) => {
+    setStatut(texte);
+    setTimeout(() => setStatut(""), 8000);
+  };
+
   const annuler = () => {
+    setChoix(false);
     setCible(null);
     setNouvelle(null);
     setMsg("");
   };
 
-  // 1. Bouton « Déplacer ce point » ajouté dans chaque fenêtre de point
+  // Un point choisi (par clic dans la carte ou dans sa fenêtre) passe en mode déplacement
+  const choisir = async (titre: string, lat: number, lng: number) => {
+    const nom = normNom(titre);
+    const domaine = await trouverDomaine(nom, lat, lng);
+    setChoix(false);
+    if (!domaine) {
+      notifier("Point introuvable dans les données chargées. Rechargez la page et réessayez.");
+      return;
+    }
+    setMsg("");
+    setCible({ domaine, nom, ancienLat: lat, ancienLon: lng });
+  };
+
+  // 1. Popups : en mode « choisir », la fenêtre se ferme et le point est choisi.
+  //    Sinon, le bouton « Déplacer ce point » est ajouté dans la fenêtre.
   useEffect(() => {
     const carte = mapRef.current;
     if (!carte) return;
 
     const surOuverture = (e: L.PopupEvent) => {
-      const contenu = e.popup.getElement()?.querySelector<HTMLElement>(".leaflet-popup-content");
-      if (!contenu || contenu.querySelector("[data-deplacer]")) return;
       const titre = (e.popup as any)._source?.options?.title as string | undefined;
       const ll = e.popup.getLatLng();
       if (!titre || !ll) return;
 
+      if (choix) {
+        carte.closePopup();
+        choisir(titre, ll.lat, ll.lng);
+        return;
+      }
+
+      const contenu = e.popup.getElement()?.querySelector<HTMLElement>(".leaflet-popup-content");
+      if (!contenu || contenu.querySelector("[data-deplacer]")) return;
       const btn = document.createElement("button");
       btn.type = "button";
       btn.dataset.deplacer = "1";
       btn.textContent = "Déplacer ce point";
       btn.style.cssText =
         "margin-top:8px;padding:5px 9px;border-radius:7px;border:1px solid #0f766e;background:#0f766e;color:#fff;font:600 12px system-ui,sans-serif;cursor:pointer";
-      btn.addEventListener("click", async () => {
-        const nom = normNom(titre);
-        const domaine = await trouverDomaine(nom, ll.lat, ll.lng);
+      btn.addEventListener("click", () => {
         carte.closePopup();
-        if (!domaine) {
-          setStatut("");
-          setMsg("");
-          setStatut("Point introuvable dans les données chargées. Rechargez la page et réessayez.");
-          setTimeout(() => setStatut(""), 8000);
-          return;
-        }
-        setMsg("");
-        setCible({ domaine, nom, ancienLat: ll.lat, ancienLon: ll.lng });
+        choisir(titre, ll.lat, ll.lng);
       });
       contenu.appendChild(btn);
     };
@@ -111,9 +133,26 @@ export default function DeplacerPoint({ mapRef }: Props) {
     return () => {
       carte.off("popupopen", surOuverture);
     };
-  }, [mapRef]);
+    // choisir change à chaque rendu mais ne dépend que des setters et de mapRef
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapRef, choix]);
 
-  // 2. Mode « nouvel emplacement » : curseur en croix, clic = nouvelle position, Échap = annuler
+  // 2. Mode « choisir » : Échap annule
+  useEffect(() => {
+    if (!choix) return;
+    const carte = mapRef.current;
+    if (carte) carte.getContainer().style.cursor = "pointer";
+    const touche = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setChoix(false);
+    };
+    window.addEventListener("keydown", touche);
+    return () => {
+      window.removeEventListener("keydown", touche);
+      if (carte) carte.getContainer().style.cursor = "";
+    };
+  }, [choix, mapRef]);
+
+  // 3. Mode « nouvel emplacement » : curseur en croix, clic = nouvelle position, Échap = annuler
   useEffect(() => {
     const carte = mapRef.current;
     if (!carte || !cible) return;
@@ -133,7 +172,7 @@ export default function DeplacerPoint({ mapRef }: Props) {
     };
   }, [cible, mapRef]);
 
-  // 3. Repères sur la carte : ancienne position (pointillés rouges) et nouvelle (pastille verte)
+  // 4. Repères : ancienne position (pointillés rouges), nouvelle (pastille verte)
   useEffect(() => {
     const carte = mapRef.current;
     if (!carte || !cible) return;
@@ -156,7 +195,7 @@ export default function DeplacerPoint({ mapRef }: Props) {
     };
   }, [nouvelle, mapRef]);
 
-  // 4. Enregistrement
+  // 5. Enregistrement
   const enregistrer = async () => {
     if (!cible || !nouvelle) return;
     if (!code.trim()) {
@@ -185,8 +224,7 @@ export default function DeplacerPoint({ mapRef }: Props) {
         return;
       }
       sessionStorage.setItem("code-ajout", code);
-      setStatut("Point déplacé. Le nouvel emplacement apparaîtra après la mise à jour du site (1 à 2 minutes).");
-      setTimeout(() => setStatut(""), 8000);
+      notifier("Point déplacé. Le nouvel emplacement apparaîtra après la mise à jour du site (1 à 2 minutes).");
       annuler();
     } catch {
       setMsg("Connexion impossible.");
@@ -199,7 +237,26 @@ export default function DeplacerPoint({ mapRef }: Props) {
     <>
       <style>{STYLE}</style>
 
+      <button
+        type="button"
+        className={`dp-btn${choix ? " actif" : ""}`}
+        aria-pressed={choix}
+        onClick={() => {
+          setMsg("");
+          if (cible) annuler();
+          else setChoix((v) => !v);
+        }}
+      >
+        {choix || cible ? "Arrêter" : "↔ Déplacer un point"}
+      </button>
+
       {statut && <span className="dp-statut" role="status">{statut}</span>}
+
+      {choix && !cible && (
+        <div className="dp-bandeau" role="status">
+          Cliquez sur le point à déplacer · Échap pour arrêter
+        </div>
+      )}
 
       {cible && !nouvelle && (
         <div className="dp-bandeau" role="status">
