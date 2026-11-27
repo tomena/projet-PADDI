@@ -680,6 +680,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   const [showLoss, setShowLoss] = useState(true), [dfFrom, setDfFrom] = useState(2015), [dfTo, setDfTo] = useState(LOSS_LAST);
   const [showFires, setShowFires] = useState(true), [fPeriod, setFPeriod] = useState<24 | 48 | 72>(72), [conf, setConf] = useState<"l" | "n" | "h">("l");
   const [mask, setMask] = useState(true);
+    const [pointsAff, setPointsAff] = useState<"tous" | "sante" | "educ" | "aucun">("tous");
   const [show, setShow] = useState(false);
   const [themeF, setThemeF] = useState<"Toutes" | Theme>("Toutes");
   const [loadErr, setLoadErr] = useState("");
@@ -892,7 +893,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
         district: dF ? nameOf(dF) : null,
         commune: cF ? nameOf(cF) : null,
       },
-      onglet === "social",
+        onglet === "social" && (pointsAff === "tous" || pointsAff === "sante"),
   );
 
   useEducationMap(
@@ -902,7 +903,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
         district: dF ? nameOf(dF) : null,
         commune: cF ? nameOf(cF) : null,
       },
-      onglet === "social",
+        onglet === "social" && (pointsAff === "tous" || pointsAff === "educ"),
     );
 
   /* entités cliquables du niveau suivant */
@@ -1335,6 +1336,22 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
                 </>
               )}
               <label className="at-chk"><input type="checkbox" checked={mask} onChange={(e) => setMask(e.target.checked)} />{t.carte.estomper}</label>
+              {onglet === "social" && (
+                <label className="at-chk">
+                  <span>Points</span>
+                  <select
+                    className="at-mini"
+                    value={pointsAff}
+                    onChange={(e) => setPointsAff(e.target.value as "tous" | "sante" | "educ" | "aucun")}
+                    aria-label="Afficher les points"
+                  >
+                    <option value="tous">Santé et éducation</option>
+                    <option value="sante">Santé seulement</option>
+                    <option value="educ">Éducation seulement</option>
+                    <option value="aucun">Aucun point</option>
+                  </select>
+                </label>
+              )}
             </div>
             {env && (
               <div className="at-mtools">
