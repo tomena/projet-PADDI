@@ -1,4 +1,4 @@
-// src/lib/localisation.ts — version 3
+// src/lib/localisation.ts — version 4
 // Lit public/data/localisation_hopital_mada.geojson (adm1_name = région, adm2_name = district,
 // adm3_name = commune, adm4_name = fokontany, name = nom, amenity = type).
 // Utilisé pour la carte (pastilles et légende) et pour le compte des pharmacies.
@@ -41,7 +41,7 @@ const AMENITY: Record<string, string> = {
   pharmacy: "Pharmacie",
 };
 
-/* ---------- utilitaires ---------- */
+/* ---------- comparaison des noms ---------- */
 
 const norm = (s?: string | null) =>
   (s ?? "")
@@ -50,13 +50,43 @@ const norm = (s?: string | null) =>
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+
 export const same = (a?: string | null, b?: string | null) => !!b && norm(a) === norm(b);
 
-// Correspondance de secours : un nom contient l'autre
-const proche = (a?: string | null, b?: string | null) => {
+// Forme « sonore » : y devient i, les espaces disparaissent, les lettres doubles se réduisent.
+const cle = (s: string) => s.replace(/y/g, "i").replace(/\s+/g, "").replace(/(.)\1+/g, "$1");
+
+// Distance d'édition entre deux textes (nombre de lettres à changer, ajouter ou retirer).
+function distance(a: string, b: string): number {
+  const d: number[] = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    let prec = d[0];
+    d[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prec + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prec = tmp;
+    }
+  }
+  return d[b.length];
+}
+
+/**
+ * Deux noms désignent-ils le même lieu ?
+ * Accepte : écriture identique, un nom qui contient l'autre (au moins 5 lettres),
+ * ou une petite différence (« Boeni » ↔ « Boeny », « Ambato Boeny » ↔ « Ambatoboeny »).
+ */
+export function correspond(a?: string | null, b?: string | null): boolean {
+  if (same(a, b)) return true;
   const x = norm(a), y = norm(b);
-  return !!x && !!y && (x.includes(y) || y.includes(x));
-};
+  if (!x || !y) return false;
+  const court = x.length <= y.length ? x : y;
+  const long = x.length <= y.length ? y : x;
+  if (court.length >= 5 && long.includes(court)) return true;
+  const cx = cle(x), cy = cle(y);
+  const seuil = Math.max(cx.length, cy.length) >= 8 ? 2 : 1;
+  return distance(cx, cy) <= seuil;
+}
 
 const propre = (s: unknown) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
@@ -145,11 +175,11 @@ export function chargerLocalisation(): Promise<Point[]> {
 
 export type Zone = { region: string | null; district: string | null; commune: string | null };
 
-// Garde les points dont le champ correspond : exact d'abord, sinon correspondance de secours.
+// Garde les points dont le champ correspond : écriture exacte d'abord, sinon noms proches.
 function filtrer(liste: Point[], champ: "region" | "district" | "commune", valeur: string): Point[] {
   const exact = liste.filter((p) => same(p[champ], valeur));
   if (exact.length) return exact;
-  return liste.filter((p) => proche(p[champ], valeur));
+  return liste.filter((p) => correspond(p[champ], valeur));
 }
 
 /** Points qui se trouvent dans la zone choisie (région, puis district, puis commune). */
@@ -236,7 +266,7 @@ function legende(categories: Categorie[]): L.Control {
 
 /**
  * Affiche les points de la zone sur la carte, avec la légende. Actif seulement dans l'onglet Social.
- * Région : pastilles sans nom. District : pastilles sans nom. Commune : pastilles avec le nom.
+ * Région et district : pastilles sans nom. Commune : pastilles avec le nom.
  * mapRef : la référence de la carte Leaflet (useRef<L.Map | null>).
  */
 export function useSanteMap(mapRef: { current: L.Map | null }, zone: Zone, actif: boolean) {
@@ -259,10 +289,6 @@ export function useSanteMap(mapRef: { current: L.Map | null }, zone: Zone, actif
         const avecNom = !!commune;
 
         console.info("Localisation : points affichés =", liste.length, { region, district, commune });
-        if (!liste.length && district) {
-          const communes = [...new Set(points.filter((p) => same(p.district, district)).map((p) => p.commune))];
-          console.info("Communes disponibles dans ce district :", communes);
-        }
 
         groupe = L.layerGroup(liste.map((p) => marqueur(p, avecNom))).addTo(carte);
         const cats = [...new Set(liste.map((p) => p.categorie))];
