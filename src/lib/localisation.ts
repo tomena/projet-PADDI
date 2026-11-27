@@ -1,7 +1,7 @@
-// src/lib/localisation.ts — version 4
+// src/lib/localisation.ts — version 5
 // Lit public/data/localisation_hopital_mada.geojson (adm1_name = région, adm2_name = district,
 // adm3_name = commune, adm4_name = fokontany, name = nom, amenity = type).
-// Utilisé pour la carte (pastilles et légende) et pour le compte des pharmacies.
+// Utilisé pour la carte (pastilles et légende cliquable) et pour le compte des pharmacies.
 // Ne remplace pas la base formations-sante.json, qui reste la source des hôpitaux, CSB1 et CSB2.
 import { useEffect } from "react";
 import L from "leaflet";
@@ -9,9 +9,9 @@ import L from "leaflet";
 export type Categorie = "hopital" | "pharmacie" | "csb" | "medical" | "autre";
 
 export type Point = {
-  nomComplet: string;   // nom complet (ou type si le nom est vide)
-  nom: string;          // nom abrégé, affiché au niveau commune
-  type: string;         // CHU, CHRR, CHRD, CSB I, CSB II, CSB, Pharmacie, Hôpital…
+  nomComplet: string;
+  nom: string;
+  type: string;
   categorie: Categorie;
   region: string;
   district: string;
@@ -22,6 +22,7 @@ export type Point = {
 };
 
 const CHEMIN = "/data/localisation_hopital_mada.geojson";
+const EVT = "sante-filtre";
 
 // Style par catégorie : couleur et forme (croix ou point)
 const STYLE: Record<Categorie, { couleur: string; croix: boolean; libelle: string }> = {
@@ -41,7 +42,10 @@ const AMENITY: Record<string, string> = {
   pharmacy: "Pharmacie",
 };
 
-/* ---------- comparaison des noms ---------- */
+// Catégories masquées sur la carte (choisies en cliquant sur la légende)
+const masques = new Set<Categorie>();
+
+/* ---------- utilitaires ---------- */
 
 const norm = (s?: string | null) =>
   (s ?? "")
@@ -56,7 +60,7 @@ export const same = (a?: string | null, b?: string | null) => !!b && norm(a) ===
 // Forme « sonore » : y devient i, les espaces disparaissent, les lettres doubles se réduisent.
 const cle = (s: string) => s.replace(/y/g, "i").replace(/\s+/g, "").replace(/(.)\1+/g, "$1");
 
-// Distance d'édition entre deux textes (nombre de lettres à changer, ajouter ou retirer).
+// Distance d'édition entre deux textes.
 function distance(a: string, b: string): number {
   const d: number[] = Array.from({ length: b.length + 1 }, (_, j) => j);
   for (let i = 1; i <= a.length; i++) {
@@ -74,7 +78,7 @@ function distance(a: string, b: string): number {
 /**
  * Deux noms désignent-ils le même lieu ?
  * Accepte : écriture identique, un nom qui contient l'autre (au moins 5 lettres),
- * ou une petite différence (« Boeni » ↔ « Boeny », « Ambato Boeny » ↔ « Ambatoboeny »).
+ * ou une petite différence (« Boeni » ↔ « Boeny »).
  */
 export function correspond(a?: string | null, b?: string | null): boolean {
   if (same(a, b)) return true;
@@ -216,7 +220,11 @@ function injecterStyle() {
     .poi-leg{background:rgba(255,255,255,.96);color:#14231c;border-radius:10px;padding:8px 10px;
       font:12px/1.4 system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25);min-width:170px}
     .poi-leg strong{display:block;margin-bottom:4px;font-size:12px}
-    .poi-leg-row{display:flex;align-items:center;gap:7px;margin:3px 0}`;
+    .poi-leg-row{display:flex;align-items:center;gap:7px;margin:3px 0;width:100%;padding:2px 4px;
+      background:none;border:0;border-radius:6px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+    .poi-leg-row:hover{background:rgba(0,0,0,.05)}
+    .poi-leg-row.off{opacity:.35;text-decoration:line-through}
+    .poi-hint{font-size:10.5px;color:#5b6660;margin-top:4px}`;
   document.head.appendChild(s);
 }
 
@@ -248,51 +256,77 @@ function marqueur(p: Point, avecNom: boolean) {
     .bindPopup(`<div style="font:13px/1.5 system-ui">${lignes.join("<br/>")}</div>`);
 }
 
-// Légende : seulement les catégories présentes dans la zone
-function legende(categories: Categorie[]): L.Control {
-  const ctl = L.control({ position: "topright" });
-  ctl.onAdd = () => {
-    const d = L.DomUtil.create("div", "poi-leg");
-    d.innerHTML =
-      `<strong>Légende</strong>` +
-      categories
-        .map((c) => `<div class="poi-leg-row">${badge(c)}<span>${esc(STYLE[c].libelle)}</span></div>`)
-        .join("");
-    L.DomEvent.disableClickPropagation(d);
-    return d;
-  };
-  return ctl;
+// Contenu de la légende : une ligne par catégorie présente. Un élément masqué est grisé.
+function htmlLegende(cats: Categorie[]): string {
+  if (!cats.length) return "";
+  return (
+    `<strong>Légende</strong>` +
+    cats
+      .map(
+        (c) =>
+          `<button type="button" class="poi-leg-row${masques.has(c) ? " off" : ""}" data-cat="${c}">` +
+          `${badge(c)}<span>${esc(STYLE[c].libelle)}</span></button>`,
+      )
+      .join("") +
+    `<div class="poi-hint">Cliquez pour afficher ou masquer</div>`
+  );
+}
+
+/** Affiche ou masque une catégorie sur la carte (appelé par un clic sur la légende). */
+export function basculerSante(cat: Categorie) {
+  if (masques.has(cat)) masques.delete(cat);
+  else masques.add(cat);
+  window.dispatchEvent(new Event(EVT));
 }
 
 /**
- * Affiche les points de la zone sur la carte, avec la légende. Actif seulement dans l'onglet Social.
+ * Affiche les points de la zone sur la carte, avec une légende cliquable.
+ * Actif seulement quand l'onglet Social est ouvert.
  * Région et district : pastilles sans nom. Commune : pastilles avec le nom.
- * mapRef : la référence de la carte Leaflet (useRef<L.Map | null>).
  */
 export function useSanteMap(mapRef: { current: L.Map | null }, zone: Zone, actif: boolean) {
   const { region, district, commune } = zone;
 
   useEffect(() => {
-    const m = mapRef.current;
-    if (!actif || !m || !region) return;
+    const carte = mapRef.current;
+    if (!actif || !carte || !region) return;
     injecterStyle();
 
     let annule = false;
-    let groupe = null as L.LayerGroup | null;
-    let ctl = null as L.Control | null;
+    let liste: Point[] = [];
+    let groupe: L.LayerGroup | null = null;
+    let legEl: HTMLDivElement | null = null;
+    const avecNom = !!commune;
+
+    const dessiner = () => {
+      if (annule) return;
+      groupe?.remove();
+      const visibles = liste.filter((p) => !masques.has(p.categorie));
+      groupe = L.layerGroup(visibles.map((p) => marqueur(p, avecNom))).addTo(carte);
+      if (legEl) legEl.innerHTML = htmlLegende([...new Set(liste.map((p) => p.categorie))]);
+    };
+
+    const ctl = L.control({ position: "topright" });
+    ctl.onAdd = () => {
+      legEl = L.DomUtil.create("div", "poi-leg");
+      legEl.addEventListener("click", (ev) => {
+        const b = (ev.target as HTMLElement).closest("[data-cat]") as HTMLElement | null;
+        if (b?.dataset.cat) basculerSante(b.dataset.cat as Categorie);
+      });
+      L.DomEvent.disableClickPropagation(legEl);
+      return legEl;
+    };
+    ctl.addTo(carte);
+
+    const surFiltre = () => dessiner();
+    window.addEventListener(EVT, surFiltre);
 
     chargerLocalisation()
       .then((points) => {
-        if (annule || !mapRef.current) return;
-        const carte = mapRef.current;
-        const liste = pointsPourCarte(points, { region, district, commune });
-        const avecNom = !!commune;
-
+        if (annule) return;
+        liste = pointsPourCarte(points, { region, district, commune });
         console.info("Localisation : points affichés =", liste.length, { region, district, commune });
-
-        groupe = L.layerGroup(liste.map((p) => marqueur(p, avecNom))).addTo(carte);
-        const cats = [...new Set(liste.map((p) => p.categorie))];
-        if (cats.length) ctl = legende(cats).addTo(carte);
+        dessiner();
       })
       .catch(() => {
         /* base indisponible : la carte reste utilisable, sans points */
@@ -300,8 +334,9 @@ export function useSanteMap(mapRef: { current: L.Map | null }, zone: Zone, actif
 
     return () => {
       annule = true;
+      window.removeEventListener(EVT, surFiltre);
       groupe?.remove();
-      ctl?.remove();
+      ctl.remove();
     };
   }, [mapRef, actif, region, district, commune]);
 }
