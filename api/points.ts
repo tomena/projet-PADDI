@@ -2,7 +2,9 @@
 // POST /api/points (en-tête x-code-ajout) avec { domaine, nom, amenity, lat, lon, adm1_name…adm4_name }
 const TOKEN = process.env.GITHUB_TOKEN;
 const CODE = process.env.CODE_AJOUT;
-const REPO = process.env.GITHUB_REPO;
+const OWNER = process.env.GITHUB_OWNER;
+const DEPOT = process.env.GITHUB_REPO;
+const REPO = OWNER && DEPOT ? `${OWNER}/${DEPOT}` : undefined;
 const BRANCH = process.env.GITHUB_BRANCH ?? "main";
 
 const FICHIERS: Record<string, string> = {
