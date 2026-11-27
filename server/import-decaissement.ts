@@ -2,7 +2,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 
 /* =====================================================================
- * api/import-decaissement.ts : met à jour public/data/Base_Decaissement.geojson
+ * api/import-decaissement.ts (v2) : met à jour public/data/Base_Decaissement.geojson
  *
  * Deux niveaux, deux formes de données :
  *
@@ -14,10 +14,12 @@ import { createHmac, timingSafeEqual } from "crypto";
  *    Une ligne = une date de situation (06/2025, 06/2026, 12/2026, 06/2027).
  *    Stockage dans geojson.composantes_semestre (tableau séparé des features) :
  *      { periode, annee, semestre, cumul: { "Output 0"..."Output 4", Total } }
- *    Les valeurs sont les cumuls tels qu'affichés dans l'Excel (« COÛTS 06/2026 », etc.).
  *    Le « Total » est calculé par le serveur (somme des 5 Outputs), jamais accepté en entrée.
- *    Le pop-up calcule le décaissement d'un semestre comme la différence avec le cumul précédent.
  *    Budgets par Output dans geojson.budgets_composantes.
+ *
+ *  - Date de mise à jour de chaque onglet (ligne 2 de l'Excel, « jj/mm/aaaa ») :
+ *    geojson.dates_source = { instrument: "26/11/2026", composante: "23/11/2026" }.
+ *    Mise à jour seulement pour le niveau importé ; affichée dans l'en-tête des cartes.
  *
  * Un champ non envoyé n'écrase rien. Les lignes manquantes sont créées.
  * Tout-ou-rien : toute la validation passe avant la moindre écriture.
@@ -78,6 +80,8 @@ const PERIODES_COMPOSANTES: Periode[] = [
 ];
 
 const indexPeriode = (p: string) => PERIODES_COMPOSANTES.findIndex((x) => x.periode === p);
+
+const REGEX_DATE = /^\d{2}\/\d{2}\/\d{4}$/;
 
 type Props = Record<string, any>;
 type Changement = { colonne: string; ancienneValeur: any; nouvelleValeur: number; uc: string; annee: number; mois: string };
@@ -194,6 +198,12 @@ export default async function handler(req: any, res: any) {
     return res.status(400).json({ error: "Niveau invalide (instrument ou composante)." });
   }
   const clesSaisie = CLES_SAISIE[niveau];
+
+  // Date « Dernière mise à jour » de l'onglet (optionnelle, format jj/mm/aaaa)
+  const dateSource = req.body?.dateSource ?? null;
+  if (dateSource !== null && (typeof dateSource !== "string" || !REGEX_DATE.test(dateSource))) {
+    return res.status(400).json({ error: `Date de mise à jour invalide : ${dateSource}.` });
+  }
 
   const lignes = req.body?.lignes;
   if (!Array.isArray(lignes) || lignes.length === 0) return res.status(400).json({ error: "Aucune ligne à importer." });
@@ -336,6 +346,11 @@ export default async function handler(req: any, res: any) {
         }
         geojson[cleBudgets][c] = valeur;
       }
+    }
+
+    // Date « Dernière mise à jour » de l'onglet importé (affichée dans l'en-tête de la carte)
+    if (dateSource) {
+      geojson.dates_source = { ...(geojson.dates_source ?? {}), [niveau]: dateSource };
     }
 
     // Enregistrement
