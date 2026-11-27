@@ -1,6 +1,181 @@
 {
   "entries": [
     {
+      "id": "1795762483694-Zo",
+      "date": "2026-11-27T06:54:43.694Z",
+      "utilisateur": "Zo",
+      "identifiant": "Zo",
+      "annee": 2026,
+      "mois": "Novembre",
+      "uc": "UCR-B",
+      "champsModifies": [
+        "TAG",
+        "NAP",
+        "NAA",
+        "NAC",
+        "NAD",
+        "TAR 1",
+        "TAR 2",
+        "TAC C1",
+        "TAC C2",
+        "TAC C3",
+        "TAC C4",
+        "TAA 1.1.1",
+        "TAA 1.1.2",
+        "TAA 1.1.3",
+        "TAA 1.1.4",
+        "TAA 1.2.1",
+        "TAA 1.2.2",
+        "TAA 1.2.3",
+        "TAA 1.2.4",
+        "TAA 2.1.1",
+        "TAA 2.1.2",
+        "TAA 2.1.3",
+        "TAA 2.1.4",
+        "TAA 2.2.1",
+        "TAA 2.2.2",
+        "TAA 2.2.3",
+        "TAA 2.2.4"
+      ],
+      "changements": [
+        {
+          "colonne": "TAG",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.85
+        },
+        {
+          "colonne": "NAP",
+          "ancienneValeur": null,
+          "nouvelleValeur": 63
+        },
+        {
+          "colonne": "NAA",
+          "ancienneValeur": null,
+          "nouvelleValeur": 42
+        },
+        {
+          "colonne": "NAC",
+          "ancienneValeur": null,
+          "nouvelleValeur": 20
+        },
+        {
+          "colonne": "NAD",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1
+        },
+        {
+          "colonne": "TAR 1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.84
+        },
+        {
+          "colonne": "TAR 2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.85
+        },
+        {
+          "colonne": "TAC C1",
+          "ancienneValeur": 0.6181161764161048,
+          "nouvelleValeur": 0.67
+        },
+        {
+          "colonne": "TAC C2",
+          "ancienneValeur": 0.8460673044365113,
+          "nouvelleValeur": 0.94
+        },
+        {
+          "colonne": "TAC C3",
+          "ancienneValeur": 0.6094256115743255,
+          "nouvelleValeur": 0.92
+        },
+        {
+          "colonne": "TAC C4",
+          "ancienneValeur": 0.9039462616996878,
+          "nouvelleValeur": 0.72
+        },
+        {
+          "colonne": "TAA 1.1.1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.87
+        },
+        {
+          "colonne": "TAA 1.1.2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.69
+        },
+        {
+          "colonne": "TAA 1.1.3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.4
+        },
+        {
+          "colonne": "TAA 1.1.4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.46
+        },
+        {
+          "colonne": "TAA 1.2.1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.91
+        },
+        {
+          "colonne": "TAA 1.2.2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1
+        },
+        {
+          "colonne": "TAA 1.2.3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1
+        },
+        {
+          "colonne": "TAA 1.2.4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.83
+        },
+        {
+          "colonne": "TAA 2.1.1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.88
+        },
+        {
+          "colonne": "TAA 2.1.2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1
+        },
+        {
+          "colonne": "TAA 2.1.3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0
+        },
+        {
+          "colonne": "TAA 2.1.4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.93
+        },
+        {
+          "colonne": "TAA 2.2.1",
+          "ancienneValeur": null,
+          "nouvelleValeur": 1
+        },
+        {
+          "colonne": "TAA 2.2.2",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.44
+        },
+        {
+          "colonne": "TAA 2.2.3",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.5
+        },
+        {
+          "colonne": "TAA 2.2.4",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0.76
+        }
+      ]
+    },
+    {
       "id": "1795760758564-pdgm0s",
       "date": "2026-11-27T06:25:58.564Z",
       "utilisateur": "Zo",
