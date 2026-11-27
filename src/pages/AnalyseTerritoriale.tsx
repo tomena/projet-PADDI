@@ -1,5 +1,5 @@
 /**
- * AnalyseTerritoriale.tsx — version 2.5 (aide à la décision, multilingue, 3 onglets)
+ * AnalyseTerritoriale.tsx — version 2.6 (aide à la décision, multilingue, 3 onglets)
  *
  * Onglets (lus dans l'URL, la sélection géographique reste identique) :
  *   /dashboard/analyse-territoriale               -> Environnement (par défaut)
@@ -7,11 +7,12 @@
  *   /dashboard/analyse-territoriale/economie      -> Économie
  *   /dashboard/analyse-territoriale/social        -> Social
  *
- * Environnement : fond au choix, occupation du sol, perte de couvert, feux, relief,
+ * Fonds de carte : satellite, topographie et OpenStreetMap, disponibles sur les trois onglets.
+ *
+ * Environnement : occupation du sol, perte de couvert, feux, relief,
  *                 tracé de parcelle, orientations.
- * Économie et Social : fond OpenStreetMap uniquement, pas de tracé de parcelle,
- *                 pas d'occupation, de perte ni de feux. Le bandeau de la zone est
- *                 fourni par le panneau de l'onglet.
+ * Économie et Social : pas de tracé de parcelle, pas d'occupation, de perte ni de feux.
+ *                 Le bandeau de la zone est fourni par le panneau de l'onglet.
  *
  * Principes :
  *  - Chaque source est indépendante : si l'une échoue, les autres restent affichées.
@@ -39,7 +40,7 @@ type LevelKey = "ADM1" | "ADM2" | "ADM3";
 type Onglet = "environnement" | "economie" | "social";
 type Fond = "sat" | "topo" | "osm";
 
-const VERSION = "2.5";
+const VERSION = "2.6";
 const DELAI_MS = 20000;
 const DELAI_FEUX_MAJ_MS = 3 * 3600e3;
 const REV = "9469f09";
@@ -705,8 +706,9 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
   // La sélection géographique, elle, reste identique sur les trois onglets.
   const env = onglet === "environnement";
 
-  // Économie et Social : fond OpenStreetMap seul, sans occupation, perte ni feux.
-  const fondAff: Fond = env ? fond : "osm";
+  // Le fond de carte choisi (satellite, topographie, OpenStreetMap) s'applique sur les trois onglets.
+  // Occupation, perte et feux restent réservés à l'onglet Environnement.
+  const fondAff: Fond = fond;
   const occAff = env && showLC;
   const lossAff = env && showLoss;
   const firesAff = env && showFires;
@@ -879,11 +881,11 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
     return () => { ro.disconnect(); m.remove(); map.current = null; };
   }, []);
 
-  /* fond de carte : choisi en Environnement, OpenStreetMap en Économie et Social */
+  /* fond de carte : satellite, topographie ou OpenStreetMap, sur les trois onglets */
   useEffect(() => {
     if (!map.current) return;
     base.current?.remove();
-    base.current = L.tileLayer(FONDS[fondAff], { maxZoom: 18, attribution: ATTRIB[fondAff] }).addTo(map.current);
+    base.current = L.tileLayer(FONDS[fondAff], { maxZoom: 19, maxNativeZoom: 18, attribution: ATTRIB[fondAff] }).addTo(map.current);
     base.current.bringToBack();
   }, [fondAff]);
 
@@ -1325,9 +1327,9 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
           <div className="at-mhead">
             <div className="at-mtools">
               <div className="at-seg" role="group" aria-label={t.carte.fondAria}>
-                <button type="button" aria-pressed={fondAff === "sat"} disabled={!env} onClick={() => setFond("sat")}>{t.carte.satellite}</button>
-                <button type="button" aria-pressed={fondAff === "topo"} disabled={!env} onClick={() => setFond("topo")}>{t.carte.topo}</button>
-                <button type="button" aria-pressed={fondAff === "osm"} disabled={!env} onClick={() => setFond("osm")}>OpenStreetMap</button>
+                <button type="button" aria-pressed={fondAff === "sat"} onClick={() => setFond("sat")}>{t.carte.satellite}</button>
+                <button type="button" aria-pressed={fondAff === "topo"} onClick={() => setFond("topo")}>{t.carte.topo}</button>
+                <button type="button" aria-pressed={fondAff === "osm"} onClick={() => setFond("osm")}>OpenStreetMap</button>
               </div>
               {env && (
                 <>
