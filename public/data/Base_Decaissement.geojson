@@ -1832,6 +1832,7 @@
     "Output 4": 8908938.07
   },
   "dates_source": {
-    "composante": "23/11/2026"
+    "composante": "23/11/2026",
+    "instrument": "26/11/2026"
   }
 }
