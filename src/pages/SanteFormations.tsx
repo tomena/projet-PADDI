@@ -1,9 +1,9 @@
-// src/pages/SanteFormations.tsx — version 4
-// Onglet Social : à gauche la santé (hôpitaux publics, CSB1, CSB2, total),
-// à droite l'éducation (université, lycée, collège, école primaire).
-// Santé : /data/formations-sante.json. Éducation : pas encore de source, les cartes affichent « — ».
+// src/pages/SanteFormations.tsx — version 5
+// Onglet Social : en-tête avec totaux (santé et éducation), cartes santé à gauche,
+// cartes éducation à droite, puis détails en miroir (centres et écoles, hôpitaux et universités).
+// Santé : /data/formations-sante.json. Éducation : pas encore de source, les valeurs sont « — ».
 import { useEffect, useMemo, useState } from "react";
-import { Stethoscope, Building2, MapPin, GraduationCap } from "lucide-react";
+import { Stethoscope, Building2, MapPin, GraduationCap, School } from "lucide-react";
 
 type Hop = { region: string; district: string; type: string; nom: string; bloc_operatoire: boolean };
 type Csb = { region: string; district: string; commune: string; type: string; nom: string };
@@ -40,12 +40,12 @@ const COULEUR: Record<string, string> = {
   CSB: "#94a3b8",
 };
 
-// Couleurs des cartes éducation
 const COULEUR_EDU = {
   universite: "#6366f1",
   lycee: "#f97316",
   college: "#eab308",
   primaire: "#ec4899",
+  bloc: "#14b8a6",
 };
 
 const LIBELLE_NIVEAU: Record<string, string> = {
@@ -57,10 +57,15 @@ const LIBELLE_NIVEAU: Record<string, string> = {
 
 const STYLE = `
 .sf{display:flex;flex-direction:column;gap:12px;color:var(--text,#1c2822)}
-.sf-hero{border-radius:14px;padding:16px 18px;color:#fff;background:linear-gradient(135deg,#0f766e 0%,#0284c7 100%);box-shadow:0 6px 18px rgba(2,132,199,.25)}
+.sf-hero{border-radius:14px;padding:16px 18px;color:#fff;background:linear-gradient(135deg,#0f766e 0%,#0284c7 100%);box-shadow:0 6px 18px rgba(2,132,199,.25);display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:14px}
+.sf-hero-titre{min-width:0}
 .sf-hero small{opacity:.85;font-size:12px;letter-spacing:.04em;text-transform:uppercase}
 .sf-hero h3{margin:4px 0 2px;font-size:20px;line-height:1.2}
 .sf-hero p{margin:0;font-size:13px;opacity:.92}
+.sf-hero-totaux{display:flex;align-items:stretch;border-left:2px solid rgba(255,255,255,.5);padding-left:16px;gap:18px}
+.sf-total span{display:block;font-size:11.5px;opacity:.9;text-transform:uppercase;letter-spacing:.03em}
+.sf-total b{display:block;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+.sf-total b.sf-vide{opacity:.7;font-weight:500}
 .sf-pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
 .sf-block{border:1px solid var(--border,#d8d4c8);border-radius:14px;padding:12px;background:var(--surface,#fff);min-width:0}
 .sf-block-titre{display:flex;align-items:center;gap:6px;margin:0 0 10px;font-size:14px;font-weight:700}
@@ -76,8 +81,8 @@ const STYLE = `
 .sf-col{display:flex;flex-direction:column;gap:12px;min-width:0}
 .sf-sec{border:1px solid var(--border,#d8d4c8);border-radius:12px;padding:12px;background:var(--surface,#fff);min-width:0}
 .sf-sec h4{margin:0 0 8px;font-size:14px;display:flex;align-items:center;gap:6px}
-.sf-scroll{max-height:260px;overflow-y:auto;padding-right:4px;overscroll-behavior:contain}
-.sf-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.sf-scroll{max-height:240px;overflow-y:auto;padding-right:4px;overscroll-behavior:contain}
+.sf-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px}
 .sf-item{border:1px solid var(--border,#d8d4c8);border-radius:9px;padding:6px 8px;font-size:12.5px;line-height:1.3;background:var(--surface-2,#f7f6f2);min-width:0}
 .sf-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sf-item small{color:var(--text-3,#6b7770);font-size:11px}
@@ -86,9 +91,12 @@ const STYLE = `
 .sf-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2,#eef0ec)}
 .sf-bar i{display:block;height:100%}
 .sf-muted{font-size:12px;color:var(--text-3,#6b7770);line-height:1.5}
+.sf-ligne{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-top:1px solid var(--border,#d8d4c8);font-size:13px}
+.sf-ligne:first-of-type{border-top:0}
+.sf-ligne span:last-child{color:var(--text-3,#9aa39e);font-variant-numeric:tabular-nums}
 .sf-empty{padding:14px;border-radius:12px;background:var(--surface-2,#f1efe8);font-size:13px;line-height:1.5}
 .sf-note{font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.5;border-top:1px dashed var(--border,#d8d4c8);padding-top:10px;margin:0}
-@media (max-width:760px){.sf-pair,.sf-duo{grid-template-columns:1fr}}
+@media (max-width:760px){.sf-pair,.sf-duo{grid-template-columns:1fr}.sf-hero-totaux{border-left:0;padding-left:0;border-top:1px solid rgba(255,255,255,.5);padding-top:12px;width:100%}}
 @media (max-width:420px){.sf-grid{grid-template-columns:1fr}}
 `;
 
@@ -112,6 +120,22 @@ function Cartes({ items }: { items: Carte[] }) {
           {c.note && <small>{c.note}</small>}
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Section d'éducation sans donnée : même format que les sections santé, valeurs en tirets. */
+function SectionEducation({ titre, icone, lignes, note }: { titre: string; icone: React.ReactNode; lignes: string[]; note: string }) {
+  return (
+    <div className="sf-sec">
+      <h4>{icone} {titre}</h4>
+      {lignes.map((l) => (
+        <div className="sf-ligne" key={l}>
+          <span>{l}</span>
+          <span aria-label="non disponible">—</span>
+        </div>
+      ))}
+      <p className="sf-muted" style={{ margin: "8px 0 0" }}>{note}</p>
     </div>
   );
 }
@@ -163,7 +187,8 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const { hop, csb } = calc;
   const csb1 = csb.filter((c) => c.type === "CSB1").length;
   const csb2 = csb.filter((c) => c.type === "CSB2").length;
-  const total = hop.length + csb.length;
+  const blocs = hop.filter((h) => h.bloc_operatoire).length;
+  const totalSante = hop.length + csb.length;
 
   const parDistrict = trier(hop.map((h) => h.district).concat(csb.map((c) => c.district))).map((d) => ({
     nom: d,
@@ -181,15 +206,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const fil = [region, district, commune].filter(Boolean).join(" › ");
 
   const cartesSante: Carte[] = [
-    {
-      valeur: hop.length,
-      libelle: "Hôpitaux publics",
-      couleur: COULEUR.CHU,
-      note: "CHU, CHRR, CHRD",
-    },
-    { valeur: csb1, libelle: "Centres de santé CSB1", couleur: COULEUR.CSB1, note: "premier niveau" },
-    { valeur: csb2, libelle: "Centres de santé CSB2", couleur: COULEUR.CSB2, note: "second niveau" },
-    { valeur: total, libelle: "Total santé publique", couleur: "#f59e0b" },
+    { valeur: hop.length, libelle: "Hôpitaux CHU, CHRR, CHRD", couleur: COULEUR.CHU },
+    { valeur: csb1, libelle: "Centres de santé CSB1", couleur: COULEUR.CSB1 },
+    { valeur: csb2, libelle: "Centres de santé CSB2", couleur: COULEUR.CSB2 },
+    { valeur: blocs, libelle: "Avec bloc opératoire", couleur: COULEUR_EDU.bloc },
   ];
 
   const cartesEducation: Carte[] = [
@@ -203,17 +223,29 @@ export default function SanteFormations({ region, district, commune }: Props) {
     <section className="sf" aria-label="Santé et éducation">
       <style>{STYLE}</style>
 
-      {/* Bandeau unique */}
+      {/* En-tête : zone à gauche, totaux à droite, séparés par une barre */}
       <div className="sf-hero">
-        <small>{LIBELLE_NIVEAU[niveau]}</small>
-        <h3>{titreZone}</h3>
-        <p>{fil || "Ensemble du pays"}</p>
+        <div className="sf-hero-titre">
+          <small>{LIBELLE_NIVEAU[niveau]}</small>
+          <h3>{titreZone}</h3>
+          <p>{fil || "Ensemble du pays"}</p>
+        </div>
+        <div className="sf-hero-totaux">
+          <div className="sf-total">
+            <span>Total santé</span>
+            <b>{nb(totalSante)}</b>
+          </div>
+          <div className="sf-total">
+            <span>Total éducation</span>
+            <b className="sf-vide">—</b>
+          </div>
+        </div>
       </div>
 
-      {/* Santé à gauche, Éducation à droite : chacune en 2 lignes de 2 cartes */}
+      {/* Cartes : santé à gauche, éducation à droite, 2 lignes de 2 chacune */}
       <div className="sf-pair">
         <div className="sf-block">
-          <h4 className="sf-block-titre"><Stethoscope size={16} aria-hidden /> Santé publique</h4>
+          <h4 className="sf-block-titre"><Stethoscope size={16} aria-hidden /> Santé</h4>
           <Cartes items={cartesSante} />
         </div>
         <div className="sf-block">
@@ -228,14 +260,14 @@ export default function SanteFormations({ region, district, commune }: Props) {
         ))}
       </div>
 
-      {total === 0 && (
+      {totalSante === 0 && (
         <div className="sf-empty">
           Aucun établissement public n'est enregistré pour cette zone. Si elle devrait en avoir, le nom de la commune
           ou du district peut ne pas correspondre à l'écriture du wiki.
         </div>
       )}
 
-      {/* Détails santé */}
+      {/* Détails en miroir : santé à gauche, éducation à droite */}
       <div className="sf-duo">
         <div className="sf-col">
           {niveau === "region" && parDistrict.length > 0 && (
@@ -245,7 +277,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
                 {parDistrict.map((d) => (
                   <div className="sf-row" key={d.nom}>
                     <span>{d.nom}</span>
-                    <div className="sf-bar" title={`${d.csb1} CSB1 · ${d.csb2} CSB2 · ${d.hop} hôpitaux`}>
+                    <div className="sf-bar" title={`${d.csb1} CSB1 · ${d.csb2} CSB2`}>
                       <i style={{ width: `${(d.csb1 / maxBarre) * 100}%`, background: COULEUR.CSB1 }} />
                       <i style={{ width: `${(d.csb2 / maxBarre) * 100}%`, background: COULEUR.CSB2 }} />
                     </div>
@@ -278,32 +310,34 @@ export default function SanteFormations({ region, district, commune }: Props) {
             </div>
           )}
 
-          {niveau === "commune" && csb.length > 0 && (
+          {niveau === "commune" && (
             <div className="sf-sec">
               <h4><MapPin size={15} aria-hidden /> Centres de santé de la commune</h4>
-              <div className="sf-scroll">
-                <div className="sf-cols">
-                  {csb.map((c, i) => (
-                    <div className="sf-item" key={i}>
-                      <Pastille type={c.type} />
-                      <b title={c.nom}>{c.nom}</b>
-                    </div>
-                  ))}
+              {csb.length > 0 ? (
+                <div className="sf-scroll">
+                  <div className="sf-cols">
+                    {csb.map((c, i) => (
+                      <div className="sf-item" key={i}>
+                        <Pastille type={c.type} />
+                        <b title={c.nom}>{c.nom}</b>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <p className="sf-muted" style={{ margin: 0 }}>Aucun centre de santé enregistré dans cette commune.</p>
+              )}
             </div>
           )}
-        </div>
 
-        <div className="sf-col">
           {hop.length > 0 && (
             <div className="sf-sec">
               <h4>
                 <Stethoscope size={15} aria-hidden />
-                {niveau === "commune" ? " Hôpitaux de référence du district" : " Hôpitaux publics"}
+                {niveau === "commune" ? " Hôpitaux de référence du district" : " Hôpitaux CHU, CHRR, CHRD"}
               </h4>
               <p className="sf-muted" style={{ margin: "0 0 8px" }}>
-                {nb(hop.filter((h) => h.bloc_operatoire).length)} sur {nb(hop.length)} disposent d'un bloc opératoire.
+                {nb(blocs)} sur {nb(hop.length)} disposent d'un bloc opératoire.
               </p>
               <div className="sf-scroll">
                 <div className="sf-cols">
@@ -319,14 +353,29 @@ export default function SanteFormations({ region, district, commune }: Props) {
             </div>
           )}
         </div>
+
+        <div className="sf-col">
+          <SectionEducation
+            titre={niveau === "commune" ? "Écoles de la commune" : "Écoles de la zone"}
+            icone={<School size={15} aria-hidden />}
+            lignes={["Écoles primaires", "Collèges", "Lycées"]}
+            note="Données non disponibles : aucune source n'est encore branchée."
+          />
+          <SectionEducation
+            titre={niveau === "region" ? "Universités de la région" : "Universités de référence du district"}
+            icone={<GraduationCap size={15} aria-hidden />}
+            lignes={["Université"]}
+            note="Données non disponibles : aucune source n'est encore branchée."
+          />
+        </div>
       </div>
 
       <p className="sf-note">
         <strong>Méthode.</strong> Santé : comptage des établissements publics listés dans la page communautaire
         OpenStreetMap « Formations Sanitaires / Suivi ». CSB1 et CSB2 sont des centres de santé publics de premier
-        niveau. Les chiffres ne tiennent compte ni de la population ni de l'état de fonctionnement. Éducation : aucune
-        source n'est encore branchée, les tirets ne signifient donc pas qu'il n'existe aucun établissement.
-        Source : OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
+        niveau, comptés dans le total santé. Les chiffres ne tiennent compte ni de la population ni de l'état de
+        fonctionnement. Éducation : aucune source n'est encore branchée, les tirets ne signifient donc pas qu'il
+        n'existe aucun établissement. Source : OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
         {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
       </p>
     </section>
