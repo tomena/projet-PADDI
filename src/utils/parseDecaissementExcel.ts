@@ -305,7 +305,7 @@ export async function analyserFichierDecaissement(fichier: File, niveau: Niveau)
 
   // Les cellules en erreur Excel (#VALUE!, ...) sont lues comme vides.
   const plage = XLSX.utils.decode_range(feuille["!ref"] || "A1:A1");
-  const tableau: unknown[][] = [];
+    const tableau: unknown[][] = [];
   for (let r = plage.s.r; r <= plage.e.r; r++) {
     const ligne: unknown[] = [];
     for (let c = plage.s.c; c <= plage.e.c; c++) {
@@ -314,5 +314,8 @@ export async function analyserFichierDecaissement(fichier: File, niveau: Niveau)
     }
     tableau.push(ligne);
   }
+
+  console.log("Lignes 1 à 3 lues :", JSON.stringify(tableau.slice(0, 3)));
+
   return niveau === "instrument" ? lignesInstruments(tableau) : lignesOutputs(tableau);
 }
