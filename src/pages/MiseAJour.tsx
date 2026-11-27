@@ -3,8 +3,6 @@
 // ouvre directement la fenêtre de saisie, avec la position. Échap ou Annuler arrête le mode.
 import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
-import { invaliderSante } from "../lib/localisation";
-import { invaliderEducation } from "../lib/education";
 
 type Domaine = "sante" | "education";
 type Option = { label: string; prefixe: string; amenity: string };
@@ -161,8 +159,6 @@ export default function MiseAJour({ mapRef, zone }: Props) {
         return;
       }
       sessionStorage.setItem("code-ajout", code);
-      invaliderSante();
-      invaliderEducation();
       window.dispatchEvent(new Event("points-maj"));
       setStatut("Point enregistré. Il apparaîtra après la mise à jour du site (1 à 2 minutes).");
       setTimeout(() => setStatut(""), 8000);
