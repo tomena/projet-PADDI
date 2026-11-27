@@ -1,7 +1,8 @@
-// src/lib/localisation.ts — version 2
+// src/lib/localisation.ts — version 3
 // Lit public/data/localisation_hopital_mada.geojson (adm1_name = région, adm2_name = district,
 // adm3_name = commune, adm4_name = fokontany, name = nom, amenity = type).
-// Affiche des pastilles colorées avec une légende dans la carte (sans nom affiché sur les points).
+// Utilisé pour la carte (pastilles et légende) et pour le compte des pharmacies.
+// Ne remplace pas la base formations-sante.json, qui reste la source des hôpitaux, CSB1 et CSB2.
 import { useEffect } from "react";
 import L from "leaflet";
 
@@ -9,7 +10,7 @@ export type Categorie = "hopital" | "pharmacie" | "csb" | "medical" | "autre";
 
 export type Point = {
   nomComplet: string;   // nom complet (ou type si le nom est vide)
-  nom: string;          // nom abrégé (utilisé dans la fenêtre du point)
+  nom: string;          // nom abrégé, affiché au niveau commune
   type: string;         // CHU, CHRR, CHRD, CSB I, CSB II, CSB, Pharmacie, Hôpital…
   categorie: Categorie;
   region: string;
@@ -21,7 +22,6 @@ export type Point = {
 };
 
 const CHEMIN = "/data/localisation_hopital_mada.geojson";
-const TYPES_REGION = ["CHU", "CHRR", "CHRD"];
 
 // Style par catégorie : couleur et forme (croix ou point)
 const STYLE: Record<Categorie, { couleur: string; croix: boolean; libelle: string }> = {
@@ -52,7 +52,7 @@ const norm = (s?: string | null) =>
     .trim();
 export const same = (a?: string | null, b?: string | null) => !!b && norm(a) === norm(b);
 
-// Correspondance de secours : un nom contient l'autre (« Ampitatafika » ↔ « Ampitatafika Fokontany »)
+// Correspondance de secours : un nom contient l'autre
 const proche = (a?: string | null, b?: string | null) => {
   const x = norm(a), y = norm(b);
   return !!x && !!y && (x.includes(y) || y.includes(x));
@@ -161,16 +161,10 @@ export function pointsDansZone(points: Point[], zone: Zone): Point[] {
   return liste;
 }
 
-/**
- * Ce qui s'affiche sur la carte :
- *  - région seule : seulement CHU, CHRR, CHRD (trop de points sinon)
- *  - district ou commune : tous les points de la zone
- *  - aucune zone : rien
- */
+/** Points affichés sur la carte : tous ceux de la zone choisie. Rien si aucune région n'est choisie. */
 export function pointsPourCarte(points: Point[], zone: Zone): Point[] {
   if (!zone.region) return [];
-  const dans = pointsDansZone(points, zone);
-  return zone.district ? dans : dans.filter((p) => TYPES_REGION.includes(p.type));
+  return pointsDansZone(points, zone);
 }
 
 /* ---------- affichage sur la carte ---------- */
@@ -182,9 +176,13 @@ function injecterStyle() {
   const s = document.createElement("style");
   s.textContent = `
     .poi-icon{background:none!important;border:0!important}
+    .poi-wrap{position:relative;width:16px;height:16px}
     .poi{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;
       border:1.5px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35);box-sizing:border-box;cursor:pointer}
     .poi svg{width:10px;height:10px;display:block}
+    .poi-txt{position:absolute;left:19px;top:1px;white-space:nowrap;pointer-events:none;
+      font:600 11px/1.2 system-ui,sans-serif;color:#14231c;
+      text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 2px #fff,0 0 2px #fff}
     .poi-leg{background:rgba(255,255,255,.96);color:#14231c;border-radius:10px;padding:8px 10px;
       font:12px/1.4 system-ui,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,.25);min-width:170px}
     .poi-leg strong{display:block;margin-bottom:4px;font-size:12px}
@@ -200,12 +198,14 @@ function badge(cat: Categorie) {
   return `<span class="poi" style="background:${s.couleur}"><svg viewBox="0 0 24 24" aria-hidden="true">${s.croix ? CROIX : POINT}</svg></span>`;
 }
 
-function marqueur(p: Point) {
+// Un point : pastille seule, ou pastille avec le nom (au niveau commune)
+function marqueur(p: Point, avecNom: boolean) {
+  const texte = avecNom ? `<span class="poi-txt">${esc(p.nom)}</span>` : "";
   const icone = L.divIcon({
     className: "poi-icon",
     iconSize: [16, 16],
     iconAnchor: [8, 8],
-    html: badge(p.categorie),
+    html: `<div class="poi-wrap">${badge(p.categorie)}${texte}</div>`,
   });
   const lignes = [
     `<strong>${esc(p.nomComplet)}</strong>`,
@@ -236,6 +236,7 @@ function legende(categories: Categorie[]): L.Control {
 
 /**
  * Affiche les points de la zone sur la carte, avec la légende. Actif seulement dans l'onglet Social.
+ * Région : pastilles sans nom. District : pastilles sans nom. Commune : pastilles avec le nom.
  * mapRef : la référence de la carte Leaflet (useRef<L.Map | null>).
  */
 export function useSanteMap(mapRef: { current: L.Map | null }, zone: Zone, actif: boolean) {
@@ -255,6 +256,7 @@ export function useSanteMap(mapRef: { current: L.Map | null }, zone: Zone, actif
         if (annule || !mapRef.current) return;
         const carte = mapRef.current;
         const liste = pointsPourCarte(points, { region, district, commune });
+        const avecNom = !!commune;
 
         console.info("Localisation : points affichés =", liste.length, { region, district, commune });
         if (!liste.length && district) {
@@ -262,7 +264,7 @@ export function useSanteMap(mapRef: { current: L.Map | null }, zone: Zone, actif
           console.info("Communes disponibles dans ce district :", communes);
         }
 
-        groupe = L.layerGroup(liste.map(marqueur)).addTo(carte);
+        groupe = L.layerGroup(liste.map((p) => marqueur(p, avecNom))).addTo(carte);
         const cats = [...new Set(liste.map((p) => p.categorie))];
         if (cats.length) ctl = legende(cats).addTo(carte);
       })
