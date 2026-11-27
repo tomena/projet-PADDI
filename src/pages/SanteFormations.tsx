@@ -3,7 +3,7 @@
 // La carte Hôpitaux affiche la commune de chaque CHU, CHRR, CHRD (depuis la base de localisation).
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
-import { chargerLocalisation, pointsDansZone, type Point } from "../lib/localisation";
+import { chargerLocalisation, pointsDansZone, correspond, type Point } from "../lib/localisation";
 
 type Hop = { region: string; district: string; type: string; nom: string; bloc_operatoire: boolean };
 type Csb = { region: string; district: string; commune: string; type: string; nom: string };
@@ -166,15 +166,15 @@ export default function SanteFormations({ region, district, commune }: Props) {
 
   const calc = useMemo(() => {
     if (!data) return null;
-    const dansRegionDistrict = (e: { region: string; district: string }) =>
-      (!region || same(e.region, region)) && (!district || same(e.district, district));
-    const hop = data.hopitaux.filter(dansRegionDistrict);
-    const csb = data.csb.filter(
-      (c) => dansRegionDistrict(c) && (!commune || same(c.commune, commune)),
-    );
-    const educ = (data.educ ?? []).filter(
-      (e) => dansRegionDistrict(e) && (!commune || !e.commune || same(e.commune, commune)),
-    );
+
+    // Hôpitaux, CSB et éducation : filtrés par région, puis district, puis commune
+    const hop = choisir(choisir(data.hopitaux, "region", region), "district", district);
+    const csb = choisir(choisir(choisir(data.csb, "region", region), "district", district), "commune", commune);
+    const educZone = choisir(choisir(data.educ ?? [], "region", region), "district", district);
+    const educ = commune
+      ? educZone.filter((e) => !e.commune || correspond(e.commune, commune))
+      : educZone;
+
     return { hop, csb, educ };
   }, [data, region, district, commune]);
 
