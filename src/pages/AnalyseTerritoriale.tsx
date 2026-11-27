@@ -31,6 +31,7 @@ import { TEXTS, ORI, LANGS, LOCALE, fill, type Lang, type Dict, type Lvl, type T
 import PanneauIndicateurs from "./PanneauIndicateurs"; // adaptez le chemin si besoin
 import { useSanteMap } from "../lib/localisation";
 import { useEducationMap } from "../lib/education";
+import MiseAJour from "./MiseAJour";
 
 /* ===================== CONFIGURATION ===================== */
 
@@ -1367,6 +1368,18 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
               </div>
             )}
           </div>
+            {onglet === "social" && (
+              <div className="at-mtools">
+                <MiseAJour
+                  mapRef={map}
+                  zone={{
+                    region: rF ? nameOf(rF) : null,
+                    district: dF ? nameOf(dF) : null,
+                    commune: cF ? nameOf(cF) : null,
+                  }}
+                />
+              </div>
+            )}
           <div className="at-mbox">
             <div ref={elMap} className="at-map" />
             <div className="at-ctl at-hint">{hint}</div>
