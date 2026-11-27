@@ -1,6 +1,602 @@
 {
   "entries": [
     {
+      "id": "1795790206936-it8x9q",
+      "date": "2026-11-27T14:36:46.936Z",
+      "utilisateur": "Zo",
+      "identifiant": "Zo",
+      "annee": 2031,
+      "mois": "Décaissement par instrument",
+      "uc": "Programme",
+      "nombreColonnesModifiees": 73,
+      "changements": [
+        {
+          "colonne": "Juillet 2024 — Charges de fonctionnement et divers",
+          "ancienneValeur": 1481.95,
+          "nouvelleValeur": -5760.89,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet 2024 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 7242.84,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Août 2024 — Charges de fonctionnement et divers",
+          "ancienneValeur": 8972.74,
+          "nouvelleValeur": 3211.73,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août 2024 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 5761.01,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Septembre 2024 — Charges de fonctionnement et divers",
+          "ancienneValeur": 21565.45,
+          "nouvelleValeur": 10790.67,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre 2024 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 10774.78,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Octobre 2024 — Charges de fonctionnement et divers",
+          "ancienneValeur": 16752.31,
+          "nouvelleValeur": 5911.25,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2024 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 10841.06,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Novembre 2024 — Charges de fonctionnement et divers",
+          "ancienneValeur": 50745.98,
+          "nouvelleValeur": 37477.19,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2024 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 13268.79,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Décembre 2024 — Charges de fonctionnement et divers",
+          "ancienneValeur": 120653.91,
+          "nouvelleValeur": 77711.83,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Décembre"
+        },
+        {
+          "colonne": "Décembre 2024 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 42942.08,
+          "uc": "Décaissement par instrument",
+          "annee": 2024,
+          "mois": "Décembre"
+        },
+        {
+          "colonne": "Janvier 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 10084.03,
+          "nouvelleValeur": -5855.92,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Janvier"
+        },
+        {
+          "colonne": "Janvier 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 15939.95,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Janvier"
+        },
+        {
+          "colonne": "Février 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": -3444.36,
+          "nouvelleValeur": -9478.59,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 6034.23,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Mars 2025 — Achats par le projet",
+          "ancienneValeur": 4453.33,
+          "nouvelleValeur": 4675.26,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars 2025 — Construction (LP 005)",
+          "ancienneValeur": 221.93,
+          "nouvelleValeur": 0,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 22792.83,
+          "nouvelleValeur": 6850.43,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 15942.4,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Avril 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": -89.56,
+          "nouvelleValeur": -19584.96,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 19495.4,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Mai 2025 — Achats par le projet",
+          "ancienneValeur": 4117.18,
+          "nouvelleValeur": 4234.08,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai 2025 — Construction (LP 005)",
+          "ancienneValeur": 116.9,
+          "nouvelleValeur": 0,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 33817.14,
+          "nouvelleValeur": 22064.56,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 11752.58,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Juin 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 37610.43,
+          "nouvelleValeur": 18942.63,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 18667.8,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juillet 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 13507.55,
+          "nouvelleValeur": -2509.39,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 16016.94,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Août 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 35777.21,
+          "nouvelleValeur": 19217.11,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 16560.1,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Septembre 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 113633.87,
+          "nouvelleValeur": -8287.59,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Septembre 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 121921.46,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Septembre"
+        },
+        {
+          "colonne": "Octobre 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 8686.68,
+          "nouvelleValeur": -5281.78,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 13968.46,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Novembre 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 34951.26,
+          "nouvelleValeur": 17618.15,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 17333.11,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Décembre 2025 — Achats par le projet",
+          "ancienneValeur": 122462.42,
+          "nouvelleValeur": 124478.32,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Décembre"
+        },
+        {
+          "colonne": "Décembre 2025 — Construction (LP 005)",
+          "ancienneValeur": 2015.9,
+          "nouvelleValeur": 0,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Décembre"
+        },
+        {
+          "colonne": "Décembre 2025 — Charges de fonctionnement et divers",
+          "ancienneValeur": 134714.49,
+          "nouvelleValeur": 58202.52,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Décembre"
+        },
+        {
+          "colonne": "Décembre 2025 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 76511.97,
+          "uc": "Décaissement par instrument",
+          "annee": 2025,
+          "mois": "Décembre"
+        },
+        {
+          "colonne": "Février 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 8431.67,
+          "nouvelleValeur": 548.6,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Février 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 7883.07,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Février"
+        },
+        {
+          "colonne": "Mars 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 15649.68,
+          "nouvelleValeur": 4607.23,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Mars 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 11042.45,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Mars"
+        },
+        {
+          "colonne": "Avril 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 18868.81,
+          "nouvelleValeur": 9772.58,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Avril 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 9096.23,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Avril"
+        },
+        {
+          "colonne": "Mai 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 19828.31,
+          "nouvelleValeur": 2534.1,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Mai 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 17294.21,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Mai"
+        },
+        {
+          "colonne": "Juin 2026 — Achats par le projet",
+          "ancienneValeur": 6970.3,
+          "nouvelleValeur": 6970.39,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 34881.97,
+          "nouvelleValeur": 13425.43,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 21456.54,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juin 2026 — Total",
+          "ancienneValeur": 165043.05,
+          "nouvelleValeur": 165043.14,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Juin"
+        },
+        {
+          "colonne": "Juillet 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 307466.49,
+          "nouvelleValeur": 45467.3,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Juillet 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 261999.19,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Juillet"
+        },
+        {
+          "colonne": "Août 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 133110.93,
+          "nouvelleValeur": 14233.18,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Août 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 118877.75,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Août"
+        },
+        {
+          "colonne": "Octobre 2026 — Experts",
+          "ancienneValeur": 104579.59,
+          "nouvelleValeur": 106567.7,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2026 — Frais de mission",
+          "ancienneValeur": 8562.58,
+          "nouvelleValeur": 9082.32,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2026 — Contrats",
+          "ancienneValeur": 238610.11,
+          "nouvelleValeur": 239240.71,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2026 — Achats par le projet",
+          "ancienneValeur": 6637.27,
+          "nouvelleValeur": 7634.84,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": 17325.3,
+          "nouvelleValeur": 18656.78,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": 61699.29,
+          "nouvelleValeur": 62556.09,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Octobre 2026 — Total",
+          "ancienneValeur": 437414.14,
+          "nouvelleValeur": 443738.44,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Octobre"
+        },
+        {
+          "colonne": "Novembre 2026 — Experts",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 225732.17,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2026 — Frais de mission",
+          "ancienneValeur": null,
+          "nouvelleValeur": 23607.26,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2026 — Contrats",
+          "ancienneValeur": null,
+          "nouvelleValeur": 612037.14,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2026 — Achats par le projet",
+          "ancienneValeur": null,
+          "nouvelleValeur": 50960.24,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2026 — Construction (LP 005)",
+          "ancienneValeur": null,
+          "nouvelleValeur": 0,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2026 — Charges de fonctionnement et divers",
+          "ancienneValeur": null,
+          "nouvelleValeur": 69586.55,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2026 — Frais généraux + TVA GER",
+          "ancienneValeur": null,
+          "nouvelleValeur": 141725.43,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre 2026 — Total",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 1123648.79,
+          "uc": "Décaissement par instrument",
+          "annee": 2026,
+          "mois": "Novembre"
+        }
+      ]
+    },
+    {
       "id": "1795788115848-Zo",
       "date": "2026-11-27T14:01:55.848Z",
       "utilisateur": "Zo",
