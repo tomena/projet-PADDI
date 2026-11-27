@@ -178,9 +178,9 @@ export default function SanteFormations({ region, district, commune }: Props) {
     return { hop, csb, educ };
   }, [data, region, district, commune]);
 
-  // Communes où se trouvent les CHU, CHRR, CHRD de la zone (depuis la base de localisation)
+  // Communes des CHU, CHRR, CHRD du district (même quand une commune est choisie)
   const communesHop = useMemo(() => {
-    const liste = pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: commune ?? null })
+    const liste = pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: null })
       .filter((p) => TYPES_HOPITAL.includes(p.type));
     const vus = new Map<string, string>();
     liste.forEach((p) => {
@@ -188,7 +188,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
       if (p.commune && !vus.has(cle)) vus.set(cle, `${p.commune} (${p.type})`);
     });
     return [...vus.values()];
-  }, [loc, region, district, commune]);
+  }, [loc, region, district]);
 
   if (erreur) {
     return (
