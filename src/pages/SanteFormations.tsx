@@ -1,10 +1,9 @@
-// src/pages/SanteFormations.tsx — version 6
-// Onglet Social : en-tête (santé et éducation), cartes santé à gauche et éducation à droite,
-// détails en miroir. Le libellé des hôpitaux ne montre que les types présents dans la zone.
-// Santé : /data/formations-sante.json. Éducation : pas encore de source, les valeurs sont « — »
-// jusqu'à ce qu'un tableau « educ » soit ajouté au JSON.
+// src/pages/SanteFormations.tsx — version 7
+// Onglet Social : en-tête, cartes santé et éducation, détails en miroir.
+// La carte Hôpitaux affiche la commune de chaque CHU, CHRR, CHRD (depuis la base de localisation).
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
+import { chargerLocalisation, pointsDansZone, type Point } from "../lib/localisation";
 
 type Hop = { region: string; district: string; type: string; nom: string; bloc_operatoire: boolean };
 type Csb = { region: string; district: string; commune: string; type: string; nom: string };
@@ -57,7 +56,6 @@ const LIBELLE_NIVEAU: Record<string, string> = {
   commune: "Commune",
 };
 
-// Ordre d'affichage des types d'hôpitaux
 const TYPES_HOPITAL = ["CHU", "CHRR", "CHRD"];
 
 const STYLE = `
@@ -79,7 +77,7 @@ const STYLE = `
 .sf-kpi b{display:block;font-size:24px;line-height:1.1;font-variant-numeric:tabular-nums}
 .sf-kpi b.sf-vide{color:var(--text-3,#9aa39e);font-weight:500}
 .sf-kpi span{display:block;font-size:11.5px;color:var(--text-3,#6b7770);line-height:1.3;margin-top:3px}
-.sf-kpi small{display:block;font-size:10.5px;color:var(--text-3,#9aa39e);margin-top:4px}
+.sf-kpi small{display:block;font-size:10.5px;color:var(--text-3,#6b7770);margin-top:4px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .sf-legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--text-2,#4a5850)}
 .sf-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:3px}
 .sf-duo{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
@@ -122,7 +120,7 @@ function Cartes({ items }: { items: Carte[] }) {
         <div className="sf-kpi" key={c.libelle} style={{ ["--c" as any]: c.couleur }}>
           {c.valeur === null ? <b className="sf-vide">—</b> : <b>{nb(c.valeur)}</b>}
           <span>{c.libelle}</span>
-          {c.note && <small>{c.note}</small>}
+          {c.note && <small title={c.note}>{c.note}</small>}
         </div>
       ))}
     </div>
@@ -148,6 +146,7 @@ function SectionVide({ titre, icone, lignes, note }: { titre: string; icone: Rea
 export default function SanteFormations({ region, district, commune }: Props) {
   const [data, setData] = useState<Donnees | null>(null);
   const [erreur, setErreur] = useState(false);
+  const [loc, setLoc] = useState<Point[]>([]);
 
   useEffect(() => {
     fetch("/data/formations-sante.json")
@@ -157,6 +156,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
       })
       .then(setData)
       .catch(() => setErreur(true));
+  }, []);
+
+  useEffect(() => {
+    chargerLocalisation().then(setLoc).catch(() => setLoc([]));
   }, []);
 
   const niveau = commune ? "commune" : district ? "district" : region ? "region" : "national";
@@ -174,6 +177,18 @@ export default function SanteFormations({ region, district, commune }: Props) {
     );
     return { hop, csb, educ };
   }, [data, region, district, commune]);
+
+  // Communes où se trouvent les CHU, CHRR, CHRD de la zone (depuis la base de localisation)
+  const communesHop = useMemo(() => {
+    const liste = pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: commune ?? null })
+      .filter((p) => TYPES_HOPITAL.includes(p.type));
+    const vus = new Map<string, string>();
+    liste.forEach((p) => {
+      const cle = `${p.commune}|${p.type}`;
+      if (p.commune && !vus.has(cle)) vus.set(cle, `${p.commune} (${p.type})`);
+    });
+    return [...vus.values()];
+  }, [loc, region, district, commune]);
 
   if (erreur) {
     return (
@@ -198,12 +213,10 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const blocs = hop.filter((h) => h.bloc_operatoire).length;
   const totalSante = hop.length + csb.length;
 
-  // Types d'hôpitaux réellement présents dans la zone (CHU, CHRR, CHRD)
   const typesPresents = TYPES_HOPITAL.filter((t) => hop.some((h) => h.type === t));
   const libelleHop = typesPresents.length ? `Hôpitaux ${typesPresents.join(", ")}` : "Hôpitaux";
   const hopCompte = hop.filter((h) => TYPES_HOPITAL.includes(h.type)).length;
 
-  // Éducation : lycées, et universités seulement si la zone en a
   const lycees = educ.filter((e) => e.type === "lycee");
   const universites = educ.filter((e) => e.type === "universite");
 
@@ -223,7 +236,12 @@ export default function SanteFormations({ region, district, commune }: Props) {
   const fil = [region, district, commune].filter(Boolean).join(" › ");
 
   const cartesSante: Carte[] = [
-    { valeur: hopCompte, libelle: libelleHop, couleur: COULEUR.CHU },
+    {
+      valeur: hopCompte,
+      libelle: libelleHop,
+      couleur: COULEUR.CHU,
+      note: communesHop.length ? communesHop.join(" · ") : undefined,
+    },
     { valeur: csb1, libelle: "Centres de santé CSB1", couleur: COULEUR.CSB1 },
     { valeur: csb2, libelle: "Centres de santé CSB2", couleur: COULEUR.CSB2 },
     { valeur: blocs, libelle: "Avec bloc opératoire", couleur: COULEUR_EDU.bloc },
@@ -240,7 +258,6 @@ export default function SanteFormations({ region, district, commune }: Props) {
     <section className="sf" aria-label="Santé et éducation">
       <style>{STYLE}</style>
 
-      {/* En-tête : zone à gauche, santé et éducation à droite, séparées par une barre */}
       <div className="sf-hero">
         <div className="sf-hero-titre">
           <small>{LIBELLE_NIVEAU[niveau]}</small>
@@ -259,7 +276,6 @@ export default function SanteFormations({ region, district, commune }: Props) {
         </div>
       </div>
 
-      {/* Cartes : santé à gauche, éducation à droite, 2 lignes de 2 chacune */}
       <div className="sf-pair">
         <div className="sf-block">
           <h4 className="sf-block-titre"><Stethoscope size={16} aria-hidden /> Santé</h4>
@@ -284,7 +300,6 @@ export default function SanteFormations({ region, district, commune }: Props) {
         </div>
       )}
 
-      {/* Détails en miroir : santé à gauche, éducation à droite */}
       <div className="sf-duo">
         <div className="sf-col">
           {niveau === "region" && parDistrict.length > 0 && (
@@ -379,7 +394,6 @@ export default function SanteFormations({ region, district, commune }: Props) {
             note="Données non disponibles : aucune source n'est encore branchée."
           />
 
-          {/* Lycées, avec l'université seulement si la zone en a une */}
           <div className="sf-sec">
             <h4>
               <GraduationCap size={15} aria-hidden />
@@ -417,8 +431,9 @@ export default function SanteFormations({ region, district, commune }: Props) {
         <strong>Méthode.</strong> Santé : comptage des établissements publics listés dans la page communautaire
         OpenStreetMap « Formations Sanitaires / Suivi ». CSB1 et CSB2 sont des centres de santé publics de premier
         niveau, comptés dans le total santé. Les chiffres ne tiennent compte ni de la population ni de l'état de
-        fonctionnement. Éducation : aucune source n'est encore branchée, les tirets ne signifient donc pas qu'il
-        n'existe aucun établissement. Source : OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
+        fonctionnement. Les communes des hôpitaux viennent de la base de localisation. Éducation : aucune source
+        n'est encore branchée, les tirets ne signifient donc pas qu'il n'existe aucun établissement. Source :
+        OpenStreetMap Wiki (CC BY-SA), données OSM (ODbL).
         {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
       </p>
     </section>
