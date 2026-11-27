@@ -32,9 +32,17 @@ export default async function handler(req: any, res: any) {
   // 1. Lire le fichier actuel (métadonnées : sha, adresse du contenu brut)
   const lecture = await fetch(`${api}?ref=${encodeURIComponent(BRANCH)}`, { headers: entetes() });
     if (!lecture.ok) {
-      const detail = await lecture.text();
-      console.error("Lecture GitHub", lecture.status, { REPO, BRANCH, chemin }, detail);
-      return res.status(502).json({ erreur: "lecture", statut: lecture.status, detail: detail.slice(0, 300) });
+      const depot = await fetch(`https://api.github.com/repos/${REPO}`, { headers: entetes() });
+      const moi = await fetch("https://api.github.com/user", { headers: entetes() });
+      return res.status(502).json({
+        erreur: "lecture",
+        statut: lecture.status,
+        repo: JSON.stringify(REPO),      // montre les espaces cachés
+        branche: JSON.stringify(BRANCH),
+        chemin,
+        test_depot: depot.status,        // 200 = dépôt accessible
+        test_token: moi.status,          // 200 = token valide
+      });
     }
   const meta = await lecture.json();
 
