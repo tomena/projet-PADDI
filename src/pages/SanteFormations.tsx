@@ -1,8 +1,9 @@
-// src/pages/SanteFormations.tsx — version 11
+// src/pages/SanteFormations.tsx — version 12
 // Onglet Social.
 // Santé : hôpitaux, CSB1 et CSB2 comptés dans formations-sante.json ; pharmacies dans la base de localisation.
 // Éducation : universités, lycées, collèges et écoles primaires comptés dans la base éducation.
-// Chaque type d'établissement scolaire est regroupé dans une petite carte, avec la liste dessous.
+// Chaque type d'établissement scolaire est une carte au contour coloré ; sa liste s'écrit en petits
+// caractères gris, sur plusieurs colonnes à l'intérieur de la même carte.
 import { useEffect, useMemo, useState } from "react";
 import { Stethoscope, MapPin, GraduationCap, School } from "lucide-react";
 import { chargerLocalisation, pointsDansZone, correspond, type Point } from "../lib/localisation";
@@ -106,15 +107,16 @@ const STYLE = `
 .sf-item b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sf-item small{color:var(--text-3,#6b7770);font-size:11px}
 .sf-chip{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;color:#fff;margin-bottom:3px}
-.sf-groupes{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
-.sf-groupe{border:1px solid var(--border,#d8d4c8);border-left:4px solid var(--c,#94a3b8);border-radius:10px;padding:8px 10px;background:var(--surface-2,#f7f6f2);min-width:0}
-.sf-groupe-tete{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-bottom:4px}
-.sf-groupe-tete b{background:var(--c,#94a3b8);color:#fff;border-radius:999px;padding:0 8px;font-size:11.5px;font-weight:700;line-height:1.6}
-.sf-groupe-liste{max-height:210px;overflow-y:auto;overscroll-behavior:contain}
-.sf-groupe-ligne{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:4px 0;border-top:1px solid var(--border,#d8d4c8);font-size:12.5px}
+.sf-groupes{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+.sf-groupe{border:1.5px solid var(--c,#94a3b8);border-radius:10px;padding:8px 10px;background:var(--surface,#fff);min-width:0}
+.sf-groupe-tete{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+.sf-groupe-tete span{font-size:12.5px;font-weight:700;color:var(--c,#94a3b8);filter:brightness(.8)}
+.sf-groupe-tete b{background:var(--c,#94a3b8);color:#fff;border-radius:999px;padding:0 8px;font-size:11px;font-weight:700;line-height:1.6}
+.sf-groupe-liste{max-height:220px;overflow-y:auto;overscroll-behavior:contain;columns:140px;column-gap:14px}
+.sf-groupe-ligne{break-inside:avoid;padding:3px 0 4px;border-top:1px solid var(--border,#e4e1d8);font-size:11px;line-height:1.2;color:#7a837e}
 .sf-groupe-ligne:first-child{border-top:0}
-.sf-groupe-ligne span{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
-.sf-groupe-ligne small{color:var(--text-3,#6b7770);font-size:11px;white-space:nowrap;flex-shrink:0;max-width:45%;overflow:hidden;text-overflow:ellipsis}
+.sf-groupe-ligne b{display:block;font-weight:500;color:#6b7470;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sf-groupe-ligne small{display:block;font-size:10px;color:#9aa39e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sf-row{display:grid;grid-template-columns:minmax(80px,1fr) minmax(0,2fr) auto;gap:8px;align-items:center;margin:6px 0;font-size:13px}
 .sf-bar{display:flex;height:12px;border-radius:6px;overflow:hidden;background:var(--surface-2,#eef0ec)}
 .sf-bar i{display:block;height:100%}
@@ -133,7 +135,10 @@ function Pastille({ type }: { type: string }) {
   );
 }
 
-/** Une petite carte par type d'établissement scolaire, avec la liste de tous ceux de la zone. */
+/**
+ * Une carte par type d'établissement scolaire, contour de sa couleur.
+ * La liste est sur plusieurs colonnes, en petits caractères gris : nom, puis fokontany ou commune.
+ */
 function CarteGroupe({ titre, items, couleur }: { titre: string; items: Ecole[]; couleur: string }) {
   return (
     <div className="sf-groupe" style={{ ["--c" as any]: couleur }}>
@@ -144,7 +149,7 @@ function CarteGroupe({ titre, items, couleur }: { titre: string; items: Ecole[];
       <div className="sf-groupe-liste">
         {items.map((e, i) => (
           <div className="sf-groupe-ligne" key={`${e.nomComplet}-${i}`}>
-            <span title={e.nomComplet}>{e.nomCourt}</span>
+            <b title={e.nomComplet}>{e.nomCourt}</b>
             <small title={e.fokontany || e.commune}>{e.fokontany || e.commune}</small>
           </div>
         ))}
@@ -233,7 +238,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
     return ecolesDansZone(edu, { region: region ?? null, district: district ?? null, commune: commune ?? null });
   }, [edu, region, district, commune]);
 
-  // Regroupement par type : une petite carte par groupe
+  // Regroupement par type : une carte par groupe
   const groupes = useMemo(() => {
     const m = new Map<string, Ecole[]>();
     (ecolesZone ?? []).forEach((e) => {
@@ -485,9 +490,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
       <p className="sf-note">
         <strong>Méthode.</strong> Santé : hôpitaux, CSB1 et CSB2 comptés dans la page communautaire OpenStreetMap
         « Formations Sanitaires / Suivi ». Les hôpitaux sont comptés au niveau du district, car la liste ne donne
-        pas leur commune. Pharmacies et établissements scolaires : comptés dans les bases de localisation
-        (localisation_hopital_mada et localisation_education_mada). Le type est retiré du nom (CEG, EPP, Lycée…),
-        et le caractère privé est déduit du nom. Les noms de zones proches sont considérés comme identiques. Les
+        pas leur commune. Pharmacies et établissements scolaires : comptés dans les bases de localisation. Les
         chiffres ne tiennent compte ni de la population ni de l'état de fonctionnement. Sources : OpenStreetMap Wiki
         (CC BY-SA), données OSM (ODbL).
         {data?.genere_le && ` Extraction santé du ${data.genere_le}.`}
