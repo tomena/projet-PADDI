@@ -1,6 +1,218 @@
 {
   "entries": [
     {
+      "id": "1795790890995-uqjevm",
+      "date": "2026-11-27T14:48:10.995Z",
+      "utilisateur": "Zo",
+      "identifiant": "Zo",
+      "annee": 2026,
+      "mois": "Import annuel (janvier-décembre)",
+      "uc": "UCR-FD",
+      "nombreColonnesModifiees": 25,
+      "changements": [
+        {
+          "colonne": "Novembre — D (EUR)",
+          "ancienneValeur": 10019.933329019394,
+          "nouvelleValeur": 10372.655280238905,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC",
+          "ancienneValeur": 0.4695816538110129,
+          "nouvelleValeur": 0.4861118792876045,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — D C1 (EUR)",
+          "ancienneValeur": 1388.7285502149111,
+          "nouvelleValeur": 1635.167574605155,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC C1",
+          "ancienneValeur": 0.53,
+          "nouvelleValeur": 0.24764009913753673,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — D C2 (EUR)",
+          "ancienneValeur": 8631.204778804484,
+          "nouvelleValeur": 8698.853559292289,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC C2",
+          "ancienneValeur": 0.86,
+          "nouvelleValeur": 0.727937536342451,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — D C3 (EUR)",
+          "ancienneValeur": 0,
+          "nouvelleValeur": 38.63414634146341,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC C3",
+          "ancienneValeur": 0.83,
+          "nouvelleValeur": 0.01387222489819153,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — DA (EUR)",
+          "ancienneValeur": 5356.84159856187,
+          "nouvelleValeur": 5671.592818074066,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC A",
+          "ancienneValeur": 1.0932329792983408,
+          "nouvelleValeur": 1.1574679220559319,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — DMI (EUR)",
+          "ancienneValeur": 4105.951882444986,
+          "nouvelleValeur": 4279.220175127913,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC MI",
+          "ancienneValeur": 0.7016322423863612,
+          "nouvelleValeur": 0.7312406314299236,
+          "uc": "UCR-FD",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — D (EUR)",
+          "ancienneValeur": 1369980.2239134281,
+          "nouvelleValeur": 1370332.9458646476,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC",
+          "ancienneValeur": 0.6664164804583332,
+          "nouvelleValeur": 0.6665880593740059,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — D C1 (EUR)",
+          "ancienneValeur": 128573.18815882452,
+          "nouvelleValeur": 128819.62718321476,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC C1",
+          "ancienneValeur": 0.5917218867188105,
+          "nouvelleValeur": 0.44143096908967977,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — D C2 (EUR)",
+          "ancienneValeur": 418244.4508819763,
+          "nouvelleValeur": 418312.09966246405,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC C2",
+          "ancienneValeur": 0.801276590346924,
+          "nouvelleValeur": 0.6141809176715183,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — D C3 (EUR)",
+          "ancienneValeur": 819713.8537482234,
+          "nouvelleValeur": 819752.4878945649,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC C3",
+          "ancienneValeur": 0.7991257762349392,
+          "nouvelleValeur": 0.7688041293147523,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC C4",
+          "ancienneValeur": 0.5649306122448979,
+          "nouvelleValeur": 0.2082567104108746,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — DA (EUR)",
+          "ancienneValeur": 42722.742432696505,
+          "nouvelleValeur": 43037.4936522087,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC A",
+          "ancienneValeur": 0.3579851244781209,
+          "nouvelleValeur": 0.3606225079437123,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — DMI (EUR)",
+          "ancienneValeur": 58555.035928245314,
+          "nouvelleValeur": 58728.30422092824,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        },
+        {
+          "colonne": "Novembre — TAC MI",
+          "ancienneValeur": 0.43806572357326434,
+          "nouvelleValeur": 0.4393619895357593,
+          "uc": "Tous",
+          "annee": 2026,
+          "mois": "Novembre"
+        }
+      ]
+    },
+    {
       "id": "1795790206936-it8x9q",
       "date": "2026-11-27T14:36:46.936Z",
       "utilisateur": "Zo",
