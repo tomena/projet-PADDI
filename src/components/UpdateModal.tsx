@@ -101,6 +101,9 @@ const RESPONSIVE_CSS = `
   .um-stack { flex-direction: column !important; align-items: stretch !important; }
   .um-stack > * { width: 100% !important; }
 
+  /* Année / Mois : une colonne */
+  .um-grid-2 { grid-template-columns: 1fr !important; }
+
   /* Listes déroulantes : pleine largeur, 16px (pas de zoom auto sur iOS) */
   .um-modal select {
     width: 100% !important;
@@ -156,9 +159,17 @@ const RESPONSIVE_CSS = `
 `;
 
 export default function UpdateModal({ onClose, userName, token }: UpdateModalProps) {
-  // Année : utilisée seulement par l'import « Taux d'avancement » (analyserFichierCouts).
+  // Année et Mois : utilisés par l'import « Taux d'avancement » (mise à jour mensuelle).
+  // Non utilisés par le décaissement, qui lit toutes les périodes du fichier.
   const [anneeImport, setAnneeImport] = useState<string>("2026");
   const anneesDisponibles = [2024, 2025, 2026, 2027, 2028, 2029, 2030];
+
+  const [moisImport, setMoisImport] = useState<string>("");
+  const moisDisponibles = [
+    "Janvier", "Février", "Mars", "Avril",
+    "Mai", "Juin", "Juillet", "Août",
+    "Septembre", "Octobre", "Novembre", "Décembre",
+  ];
 
   const [typeMiseAJour, setTypeMiseAJour] = useState<"decaissement" | "avancement" | null>(null);
 
@@ -355,6 +366,12 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
       return;
     }
 
+    // Taux d'avancement : la mise à jour se fait par mois, il faut donc un mois et une année.
+    if (!moisImport) {
+      setErreur("Veuillez choisir le mois de la mise à jour.");
+      return;
+    }
+
     let ongletsAImporter: string[] = [];
 
     if (estAdminImport) {
@@ -376,8 +393,8 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
     setImportEnCours(true);
 
     try {
-      // Lire uniquement les onglets autorisés.
-      const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport));
+      // Lire uniquement les onglets autorisés, pour l'année et le mois choisis.
+      const imports = await analyserFichierCouts(fichier, ongletsAImporter, Number(anneeImport), moisImport);
 
       if (!imports || imports.length === 0) {
         throw new Error("Aucune donnée exploitable trouvée dans les onglets sélectionnés.");
@@ -387,7 +404,7 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
       const reponse = await fetch("/api/import-couts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, imports }),
+        body: JSON.stringify({ token, imports, annee: Number(anneeImport), mois: moisImport }),
       });
 
       const resultatAPI = await reponse.json();
@@ -616,24 +633,51 @@ export default function UpdateModal({ onClose, userName, token }: UpdateModalPro
             <div style={styles.importSection}>
               <div style={styles.sectionTitle}>IMPORTER LE FICHIER EXCEL</div>
 
-              {/* ANNÉE : uniquement pour le taux d'avancement.
-                  Pour le décaissement, le fichier contient déjà toutes les périodes. */}
+              {/* ANNÉE ET MOIS : uniquement pour le taux d'avancement (mise à jour mensuelle) */}
               {typeMiseAJour === "avancement" && (
-                <div style={styles.selectGroup}>
-                  <div style={styles.levelLabel}>Année</div>
+                <div
+                  className="um-grid-2"
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: "12px",
+                    alignItems: "end",
+                    width: "100%",
+                  }}
+                >
+                  <div style={styles.selectGroup}>
+                    <div style={styles.levelLabel}>Année</div>
 
-                  <select
-                    value={anneeImport}
-                    onChange={(e) => setAnneeImport(e.target.value)}
-                    style={styles.select}
-                  >
-                    <option value="">Choisir l'année</option>
-                    {anneesDisponibles.map((annee) => (
-                      <option key={annee} value={annee}>
-                        {annee}
-                      </option>
-                    ))}
-                  </select>
+                    <select
+                      value={anneeImport}
+                      onChange={(e) => setAnneeImport(e.target.value)}
+                      style={styles.select}
+                    >
+                      <option value="">Choisir l'année</option>
+                      {anneesDisponibles.map((annee) => (
+                        <option key={annee} value={annee}>
+                          {annee}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={styles.selectGroup}>
+                    <div style={styles.levelLabel}>Mois</div>
+
+                    <select
+                      value={moisImport}
+                      onChange={(e) => setMoisImport(e.target.value)}
+                      style={styles.select}
+                    >
+                      <option value="">Choisir le mois</option>
+                      {moisDisponibles.map((mois) => (
+                        <option key={mois} value={mois}>
+                          {mois}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
 
