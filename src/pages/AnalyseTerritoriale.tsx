@@ -33,6 +33,7 @@ import PanneauIndicateurs from "./PanneauIndicateurs"; // adaptez le chemin si b
 import { useSanteMap } from "../lib/localisation";
 import { useEducationMap } from "../lib/education";
 import MiseAJour from "./MiseAJour";
+import DeplacerPoint from "./DeplacerPoint";
 
 /* ===================== CONFIGURATION ===================== */
 
@@ -1380,6 +1381,7 @@ function Coeur({ lang, t, onglet }: { lang: Lang; t: Dict; onglet: Onglet }) {
                     commune: cF ? nameOf(cF) : null,
                   }}
                 />
+                <DeplacerPoint mapRef={map} />
               </div>
             )}
           <div className="at-mbox">
