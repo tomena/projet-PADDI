@@ -1,4 +1,4 @@
-// src/lib/education.ts — version 3
+// src/lib/education.ts — version 4
 // Lit public/data/localisation_education_mada.geojson (adm1_name = région, adm2_name = district,
 // adm3_name = commune, adm4_name = fokontany, name = nom, amenity = type).
 // Sert au comptage, aux cartes de la liste et à l'affichage sur la carte (légende cliquable).
@@ -11,7 +11,7 @@ export type CategorieEdu = "universite" | "lycee" | "college" | "primaire" | "au
 export type Ecole = {
   nomComplet: string;   // nom tel qu'il est dans la base
   nomCourt: string;     // nom sans le type (CEG, Lycée, EPP…), en forme de titre
-  groupe: string;       // CEG, Collège privé, École primaire, École primaire privée, Lycée, Lycée privé, Université…
+  groupe: string;       // CEG, Collège, Collège privé, École primaire, École primaire privée, Lycée, Lycée privé, Université, Université privée
   categorie: CategorieEdu;
   prive: boolean;
   region: string;
@@ -33,15 +33,24 @@ const STYLE: Record<CategorieEdu, { couleur: string; carre: boolean; libelle: st
   autre: { couleur: "#94a3b8", carre: false, libelle: "Autre établissement scolaire" },
 };
 
-const PRIVE = /priv[ée]|\bprive\b/i;
+// Mots qui indiquent un établissement privé (privé, luthérien, catholique, FJKM, Saint…)
+const PRIVE =
+  /priv[ée]|\bprive\b|luth[ée]rien|cathol|fjkm|jesosy|adventiste|\bsaint\b|\bsainte\b|notre\s+dame|\bfran[çc]ais\b|am[ée]ricain|\bmission\b/i;
 
-// Catégories masquées sur la carte (choisies en cliquant sur la légende)
+// CEG : Collège d'Enseignement Général (public, général)
+const CEG = /\bceg\b|coll[èe]ge\s+d['’]enseignement\s+g[ée]n[ée]ral/i;
+
+// Masquages sur la carte (choisis en cliquant sur la légende)
 const masques = new Set<CategorieEdu>();
 
 const propre = (s: unknown) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim() : "");
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+// Texte simplifié pour comparer : sans accents, minuscules, sans ponctuation
+const norm = (s: string) =>
+  s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
 /* ---------- noms ---------- */
 
@@ -106,11 +115,13 @@ function classer(nom: string, amenite: string): { categorie: CategorieEdu; prive
 }
 
 // Nom du groupe affiché sur la petite carte
-function groupeDe(cat: CategorieEdu, prive: boolean): string {
+function groupeDe(cat: CategorieEdu, prive: boolean, nomComplet: string): string {
   switch (cat) {
     case "universite": return prive ? "Université privée" : "Université";
     case "lycee": return prive ? "Lycée privé" : "Lycée";
-    case "college": return prive ? "Collège privé" : "CEG";
+    case "college":
+      if (prive) return "Collège privé";
+      return CEG.test(nomComplet) ? "CEG" : "Collège";
     case "primaire": return prive ? "École primaire privée" : "École primaire";
     default: return "Autre établissement scolaire";
   }
@@ -130,7 +141,7 @@ function lire(f: any): Ecole | null {
   return {
     nomComplet,
     nomCourt: nomBrut ? nomCourt(nomBrut) : "Établissement scolaire",
-    groupe: groupeDe(categorie, prive),
+    groupe: groupeDe(categorie, prive, nomComplet),
     categorie,
     prive,
     region: propre(p.adm1_name),
@@ -140,6 +151,29 @@ function lire(f: any): Ecole | null {
     lat: c[1],
     lon: c[0],
   };
+}
+
+/* ---------- doublons ---------- */
+
+// Supprime les répétitions de mots consécutives : « ranohira ranohira ville » → « ranohira ville »
+const sansRepetition = (s: string) => {
+  const mots = s.split(" ").filter(Boolean);
+  return mots.filter((m, i) => i === 0 || m !== mots[i - 1]).join(" ");
+};
+
+/**
+ * Un même établissement peut être saisi deux fois (CEG Ranohira Ville et CEG Ranohira Ranohira Ville).
+ * On ne garde qu'une ligne par groupe et par nom, en privilégiant celle qui a un fokontany.
+ */
+export function dedoublonner(liste: Ecole[]): Ecole[] {
+  const vus = new Map<string, Ecole>();
+  for (const e of liste) {
+    const cle = `${e.groupe}|${sansRepetition(norm(e.nomCourt))}`;
+    const deja = vus.get(cle);
+    if (!deja) vus.set(cle, e);
+    else if (!deja.fokontany && e.fokontany) vus.set(cle, e);
+  }
+  return [...vus.values()];
 }
 
 /* ---------- chargement (une seule fois) ---------- */
@@ -163,14 +197,15 @@ export function chargerEducation(): Promise<Ecole[]> {
   return cache;
 }
 
-/** Établissements de la zone choisie (région, district, commune), noms proches acceptés. */
+/** Établissements de la zone choisie (région, district, commune), sans doublons. */
 export function ecolesDansZone(ecoles: Ecole[], zone: Zone): Ecole[] {
-  return ecoles.filter(
+  const dans = ecoles.filter(
     (e) =>
       (!zone.region || correspond(e.region, zone.region)) &&
       (!zone.district || correspond(e.district, zone.district)) &&
       (!zone.commune || correspond(e.commune, zone.commune)),
   );
+  return dedoublonner(dans);
 }
 
 /** Affiche ou masque une catégorie sur la carte (appelé par un clic sur la légende). */
