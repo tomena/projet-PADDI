@@ -146,7 +146,7 @@ function SectionVide({ titre, icone, lignes, note }: { titre: string; icone: Rea
 export default function SanteFormations({ region, district, commune }: Props) {
   const [data, setData] = useState<Donnees | null>(null);
   const [erreur, setErreur] = useState(false);
-  const [loc, setLoc] = useState<Point[]>([]);
+  const [loc, setLoc] = useState<Point[] | null>(null);
 
   useEffect(() => {
     fetch("/data/formations-sante.json")
@@ -178,8 +178,9 @@ export default function SanteFormations({ region, district, commune }: Props) {
     return { hop, csb, educ };
   }, [data, region, district, commune]);
 
-  // Communes des CHU, CHRR, CHRD du district (même quand une commune est choisie)
+  // Communes des CHU, CHRR, CHRD du district (base de localisation)
   const communesHop = useMemo(() => {
+    if (!loc) return [];
     const liste = pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: null })
       .filter((p) => TYPES_HOPITAL.includes(p.type));
     const vus = new Map<string, string>();
@@ -189,6 +190,13 @@ export default function SanteFormations({ region, district, commune }: Props) {
     });
     return [...vus.values()];
   }, [loc, region, district]);
+
+  // Nombre de pharmacies dans la zone choisie (base de localisation)
+  const pharmacies = useMemo(() => {
+    if (!loc) return null;
+    return pointsDansZone(loc, { region: region ?? null, district: district ?? null, commune: commune ?? null })
+      .filter((p) => p.categorie === "pharmacie").length;
+  }, [loc, region, district, commune]);
 
   if (erreur) {
     return (
@@ -244,7 +252,7 @@ export default function SanteFormations({ region, district, commune }: Props) {
     },
     { valeur: csb1, libelle: "Centres de santé CSB1", couleur: COULEUR.CSB1 },
     { valeur: csb2, libelle: "Centres de santé CSB2", couleur: COULEUR.CSB2 },
-    { valeur: blocs, libelle: "Avec bloc opératoire", couleur: COULEUR_EDU.bloc },
+    { valeur: pharmacies, libelle: "Pharmacies", couleur: "#16a34a" },
   ];
 
   const cartesEducation: Carte[] = [
